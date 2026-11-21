@@ -14,6 +14,7 @@ const SRCS = NAMES.map((n) => import.meta.env.BASE_URL + 'music/' + encodeURICom
 // (item 374: drawn again only as its own props change; it was with every redraw of the page, 3.3 a second)
 export const Bgm = memo(function Bgm() {
   const audio = useRef<HTMLAudioElement | null>(null)
+  const start = useRef<(() => void) | null>(null)
   // (the clock's mute silences the music too (the owner's): the speaker's own switch left as it was, it plays again unmuted)
   const bgmOff = useBgmOff(), muted = useSfxMuted()
   const off = bgmOff || muted
@@ -30,16 +31,19 @@ export const Bgm = memo(function Bgm() {
       if (!getBgmOff() && !sfxMuted()) a.play().catch(() => {})
     }
     a.addEventListener('error', next)
-    next()
+    // (the file fetched only once it's first switched on: it begins off, and fetched at once it was 4.8 MB of every page's first load, a
+    // phone's card page too, for music most never turned on)
+    start.current = () => { if (i === 0) next() }
     audio.current = a
-    return () => { a.removeEventListener('error', next); a.pause(); audio.current = null }
+    return () => { a.removeEventListener('error', next); a.pause(); audio.current = null; start.current = null }
   }, [])
   // (switched on by a click on the speaker, which is the touch the browser wants before it lets sound start)
   useEffect(() => {
     const a = audio.current
     if (!a) return
-    if (off) a.pause()
-    else a.play().catch(() => {})
+    if (off) { a.pause(); return }
+    if (!a.src) { start.current?.(); return }
+    a.play().catch(() => {})
   }, [off])
   return null
 })
