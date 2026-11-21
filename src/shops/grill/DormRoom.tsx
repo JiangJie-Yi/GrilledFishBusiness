@@ -1,5 +1,5 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import type { Look, Role } from '@/data/staff'
@@ -12,6 +12,7 @@ import { mergeByMaterial } from '@/scene/StaticBatch'
 import { setTip } from '@/scene/hoverTip'
 import { SIGN_FONT, signTexture } from '@/scene/signFont'
 import { StaffFigure } from '@/scene/StaffFigure'
+import { isFigureHit } from '@/scene/FigureHit'
 import { getClock } from '@/ui/clockStore'
 import { DORM_LIFE } from './bar'
 import { slideDoorSound } from './restroomSound'
@@ -100,6 +101,32 @@ const wardrobeTip = (w: (typeof WARDROBE)[number]) => {
   const l = typeof document === 'undefined' ? 'zh' : document.documentElement.lang
   return l.startsWith('ja') ? { title: w.ja, hint: 'クリック：店主の服を着替える' } : l.startsWith('en') ? { title: w.en, hint: "Click: change the owner's clothes" }
     : { title: w.zh, hint: '點一下：換老闆的衣服' }
+}
+/**
+ * A thing of the room's the pointer can do something with (the stair down, the bath's door, the closet and the chest): pointed at, its tag
+ * and the hand; clicked, `go`. Unless someone's in front of it (what the pointer meets first a person, scene/FigureHit): then it doesn't
+ * answer at all, their own tag stays and a click on them isn't its (item 540, the owner's 「這BUG要記得修掉，它不是老闆」: pointed at the
+ * cook sat before the chest, the tag said the chest's "click: change the owner's clothes", and a click on him opened them; a person's tag
+ * lets what's behind them answer as well, and the chest's, set after, was the one shown)
+ */
+function roomThing(tip: () => Parameters<typeof setTip>[0], go: () => void) {
+  let on = false
+  const behindSomeone = (e: ThreeEvent<PointerEvent> | ThreeEvent<MouseEvent>) => isFigureHit(e.intersections[0]?.object)
+  const point = (e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation()
+    if (getEdit().on) return
+    const mine = !behindSomeone(e)
+    if (mine === on) return
+    on = mine
+    document.body.style.cursor = on ? 'pointer' : ''
+    if (on) setTip(tip())
+  }
+  return {
+    onPointerOver: point,
+    onPointerMove: point,
+    onPointerOut: () => { if (!on) return; on = false; document.body.style.cursor = ''; setTip(null) },
+    onClick: (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); if (getEdit().on || behindSomeone(e)) return; go() },
+  }
 }
 /** a cook's figure here as big as in the shop (measured there: 1.646 of the world) */
 const FIG_SCALE = 1.646 / DORM_SCALE
@@ -443,6 +470,12 @@ export function DormRoom({ crew = [], open = false, fallback, working }: { crew?
     if (pieces.DormTable) pieces.DormTable.visible = !anyone
     if (pieces.DormTableAway) pieces.DormTableAway.visible = anyone
   })
+  // (the room's things the pointer can do something with, made once: each keeps whether it's showing its tag just now (item 540))
+  const things = useMemo(() => ({
+    stair: roomThing(() => ({ title: '樓梯', hint: '點一下下樓，回到店裡' }), () => { setTip(null); askView('down') }),
+    bath: roomThing(() => BATH_TIP(BATH_STATE.open), () => { bathToggle(); setTip(BATH_TIP(BATH_STATE.open)) }),
+    wardrobe: WARDROBE.map((w) => roomThing(() => wardrobeTip(w), () => { setTip(null); window.dispatchEvent(new CustomEvent('jgs-outfit')) })),
+  }), [])
   return (
     <group ref={outer} position={DORM_AT} scale={DORM_SCALE}>
       <primitive object={root} />
@@ -454,17 +487,11 @@ export function DormRoom({ crew = [], open = false, fallback, working }: { crew?
         <planeGeometry args={[ALLEY_AT.w, ALLEY_AT.h]} />
       </mesh>}
       {/* (the stair's well: pointed at, it says where it goes; clicked, down to the shop) */}
-      <mesh position={[STAIR.x, 0.08, STAIR.z]} visible={false}
-        onClick={(e) => { e.stopPropagation(); if (getEdit().on) return; setTip(null); askView('down') }}
-        onPointerOver={(e) => { e.stopPropagation(); if (getEdit().on) return; document.body.style.cursor = 'pointer'; setTip({ title: '樓梯', hint: '點一下下樓，回到店裡' }) }}
-        onPointerOut={() => { document.body.style.cursor = ''; setTip(null) }}>
+      <mesh position={[STAIR.x, 0.08, STAIR.z]} visible={false} {...things.stair}>
         <boxGeometry args={[STAIR.w, 0.16, STAIR.d]} />
       </mesh>
       {/* (the bathroom's door (item 427): pointed at, what's behind it; clicked, slid open or shut) */}
-      <mesh position={[BATH.x, BATH.y, BATH.z + 0.06]} visible={false}
-        onClick={(e) => { e.stopPropagation(); if (getEdit().on) return; bathToggle(); setTip(BATH_TIP(BATH_STATE.open)) }}
-        onPointerOver={(e) => { e.stopPropagation(); if (getEdit().on) return; document.body.style.cursor = 'pointer'; setTip(BATH_TIP(BATH_STATE.open)) }}
-        onPointerOut={() => { document.body.style.cursor = ''; setTip(null) }}>
+      <mesh position={[BATH.x, BATH.y, BATH.z + 0.06]} visible={false} {...things.bath}>
         <boxGeometry args={[BATH.w, BATH.h, 0.04]} />
       </mesh>
       {/* (the bath's half-noren of ゆ over the way in (item 447): its rod on two brackets off the wall, the cloth from it; a click goes
@@ -481,11 +508,8 @@ export function DormRoom({ crew = [], open = false, fallback, working }: { crew?
         <planeGeometry args={[YU.w, YU.l]} />
       </mesh>
       {/* (the closet's doors and the chest: pointed at, named; clicked, the owner's clothes to choose (App's panel, as a click on him opens)) */}
-      {WARDROBE.map((w) => (
-        <mesh key={w.en} position={w.at as unknown as THREE.Vector3Tuple} visible={false}
-          onClick={(e) => { e.stopPropagation(); if (getEdit().on) return; setTip(null); window.dispatchEvent(new CustomEvent('jgs-outfit')) }}
-          onPointerOver={(e) => { e.stopPropagation(); if (getEdit().on) return; document.body.style.cursor = 'pointer'; setTip(wardrobeTip(w)) }}
-          onPointerOut={() => { document.body.style.cursor = ''; setTip(null) }}>
+      {WARDROBE.map((w, i) => (
+        <mesh key={w.en} position={w.at as unknown as THREE.Vector3Tuple} visible={false} {...things.wardrobe[i]}>
           <boxGeometry args={w.size as unknown as THREE.Vector3Tuple} />
         </mesh>
       ))}

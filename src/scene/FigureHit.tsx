@@ -18,6 +18,11 @@ const ALL = new THREE.Box3()
  */
 /** someone being carried just now (GuestBar3D's drag): their glow and the closed hand kept on while the pointer slips off them */
 export const GRABBING = { on: false }
+/** whether it's a person's box (what the pointer meets first, a person: what's behind them is theirs not to answer, DormRoom, item 540) */
+export const isFigureHit = (o: THREE.Object3D | null | undefined) => !!o?.userData.figureHit
+const NO_CAST = () => {}
+/** whether it and everything it hangs from is shown */
+const shownFrom = (o: THREE.Object3D | null) => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true }
 // (item 374: drawn again only when its callbacks are new ones: a customer's are made once for them, GuestBar3D's hitOf)
 export const FigureHit = memo(FigureHitImpl)
 function FigureHitImpl({ title, hint, onPointerDown, grabbable }: { title: () => string; hint?: () => string
@@ -48,7 +53,12 @@ function FigureHitImpl({ title, hint, onPointerDown, grabbable }: { title: () =>
   }, [title, hint, grabbable])
   useFrame(() => {
     const me = box.current, p = me?.parent
-    if (!me || !p || fits.current > 3) return
+    if (!me || !p) return
+    // (a figure not shown (upstairs while at work, gone home) isn't pointed at (item 540): R3F points at hidden meshes too, and its box
+    // took the pointer where nobody was, their name over an empty cushion and nothing behind it answering)
+    const on = shownFrom(p)
+    if (on !== me.userData.on) { me.userData.on = on; me.raycast = on ? THREE.Mesh.prototype.raycast : NO_CAST }
+    if (fits.current > 3) return
     // (its parent's meshes in the parent's own frame, the box itself and the ink apart)
     p.updateWorldMatrix(true, true)
     INV.copy(p.matrixWorld).invert()
@@ -67,5 +77,5 @@ function FigureHitImpl({ title, hint, onPointerDown, grabbable }: { title: () =>
     me.scale.x *= 0.8
     me.scale.z *= 0.8
   })
-  return <mesh ref={box} geometry={BOX} visible={false} {...over} onPointerDown={onPointerDown} />
+  return <mesh ref={box} geometry={BOX} visible={false} userData={{ figureHit: true }} {...over} onPointerDown={onPointerDown} />
 }
