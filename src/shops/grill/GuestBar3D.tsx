@@ -582,6 +582,8 @@ function StockerImpl({ counters, fridges, who }: { counters: Counter[]; fridges:
   const homeAisle = useMemo(() => c1.at.clone().addScaledVector(c1.along, home.clone().sub(c1.at).dot(c1.along) / c1.along.lengthSq()).addScaledVector(c1.lay, -AISLE), [home, c1])
   const st = useRef({ phase: 'idle' as 'idle' | 'take' | 'go' | 'work' | 'back', t: 0, chore: null as StockChore, path: [] as THREE.Vector3[], len: 0, d: 0,
     pos: home.clone(), yaw: 0, check: 0, done: false,
+    /** (a fridge filled from behind, item 535) its hatch let go to close, and he waits by it till it's shut before he turns away */
+    filled: false,
     /** (a bin's bag, item 208) which part of the round he's at (0 to the bins, 1 out to the staff door with it, 2 gone down the stair, 3 back
      * to the bins with a new one), his ways, and what's in his hands */
     leg: 0, ways: null as BinWays | null, bag: null as BinKind | 'new' | null })
@@ -766,10 +768,10 @@ function StockerImpl({ counters, fridges, who }: { counters: Counter[]; fridges:
         s.yaw = Math.atan2(f.at.x - s.pos.x, f.at.z - s.pos.z)
         // (its door open while he fills it: his own mark, as the bar counts those at it afresh each frame (a count added to here was lost to
         // that, and he filled it through the shut glass))
-        FRIDGE_STATE[c.unit].stocker = true
-        // (from behind (item 431): its back doors swung open first, the drinks put in row by row, a while longer, seen through the glass from
-        // the room)
-        if (s.t > (storeWay ? 2.4 : 1.6)) {
+        if (!s.filled) FRIDGE_STATE[c.unit].stocker = true
+        // (from behind (item 431): its back's hatch slid open first (item 535: its back doors before), the drinks put in row by row, a while
+        // longer, seen through the glass from the room)
+        if (s.t > (storeWay ? 2.4 : 1.6) && !s.filled) {
           const run = restockRun(placesOf(c.unit), FRIDGE_UNITS[c.unit].shelves.map((sh) => sh.ids), DRINK_BACK.back, STOCK_CARRY)
           run.rows.forEach((r, i) => { FRIDGE_STOCK.units[c.unit][i] = r; FRIDGE_STOCK.counts[c.unit][i] = run.counts[i] })
           DRINK_BACK.back = run.back
@@ -777,8 +779,10 @@ function StockerImpl({ counters, fridges, who }: { counters: Counter[]; fridges:
           FRIDGE_STOCK.ver++
           bottleClink(false, FRIDGE_AT[c.unit])
           FRIDGE_STATE[c.unit].stocker = false
-          s.phase = 'back'
+          // (its hatch let down and shut before he turns away from it (item 535): he'd walk off with it still coming down before him)
+          s.filled = true
         }
+        if (s.filled && s.t > (storeWay ? 2.4 : 1.6) + (storeWay ? 0.45 : 0)) { s.filled = false; s.phase = 'back' }
       } else if (c.kind === 'roll') {
         // (in, the door shut behind him: the old roll off the holder, a new one on, from the spares in stock; and the towel box and the soap
         // topped up from theirs while he's there)
@@ -6728,7 +6732,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     if (fridges) for (const fr of fridges) {
       FRIDGE_STATE[fr.n].passing = shown.filter((x) => x.wc?.who === 'drink' && (x.wc.unit ?? 0) === fr.n && (x.phase === 'wcIn'
         || ((x.phase === 'wcGo' || x.phase === 'wcBack') && (groups.current.get(x.id)?.position.distanceTo(fr.front) ?? 9) < 0.7))).length
-      // (the stocker fills it from behind now, its back doors open for him (item 431): its front stays shut)
+      // (the stocker fills it from behind now, its back's hatch open for him (items 431, 535): its front stays shut)
       // (a door left open by hand shuts as soon as anyone else has to go by it: the door swings out over the way, so nobody
       // walks through it)
       if (FRIDGE_STATE[fr.n].open && !FRIDGE_STATE[fr.n].passing) {

@@ -435,7 +435,7 @@ const WC_END_T = 0.06
  * The stock room behind the side counter's wall (items 430, 431, the owner's, 2026-11-21: 「這邊挖空並加上掛簾，後面是小儲藏室，倉儲員工專用」,
  * 「飲料可以從冷飲櫃後面直接補」): a doorway with a noren in the wall's stretch past the drinks fridges, where the crates and the cartons stood
  * in front of it (they're in the room now), and behind the wall a long narrow room from there along behind the fridges to the men's toilet's
- * room: the fridges stand set into the wall, their backs in it, filled from there through their back doors, out of the customers' way. Only
+ * room: the fridges stand set into the wall, their backs in it, filled from there through a hatch in their backs, out of the customers' way. Only
  * the stocker goes in. In the side counter's frame: `door` its doorway's clear opening along the wall, `room` the room's two ends along it,
  * `deep` how far its back wall's inside is behind the wall's face (its inside from WALL_OUT to there), `doorH` the doorway's clear height
  */
@@ -479,10 +479,11 @@ export function fridgesOf(cs: Counter[]) {
     // (standing out in front of the wall, its back FRIDGE_GAP off the wall's face (item 515, the owner's 「冷藏櫃陷進去了，請修正」: set into
     // the wall by item 431, its back 21 cm in it, it was sunk in it, and the frieze, the frieze's rail and the beam along the wall's top ran
     // into its top); the wall open behind it (DiningRoom's), so it's still filled from the stock room (item 431): `back` where the stocker
-    // stands to fill it, in the opening's mouth, its back doors swung back into the opening either side of him)
+    // stands to fill it, in the opening's mouth, its back's hatch slid up out of his way (item 535; its back doors before, swung back into
+    // the opening either side of him), 12 cm behind the wall's back (6 before: stood there his hands hung into the fridge's back))
     const mid = farOf(c) + FRIDGE_GAP + FRIDGE.D / 2
     return { n, z, at: at(mid), yaw: Math.atan2(c.lay.x, c.lay.z), front: at(mid + FRIDGE.D / 2 + 0.33).add(side), aisle: at(-aisleOf(c)),
-      back: at(farOf(c) - WALL_OUT - 0.06) }
+      back: at(farOf(c) - WALL_OUT - 0.12) }
   })
 }
 /** how far a fridge's back stands off the wall's face (clear of the rail over the wainscot, DiningRoom's, 4.5 cm proud of the wall; at 1 cm it
@@ -491,8 +492,8 @@ export function fridgesOf(cs: Counter[]) {
 export const FRIDGE_GAP = 0.055
 /** the fridge's size: across, up, deep */
 export const FRIDGE = { W: 0.86, H: 2.17, D: 0.75 }
-/** each fridge's door: how many are at it just now (GuestBar3D), whether the stocker's filling it (its back doors held open for him, from
- * the stock room: item 431; its front door before), and whether the player's opened it (a click) */
+/** each fridge's door: how many are at it just now (GuestBar3D), whether the stocker's filling it (its back's hatch held open for him,
+ * from the stock room: items 431, 535; its front door before), and whether the player's opened it (a click) */
 export const FRIDGE_STATE = [{ passing: 0, stocker: false, open: false }, { passing: 0, stocker: false, open: false }]
 /** the stock room's noren: how many are passing through it just now (the stocker), its cloth swung aside by them */
 export const STORE_STATE = { passing: 0, push: 0 }

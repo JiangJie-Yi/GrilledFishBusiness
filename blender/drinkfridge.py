@@ -15,10 +15,11 @@ plain boxes and planes, about 400 triangles.
   floor's): the plinth under the floor, the liner's faces 4 mm off the walls, the shelves' tags 3 mm off their lips.
 - "FridgeDoorL", "FridgeDoorR": the pair of glass doors (the owner's: two black-framed doors a fridge, a black mullion where they meet): each
   its frame, its pane (FridgeGlass, see-through) and a long silver handle by the middle; the game swings each on its outer edge.
-- "FridgeRearL", "FridgeRearR": its back a pair of doors too (item 431, the owner's, 2026-11-21: 「飲料可以從冷飲櫃後面直接補」: the fridges
-  stand in the wall now, their backs in the stock room behind it, filled from there as a convenience store's are): each half the back, the
-  cabinet's black outside and the lit liner's half inside (the halves' liners overlapping a little at the middle, a millimetre apart, so from
-  the front the back's one lit face, no seam); the game swings each out on its outer edge into the room behind.
+- "FridgeBack", "FridgeHatch": its back, filled from behind (item 431, the owner's, 2026-11-21: 「飲料可以從冷飲櫃後面直接補」: their backs
+  to the stock room, filled from there as a convenience store's are): one fixed piece, the cabinet's black outside and the lit liner inside,
+  and in it a restocking hatch over the two middle shelves (item 535, the owner's 「冷飲櫃後門不能整扇開，會破模型」: the back was a pair of
+  doors, each half of it with its lit liner, swung wide open: the fridge stood open from back to front), the hatch its own piece of the lit
+  face too, trimmed round in steel outside, a pull across its foot; the game slides it out and up behind the back while the stocker fills it.
 - The foot: six louvre slats and a small silver maker's plate (FridgeMetal).
 
 The game's frame, in the room's units: y up, the door's face toward +z, the middle of its foot at the origin; as big as bar.ts's FRIDGE
@@ -306,17 +307,45 @@ for side, (ax, bx) in (("L", (fx0, -0.002)), ("R", (0.002, fx1))):
     ]
     doors.append(join(parts_, f"FridgeDoor{side}"))
 
-# ---- the back: a pair of doors (item 431), each half of it: its black outside (the cabinet's back as it was, from a hair over the floor
-# to under the top) and its half of the lit liner inside (the left's to 3 mm past the middle, the right's from 3 mm before it, a millimetre
-# further back: one lit face from the front, no seam); the picture's halves as the one liner's were
-rears = []
-for side, (ax, bx) in (("L", (x0 + T, -0.0005)), ("R", (0.0005, x1 - T))):
-    la, lb = (ix0, 0.003) if side == "L" else (-0.003, ix1)
-    lz = iz0 + LO + (0.0 if side == "L" else -0.001)
-    u0, u1 = (la - ix0) / (ix1 - ix0), (lb - ix0) / (ix1 - ix0)
-    rears.append(join([box(f"rear{side}", ax, bx, 0.003, H - T, zb, zb + T, "shell"),
-                       quad(f"liner-back{side}", [(la, open_y0, lz), (lb, open_y0, lz), (lb, open_y1, lz), (la, open_y1, lz)], "backlight",
-                            uv=((u0, 0), (u1, 0), (u1, 1), (u0, 1)))], f"FridgeRear{side}"))
+# ---- the back: one piece, its lit liner fixed in it, and a restocking hatch in it (item 535, the owner's, 2026-11-22: 「冷飲櫃後門不能
+# 整扇開，會破模型」: it was a pair of doors (item 431), each half the back with half the lit liner on it, swung wide into the stock room as
+# the stocker filled it: the fridge stood open from back to front, the shop seen right through it from the stock room and the stock room
+# from the shop, the lit halves hanging out like boards). The hatch at the stocker's reach, over the two middle shelves, a shutter the game
+# slides out and up behind the back while he fills it; its piece of the liner with it (a 3 mm seam round it seen from inside); the opening trimmed in steel
+# outside, a pull across the hatch's foot
+HX0, HX1 = -0.34, 0.34      # the hatch's opening across the back (its middle; his two hands and what's in them in it with room either
+                            # side. Hinged at a side it swung into the stocker stood before it, 0.28 a side or 0.34: so it slides up instead)
+HY0, HY1 = 0.66, 1.36       # ...and up it: the shelves at 0.72 and 1.19 in its reach
+HG = 0.003                  # the seam round the hatch in its opening
+lz = iz0 + LO
+
+
+def liner_back(name, xa, xb, ya, yb):
+    """a piece of the lit back's face, its picture's own part of the whole back's (u across, v up the opening)"""
+    ua, ub = (xa - ix0) / (ix1 - ix0), (xb - ix0) / (ix1 - ix0)
+    va, vb = (ya - open_y0) / (open_y1 - open_y0), (yb - open_y0) / (open_y1 - open_y0)
+    return quad(name, [(xa, ya, lz), (xb, ya, lz), (xb, yb, lz), (xa, yb, lz)], "backlight", uv=((ua, va), (ub, va), (ub, vb), (ua, vb)))
+
+
+bx0, bx1, by0, by1 = x0 + T, x1 - T, 0.003, H - T
+TR = 0.012                  # the steel trim's width round the opening, 2 mm proud of the back
+back = [box("back-b", bx0, bx1, by0, HY0, zb, zb + T, "shell"), box("back-t", bx0, bx1, HY1, by1, zb, zb + T, "shell"),
+        box("back-l", bx0, HX0, HY0, HY1, zb, zb + T, "shell"), box("back-r", HX1, bx1, HY0, HY1, zb, zb + T, "shell"),
+        # (the lit face round the opening: the sides' pieces a millimetre into those over and under it (no hairline where they meet; the same
+        # picture there both ways))
+        liner_back("liner-back-b", ix0, ix1, open_y0, HY0), liner_back("liner-back-t", ix0, ix1, HY1, open_y1),
+        liner_back("liner-back-l", ix0, HX0, HY0 - 0.001, HY1 + 0.001), liner_back("liner-back-r", HX1, ix1, HY0 - 0.001, HY1 + 0.001),
+        box("trim-b", HX0 - TR, HX1 + TR, HY0 - TR, HY0, zb - 0.002, zb, "metal"), box("trim-t", HX0 - TR, HX1 + TR, HY1, HY1 + TR, zb - 0.002, zb, "metal"),
+        box("trim-l", HX0 - TR, HX0, HY0, HY1, zb - 0.002, zb, "metal"), box("trim-r", HX1, HX1 + TR, HY0, HY1, zb - 0.002, zb, "metal")]
+fridge_back = join(back, "FridgeBack")
+# (the hatch: its black panel, its piece of the lit face, the pull a hand's width across its foot on two posts, 2.2 cm off it)
+py = HY0 + 0.06
+hatch = join([box("hatch", HX0 + HG, HX1 - HG, HY0 + HG, HY1 - HG, zb, zb + T, "shell"),
+              liner_back("hatch-liner", HX0 + HG, HX1 - HG, HY0 + HG, HY1 - HG),
+              rod("hatch-pull", (-0.09, py, zb - 0.022), (0.09, py, zb - 0.022), 0.008, "metal", segs=8),
+              rod("hatch-post-l", (-0.08, py, zb + 0.001), (-0.08, py, zb - 0.022), 0.005, "metal", segs=6, round_ends=False),
+              rod("hatch-post-r", (0.08, py, zb + 0.001), (0.08, py, zb - 0.022), 0.005, "metal", segs=6, round_ends=False)], "FridgeHatch")
+rears = [fridge_back, hatch]
 
 root = bpy.data.objects.new("DrinkFridge", None)
 bpy.context.collection.objects.link(root)

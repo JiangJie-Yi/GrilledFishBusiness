@@ -3376,8 +3376,27 @@ function storeNorenMat(wide: number) {
 function useNoSun(ref: RefObject<THREE.Object3D | null>) {
   useLayoutEffect(() => { ref.current?.traverse((o) => { if ((o as THREE.Mesh).isMesh && o.receiveShadow) o.receiveShadow = false }) })
 }
-function StoreRoom({ door, room, deep }: { door: [number, number]; room: [number, number]; deep: number; fridges: [number, number][] }) {
+function StoreRoom({ door, room, deep, fridges }: { door: [number, number]; room: [number, number]; deep: number; fridges: [number, number][] }) {
   const h = STORE.doorH, top = h + 0.3
+  // (the fridges' openings framed as the doorway is (item 535, the owner's 「梁柱要留」: from the stock room the wall's hidden, and the fridges
+  // stood in nothing, black boxes with no frame round them): a post at either side of each, a head over them all (its foot 3 mm under the
+  // openings' tops, behind the fridges), each through the wall's thickness out of its back; the posts proud of its face on the shop's side as
+  // the doorway's is, the head flush with it there (behind the plaster over the openings: the frieze over the fridges as it was); the doorway's
+  // post against the first fridge's side is theirs too, carried up to their head)
+  const frame = useMemo(() => {
+    const ops = [...fridges].sort((p, q) => p[0] - q[0])
+    if (!ops.length) return null
+    const headY = FRIDGE.H + 0.012 - 0.003, headTop = FRIDGE.H + 0.012 + STORE_HEAD
+    const posts: [number, number][] = []
+    for (let i = 0; i < ops.length; i++) {
+      // (before the first, unless the doorway's post is there already)
+      if (i === 0 && Math.abs(ops[0][0] - (door[1] + STORE_POST)) > 0.02) posts.push([ops[0][0] - STORE_POST, ops[0][0]])
+      const next = ops[i + 1]
+      posts.push(next ? [(ops[i][1] + next[0]) / 2 - Math.max(STORE_POST, next[0] - ops[i][1]) / 2, (ops[i][1] + next[0]) / 2 + Math.max(STORE_POST, next[0] - ops[i][1]) / 2]
+        : [ops[i][1], ops[i][1] + STORE_POST])
+    }
+    return { posts, headY, headTop, z0: Math.min(ops[0][0], door[1]), z1: ops[ops.length - 1][1] + STORE_POST }
+  }, [fridges, door])
   const [z0, z1] = room
   // (its far end the men's toilet's room's end wall (its outside, 4 mm on), as deep as that room; past it a short wall of its own on to the
   // back)
@@ -3439,9 +3458,20 @@ function StoreRoom({ door, room, deep }: { door: [number, number]; room: [number
             one at the wall's end taken away (item 503, the owner's 「拿掉」): the near end wall gone (item 488), it stood alone at the room's
             corner); the head over the doorway out to the wall's end, the wall over it carrying it; a low sill across its foot, the post's
             place too */}
-        {[door[1] + STORE_POST / 2].map((z) => (
-          <mesh key={z} position={[(WALL_OUT - 0.03) / 2, (h + STORE_HEAD) / 2, z]}><boxGeometry args={[WALL_OUT + 0.03, h + STORE_HEAD, STORE_POST]} /><meshToonMaterial color="#3d2414" /></mesh>
+        {[door[1] + STORE_POST / 2].map((z) => {
+          // (up to the fridges' head as well, when it's their post too (item 535))
+          const tall = frame ? Math.max(h + STORE_HEAD, frame.headTop) : h + STORE_HEAD
+          return <mesh key={z} position={[(WALL_OUT - 0.03) / 2, tall / 2, z]}><boxGeometry args={[WALL_OUT + 0.03, tall, STORE_POST]} /><meshToonMaterial color="#3d2414" /></mesh>
+        })}
+        {/* the fridges' openings' frame (item 535): their posts and their head */}
+        {frame?.posts.map(([a, b]) => (
+          <mesh key={`fp${a}`} position={[(WALL_OUT + 0.004 - 0.03) / 2, frame.headTop / 2, (a + b) / 2]}><boxGeometry args={[WALL_OUT + 0.004 + 0.03, frame.headTop, b - a]} /><meshToonMaterial color="#3d2414" /></mesh>
         ))}
+        {frame && (
+          <mesh position={[(WALL_OUT + 0.004 + 0.002) / 2, (frame.headY + frame.headTop) / 2, (frame.z0 + frame.z1) / 2]}>
+            <boxGeometry args={[WALL_OUT + 0.004 - 0.002, frame.headTop - frame.headY, frame.z1 - frame.z0 - 0.004]} /><meshToonMaterial color="#35200f" />
+          </mesh>
+        )}
         <mesh position={[(WALL_OUT - 0.035) / 2, h + STORE_HEAD / 2, (door[0] + door[1]) / 2]}><boxGeometry args={[WALL_OUT + 0.035, STORE_HEAD, outerW - 0.004]} /><meshToonMaterial color="#35200f" /></mesh>
         <mesh position={[WALL_OUT / 2, 0.006, (door[0] - STORE_POST + door[1]) / 2]}><boxGeometry args={[WALL_OUT + 0.02, 0.012, door[1] - door[0] + STORE_POST]} /><meshToonMaterial color="#4a2e1a" /></mesh>
         {/* the noren's rod on its two brackets off the head's face */}
@@ -6696,17 +6726,22 @@ function useFreezer(n: number) {
       }
       doors.push(pivot)
     }
-    // (and its back's pair (item 431: filled from the stock room behind the wall), each on its outer edge at the back)
+    // (and the restocking hatch in its back (item 535, the owner's 「冷飲櫃後門不能整扇開，會破模型」: the back was a pair of doors, each half
+    // of it with its lit liner, swung wide open: the fridge stood open from back to front): a shutter, slid up behind the back as the stocker
+    // fills it (swung out on a side it stood beside him, his round body 4 cm into it); its place as it rests kept)
     const rears: THREE.Group[] = []
-    for (const side of ['L', 'R'] as const) {
-      const rear = root.getObjectByName(`FridgeRear${side}`)
+    {
+      const hatch = root.getObjectByName('FridgeHatch'), cab = root.getObjectByName('FridgeBody')
       const pivot = new THREE.Group()
-      pivot.name = `fridge-rear-${side}`
-      if (rear) {
-        const box = new THREE.Box3().setFromObject(rear)
-        pivot.position.set(side === 'L' ? box.min.x : box.max.x, 0, box.min.z)
+      pivot.name = 'fridge-hatch'
+      if (hatch && cab) {
+        const box = new THREE.Box3().setFromObject(hatch)
+        pivot.position.set(box.min.x, 0, new THREE.Box3().setFromObject(cab).min.z)
         pivot.updateMatrixWorld(true)
-        pivot.attach(rear)
+        pivot.attach(hatch)
+        pivot.userData.rest = pivot.position.clone()
+        // (how far up it slides: its own height and a hair, in the body's frame)
+        pivot.userData.lift = (box.max.y - box.min.y) * 1.02
       }
       rears.push(pivot)
     }
@@ -6929,8 +6964,9 @@ function DrinkFridgeImpl({ n = 0 }: { n?: number }) {
  * pours out of it in a low white mist.
  */
 export const FridgeDoor = memo(FridgeDoorImpl)
-/** how far a fridge's back doors swing open (item 431): a little short of square, clear of the stock along the room's back wall */
-const REAR_OPEN = Math.PI * 0.47
+/** a fridge's restocking hatch (item 535) open: out from the back this far first (clear of the steel trim round its opening), then slid up its
+ * own height behind the back's upper part (the back doors before it, item 431, swung 85 degrees, the whole back) */
+const HATCH_OUT = 0.045
 const FRIDGE_DOOR_AT = new THREE.Vector3()
 function FridgeDoorImpl({ n = 0 }: { n?: number }) {
   const { W, D } = FRIDGE
@@ -6938,7 +6974,8 @@ function FridgeDoorImpl({ n = 0 }: { n?: number }) {
   const door = doors[0]
   const open = useRef(0)
   const mist = useRef(0)
-  // (its back's pair (item 431): swung out into the stock room while the stocker fills it from there, a little bounce as they stop open)
+  // (its back's hatch (item 535; its back's pair of doors before, item 431): slid out and up behind the back while the stocker fills it from
+  // the stock room, a little bounce as it stops open)
   const rear = useRef({ k: 0, sounded: false })
   // (the door's state lives outside React: leave it shut when the shop's let go, so it doesn't come back open)
   useEffect(() => () => { FRIDGE_STATE[n].open = false; FRIDGE_STATE[n].passing = 0 }, [n])
@@ -6957,21 +6994,27 @@ function FridgeDoorImpl({ n = 0 }: { n?: number }) {
     doors[1].rotation.y = e * (Math.PI / 2)
     home.home(e === 0)
     mist.current = e
-    // (the back's: out on their outer edges, away from the cabinet into the room behind, a hair past square and back; heard from there)
+    // (the back's hatch (item 535): out a little into the room behind, then up its own height, a hair past its stop and back; heard from there)
     const r = rear.current, wantR = FRIDGE_STATE[n].stocker ? 1 : 0
     if (wantR && !r.sounded) { r.sounded = true; coolerDoorSound(true, near() * 0.6) }
     else if (!wantR && r.sounded && r.k < 0.04) { r.sounded = false; coolerDoorSound(false, near() * 0.6) }
     r.k += Math.sign(wantR - r.k) * Math.min(Math.abs(wantR - r.k), Math.min(dt, 0.1) * 2.4)
     const q = r.k, eb = q < 1 ? q * q * (3 - 2 * q) + Math.sin(q * Math.PI) * 0.06 : 1
-    rears[0].rotation.y = eb * REAR_OPEN
-    rears[1].rotation.y = -eb * REAR_OPEN
+    {
+      const h = rears[0], rest = h.userData.rest as THREE.Vector3 | undefined
+      if (rest) {
+        // (out first, the first fifth of it; then up, eased, its bounce at the top as it stops)
+        const o = Math.min(1, eb / 0.2), up = Math.max(0, (eb - 0.2) / 0.8)
+        h.position.set(rest.x, rest.y + up * (h.userData.lift as number), rest.z - o * HATCH_OUT)
+      }
+    }
     rearHome.home(q === 0)
   })
   return (
     <group>
       {/* the model's own door, hung on its pivot (the glass and its frame), swung with the rest of the model's scale */}
       <group onClick={(ev) => { ev.stopPropagation(); if (getEdit().on) return; FRIDGE_STATE[n].open = !FRIDGE_STATE[n].open }} {...tipOver('飲料櫃', '點一下開關門')}><primitive object={doorRoot} /></group>
-      {/* (its back's pair, in the stock room) */}
+      {/* (its back's hatch, in the stock room) */}
       <primitive object={rearRoot} />
       {/* the cold, pouring out over the open door's foot and rolling out over the floor (it was drawn as rising steam: the owner saw it
           was wrong) */}
