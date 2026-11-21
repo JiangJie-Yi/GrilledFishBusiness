@@ -12,18 +12,18 @@ const LOOK_MS = 1200
  * whole by itself: what's taken out is drawn by itself, as before the merge; made again whole only as the editor's shut) */
 const ADD_MIN = 24
 const ADD_MS = 3000
-/** the whole room merged only when asked for (`?world=1` on the page's address) while what's left of it is worked through (item 367: the
- * close views' triangles (the merge isn't culled by piece), the heap, made again as the walls hide for the camera); `?world=0` none of it */
+/** (item 523, the owner's 「先啟用整間合併」) by default the whole room merged, a look at a time, by stretches of the room (CELL 3): the
+ * overview 1,587 draws to 1,119 (the ink lines alone merged, as before, about 1,400), the close views 20 to 30% fewer, their triangles about as
+ * unmerged (one mesh a look for the whole room, `?world=1`, drew fewer still, 888, but two to three times the close views' triangles: the merge
+ * isn't culled by piece), each view's picture the same as unmerged but for what moves (the clock's pendulum, the window's street, the cats'
+ * paws); built, the frame rate the same on this machine (59.5 / 59.6), at x2 in a rush 4% more frames. `?world=ink`: the ink lines alone
+ * (the default from item 374 to 523); `?world=0` none of it; `?world=1` one mesh a look for the whole room */
 const WORLD_ASK = typeof location === 'undefined' ? '0' : new URLSearchParams(location.search).get('world')
-/** (item 374) by itself, only the ink lines merged, by stretches of the room (CELL 3): a fifth of a frame's draws were ink lines, each piece
- * its own, most of them still; merged, the overview 1,484 draws to about 1,350 (the close views 24 to 71 fewer), their triangles as they were
- * (by stretches, a close view still leaves out what's off it), the frame rate the same, each view's picture the same as unmerged within
- * the moving people's own difference (`?world=ink` the same) */
-const INK_ONLY = WORLD_ASK === null || WORLD_ASK === 'ink'
-const OFF = !INK_ONLY && WORLD_ASK !== '1'
+const INK_ONLY = WORLD_ASK === 'ink'
+const OFF = !INK_ONLY && WORLD_ASK !== '1' && WORLD_ASK !== null
 /** the room's merge split by stretches of the room this many units across (x and z), a look's mesh a stretch (`?wcell=<units>`, item 374:
- * tried against a look's one mesh for all the room); 0: not split */
-const CELL = typeof location === 'undefined' ? 0 : Number(new URLSearchParams(location.search).get('wcell')) || (INK_ONLY ? 3 : 0)
+ * tried against a look's one mesh for all the room); 0: not split (only as `?world=1` asks) */
+const CELL = typeof location === 'undefined' ? 0 : Number(new URLSearchParams(location.search).get('wcell')) || (WORLD_ASK === '1' ? 0 : 3)
 const CENTRE = new THREE.Vector3()
 
 /** what of a material's look keyOf doesn't say, that two merged must share */
