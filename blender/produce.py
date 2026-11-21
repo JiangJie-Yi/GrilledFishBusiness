@@ -591,7 +591,32 @@ def skin_picture(name, base, dark, streaks, lined=0.5, n=256):
     return image(name, col)
 
 
-M["onion"] = pbr("ProduceOnion", (1, 1, 1), tex=skin_picture("produce_onion", "#e6bc74", "#c08a48", 12, 0.25), rough=0.55)
+def onion_picture(n=256):
+    """(item 532, the owner's 「洋蔥這怪怪的」: in lin()'s values put into a picture that's read as sRGB, its tan came out twice darkened, a
+    saturated orange marbled in big blotches, balls of bread) an onion's dry skin as it's seen (its colours written as they're meant to look):
+    golden brown, paper thin, fine veins running from its root up to its neck (u round it, v up it), a few torn patches of the outer skin off
+    showing the paler layer under it, browner and darker toward its root and its neck, a little sheen down its shoulders"""
+    u, v = grid01(n)
+    hx = lambda h: np.array([int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)], np.float32)
+    col = mix(hx("#b97a35"), hx("#9e6128"), smooth(0.3, 0.8, fbm(n, 3, 5)))
+    # (its veins: twenty-two round it, wavering a little, each a fine darker line)
+    wob = (fbm(n, 2, 4) - 0.5) * 0.06
+    vein = smooth(0.82, 1.0, np.abs(np.sin((u + wob) * 22 * np.pi)))
+    col = mix(col, hx("#6e4219"), vein * 0.5)
+    # (torn patches of the outer skin: paler, the veins faint in them, a darker edge round each)
+    tear = fbm(n, 4, 3)
+    patch = smooth(0.74, 0.78, tear)
+    col = mix(col, hx("#d9ae6e"), patch * 0.7)
+    col = mix(col, hx("#7a4c22"), np.clip(smooth(0.71, 0.74, tear) - patch, 0, 1) * 0.5)
+    # (darker toward the root and up the neck)
+    ends = np.maximum(smooth(0.2, 0.0, v), smooth(0.78, 1.0, v))
+    col = mix(col, hx("#5e3816"), ends * 0.65)
+    # (a soft sheen down its shoulders)
+    col = col * (1.0 + 0.12 * np.exp(-((v - 0.62) / 0.12) ** 2))[..., None]
+    return image("produce_onion", np.clip(col, 0, 1))
+
+
+M["onion"] = pbr("ProduceOnion", (1, 1, 1), tex=onion_picture(), rough=0.5)
 M["onion_root"] = pbr("ProduceOnionRoot", tuple(lin("#b89a70")), rough=0.9)
 M["carrot"] = pbr("ProduceCarrot", (1, 1, 1), tex=skin_picture("produce_carrot", "#ec7f2c", "#c55a16", 10), rough=0.6)
 M["carrot_leaf"] = pbr("ProduceCarrotLeaf", tuple(lin("#4f8a34")), rough=0.7)
@@ -641,7 +666,8 @@ def onion(name, x, y, z, size, rot=(0.0, 0.0, 0.0)):
     """a yellow onion: a squat ball drawn up into a pointed neck, a flat root end with a short tuft; `size` its radius; 12 round"""
     rnd = __import__("random").Random(name)
     sq = 0.82 + 0.1 * rnd.random()
-    prof = [(0.25, -0.86), (0.62, -0.78), (0.9, -0.5), (1.0, -0.1), (0.94, 0.3), (0.7, 0.62), (0.36, 0.86), (0.12, 1.08), (0.04, 1.3)]
+    # (item 532: its base flatter and its shoulders drawn up into a longer neck, so it reads an onion and not a ball from any side)
+    prof = [(0.3, -0.84), (0.7, -0.74), (0.96, -0.46), (1.0, -0.12), (0.9, 0.26), (0.62, 0.6), (0.3, 0.88), (0.12, 1.14), (0.05, 1.42)]
     o = lathe_veg(name, [(r * size, h * size * sq) for r, h in prof], 12, "onion")
     o.location = P(x, y, z)
     o.rotation_euler = rot
