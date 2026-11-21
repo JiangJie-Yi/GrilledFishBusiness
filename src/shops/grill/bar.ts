@@ -426,8 +426,8 @@ export function toiletsOf(cs: Counter[]) {
   }
   return { door, m: one(-1), f: one(1) }
 }
-/** the side wall's outer face, behind its face (DiningRoom's wall: its slab WALL_T 0.2 thick, 1.2 cm off the plaster): where the drinks
- * fridges' backs are, set into the wall (item 431), and where the stock room behind it begins */
+/** the side wall's outer face, behind its face (DiningRoom's wall: its slab WALL_T 0.2 thick, 1.2 cm off the plaster): where the stock room
+ * behind it begins (and where the drinks fridges' backs were while they were set into the wall, item 431; out of it again, item 515) */
 export const WALL_OUT = 0.212
 /** the men's toilet's room's end wall's thickness (DiningRoom's WC_T): the stock room runs up to its outside */
 const WC_END_T = 0.06
@@ -476,15 +476,18 @@ export function fridgesOf(cs: Counter[]) {
     // no wider than the cabinets), their sides not in one plane)
     const z = z0 - n * (FRIDGE.W + 0.03)
     const at = (lay: number) => c.at.clone().addScaledVector(c.along, z).addScaledVector(c.lay, lay)
-    // (set into the wall (item 431): its back flush with the wall's outside, in the stock room; `back` where the stocker stands behind it to
-    // fill it, its back doors swung open either side of him)
-    const mid = farOf(c) + FRIDGE.D / 2 - WALL_OUT
+    // (standing out in front of the wall, its back FRIDGE_GAP off the wall's face (item 515, the owner's 「冷藏櫃陷進去了，請修正」: set into
+    // the wall by item 431, its back 21 cm in it, it was sunk in it, and the frieze, the frieze's rail and the beam along the wall's top ran
+    // into its top); the wall open behind it (DiningRoom's), so it's still filled from the stock room (item 431): `back` where the stocker
+    // stands to fill it, in the opening's mouth, its back doors swung back into the opening either side of him)
+    const mid = farOf(c) + FRIDGE_GAP + FRIDGE.D / 2
     return { n, z, at: at(mid), yaw: Math.atan2(c.lay.x, c.lay.z), front: at(mid + FRIDGE.D / 2 + 0.33).add(side), aisle: at(-aisleOf(c)),
-      back: at(farOf(c) - WALL_OUT - 0.25) }
+      back: at(farOf(c) - WALL_OUT - 0.06) }
   })
 }
-/** how far a fridge's back stood off the wall's face (clear of the rail over the wainscot, DiningRoom's, 4.5 cm proud of the wall; at 1 cm it
- * ran through the cabinet's back and showed inside, the owner's), and a centimetre more; the fridges stand in the wall now (item 431) */
+/** how far a fridge's back stands off the wall's face (clear of the rail over the wainscot, DiningRoom's, 4.5 cm proud of the wall; at 1 cm it
+ * ran through the cabinet's back and showed inside, the owner's), and a centimetre more; set into the wall a while (item 431), out of it
+ * again (item 515) */
 export const FRIDGE_GAP = 0.055
 /** the fridge's size: across, up, deep */
 export const FRIDGE = { W: 0.86, H: 2.17, D: 0.75 }

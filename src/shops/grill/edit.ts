@@ -380,6 +380,8 @@ const RELAIDS: [string, string[]][] = [
   ['jgs-edit-relaid-40', ['willow']],
   // (the waiting benches brought out from the wall, made their default (item 487, item 462 done at last))
   ['jgs-edit-relaid-41', ['bench', 'bench2']],
+  // (the drinks fridges out of the wall again, in front of its openings (item 515): what was held for them by hand let go)
+  ['jgs-edit-relaid-42', ['drinkfridge0', 'drinkfridge1']],
 ]
 const relaidDue = RELAIDS.filter(([k]) => { try { return !localStorage.getItem(k) } catch { return false } })
 const relaid = !relaidDue.length

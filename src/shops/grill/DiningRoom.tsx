@@ -5602,8 +5602,8 @@ function DiningWallImpl({ c, from, to, far, lampId, lampName, top, door, altar =
       out = [[from, g0, 0], [door - 0.06, door + 0.06, 0], [g1, to, 0], [g0, g1, WC_H + 0.07]]
     }
     if (!store) return out
-    // (the stock room's doorway, its frame's posts in it, and the fridges set into the wall (items 430, 431): through it, the wall over each
-    // from its top up)
+    // (the stock room's doorway, its frame's posts in it, and an opening behind each fridge, the fridge standing in front of it (items 430,
+    // 431: it's filled through it from the stock room; it stood in it a while, item 515): through it, the wall over each from its top up)
     const holes = [[store.door[0] - STORE_POST, store.door[1] + STORE_POST, STORE.doorH + STORE_HEAD], ...store.fridges.map(([a, b]) => [a, b, FRIDGE.H + 0.012])]
     for (const [a, b, top] of holes) {
       out = out.flatMap(([z0, z1, y0]) => (y0 !== 0 || z1 <= a || z0 >= b ? [[z0, z1, y0]] : [[z0, a, 0], [b, z1, 0]].filter(([p, q]) => q - p > 0.001)))
