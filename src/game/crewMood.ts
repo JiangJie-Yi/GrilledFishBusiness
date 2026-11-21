@@ -13,7 +13,9 @@
  * - anger (a cut, a curt word with a colleague, or cold with the owner and pressed hard): the anger mark, steam off the top
  * - shy (praised): blush lines; happy, proud (a raise, the staff meal, a good word with a friend): sparkles, a spring in their step
  * - gloom (worn out): the gloom lines over them, their shoulders down, slower
- * - sweat (the shop hard pressed, or just urged on): sweat flying off them, leaning into it, quicker
+ * - sweat (the shop hard pressed, or just urged on): sweat flying off them, leaning into it, quicker; in bursts (item 510, the owner's
+ *   「有一些突發狀況的時候老闆或員工會一直冷汗直流」: it ran the whole time they were pressed): a burst as it comes on, and after a fright,
+ *   another now and then while it lasts, between them only their hurry
  * - note (getting on well and not pressed): now and then humming, a note over them
  * - a sigh (cold with the owner, not pressed): now and then the gloom lines, a moment
  */
@@ -40,10 +42,13 @@ export type CrewMoodIn = {
   feel?: { face: CrewFeel; until: number }
 }
 
-/** what they carry from one frame to the next: whether they're feeling pressed (and since when the load's been up), their next hum or sigh */
-export type CrewMoodState = { loadSince: number; pressed: boolean; nextAt: number; spellUntil: number; spell: 'none' | 'note' | 'gloom' }
+/** what they carry from one frame to the next: whether they're feeling pressed (and since when the load's been up), their next hum or sigh;
+ * their burst of cold sweat (till when) and when the next one comes while they're still pressed, and whether they were pressed last frame */
+export type CrewMoodState = { loadSince: number; pressed: boolean; nextAt: number; spellUntil: number; spell: 'none' | 'note' | 'gloom'
+  burstUntil: number; nextBurstAt: number; wasPressed: boolean }
 
-export const newCrewMood = (now: number, seed: number): CrewMoodState => ({ loadSince: -1, pressed: false, nextAt: now + spellGap(seed, 0), spellUntil: 0, spell: 'none' })
+export const newCrewMood = (now: number, seed: number): CrewMoodState => ({ loadSince: -1, pressed: false, nextAt: now + spellGap(seed, 0), spellUntil: 0,
+  spell: 'none', burstUntil: 0, nextBurstAt: 0, wasPressed: false })
 
 /** what shows, how strongly (0..1), and their bearing: `slump` (shoulders down, slower), `bounce` (a spring in their step), `hurry` (leaning in,
  * quicker) */
@@ -56,6 +61,11 @@ export type CrewMoodOut = { emote: CrewEmote; level: number; slump: number; boun
 export const PRESS_ON = 0.55
 export const PRESS_OFF = 0.4
 export const PRESS_HOLD = 1500
+/** a burst of cold sweat (ms): as they go pressed or are urged on; and after a fright (a customer's complaint), once the "!" is gone. Pressed
+ * still, the next burst 14 to 24 s on, each their own (item 510) */
+export const SWEAT_MS = 3200
+export const SWEAT_AFTER_ALARM_MS = 2400
+const sweatGap = (seed: number, n: number) => 14000 + 10000 * frac(Math.sin(seed * 39.3468 + n * 11.135) * 24634.6345)
 /** how long a customer's complaint startles them (ms); how long after being urged they hurry (ms) */
 export const ALARM_MS = 1600
 export const URGE_MS = 6000
@@ -84,7 +94,13 @@ export function crewMood(s: CrewMoodState, i: CrewMoodIn, seed: number): CrewMoo
   if (i.load >= PRESS_ON) { if (s.loadSince < 0) s.loadSince = now } else s.loadSince = -1
   if (!s.pressed && s.loadSince >= 0 && now - s.loadSince >= PRESS_HOLD) s.pressed = true
   if (s.pressed && i.load < PRESS_OFF) s.pressed = false
+  // (a burst of cold sweat as the shop goes pressed, and another now and then while it stays so)
+  if (s.pressed && (!s.wasPressed || now >= s.nextBurstAt)) { s.burstUntil = now + SWEAT_MS; s.nextBurstAt = now + SWEAT_MS + sweatGap(seed, now / 1000) }
+  s.wasPressed = s.pressed
   const urged = i.urgedAt !== undefined && now - i.urgedAt < URGE_MS
+  const sinceRush = now - i.rushAt
+  const sweating = (s.pressed && now < s.burstUntil) || (i.urgedAt !== undefined && now - i.urgedAt < SWEAT_MS)
+    || (sinceRush >= ALARM_MS && sinceRush < ALARM_MS + SWEAT_AFTER_ALARM_MS)
   const feel = i.feel && i.feel.until > now ? i.feel : undefined
   const left = feel ? Math.min(1, (feel.until - now) / 1200) : 0
   // (now and then, not pressed and not worn out: a hum (getting on well) or a sigh (cold with the owner))
@@ -105,7 +121,7 @@ export function crewMood(s: CrewMoodState, i: CrewMoodIn, seed: number): CrewMoo
   if (feel?.face === 'shy') return { ...out, emote: 'shy', level: Math.max(0.6, left), bounce: 0.5 }
   if (feel?.face === 'happy' || feel?.face === 'proud') return { ...out, emote: 'sparkle', level: Math.max(0.6, left), bounce: 1 }
   if (i.tired) return { ...out, emote: 'gloom', level: 1 }
-  if (s.pressed || urged) return { ...out, emote: 'sweat', level: s.pressed ? Math.min(1, 0.5 + i.load * 0.5) : 0.6 }
+  if (sweating) return { ...out, emote: 'sweat', level: s.pressed ? Math.min(1, 0.5 + i.load * 0.5) : 0.6 }
   if (s.spell === 'note') return { ...out, emote: 'note', level: 1, bounce: 0.6 }
   if (s.spell === 'gloom') return { ...out, emote: 'gloom', level: 0.5, slump: 0.4 }
   return out

@@ -637,7 +637,9 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
     if (!faceAsked && mood && mood.until > now && face !== 'panic') face = mood.face
     else if (!faceAsked && face === 'idle' && STAFF_TIRED.has(id)) face = 'tired'
     // (and their mood's face over their idle one (item 381): set to it pressed, glad humming, a sigh, cross with it)
-    else if (!faceAsked && face === 'idle' && feeling) face = feeling.emote === 'sweat' ? 'focused' : feeling.emote === 'note' ? 'happy' : feeling.emote === 'gloom' ? 'tired' : feeling.emote === 'anger' ? 'mad' : face
+    else if (!faceAsked && face === 'idle' && feeling) face = feeling.emote === 'sweat' ? 'panic' : feeling.emote === 'note' ? 'happy' : feeling.emote === 'gloom' ? 'tired' : feeling.emote === 'anger' ? 'mad' : face
+    // (a burst of cold sweat at their work too: the panic's face, its beads on the brow, for the burst's few seconds (item 510))
+    else if (!faceAsked && face === 'focused' && feeling?.emote === 'sweat') face = 'panic'
     // (and the face's life over it (game/faceLife): a blink at no fixed beat that closes and opens, a new face through a blink, the mouth in
     // syllables while a word's up, a glance aside now and then while they're free, the eyes first where the head's turning)
     const fl = (life.current ??= newFaceLife(seed * 7.31 + 1, face, t))

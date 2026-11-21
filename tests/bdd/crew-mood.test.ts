@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { ALARM_MS, crewMood, loadOf, newCrewMood, PRESS_HOLD, SPELL_MS, URGE_MS, type CrewMoodIn } from '@/game/crewMood'
+import { ALARM_MS, crewMood, loadOf, newCrewMood, PRESS_HOLD, SPELL_MS, SWEAT_AFTER_ALARM_MS, SWEAT_MS, URGE_MS, type CrewMoodIn } from '@/game/crewMood'
 
 /** one of the staff as the shop stands: an ordinary bond, an ordinary shop, nothing going on */
 const calm = (now: number, more: Partial<CrewMoodIn> = {}): CrewMoodIn => ({ now, tired: false, load: 0, bond: 50, atmos: 50, rushAt: -1e9, ...more })
@@ -23,6 +23,32 @@ feature('員工有自己的情緒，頭上看得出來（第 381 項：「員工
     })
     and('忙碌程度稍微降一點不會馬上停（不會一閃一閃）', () => { expect(crewMood(w.s, calm(PRESS_HOLD + 700, { load: 0.5 }), 3).emote).toBe('sweat') })
     and('降到夠低才鬆一口氣', () => { expect(crewMood(w.s, calm(PRESS_HOLD + 800, { load: 0.3 }), 3).emote).toBe('none') })
+  })
+
+  scenario('一直很忙時，冷汗是一陣一陣的，不會從頭流到尾（第 510 項：「有一些突發狀況的時候老闆或員工會一直冷汗直流」）', ({ given, when, then, and }) => {
+    const w = { s: newCrewMood(0, 3), seen: [] as string[] }
+    given('店裡忙了整整一分鐘，一直沒鬆下來', () => { w.seen = run(w.s, 0, 60000, () => ({ load: 0.8 })) })
+    when('數每一陣冷汗', () => {})
+    then('冒冷汗的時間不到三成', () => { expect(w.seen.filter((e) => e === 'sweat').length / w.seen.length).toBeLessThan(0.3) })
+    and('一分鐘裡冒了好幾陣（剛忙起來一陣，之後隔一段又一陣）', () => {
+      const bursts = w.seen.filter((e, k) => e === 'sweat' && w.seen[k - 1] !== 'sweat').length
+      expect(bursts).toBeGreaterThanOrEqual(3)
+    })
+    and('每一陣只有幾秒', () => {
+      let len = 0, longest = 0
+      for (const e of w.seen) { len = e === 'sweat' ? len + 1 : 0; longest = Math.max(longest, len) }
+      expect(longest * 100).toBeLessThanOrEqual(SWEAT_MS + 100)
+    })
+    and('兩陣之間照樣趕工（身體前傾、走得快）', () => {
+      const k = w.seen.findIndex((e, j) => j > 40 && e === 'none')
+      expect(crewMood(w.s, calm(k * 100, { load: 0.8 }), 3).hurry).toBe(1)
+    })
+  })
+  scenario('突發狀況：客人抱怨的當下先嚇一跳，接著冒一陣冷汗，然後恢復', ({ then, and }) => {
+    const s = newCrewMood(0, 3), at = (t: number) => crewMood(s, calm(t, { rushAt: 10000 }), 3).emote
+    then('先是驚嘆號', () => { expect(at(10000 + ALARM_MS / 2)).toBe('alarm') })
+    and('驚嘆號過了，冒冷汗', () => { expect(at(10000 + ALARM_MS + 300)).toBe('sweat') })
+    and('一下子就收', () => { expect(at(10000 + ALARM_MS + SWEAT_AFTER_ALARM_MS + 100)).toBe('none') })
   })
 
   scenario('沒有客人在等時，店裡不忙', ({ then }) => {
@@ -67,6 +93,11 @@ feature('員工有自己的情緒，頭上看得出來（第 381 項：「員工
     then('剛被催：冒汗、趕工', () => {
       const o = crewMood(newCrewMood(0, 3), calm(1000, { urgedAt: 500 }), 3)
       expect(o.emote).toBe('sweat')
+      expect(o.hurry).toBe(1)
+    })
+    and('冷汗只冒一下，之後照樣趕工', () => {
+      const o = crewMood(newCrewMood(0, 3), calm(500 + SWEAT_MS + 100, { urgedAt: 500 }), 3)
+      expect(o.emote).toBe('none')
       expect(o.hurry).toBe(1)
     })
     and('幾秒後恢復', () => { expect(crewMood(newCrewMood(0, 3), calm(500 + URGE_MS + 10, { urgedAt: 500 }), 3).emote).toBe('none') })

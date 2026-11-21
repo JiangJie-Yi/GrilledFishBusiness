@@ -387,8 +387,9 @@ function paintFace(g: CanvasRenderingContext2D, f: Frame, kind: FaceKind, face: 
   })
   // ---- a mole by the mouth
   if (marks.has('mole')) at(9.6, mouthEl - 3.2, () => { g.fillStyle = '#4a2a20'; g.beginPath(); g.arc(0, 0, 0.85, 0, Math.PI * 2); g.fill() })
-  // ---- a bead of sweat on the brow (focused at its work; two in a panic)
-  if (face === 'focused' || face === 'panic') for (const sd of face === 'panic' ? [-1, 1] : [1]) {
+  // ---- beads of cold sweat on the brow, in a panic only (item 510, the owner's 「有一些突發狀況的時候老闆或員工會一直冷汗直流」: one stood on the
+  // brow of all focused at their work, the owner at his fire all evening)
+  if (face === 'panic') for (const sd of [-1, 1]) {
     at(sd * 31, 19, () => {
       g.beginPath(); g.moveTo(0, -3.4); g.quadraticCurveTo(2.8, 0.8, 0, 2.6); g.quadraticCurveTo(-2.8, 0.8, 0, -3.4)
       g.fillStyle = '#9ad8ff'; g.fill()
