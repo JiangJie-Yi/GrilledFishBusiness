@@ -391,7 +391,9 @@ def culm(name, x, r, y0, h, z, lean, bow, phase, nodes_at, swell, shade):
     uvl = bm_.loops.layers.uv.new("UVMap")
     # (eight round, six lengths up it, and two rings at each node: its ridge and the pinch just above; ~200 triangles a culm (twelve round,
     # eight lengths and three rings a node were ~500; twelve and five before that some 800): the node's line and lip are in its texture)
-    ys = {round(y0 + h * i / 6, 5) for i in range(7)}
+    # (item 533: its ends and its nodes' two rings only, straight between (its six lengths up it as well were half its triangles, a bow
+    # no one saw between nodes a hand apart))
+    ys = {round(y0, 5), round(y0 + h, 5)}
     for n in nodes_at:
         for d in (0.0, 0.009):
             if y0 < n + d < y0 + h:
@@ -442,12 +444,24 @@ def culm(name, x, r, y0, h, z, lean, bow, phase, nodes_at, swell, shade):
         v0, v1 = v_of(ys[i]), v_of(ys[i + 1])
         for j in range(seg):
             j2 = (j + 1) % seg
+            # (item 533: not the two faces at its back, against the counter's body, never seen; their sides' faces left to close it from
+            # an angle)
+            if math.sin(2 * math.pi * (j + 0.5) / seg) > 0.6:
+                continue
             f = bm_.faces.new((grid[i][j], grid[i][j2], grid[i + 1][j2], grid[i + 1][j]))
             for lp, (uu, vv) in zip(f.loops, ((j / seg, v0), ((j + 1) / seg, v0), ((j + 1) / seg, v1), (j / seg, v1))):
                 lp[uvl].uv = (uu, vv)
     bm_.faces.new(list(reversed(grid[0])))
     bm_.faces.new(grid[-1])
-    bmesh.ops.recalc_face_normals(bm_, faces=bm_.faces)
+    # (its normals pointed out from its own axis, faces open at its back: recalc can't tell in from out on an open tube)
+    for f in bm_.faces:
+        f.normal_update()
+        cy_ = f.calc_center_median()
+        if abs(f.normal.z) < 0.9:
+            cx_, cz_ = centre(cy_.z)
+            out_ = Vector((cy_.x - cx_, -cy_.y - cz_, 0.0))
+            if f.normal.x * out_.x + f.normal.y * (-out_.y) < 0:
+                f.normal_flip()
     me_ = bpy.data.meshes.new(name)
     bm_.to_mesh(me_)
     bm_.free()
