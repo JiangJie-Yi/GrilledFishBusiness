@@ -2246,7 +2246,7 @@ def pepper_chunk(x, w, h, R, turn, tilt):
     inside, with the cut edges showing its thickness. The skewer goes straight through the wall (local X)."""
     th = 0.007
     span = w / R / 2
-    nu, nv = 8, 5
+    nu, nv = 5, 3                                      # (8 by 5 before (item 536))
     bm = bmesh.new()
     uvl = bm.loops.layers.uv.new()
 
@@ -2288,6 +2288,7 @@ def pepper_chunk(x, w, h, R, turn, tilt):
     return o
 
 
+@keeps_draws(1150)
 def shishito():
     """Green pepper cut into chunks, threaded on one after another, each a different size and set at its own
     angle on the stick."""
@@ -2311,6 +2312,7 @@ def mochi():
     return parts
 
 
+@keeps_draws(30)
 def eryngii():
     """King oyster mushroom cut lengthwise into thick slabs, the way it's grilled: each slab the mushroom's
     silhouette — a long fat stem swelling a little toward the base, a small flattish cap — its cut face scored in a
@@ -2324,7 +2326,7 @@ def eryngii():
         z0 = -h * 0.55
         outline = [(-w * 0.9, z0), (w * 0.9, z0)]
         outline += [(w * (1.05 - 0.1 * t), z0 + t * h) for t in (0.3, 0.7, 1.0)]
-        outline += [(cw * math.cos(a), z0 + h + ch * math.sin(a)) for a in (math.pi * k / 10 for k in range(11))]
+        outline += [(cw * math.cos(a), z0 + h + ch * math.sin(a)) for a in (math.pi * k / 5 for k in range(6))]
         outline += [(-w * (1.05 - 0.1 * t), z0 + t * h) for t in (1.0, 0.7, 0.3)]
         bm = bmesh.new()
         th = 0.032
@@ -2539,6 +2541,7 @@ def eggplant_rounds():
             for x in (-0.11, 0.0, 0.11)]
 
 
+@keeps_draws(685, 909)
 def pepper_skewer(mats, n, size):
     """Cut squares of a pepper's wall threaded one after another, each its own size and at its own angle; `mats` their outsides in turn
     (green pepper: all green; bell pepper: red and yellow by turns)."""
