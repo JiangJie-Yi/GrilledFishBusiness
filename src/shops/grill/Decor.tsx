@@ -39,6 +39,7 @@ import { canTaste, SAKE_NOTES, sideChance } from '@/game/sakeTasting'
 import { SHOP } from '@/game/shopState'
 import { Tokkuri, TOKKURI_H } from './Tokkuri'
 import { AnchoredLight } from '@/scene/AnchoredLight'
+import { UCHIWA_URL, uchiwaModel } from '@/scene/uchiwa'
 
 type Spot = { at: [number, number]; r: number }
 /** where each one stands (x, z) and how much room it takes */
@@ -98,59 +99,6 @@ const CRATE_LABEL = canvas(128, 256, (g) => {
   ;['紀', '州', '備', '長', '炭'].forEach((ch, i) => brushText(g, ch, 64, 50 + i * 44, 44, { fill: '#1d1a18', shadow: 'rgba(120,90,50,0.25)' }))
   g.fillStyle = '#b8322a'
   g.fillRect(84, 214, 26, 26)
-})
-
-/** the fan's washi: a red sun over blue waves, on cream */
-const FAN_PAPER = canvas(256, 256, (g) => {
-  g.fillStyle = '#f3ead6'
-  g.fillRect(0, 0, 256, 256)
-  g.fillStyle = '#c8402e'
-  g.beginPath()
-  g.arc(150, 96, 46, 0, Math.PI * 2)
-  g.fill()
-  g.strokeStyle = '#2f5d8a'
-  g.lineWidth = 7
-  for (let row = 0; row < 4; row++) {
-    for (let x = -32; x < 300; x += 52) {
-      g.beginPath()
-      g.arc(x + (row % 2) * 26, 170 + row * 24, 24, Math.PI, 0)
-      g.stroke()
-    }
-  }
-  // the bamboo ribs fanning out from the handle, showing through the paper
-  g.strokeStyle = 'rgba(120,90,50,0.25)'
-  g.lineWidth = 2
-  for (let k = 0; k < 24; k++) {
-    const a = (k / 23) * Math.PI
-    g.beginPath()
-    g.moveTo(128, 256)
-    g.lineTo(128 - Math.cos(a) * 200, 256 - Math.sin(a) * 260)
-    g.stroke()
-  }
-})
-
-/** the fan's other side (the owner's: a fan has two sides; from behind it was a dark disc, its outline's back): the same paper, its bamboo ribs
- * plainer through it, the shop's mark (聞 in a red round seal) and a band of indigo waves along its foot */
-const FAN_BACK = canvas(256, 256, (g) => {
-  g.fillStyle = '#f1e7d2'
-  g.fillRect(0, 0, 256, 256)
-  g.strokeStyle = 'rgba(120,90,50,0.38)'
-  g.lineWidth = 2.4
-  for (let k = 0; k < 24; k++) {
-    const a = (k / 23) * Math.PI
-    g.beginPath()
-    g.moveTo(128, 256)
-    g.lineTo(128 - Math.cos(a) * 200, 256 - Math.sin(a) * 260)
-    g.stroke()
-  }
-  g.strokeStyle = '#2f5d8a'
-  g.lineWidth = 5
-  for (let x = -20; x < 290; x += 40) { g.beginPath(); g.arc(x, 212, 20, Math.PI, 0); g.stroke() }
-  g.fillStyle = '#c8402e'
-  g.beginPath(); g.arc(128, 104, 44, 0, Math.PI * 2); g.fill()
-  g.strokeStyle = '#f1e7d2'; g.lineWidth = 3
-  g.beginPath(); g.arc(128, 104, 37, 0, Math.PI * 2); g.stroke()
-  brushText(g, '聞', 128, 106, 50, { fill: '#f6efe2' })
 })
 
 /** water-hyacinth plaiting: pale straw bands, each a row of slanted strands that flips direction from cell to cell */
@@ -284,11 +232,13 @@ function Crate() {
   )
 }
 
-/** A round paper fan (団扇) lying by the seasoning boxes; picked up, it's held upright and swings as it's waved. */
+/** A round paper fan (団扇) lying by the seasoning boxes; picked up, it's held upright and swings as it's waved. The shop's uchiwa (scene/uchiwa,
+ * item 511: its own model, its face the shop's sea bream in a red crest with clouds over a sea of waves, its back a sea of clouds with a shoal
+ * of fish; no 聞 on it now), the same one the owner fans his fire with (not drawn here while it's in his hand). */
 /** the fan stood in its holder (団扇立て, on the seasonings' ledge's left end; the owner's: hung from a hook on a post, it looked odd): handle
  * down, its paper toward the cook (turned up off the table the other way, and round half a turn to face along the table's lay again) */
 const FAN_HUNG = new THREE.Euler(Math.PI / 2, Math.atan2(-LAY.x, -LAY.z) + Math.PI, 0, 'YXZ')
-/** how far above its holder's mouth the stood fan's middle is (the world's units): its handle (0.47 below its middle) 7 cm down in it */
+/** how far above its holder's mouth the stood fan's middle is (the world's units): its handle (0.48 below its middle) 8 cm down in it */
 const FAN_ABOVE_MOUTH = 0.4
 /** scratch for the holder's mouth */
 const MOUTH = new THREE.Vector3()
@@ -348,37 +298,18 @@ function Fan({ held, at }: { held: RefObject<Held>; at: [number, number, number]
       o.rotation.copy(FAN_HUNG)
     }
   })
-  const geo = useMemo(() => {
-    const face = new THREE.CircleGeometry(0.15, 40)
-    face.rotateX(-Math.PI / 2)
-    face.scale(1, 1, 0.92)
-    // (its back: the same shape turned half round about the handle's line, so it faces the other way with its picture the right way round
-    // from that side, the handle's end of it still at the handle (mirrored, its triangles turned inside out and it was never drawn))
-    const back = face.clone().rotateZ(Math.PI)
-    return {
-      face,
-      back,
-      handle: new THREE.CylinderGeometry(0.011, 0.013, 0.17, 8).rotateX(Math.PI / 2),
-      rim: new THREE.TorusGeometry(0.15, 0.006, 6, 48).rotateX(Math.PI / 2).scale(1, 1, 0.92),
-      // (its outline: a fine dark ring round the rim, seen from either side; a disc's back faces pushed out, as other things are inked,
-      // was a dark disc over its whole back)
-      ink: new THREE.TorusGeometry(0.1535, 0.0042, 5, 48).rotateX(Math.PI / 2).scale(1, 1, 0.92),
-    }
-  }, [])
-  useEffect(() => () => { for (const x of Object.values(geo)) x.dispose() }, [geo])
+  // (its shape and its sheet of pictures shared, made once: one mesh, one draw, and its binding's and handle's ink line one more (it was
+  // six: a disc each side, a ring of nearly six hundred triangles for its rim, another for its line, a stick and the stick's line))
+  const gltf = useGLTF(UCHIWA_URL) as unknown as { scene: THREE.Group }
+  const model = useMemo(() => uchiwaModel(gltf.scene), [gltf])
   return (
     // (a proper size for fanning a charcoal fire: about a hand and a half across)
     <group ref={g} userData={{ decor: 'fan' }} scale={1.6}>
-      <mesh geometry={geo.face} position={[0, 0.0048, 0]} castShadow receiveShadow><meshToonMaterial color="#ffffff" map={FAN_PAPER} /></mesh>
-      <mesh geometry={geo.back} position={[0, 0.0032, 0]} receiveShadow><meshToonMaterial color="#ffffff" map={FAN_BACK} /></mesh>
-      <mesh geometry={geo.rim} position={[0, 0.004, 0]}>
-        <meshToonMaterial color="#9a7444" />
-      </mesh>
-      <mesh geometry={geo.ink} position={[0, 0.004, 0]}><meshBasicMaterial color={INK} /></mesh>
-      <Inked geometry={geo.handle} color="#b08a55" grow={1.12} position={[0, 0.012, 0.21]} />
+      <primitive object={model} />
     </group>
   )
 }
+useGLTF.preload(UCHIWA_URL)
 
 
 /** a soft round glow, bright in the middle and fading to nothing, for the light round the lantern */

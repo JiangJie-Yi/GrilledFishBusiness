@@ -21,6 +21,7 @@ import { makeEmote, type Emote } from './crewEmote'
 import { activityOf } from '@/data/staff'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { FigureHit } from './FigureHit'
+import { UCHIWA_URL, uchiwaInHand } from './uchiwa'
 
 /*
  * The staff, made as the boss is (blender/boss.py with CREW=<variant>): an Overcooked cook's big round head on a short plump body rounding
@@ -310,9 +311,13 @@ function heldPieces(): { geo: THREE.BufferGeometry; part: Part }[] {
 
 /** the variant's figure, built once: one material, one mesh moved in parts by its groups, one ink line round its inked pieces; only what
  * the variant ever holds in it (a cook's fan, a server's tray, the stock keeper's clipboard: hidden, they'd still be drawn, as nothing) */
-function build(scene: THREE.Group, v: Variant): Built {
+function build(scene: THREE.Group, v: Variant, fan: THREE.Object3D): Built {
   const holds: Part[] = v === 'chef' || v === 'chefF' ? ['fan'] : v === 'stock' ? ['clip'] : ['tray']
   const s = scene.clone(true)
+  // (a cook's uchiwa the shop's own (item 511): the fan from its holder by the seasonings (scene/uchiwa), its size there, for the little
+  // round of plain paper on a stick boss.py made: that one out of their one mesh, the shop's put on the fan's node once it's made (below);
+  // the rest hold none)
+  for (const c of [...(s.getObjectByName('BossFan')?.children ?? [])]) c.removeFromParent()
   s.updateWorldMatrix(true, true)
   const inv = new THREE.Matrix4().copy(s.matrixWorld).invert()
   // (the eyes' whites and darks flat, unlit; the skin and hair marked, to be each person's own)
@@ -383,6 +388,8 @@ function build(scene: THREE.Group, v: Variant): Built {
   mesh.castShadow = true
   mesh.receiveShadow = true
   if (tints.length) mesh.userData.tints = tints
+  // (the shop's uchiwa on the fan's node: its own mesh, drawn only while it's in hand)
+  if (holds.includes('fan')) { const f = bones[BONES.indexOf('fan')]; f.add(uchiwaInHand(fan)); f.visible = false }
   return { root }
 }
 
@@ -413,8 +420,9 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
   const cook = role === 'chef' || role === 'sous'
   const v = variantOf(role, who.female)
   const gltf = useGLTF(url(v)) as unknown as { scene: THREE.Group }
+  const fan = useGLTF(UCHIWA_URL) as unknown as { scene: THREE.Group }
   const fig = useMemo(() => {
-    if (!made.has(v)) made.set(v, build(gltf.scene, v))
+    if (!made.has(v)) made.set(v, build(gltf.scene, v, fan.scene))
     const base = made.get(v)!
     // (a copy whose one mesh is bound to the copy's own parts)
     const root = cloneFigure(base.root) as THREE.Group
@@ -425,7 +433,7 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
     get('tray')?.scale.setScalar(role === 'server' ? 1 : 0)
     get('clip')?.scale.setScalar(0)
     return { root, body: root, handL: get('handL'), handR: get('handR'), fan: get('fan'), eyes: get('eyes'), clip: get('clip'), tray: get('tray') }
-  }, [gltf, v, own.glasses, role])
+  }, [gltf, fan, v, own.glasses, role])
   // (their skeleton's picture let go as they go)
   useEffect(() => () => releaseFigure(fig.root), [fig])
   // (their own skin and hair: colours over the variant's shape, in a colour attribute of their own, the shape's other attributes shared.
@@ -777,6 +785,7 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
     if (fig.fan && fig.handR) {
       const shown = cook && fanning.current
       fig.fan.scale.setScalar(shown ? 1 : 0)
+      fig.fan.visible = shown
       if (shown) { fig.fan.position.copy(fig.handR.position).add(FAN_OFF); fig.fan.rotation.z = fig.handR.rotation.z }
     }
     // (the stock keeper's clipboard, held up while they stand)
@@ -824,8 +833,9 @@ useGLTF.preload(BROOM_URL)
 export const StaffWarm = memo(function StaffWarm() {
   // (all the outfits in one call, the hook asked once (item 193: one call per outfit in a loop broke the rules of hooks, lint's one error))
   const gltfs = useGLTF(VARIANTS.map(url)) as unknown as { scene: THREE.Group }[]
+  const fan = useGLTF(UCHIWA_URL) as unknown as { scene: THREE.Group }
   const roots = useMemo(() => VARIANTS.map((v, i) => {
-    if (!made.has(v)) made.set(v, build(gltfs[i].scene, v))
+    if (!made.has(v)) made.set(v, build(gltfs[i].scene, v, fan.scene))
     const r = cloneFigure(made.get(v)!.root) as THREE.Group
     warmLater(r)
     return r

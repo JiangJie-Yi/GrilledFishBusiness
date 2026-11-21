@@ -37,6 +37,7 @@ import { faceNow, newFaceLife, type FaceLife } from '@/game/faceLife'
 import { turnEase } from './commuteWalk'
 import { NO_POINTER, zr } from '@/scene/htmlProps'
 import { warmLater } from '@/scene/Prewarm'
+import { UCHIWA_URL, uchiwaInHand } from '@/scene/uchiwa'
 
 /**
  * The owner (blender/boss.py): an Overcooked 2 cook (a big round head on a short plump body rounding off underneath, floating mitten
@@ -311,7 +312,7 @@ if (import.meta.env?.DEV && typeof window !== 'undefined') (window as unknown as
  * that closes as he blinks, his smile and his open mouth, each scaled to nothing while it's not shown), and one ink line round his inked
  * pieces, bending with him.
  */
-function styledBoss(scene: THREE.Group) {
+function styledBoss(scene: THREE.Group, fan: THREE.Object3D) {
   if (!made) {
     const r = scene.clone(true)
     // (what's to be dressed (item 376): his body's picture (the coat's material on his body), his headband's, his towel's meshes)
@@ -341,6 +342,10 @@ function styledBoss(scene: THREE.Group) {
       for (const e of meshes) g.attach(e)
     }
     holder('BossMoustache', /^BossMoustache/)
+    // ---- his uchiwa the shop's own (item 511): the fan from its holder by the seasonings (scene/uchiwa), its size there, for the little
+    // round of plain paper on a stick boss.py gave him (half that size, nothing like the one he'd taken up): that one out of his one mesh,
+    // the shop's put on its node once the mesh is made (below)
+    for (const c of [...(r.getObjectByName('BossFan')?.children ?? [])]) c.removeFromParent()
     // ---- his face's sheet of expressions and his glasses' frames painted, for the atlas to take in
     r.traverse((o) => {
       const mm = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined
@@ -387,6 +392,9 @@ function styledBoss(scene: THREE.Group) {
     for (const p of pieces) p.geo.dispose()
     mesh.castShadow = true
     mesh.receiveShadow = true
+    // (the shop's uchiwa on the node his fan's moved by: its own mesh, drawn only while it's in his hand)
+    const fanNode = r.getObjectByName('BossFan')
+    if (fanNode) { fanNode.add(uchiwaInHand(fan)); fanNode.visible = false }
     // (what's held starts put away)
     for (const n of ['BossTongs', 'BossFan']) r.getObjectByName(n)?.scale.setScalar(0)
     made = r
@@ -396,8 +404,9 @@ function styledBoss(scene: THREE.Group) {
 /** the owner standing still, a copy of him (developer mode's character viewer) */
 export function BossModel({ face = 'idle' }: { face?: CrewFace }) {
   const gltf = useGLTF(URL) as unknown as { scene: THREE.Group }
+  const fan = useGLTF(UCHIWA_URL) as unknown as { scene: THREE.Group }
   const regions = useLoader(THREE.TextureLoader, REGIONS_URL)
-  const obj = useMemo(() => cloneFigure(styledBoss(gltf.scene)), [gltf])
+  const obj = useMemo(() => cloneFigure(styledBoss(gltf.scene, fan.scene)), [gltf, fan])
   // (dressed as chosen: his atlas and his shape are the room's own, shared)
   useLayoutEffect(() => wearing(regions.image as Pic), [obj, regions])
   useEffect(() => () => releaseFigure(obj), [obj])
@@ -486,7 +495,8 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
   // (dressed as chosen (item 376): his clothes' patches of his atlas drawn again as they change, nothing else of him made again, nor drawn
   // again by React)
   const regions = useLoader(THREE.TextureLoader, REGIONS_URL)
-  const root = useMemo(() => styledBoss(gltf.scene), [gltf])
+  const fan = useGLTF(UCHIWA_URL) as unknown as { scene: THREE.Group }
+  const root = useMemo(() => styledBoss(gltf.scene, fan.scene), [gltf, fan])
   useLayoutEffect(() => wearing(regions.image as Pic), [root, regions])
   const mover = useRef<THREE.Group>(null)
   useEffect(() => {
@@ -1089,6 +1099,7 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     OWNER_GRILL.fanning = act === 'fan'
     if (parts.fan) {
       parts.fan.scale.setScalar(act === 'fan' ? 1 : 0)
+      parts.fan.visible = act === 'fan'
       parts.fan.position.copy(hand).add(new THREE.Vector3(0, 0.0, 0.02))
       // (fanned to and fro at the fire, quick)
       parts.fan.rotation.set(-0.5 + Math.sin(T * 13) * 0.55, 0, -0.15)
