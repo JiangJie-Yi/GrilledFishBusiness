@@ -382,6 +382,9 @@ const RELAIDS: [string, string[]][] = [
   ['jgs-edit-relaid-41', ['bench', 'bench2']],
   // (the drinks fridges out of the wall again, in front of its openings (item 515): what was held for them by hand let go)
   ['jgs-edit-relaid-42', ['drinkfridge0', 'drinkfridge1']],
+  // (the vegetables' crates and basket and the omamori where the owner set them, made their defaults (items 524, 525): what was held for
+  // them by hand let go, place, turn and size, as Reset would)
+  ['jgs-edit-relaid-43', ['vegcrate', 'vegcrate2', 'vegbasket', 'till-omamori']],
 ]
 const relaidDue = RELAIDS.filter(([k]) => { try { return !localStorage.getItem(k) } catch { return false } })
 const relaid = !relaidDue.length
@@ -543,7 +546,16 @@ export const BASES: Record<string, V3> = {
   'till-ipad': [-0.5181, 0.15, 0.3774],
   'till-pens': [0.3202, 0.15, -0.43],
   // (on the mat beside the pen cup, as the pens are)
-  'till-omamori': [0.3202, 0.15, -0.43],
+  // (where the owner set it by hand (item 525, the owner's 「御守也是」: X 0.020, Y 0.002, Z 0.106 in its own axes, turned -114: its
+  // baseTurn), taken into its parent's units; 4 mm more along each of x and z: its baseTurn's about its middle as made, the hand's about
+  // its middle as it stood, 1.1 cm apart in the world (measured against the owner's readings put in by hand))
+  'till-omamori': [0.2084, 0.152, -0.4296],
+  // (the two crates of vegetables and the basket where the owner set them by hand (item 524, the owner's 「蔬菜木箱、根箱木箱、蔬菜提籃 皆有做
+  // 變動，然後再Reset」: the crate X -0.140 Z -0.355, the root crate X -0.130 Z -0.186 turned -9, the basket X 0.028 Z -0.252 turned 26, in
+  // their own axes as they were turned), taken into their parent's units; their turns and sizes Decor's VEG_AT)
+  vegcrate: [-0.1915, 0, 0.3301],
+  vegcrate2: [-0.1144, 0, 0.196],
+  vegbasket: [-0.1725, 0, 0.1858],
   'till-printer': [-0.0059, 0.15, -0.008],
   'till-card': [0, 0.15, 0],
   // (the bell moved on by X 0.012 Z -0.031, the printer by X -0.02, in the room's frame)

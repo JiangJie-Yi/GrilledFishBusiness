@@ -432,7 +432,8 @@ const LARDER = ['Potato', 'SweetPotato', 'Onion', ...Object.values(VEG_STOCK).fi
  * VegBasket, a wicker basket with a handle; item 133, the owner's): inked, folded by material; pointed at, what's in it; clicked, the stock
  * opens on the room-temperature tab, as the sacks' does.
  */
-export function VegBasket({ node }: { node: VegNode }) {
+/** `deeper`: the container's sides drawn up that much more than it's drawn across (item 524), what's in it raised with its rim, its own shape */
+export function VegBasket({ node, deeper = 1 }: { node: VegNode; deeper?: number }) {
   const gltf = useGLTF(PRODUCE_URL) as unknown as { scene: THREE.Group }
   const { obj, kinds } = useMemo(() => {
     // (each vegetable its own piece in the model, <node>_<Kind>_<i>, the first at the bottom (blender/produce.py, item 262): kept out of the
@@ -441,6 +442,20 @@ export function VegBasket({ node }: { node: VegNode }) {
     const vegOf = (o: THREE.Object3D) => { for (let q: THREE.Object3D | null = o; q; q = q.parent) { const x = vegRe.exec(q.name); if (x) return { kind: x[1], i: +x[2] } } return null }
     // (a fine ink line: the room's 4 mm round vegetables this small drew a thick black ring round each, a cartoon's blobs (item 153))
     const r = partOf(gltf.scene, node, 0.0015, (o) => !!vegOf(o))
+    // (a crate drawn deeper than it's modelled (item 524, the owner's: 1.11 across, 1.58 up): its own sides drawn up from its foot, and what's in
+    // it raised as much as its rim is, keeping its shape and its place under the rim (drawn up with the crate, the tomatoes were eggs))
+    if (deeper !== 1) {
+      const holds = (c: THREE.Object3D) => { let v = false; c.traverse((q) => { if (vegRe.test(q.name)) v = true }); return v }
+      r.updateMatrixWorld(true)
+      const box = new THREE.Box3()
+      for (const c of r.children) if (!holds(c)) box.expandByObject(c)
+      const rise = box.isEmpty() ? 0 : box.max.y * (deeper - 1)
+      for (const c of r.children) {
+        if (holds(c)) c.position.y += rise
+        else { c.scale.y *= deeper; c.position.y *= deeper }
+      }
+      r.updateMatrixWorld(true)
+    }
     r.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = true })
     // (each kind's pieces by material (a tomato's red and its green calyx), in the vegetables' order: one mesh and one line each, cut to the
     // first so many (countedBatch, as the sacks' potatoes))
@@ -462,7 +477,7 @@ export function VegBasket({ node }: { node: VegNode }) {
       return { stock: VEG_STOCK[kind] ?? null, all, shown: -1, batches: lists.map((l) => ({ at: l.map((x) => x.i), b: countedBatch(r, l.map((x) => x.m)) })) }
     })
     return { obj: r, kinds }
-  }, [gltf, node])
+  }, [gltf, node, deeper])
   useFrame(() => {
     // (none of anything in the larder: the kinds that aren't on the menu go too; no shop running: all of them there)
     const any = LARDER.some((id) => SUPPLIES.has(id) !== 0)

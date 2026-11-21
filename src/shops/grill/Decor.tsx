@@ -823,10 +823,13 @@ function SacksAt() {
 // (item 262, the owner's: 「菜籃要像一點…蔬菜木箱也是，大一點、多一個、品質提升些，然後都要裝不同的蔬菜」 and 「太大了! 然後比例很怪，我的木箱要兩個」:
 // two crates and the basket, made at their real size (metres: a tomato 7 cm, the basket 0.4 across), side by side along the sacks, 6.5 cm
 // apart, their backs 2 cm clear of the loose potatoes on the floor (measured, blender/produce.py))
-const VEG_AT: { id: string, label: string, node: VegNode, x: number, z: number, turn: number }[] = [
-  { id: 'vegcrate', label: '蔬菜木箱', node: 'VegCrate', x: -0.72, z: 0.7, turn: 0.04 },
-  { id: 'vegcrate2', label: '根菜木箱', node: 'VegCrate2', x: -0.1, z: 0.7, turn: -0.04 },
-  { id: 'vegbasket', label: '蔬菜提籃', node: 'VegBasket', x: 0.46, z: 0.72, turn: -0.15 },
+// (item 524, the owner's 「蔬菜木箱、根箱木箱、蔬菜提籃 皆有做變動，然後再Reset，記得內容物也得放大」: the sizes and turns he set them to by hand
+// made theirs (their places edit.ts's BASES): the crates 1.11 across and 1.58 up, their sides drawn up deeper (`deeper`, the rest of the
+// 1.58 over the 1.11) and what's in them 1.11 its own shape, raised with the rim; the root crate turned -9, the basket 1.10 and turned 26)
+const VEG_AT: { id: string, label: string, node: VegNode, x: number, z: number, turn: number, scale?: number, deeper?: number, baseTurn?: [number, number, number] }[] = [
+  { id: 'vegcrate', label: '蔬菜木箱', node: 'VegCrate', x: -0.72, z: 0.7, turn: 0.04, scale: 1.11, deeper: 1.58 / 1.11 },
+  { id: 'vegcrate2', label: '根菜木箱', node: 'VegCrate2', x: -0.1, z: 0.7, turn: -0.04, scale: 1.11, deeper: 1.58 / 1.11, baseTurn: [0, -9, 0] },
+  { id: 'vegbasket', label: '蔬菜提籃', node: 'VegBasket', x: 0.46, z: 0.72, turn: -0.15, scale: 1.1, baseTurn: [0, 26, 0] },
 ]
 function VegAt() {
   const floor = GRILL_OFFSET.y - KITCHEN_DROP
@@ -834,9 +837,9 @@ function VegAt() {
   return <>{VEG_AT.map((v) => (
     // (as made, at their real size (item 262: they were made small and drawn 1.9 times, "too small" at 1.4 beside sacks of a metre; made at
     // their size now, 1.9 times over they were far too big)), placed in metres
-    <Movable key={v.id} id={v.id} label={v.label} baseScale={1} ground={floor}>
+    <Movable key={v.id} id={v.id} label={v.label} baseScale={v.scale ?? 1} baseTurn={v.baseTurn} ground={floor}>
       <group position={[p.x, floor, p.z]} rotation-y={Math.atan2(ALONG.x, ALONG.z)}>
-        <group position={[v.x, 0, v.z]} rotation-y={v.turn}><VegBasket node={v.node} /></group>
+        <group position={[v.x, 0, v.z]} rotation-y={v.turn}><VegBasket node={v.node} deeper={v.deeper} /></group>
       </group>
     </Movable>
   ))}</>
