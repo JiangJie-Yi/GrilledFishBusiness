@@ -266,6 +266,9 @@ def node(name, parts):
 
 
 nodes = []
+# (the printer's FEED and the 發 on the money tree's pot drawn into one picture on a quad each, not kept as letters of mesh (item 530, the
+# owner's 「有能用貼圖取代的就盡量」): 82 and 137 triangles to two each)
+DESK_PRINT = DecalAtlas("TillDeskPrint", ppm=6000, size=(512, 256))
 
 # =====================================================================
 # The pen cup: a glazed stoneware cup (a speckled glaze, a pale band, its rim left bare), the pens stood in it in order: a ring of
@@ -445,7 +448,7 @@ pr.append(slip)
 for k, m_ in enumerate((M["green"], M["amber"], M["slot"])):
     pr.append(cyl(f"PrinterLed{k}", 0.0016, 0.0008, P(PW * 0.3 + k * 0.007, PH - 0.006, PD / 2 - 0.0003), m_, rot=(math.pi / 2, 0, 0), verts=12))
 pr.append(box("PrinterFeed", S(0.016, 0.008, 0.003), P(PW * 0.32, PH - 0.018, PD / 2), M["printerDark"], bev=0.0012))
-pr.append(text("PrinterFeedLabel", "FEED", 0.0035, M["white"], P(PW * 0.32, PH - 0.018, PD / 2 + 0.0016), (math.pi / 2, 0, 0), BOLD))
+pr.append(DESK_PRINT.add(text("PrinterFeedLabel", "FEED", 0.0035, M["white"], P(PW * 0.32, PH - 0.018, PD / 2 + 0.0016), (math.pi / 2, 0, 0), BOLD, res=8)))
 pr.append(box("PrinterLever", S(0.018, 0.006, 0.004), P(-PW * 0.32, PH - 0.006, PD / 2 - 0.001), M["printerDark"], bev=0.0015))
 # (vents down its side, the power switch on the right side)
 for k in range(6):
@@ -937,7 +940,7 @@ for i in range(30):
     mtree.append(finish(pb, f"TreePebble{i}", M[("pebble", "pebble2", "pebble3")[i % 3]]))
 # (a gold band round the pot's shoulder, and 發 in gold on its front)
 mtree.append(cyl("TreePotBand", PR * 0.954 + 0.0008, 0.004, P(0, PH2 - 0.016, 0), M["coinGold"], verts=40, r2=PR * 0.965 + 0.0008))
-mtree.append(text("TreePotChar", "發", 0.034, M["coinGold"], P(0, PH2 * 0.45, PR * 0.895 + 0.0015), (math.pi / 2 - 0.13, 0, 0), HAN_))
+mtree.append(DESK_PRINT.add(text("TreePotChar", "發", 0.034, M["coinGold"], P(0, PH2 * 0.45, PR * 0.895 + 0.0015), (math.pi / 2 - 0.13, 0, 0), HAN_, res=8)))
 
 
 def leaflet(name, at, ang, L, W, droop, mat_):
@@ -1026,6 +1029,7 @@ apply_mods(coin)
 bpy.data.objects.remove(hole_)
 mtree.append(coin)
 nodes.append(node("TillMoneyTree", mtree))
+DESK_PRINT.finish()
 
 # =====================================================================
 # The gold ingot (元寶), as a shop in Japan sets one out: cast in one piece and polished, an oval boat whose rim rolls up high and round at its
