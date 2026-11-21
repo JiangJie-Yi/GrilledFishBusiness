@@ -1097,6 +1097,8 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     }
     // (his uchiwa the one from the holder on the table: that one's not drawn there while it's in his hand (Decor's Fan))
     OWNER_GRILL.fanning = act === 'fan'
+    // (the one in its holder hidden or shown this same frame (item 522: left to its own frame, which comes before his, it was a frame late))
+    if (OWNER_GRILL.stood) OWNER_GRILL.stood.visible = act !== 'fan'
     if (parts.fan) {
       parts.fan.scale.setScalar(act === 'fan' ? 1 : 0)
       parts.fan.visible = act === 'fan'

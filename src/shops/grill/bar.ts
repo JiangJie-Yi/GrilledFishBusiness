@@ -1227,6 +1227,10 @@ export const OWNER_GRILL = keep(import.meta.hot, 'OWNER_GRILL', { on: false, sta
   /** his own uchiwa in his hand just now (Boss): the one in the holder on the table taken up for it, not drawn there meanwhile (item 203: two
    * fans, his out of nothing and the table's still in its holder) */
   fanning: false,
+  /** the fan stood in its holder (Decor's Fan) while it's there, not in the player's hand: shown or hidden by the owner the frame he takes it
+   * up or puts it back (item 522: read in the fan's own frame, before his, it came a frame late: both drawn as he took it, neither as he put
+   * it back) */
+  stood: null as THREE.Object3D | null,
   dabUntil: 0, dab: 'pinch' as 'pinch' | 'brush' | 'spoon',
   /** the cook table's top, in the world (his hands at the fire work at its height: he stands on the kitchen's floor, it at his chest), and
    * where his hands are to be, up and down, while he carries (NaN: his own pose's) */

@@ -258,6 +258,7 @@ function Fan({ held, at }: { held: RefObject<Held>; at: [number, number, number]
     if (!o) return
     const h = held.current
     if (h?.kind === 'fan') {
+      OWNER_GRILL.stood = null
       o.visible = true
       o.position.copy(h.at)
       swing.current += (Math.sin(h.wave * 6) * 0.55 - swing.current) * Math.min(1, dt * 14)
@@ -269,7 +270,9 @@ function Fan({ held, at }: { held: RefObject<Held>; at: [number, number, number]
       // face to the camera's side, handle down, rocking side to side as it fans
       o.rotation.set(1.45 + Math.sin(phase.current) * 0.35 * beat.current, -0.6, swing.current, 'XYZ')
     } else {
-      // (back in its holder; not there while the owner has it in his hand, fanning (Boss, item 203))
+      // (back in its holder; not there while the owner has it in his hand, fanning (Boss, item 203); he shows and hides it himself as he
+      // takes it up and puts it back, the same frame (item 522))
+      OWNER_GRILL.stood = o
       o.visible = !OWNER_GRILL.fanning
       let k = hook.current
       if (!k || !k.mesh.parent) {
