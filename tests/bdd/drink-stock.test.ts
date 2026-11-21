@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
 import {
-  CASE_SIZE, buyCase, caseCost, depthOf, drinkCounts, emptyFillable, emptyFridge, fillFromBack, moveBetween, putInPlace, readDrinks, restockRun,
+  CASE_SIZE, buyCase, caseCost, depthOf, drinkCounts, emptyFillable, emptyFridge, emptyGaps, fillFromBack, moveBetween, putInPlace, readDrinks, restockRun,
   takeFromPlace, writeDrinks, type Back, type Places,
 } from '@/game/drinkStock'
 
@@ -50,6 +50,26 @@ feature('飲料櫃的後場庫存與補貨', () => {
       expect(w.run.back.beerCan).toBe(48 - 2 * B)
       expect(w.run.counts[0].slice(0, 3)).toEqual([B, B, 0])
     })
+  })
+
+  scenario('一趟補不滿時，先把賣光的格子補上，再補沒放滿的（第 541 項）', ({ given, when, then, and }) => {
+    given(`可樂 2 格：第一格還有 1 瓶，第二格賣光；後場很多`, (w) => {
+      w.home = [['cola', 'cola']]
+      w.p = placesFrom([[['cola', 1], null]])
+      w.back = { cola: 99 } as Back
+    })
+    when(`店員一趟只拿 ${C} 瓶`, (w) => { w.run = restockRun(w.p, w.home, w.back, C) })
+    then('賣光的那格先放滿', (w) => { expect(w.run.counts[0][1]).toBe(C); expect(w.run.rows[0][1]).toBe('cola') })
+    and('還有瓶子的那格這趟先不動', (w) => { expect(w.run.counts[0][0]).toBe(1) })
+  })
+
+  scenario('倉儲看得出櫃子有幾格賣光（後場有貨補得上的）（第 541 項）', ({ given, then, and }) => {
+    given('可樂 2 格賣光、後場只剩 1 罐；烏龍茶那格還有 1 瓶', (w) => {
+      w.home = [['cola', 'cola', 'oolong']]
+      w.p = placesFrom([[null, null, ['oolong', 1]]])
+    })
+    then('補得上的賣光格子只有 1 格', (w) => { expect(emptyGaps(w.p, w.home, { cola: 1, oolong: 20 })).toBe(1) })
+    and('後場都沒了就是 0', (w) => { expect(emptyGaps(w.p, w.home, {})).toBe(0) })
   })
 
   scenario('訂一箱飲料要花錢，後場多一箱的量', ({ given, when, then, and }) => {

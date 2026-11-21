@@ -14,6 +14,38 @@ feature('倉儲員工：自己進貨、補貨，走去補飲料、吧台的衛�
     then('第二台缺 5 個', () => { expect(stockerChore({ ...calm, fridgeShort: [1, 5] })).toEqual({ kind: 'drinks', unit: 1 }) })
     but('只缺 2 個：先不跑', () => { expect(stockerChore({ ...calm, fridgeShort: [2, 2] })).toBeNull() })
   })
+  scenario('兩台都缺：先補缺得多的那台，一樣多先補第一台（第 541 項）', ({ then, and }) => {
+    then('第一台缺 6、第二台缺 9：先補第二台', () => { expect(stockerChore({ ...calm, fridgeShort: [6, 9] })).toEqual({ kind: 'drinks', unit: 1 }) })
+    and('第一台缺 9、第二台缺 6：先補第一台', () => { expect(stockerChore({ ...calm, fridgeShort: [9, 6] })).toEqual({ kind: 'drinks', unit: 0 }) })
+    and('一樣多：先補第一台', () => { expect(stockerChore({ ...calm, fridgeShort: [7, 7] })).toEqual({ kind: 'drinks', unit: 0 }) })
+  })
+  scenario('有賣光的格子（後場補得上）的那台最優先：客人整種拿不到，比沒放滿要緊（第 541 項）', ({ then, and }) => {
+    then('第一台缺 20 瓶但只是沒放滿、第二台缺 6 瓶其中 2 格賣光：先補第二台', () => {
+      expect(stockerChore({ ...calm, fridgeShort: [20, 6], fridgeGaps: [0, 2] })).toEqual({ kind: 'drinks', unit: 1 })
+    })
+    and('賣光的格子一樣多：缺得多的先', () => {
+      expect(stockerChore({ ...calm, fridgeShort: [20, 6], fridgeGaps: [1, 1] })).toEqual({ kind: 'drinks', unit: 0 })
+    })
+    and(`賣光的那台後場補不到 ${FRIDGE_SHORT} 瓶：先不跑那台`, () => {
+      expect(stockerChore({ ...calm, fridgeShort: [20, 2], fridgeGaps: [0, 2] })).toEqual({ kind: 'drinks', unit: 0 })
+    })
+  })
+  scenario('新店兩台都空：兩台輪流補，第二台不會因為第一台一直缺就一直輪不到（第 541 項）', ({ given, when, then, and }) => {
+    given('後場補得了：第一台 300 瓶、第二台 270 瓶', (w) => { w.short = [300, 270]; w.trips = [] })
+    when('倉儲一趟補 8 瓶，跑 20 趟', (w) => {
+      for (let i = 0; i < 20; i++) {
+        const c = stockerChore({ ...calm, fridgeShort: w.short })
+        if (c?.kind !== 'drinks') break
+        w.trips.push(c.unit)
+        w.short[c.unit] -= 8
+      }
+    })
+    then('第 5 趟就輪到第二台', (w) => { expect(w.trips.indexOf(1)).toBe(4) })
+    and('20 趟裡兩台各補了 8 趟以上', (w) => {
+      expect(w.trips.filter((u: number) => u === 0).length).toBeGreaterThanOrEqual(8)
+      expect(w.trips.filter((u: number) => u === 1).length).toBeGreaterThanOrEqual(8)
+    })
+  })
   scenario(`吧台座位的衛生紙不到 ${BOX_LOW} 張、沒人坐、有備品：換一盒新的（最空的先）`, ({ then, and, but }) => {
     then('座位 1 剩 10 張、座位 2 剩 20 張：先換座位 1', () => {
       expect(stockerChore({ ...calm, boxes: [200, 10, 20] })).toEqual({ kind: 'tissue', seat: 1 })

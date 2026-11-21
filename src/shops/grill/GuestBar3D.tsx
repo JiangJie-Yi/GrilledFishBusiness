@@ -110,7 +110,7 @@ import { platerFree } from '@/game/kitchenCrew'
 import { plateGoes } from '@/game/tray'
 import { CALM_ASK, FUMING, DRAIN_KINDS, EAT_PHASE, PLATE_FACES, SEATS_SAT, DRAWER_KICK, TISSUE_REACH_MS, seatTurn, GRATING, ONIGIRI_TRAY, HAND_WASH, FIGURES, CARRIED, SOY_DISH_AT, FETCHER, FIRE_TEND, SKEWERS, SEAT_MOVE, SEAT_PULL, STOOL_TUCK, SHOE_CELLS, aisleCornerOf, aisleOf, DRAWER_HELD, SHOP_PURSE, STOCKER_WC, SUPPLIES, CHOPS_UP, FED, BENCH, BENCH_SEATS, BENCH_EACH, BENCH_PLACE, BENCH2_ALONG, TAKEOUT_STAND, STAND_AT, cashierIn, nameOver, gripe, setTissues, tissuesAt, meterWater, OWNER_OUT, OWNER_SPOT, OWNER_YAW, FIRE_SHIFT, KITCHEN_ROUTE, PATH_MAP, type PathRoute, SERVE_COUNTER, PLACE, SICK, SHRINE_FLOWERS, PLATING, READY_SLOTS, PLATE_STACK_ALONG, PLATE_STACK_ACROSS, readyAlong, PLATES_OUT, PLATER_OUT, DRYER, DRAIN, PLATE_COUNT, SINK_BIN, SEAT_STICKS, SEAT_BONES, WC_W, WC_ROOM, RICE, SOUP, SOUP_SEATS, SAKE, SAKE_SEATS, LOW_RACK, takeDrink, KITCHEN_DROP, kitchenOf, kitchenGatesOf, AISLE, FLOOR_FAR, FLOOR_NEAR, PLATES_SET, SINK, PILE, KITCHEN_FOLK, GENKAN, inGenkan, sauceSide, SEATS_TAKEN, SERVICE, BAR_GATES, TILL, TILL_CASH, anyInStock, batchOf, payIn, TILL_STATE, PLATE_RACK, billOf, GUEST_BILLS, DRINKS, yen, payOf, TAKEOUT, takeoutOf, POINTER_HINT, tipOver, TOILETS, WC_GRUMBLE, DRINK_BACK, FRIDGE, FRIDGE_AT, FRIDGE_STATE, isCan, FRIDGE_STOCK, placesOf, FRIDGE_UNITS, drinkFor, farOf, fridgesOf, storeOf, STORE, STORE_STATE, fridgeUnitOf, gateOf, toiletsOf, type DrinkId, platingOf, roomOf, alongPath, doorOf, wayInOf, doorAt, doorOutOf, DOOR_LANE, pathLength, pathTo, seatsOf, singleCounter, type Counter, SPILLS, IRONS, type Spill, genkanY, soapPlate, scrubDose, SAY_SEATED, BOWLS, RICE_SEATS, STAFF_DOOR_HOLD, sakeLeft, ownerAway, ownerFree, ownerBack, DRINK_COMING, KITCHEN } from './bar'
 import { BONES_GEO, HEAD_GEO } from './fishBones'
-import { arrivals, buyCase, caseCost, emptyFillable, orderCase, restockRun } from '@/game/drinkStock'
+import { arrivals, buyCase, caseCost, emptyFillable, emptyGaps, orderCase, restockRun } from '@/game/drinkStock'
 import { tl } from '@/data/i18n'
 import { NO_POINTER, zr } from '@/scene/htmlProps'
 /** where a sound's heard from, worked out in place */
@@ -709,6 +709,8 @@ function StockerImpl({ counters, fridges, who }: { counters: Counter[]; fridges:
         const next = stockerChore({
           rolls: { m: TOILETS.m.room.paper, f: TOILETS.f.room.paper }, wcBusy: { m: busy('m'), f: busy('f') },
           fridgeShort: fridges.map((f) => emptyFillable(placesOf(f.n), FRIDGE_UNITS[f.n].shelves.map((sh) => sh.ids), DRINK_BACK.back)),
+          // (and the drinks gone from each one's shelves: that fridge first (item 541))
+          fridgeGaps: fridges.map((f) => emptyGaps(placesOf(f.n), FRIDGE_UNITS[f.n].shelves.map((sh) => sh.ids), DRINK_BACK.back)),
           boxes: seats.map((_, i) => tissuesAt(i)), seatTaken: (n) => SEATS_TAKEN.has(n), spares: Math.max(0, SUPPLIES.has(TISSUE)),
           // (a roll changed only with a spare in stock; and the washrooms' paper towels and soap topped up from theirs, on the same round)
           rollSpares: Math.max(0, SUPPLIES.has(ROLL)), wcLow: { m: wcLow('m'), f: wcLow('f') },

@@ -101,19 +101,30 @@ export function moveBetween<T extends string>(p: Places<T>, from: [number, numbe
 }
 
 /** one trip of restocking: the places filled with the drink each is meant for (or only `only`'s), each as far as it goes, from the back,
- * as many as one can carry */
+ * as many as one can carry: the empty places first (item 541: a drink gone from the shelf is one nobody can have; a place with some left
+ * still sells), then the rest topped up */
 export function restockRun<T extends string>(places: Places<T>, home: T[][], back: Back, carry: number, only?: T) {
   const p = copyOf(places)
   const left = { ...back }
   let moved = 0
-  for (let r = 0; r < p.rows.length && moved < carry; r++) {
-    for (let k = 0; k < p.rows[r].length && moved < carry; k++) {
-      const want = home[r][k]
-      if (!want || (only && want !== only)) continue
-      while (moved < carry && (left[want] ?? 0) > 0 && putInPlace(p, r, k, want)) { left[want]--; moved++ }
+  for (const gaps of [true, false]) {
+    for (let r = 0; r < p.rows.length && moved < carry; r++) {
+      for (let k = 0; k < p.rows[r].length && moved < carry; k++) {
+        const want = home[r][k]
+        if (!want || (only && want !== only) || (gaps && p.counts[r][k] > 0)) continue
+        while (moved < carry && (left[want] ?? 0) > 0 && putInPlace(p, r, k, want)) { left[want]--; moved++ }
+      }
     }
   }
   return { rows: p.rows, counts: p.counts, back: left, moved }
+}
+
+/** how many of a fridge's places stand empty that the back has their drink for (as far as the back goes): drinks gone from its shelves that
+ * a trip would put back (the stocker's first concern, game/stocker's stockerChore, item 541) */
+export function emptyGaps<T extends string>(p: Places<T>, home: T[][], back: Back) {
+  const gaps: Record<string, number> = {}
+  home.forEach((row, r) => row.forEach((id, k) => { if (id && !p.counts[r][k]) gaps[id] = (gaps[id] ?? 0) + 1 }))
+  return Object.entries(gaps).reduce((n, [id, g]) => n + Math.min(g, back[id] ?? 0), 0)
 }
 
 /** how many drinks the fridges have room for that the back could fill (each kind's room, as far as the back has of it) */
