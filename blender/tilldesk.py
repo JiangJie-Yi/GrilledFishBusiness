@@ -273,59 +273,137 @@ nodes = []
 # =====================================================================
 pc = []
 CR, CH = 0.034, 0.09
-# (turned as one wall: out round the foot, up, over the lip and down to the floor inside; 24 round, its foot and floor closed in ladders (a
-# boolean of two 48-sided cones left both cut into fans))
-cb = bmesh.new()
-NCUP = 24
-CUP_PROFILE = [(CR, 0.0), (CR * 0.96, CH), (CR * 0.96 - 0.0032, CH), (CR - 0.0032, 0.004)]
-cup_rings = [[cb.verts.new(P(r * math.cos(2 * math.pi * k / NCUP), z, r * math.sin(2 * math.pi * k / NCUP))) for k in range(NCUP)]
-             for r, z in CUP_PROFILE]
-for i in range(len(cup_rings) - 1):
-    for k in range(NCUP):
-        k2 = (k + 1) % NCUP
-        cb.faces.new((cup_rings[i][k], cup_rings[i][k2], cup_rings[i + 1][k2], cup_rings[i + 1][k]))
-ladder_fill(cb, cup_rings[0])
-ladder_fill(cb, cup_rings[-1][::-1])
-bmesh.ops.recalc_face_normals(cb, faces=cb.faces)
-cup_me = bpy.data.meshes.new("PenCup")
-cb.to_mesh(cup_me)
-cb.free()
-cup = bpy.data.objects.new("PenCup", cup_me)
-bpy.context.collection.objects.link(cup)
-cup = finish(cup, "PenCup", M["cupGlaze"])
-smooth_angle(cup, 40)
-bpy.ops.object.select_all(action="DESELECT"); cup.select_set(True); bpy.context.view_layer.objects.active = cup
-bpy.ops.object.mode_set(mode="EDIT"); bpy.ops.mesh.select_all(action="SELECT"); bpy.ops.uv.cylinder_project(); bpy.ops.object.mode_set(mode="OBJECT")
-pc.append(cup)
-pc.append(cyl("PenCupRim", CR * 0.96 + 0.0002, 0.003, P(0, CH - 0.0015, 0), M["cupRim"], verts=24))
-pc.append(cyl("PenCupBand", CR * 0.985 + 0.0004, 0.010, P(0, CH * 0.6, 0), M["cupBand"], verts=24))
-pc.append(cyl("PenCupFloor", CR - 0.0035, 0.002, P(0, 0.012, 0), M["cupIn"], verts=24))
 FLOOR = 0.013
-RING = ["#1f3f9c", "#1f9cc8", "#2f8a4a", "#f0e14a", "#ef8a2a", "#c22a24", "#e05a9c", "#7a4ab0", "#16171a", "#d0d4da"]
-LEAN = 0.13
+# (item 526, the owner's 「這箱面數也太高，可以用很簡單的做法，明明是很小的物件」: a 7 cm cup was 2,128 triangles (a 24-sided cup and three
+# 24-sided rings for its rim, band and floor, ten 12-sided pens each with a 12-sided cap and a clip, three 14-sided markers in three pieces
+# each, the scissors' 24-sided rings). Now the few sides a thing this small needs to read as round from a counter away: the cup 8, the
+# pens and markers 4 (turned 45 degrees, a corner to each side), the scissors' rings 6, each a mesh of its own colours by its faces)
+
+
+def lathe_cup():
+    """the cup, turned as one wall: up from the foot in its glaze, the pale band round it, the glaze again, over the bare lip and down the
+    dark inside to its floor; eight round, its foot and floor closed in ladders; its glaze's picture laid round it (u round, v up)"""
+    bm = bmesh.new()
+    uvl = bm.loops.layers.uv.new("UVMap")
+    n = 8
+    # (radius, height, the material of the row from it to the next: 0 glaze, 1 band, 2 rim, 3 inside)
+    prof = [(CR, 0.0, 0), (CR * 0.977, CH * 0.55, 1), (CR * 0.972, CH * 0.66, 0), (CR * 0.96, CH, 2), (CR * 0.96 - 0.0032, CH, 3),
+            (CR - 0.0032, FLOOR - 0.001, None)]
+    rings = [[bm.verts.new(P(r * math.cos(2 * math.pi * k / n + math.pi / n), z, r * math.sin(2 * math.pi * k / n + math.pi / n))) for k in range(n)]
+             for r, z, _ in prof]
+    for i in range(len(rings) - 1):
+        for k in range(n):
+            k2 = (k + 1) % n
+            f = bm.faces.new((rings[i][k], rings[i][k2], rings[i + 1][k2], rings[i + 1][k]))
+            f.material_index = prof[i][2]
+            for lp, (kk, ii) in zip(f.loops, ((k, i), (k + 1, i), (k + 1, i + 1), (k, i + 1))):
+                lp[uvl].uv = (kk / n, min(1.0, prof[ii][1] / CH))
+    for f in ladder_fill(bm, rings[0]):
+        f.material_index = 0
+    for f in ladder_fill(bm, rings[-1][::-1]):
+        f.material_index = 3
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new("PenCup")
+    bm.to_mesh(me)
+    bm.free()
+    o = bpy.data.objects.new("PenCup", me)
+    bpy.context.collection.objects.link(o)
+    for m in (M["cupGlaze"], M["cupBand"], M["cupRim"], M["cupIn"]):
+        o.data.materials.append(m)
+    for p in o.data.polygons:
+        p.use_smooth = False
+    return o
+
+
+def rod(name, base, up, length, r, rows, top, sides=4):
+    """a rod (a pen, a marker) from `base` along `up`, `sides`-sided, a corner to each side: its rows (from, to: fractions of its length;
+    material) and its top closed in `top`; its foot left open (it stands in the cup)"""
+    bm = bmesh.new()
+    base, up = Vector(base), Vector(up).normalized()
+    a0 = Vector((1, 0, 0)) if abs(up.x) < 0.9 else Vector((0, 1, 0))
+    s1 = up.cross(a0).normalized()
+    s2 = up.cross(s1).normalized()
+    cuts = sorted({f for f0, f1, _ in rows for f in (f0, f1)})
+    ring_at = {}
+    for c in cuts:
+        ctr = base + up * (length * c)
+        ring_at[c] = [bm.verts.new(ctr + (s1 * math.cos(2 * math.pi * k / sides + math.pi / sides) + s2 * math.sin(2 * math.pi * k / sides + math.pi / sides)) * r)
+                      for k in range(sides)]
+    mats = []
+    for f0, f1, m in rows:
+        if m not in mats:
+            mats.append(m)
+        lo, hi = ring_at[f0], ring_at[f1]
+        for k in range(sides):
+            k2 = (k + 1) % sides
+            bm.faces.new((lo[k], lo[k2], hi[k2], hi[k])).material_index = mats.index(m)
+    if top not in mats:
+        mats.append(top)
+    for f in ladder_fill(bm, ring_at[cuts[-1]]):
+        f.material_index = mats.index(top)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    o = bpy.data.objects.new(name, me)
+    bpy.context.collection.objects.link(o)
+    for m in mats:
+        o.data.materials.append(m)
+    for p in o.data.polygons:
+        p.use_smooth = False
+    return o
+
+
+def ring6(name, ctr, r_out, r_in, normal, mat_):
+    """a flat six-sided ring (a scissors' handle), both its faces, standing across `normal`"""
+    bm = bmesh.new()
+    ctr, n_ = Vector(ctr), Vector(normal).normalized()
+    a0 = Vector((0, 0, 1)) if abs(n_.z) < 0.9 else Vector((1, 0, 0))
+    s1 = n_.cross(a0).normalized()
+    s2 = n_.cross(s1).normalized()
+    pts = lambda r: [ctr + (s1 * math.cos(2 * math.pi * k / 6) + s2 * math.sin(2 * math.pi * k / 6)) * r for k in range(6)]
+    for off in (0.0012, -0.0012):
+        o_ = [bm.verts.new(p + n_ * off) for p in pts(r_out)]
+        i_ = [bm.verts.new(p + n_ * off) for p in pts(r_in)]
+        for k in range(6):
+            k2 = (k + 1) % 6
+            f = bm.faces.new((o_[k], o_[k2], i_[k2], i_[k]))
+            f.normal_update()
+            if (f.normal.dot(n_) > 0) != (off > 0):
+                f.normal_flip()
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    o = bpy.data.objects.new(name, me)
+    bpy.context.collection.objects.link(o)
+    o.data.materials.append(mat_)
+    for p in o.data.polygons:
+        p.use_smooth = False
+    return o
+
+
+pc.append(lathe_cup())
+# (six ballpoints round the inside, sorted by colour, leaning evenly out; each its colour and a bright or dark tip at its top)
+# (their feet 1.9 cm out from the middle, leaning out 0.05: at the lip, 0.07 at 2.5 cm out as the pens were went through it, the cup's
+# inside 2.7 cm there)
+RING = ["#1f3f9c", "#1f9cc8", "#2f8a4a", "#ef8a2a", "#c22a24", "#7a4ab0"]
+LEAN = 0.05
 for i, col in enumerate(RING):
-    a = 2 * math.pi * i / len(RING)
-    rr = CR - 0.009
-    bx, bz = rr * math.cos(a), rr * math.sin(a)
+    a = 2 * math.pi * i / len(RING) + 0.3
+    rr = CR - 0.015
     L = 0.14 if i % 2 == 0 else 0.132
-    # (leaning straight out from the middle, all by the same angle)
-    rot = (math.sin(a) * LEAN, math.cos(a) * LEAN, 0)
-    body = cyl(f"Pen{i}", 0.0037, L, (bx, -bz, FLOOR + L / 2), mat(f"Pen{i}Col", col, 0.35), rot=rot, verts=12)
-    pc.append(body)
-    up = body.matrix_world.to_3x3() @ Vector((0, 0, 1))
-    tip = Vector((bx, -bz, FLOOR + L / 2)) + up * (L / 2 + 0.0035)
-    pc.append(cyl(f"PenCap{i}", 0.0029, 0.007, tuple(tip), M["chrome"] if i % 3 == 0 else M["ink"], rot=rot, verts=12))
-    # (a clip on each, down the outside)
-    out = Vector((math.cos(a), -math.sin(a), 0))
-    clip = Vector((bx, -bz, FLOOR + L / 2)) + up * (L / 2 - 0.012) + out * 0.0042
-    pc.append(box(f"PenClip{i}", (0.0014, 0.0014, 0.02), tuple(clip), M["chrome"], rot=rot))
-# (the middle: two thick markers, a highlighter, the scissors, upright and side by side)
-for k, (col, dx, dz, L, r) in enumerate((("#16171a", -0.007, -0.006, 0.13, 0.0058), ("#c22a24", 0.007, -0.006, 0.13, 0.0058), ("#f0e14a", 0.0, 0.008, 0.125, 0.0065))):
-    pc.append(cyl(f"Marker{k}", r, L, P(dx, FLOOR + L / 2, dz), mat(f"Marker{k}Col", col, 0.4), verts=14))
-    pc.append(cyl(f"MarkerCap{k}", r * 1.08, 0.022, P(dx, FLOOR + L - 0.011, dz), mat(f"Marker{k}Col", col, 0.4), verts=14))
-    pc.append(cyl(f"MarkerBand{k}", r * 1.1, 0.004, P(dx, FLOOR + L - 0.024, dz), M["white"], verts=14))
+    up = Vector((math.cos(a) * math.sin(LEAN), -math.sin(a) * math.sin(LEAN), math.cos(LEAN)))
+    base = Vector((rr * math.cos(a), -rr * math.sin(a), FLOOR))
+    pc.append(rod(f"Pen{i}", base, up, L, 0.0042, [(0.0, 0.9, mat(f"Pen{i}Col", col, 0.35)), (0.9, 1.0, M["chrome"] if i % 2 == 0 else M["ink"])],
+                  M["ink"]))
+# (the middle: two thick markers and a highlighter upright, each its body and its cap a band's width wider-looking by its colour's own)
+for k, (col, dx, dz, L, r) in enumerate((("#16171a", -0.0075, -0.0065, 0.13, 0.0068), ("#c22a24", 0.0075, -0.0065, 0.13, 0.0068),
+                                        ("#f0e14a", 0.0, 0.0085, 0.125, 0.0075))):
+    mk = mat(f"Marker{k}Col", col, 0.4)
+    pc.append(rod(f"Marker{k}", P(dx, FLOOR, dz), Vector((0, 0, 1)), L, r, [(0.0, 0.78, mk), (0.78, 0.82, M["white"]), (0.82, 1.0, mk)], mk))
+# (the scissors' rings standing up out of it, side by side, and the blades' pivot down between them)
 for k in (-1, 1):
-    pc.append(cyl(f"ScissorRing{k}", 0.008, 0.0035, P(0.0105 * k, FLOOR + 0.142, 0.0), M["scissor"], rot=(0, math.pi / 2, 0), verts=24))
+    pc.append(ring6(f"ScissorRing{k}", P(0.0105 * k, FLOOR + 0.142, 0.0), 0.009, 0.0055, Vector((0, 1, 0)), M["scissor"]))
 pc.append(box("ScissorPivot", (0.003, 0.003, 0.03), P(0.0, FLOOR + 0.125, 0.0), M["steel"]))
 nodes.append(node("TillPens", pc))
 
