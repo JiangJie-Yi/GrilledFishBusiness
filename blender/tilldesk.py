@@ -526,33 +526,163 @@ def on(e, objs):
 
 
 TXT = (0, 0, math.pi)                     # (a text lying flat, reading from the customers' side)
+# (the keypad and the keys under the screen painted, not built (item 530, the owner's 「有能用貼圖取代的就盡量」): each key was a bevelled box of
+# 108 triangles and each figure and its letters a mesh of 50 to 190, some 3,500 triangles for a thing 19 cm long; now each block of keys is
+# one low slab of 12 triangles, its top a picture of the keys (each its rim, its face, a lighter edge toward the customer, a darker one toward
+# the screen, its figure and letters) drawn from the same shapes and the same lettering, both blocks in one picture, one material)
+def _srgb(hexs):
+    return tuple(int(hexs[i:i + 2], 16) / 255 for i in (1, 3, 5))
+
+
+def _rrect(cx, cy, w, h, r, seg=4):
+    """a rounded rectangle (blender x, y) as triangles fanned from its middle (only ever drawn into a picture, never a mesh)"""
+    r = min(r, w / 2, h / 2)
+    pts = []
+    for qx, qy, a0 in ((1, 1, 0.0), (-1, 1, 0.5), (-1, -1, 1.0), (1, -1, 1.5)):
+        ox, oy = cx + qx * (w / 2 - r), cy + qy * (h / 2 - r)
+        for k in range(seg + 1):
+            t = (a0 + 0.5 * k / seg) * math.pi
+            pts.append((ox + r * math.cos(t), oy + r * math.sin(t)))
+    return [((cx, cy), pts[i], pts[(i + 1) % len(pts)]) for i in range(len(pts))]
+
+
+def _text_tris(name, body, size, at, rot, font):
+    """a line of lettering's triangles (blender x, y, as it lies), its object let go"""
+    o = text(name, body, size, M["white"], at, rot, font, res=8)
+    bpy.context.view_layer.update()
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    bmesh.ops.triangulate(bm, faces=bm.faces[:])
+    mw = o.matrix_world
+    tris = [[tuple((mw @ lp.vert.co)[:2]) for lp in f.loops] for f in bm.faces]
+    bm.free()
+    me = o.data
+    bpy.data.objects.remove(o)
+    bpy.data.meshes.remove(me)
+    return tris
+
+
+class KeyPrint:
+    """blocks of keys drawn into one picture: each block (`region`) a rectangle of its panel's plane (blender x, y about the panel's middle),
+    the blocks one above the other in the picture; paint() fills triangles in a colour, in order, over what's there; slab() makes a block's low
+    box, its top (and its sides, the bed's colour at its border) taking the block's part of the picture"""
+
+    def __init__(self, name, ppm=9000, SS=3):
+        self.name, self.ppm, self.SS = name, ppm, SS
+        self.regions = {}
+        self.ops = []
+
+    def region(self, key, x0, y0, x1, y1, bed):
+        self.regions[key] = {"box": (x0, y0, x1, y1), "bed": bed}
+
+    def paint(self, key, tris, rgb):
+        self.ops.append((key, tris, rgb))
+
+    def finish(self):
+        ppm, G, SS = self.ppm, 4, self.SS
+        W = max(math.ceil((r["box"][2] - r["box"][0]) * ppm) for r in self.regions.values()) + 2 * G
+        y = 0
+        for r in self.regions.values():
+            h = math.ceil((r["box"][3] - r["box"][1]) * ppm)
+            r["at"] = (G, y + G, h)
+            y += h + 2 * G
+        H = y
+        C = np.zeros((H, W, 3), np.float32)
+        for r in self.regions.values():
+            gx, gy, h = r["at"]
+            C[max(0, gy - G):gy + h + G, :] = r["bed"]
+        for key, tris, rgb in self.ops:
+            r = self.regions[key]
+            x0, y0 = r["box"][0], r["box"][1]
+            gx, gy, _ = r["at"]
+            k = ppm * SS
+            q_all = [[((sx - x0) * k + gx * SS, (sy - y0) * k + gy * SS) for sx, sy in t] for t in tris]
+            xs = [p[0] for t in q_all for p in t]
+            ys = [p[1] for t in q_all for p in t]
+            bx0, bx1 = int(max(0, min(xs) // SS - 1)), int(min(W, max(xs) // SS + 2))
+            by0, by1 = int(max(0, min(ys) // SS - 1)), int(min(H, max(ys) // SS + 2))
+            if bx1 <= bx0 or by1 <= by0:
+                continue
+            yy, xx = np.mgrid[by0 * SS:by1 * SS, bx0 * SS:bx1 * SS].astype(np.float32) + 0.5
+            m = np.zeros(xx.shape, np.float32)
+            for (ax, ay), (bx, by), (cx, cy) in q_all:
+                d1 = (bx - ax) * (yy - ay) - (by - ay) * (xx - ax)
+                d2 = (cx - bx) * (yy - by) - (cy - by) * (xx - bx)
+                d3 = (ax - cx) * (yy - cy) - (ay - cy) * (xx - cx)
+                inside = ((d1 >= 0) & (d2 >= 0) & (d3 >= 0)) | ((d1 <= 0) & (d2 <= 0) & (d3 <= 0))
+                m = np.maximum(m, inside.astype(np.float32))
+            a = m.reshape(by1 - by0, SS, bx1 - bx0, SS).mean(axis=(1, 3))[..., None]
+            C[by0:by1, bx0:bx1] = C[by0:by1, bx0:bx1] * (1 - a) + np.array(rgb, np.float32) * a
+        self.W, self.H = W, H
+        self.mat = pbr(self.name, (1, 1, 1), tex=image(self.name, C), rough=0.55)
+        print("KEY_PRINT", self.name, W, "x", H)
+        return self.mat
+
+    def slab(self, key, name, lift, height):
+        """the block's low box in its panel's frame (three frame: x across, y up out of it, z along), its uvs from the picture"""
+        r = self.regions[key]
+        x0, y0, x1, y1 = r["box"]
+        gx, gy, h = r["at"]
+        o = box(name, S(x1 - x0, height, y1 - y0), P((x0 + x1) / 2, lift + height / 2, -(y0 + y1) / 2), self.mat)
+        bpy.context.view_layer.update()
+        me = o.data
+        uvl = me.uv_layers.active.data if me.uv_layers else me.uv_layers.new().data
+        mw = o.matrix_world
+        for poly in me.polygons:
+            for li in poly.loop_indices:
+                wx, wy = (mw @ me.vertices[me.loops[li].vertex_index].co)[:2]
+                uvl[li].uv = ((gx + (wx - x0) * self.ppm) / self.W, (gy + (wy - y0) * self.ppm) / self.H)
+        return o
+
+
+KEYS = KeyPrint("ReaderKeyPrint")
+
+
+def _shade(c, f):
+    return tuple(min(1.0, x * f) for x in c)
+
+
+def paint_key(region, cx, cz, w, d, face, r=0.0016):
+    """one key seen from above, in its panel's frame (three x across, z along; blender y is -z): its rim dark, its face, an edge lit toward the
+    customer (-z, the slope's lower side, where the ceiling's light catches a raised key's bevel) and the face a hair toward the screen"""
+    cy = -cz
+    KEYS.paint(region, _rrect(cx, cy, w, d, r), _shade(face, 0.62))
+    KEYS.paint(region, _rrect(cx, cy + 0.0004, w - 0.0012, d - 0.0011, r * 0.8), _shade(face, 1.3))
+    KEYS.paint(region, _rrect(cx, cy - 0.0002, w - 0.0018, d - 0.0018, r * 0.7), face)
+
+
 # (the keypad: the slope from the foot to the screen)
 kp = panel("ReaderKeypad", FZ + 0.012, 0.0)
 cr.append(kp)
+KEYS.region("pad", -0.035, -0.0395, 0.035, 0.0405, _srgb("#222428"))
 rows = [("1", "QZ"), ("2", "ABC"), ("3", "DEF"), ("4", "GHI"), ("5", "JKL"), ("6", "MNO"), ("7", "PRS"), ("8", "TUV"), ("9", "WXY"),
         ("F", ""), ("0", ""), (".", "")]
+WHITE, RUBBER = _srgb("#f2f0ea"), _srgb("#3a3d42")
 for i, (lab, sub) in enumerate(rows):
     kx = (i % 3 - 1) * 0.022
     kz = 0.031 - (i // 3) * 0.0155          # (in the panel's frame: the first row by the screen, down toward the foot)
-    key = box(f"ReaderKey{i}", S(0.017, 0.0035, 0.0105), P(kx, 0.0017, kz), M["keyRubber"], bev=0.0016)
+    paint_key("pad", kx, kz, 0.017, 0.0105, RUBBER)
     # (the figure on the customer's left of the key, its letters small on the right)
-    lab_o = text(f"ReaderKeyLabel{i}", lab, 0.0058, M["white"], P(kx + (0.003 if sub else 0), 0.0036, kz), TXT, BOLD)
-    objs = [key, lab_o]
+    KEYS.paint("pad", _text_tris(f"ReaderKeyLabel{i}", lab, 0.0058, P(kx + (0.003 if sub else 0), 0, kz), TXT, BOLD), WHITE)
     if sub:
-        objs.append(text(f"ReaderKeySub{i}", sub, 0.0024, M["white"], P(kx - 0.0042, 0.0036, kz - 0.0012), TXT, BOLD))
-    on(kp, objs)
+        KEYS.paint("pad", _text_tris(f"ReaderKeySub{i}", sub, 0.0024, P(kx - 0.0042, 0, kz - 0.0012), TXT, BOLD), WHITE)
 # (the red, yellow and green keys across the foot: cancel, correct, enter)
-for k, (m_, lab) in enumerate(((M["red"], "×"), (M["yellow"], "<"), (M["keyGreen"], "O"))):
+for k, hexs in enumerate(("#c8322a", "#e7bf2a", "#2f9a4c")):
     kx = (k - 1) * 0.022
-    on(kp, [box(f"ReaderFn{k}", S(0.018, 0.004, 0.0105), P(-kx, 0.0018, -0.0335), m_, bev=0.0018)])
+    paint_key("pad", -kx, -0.0335, 0.018, 0.0105, _srgb(hexs), r=0.0018)
 # (under the screen: two soft keys at the sides, curved, and the up and down keys between them)
 nav = panel("ReaderNav", 0.004, 0.02)
 cr.append(nav)
+KEYS.region("nav", -0.034, -0.0048, 0.034, 0.0048, _srgb("#383b40"))
+KEY = _srgb("#d6d9de")
 for sx in (-1, 1):
-    on(nav, [box(f"ReaderSoft{sx}", S(0.016, 0.003, 0.007), P(sx * 0.024, 0.0015, 0), M["key"], bev=0.0025)])
+    paint_key("nav", sx * 0.024, 0, 0.016, 0.007, KEY, r=0.0025)
 for k, sym in enumerate(("▲", "▼")):
-    on(nav, [box(f"ReaderArrow{k}", S(0.011, 0.003, 0.007), P((k - 0.5) * 0.013, 0.0015, 0), M["key"], bev=0.0022),
-             text(f"ReaderArrowLabel{k}", sym, 0.004, M["ink"], P((k - 0.5) * 0.013, 0.0031, 0), TXT, JA)])
+    paint_key("nav", (k - 0.5) * 0.013, 0, 0.011, 0.007, KEY, r=0.0022)
+    KEYS.paint("nav", _text_tris(f"ReaderArrowLabel{k}", sym, 0.004, P((k - 0.5) * 0.013, 0, 0), TXT, JA), _srgb("#16171a"))
+KEYS.finish()
+on(kp, [KEYS.slab("pad", "ReaderKeypadFace", 0.0, 0.0022)])
+on(nav, [KEYS.slab("nav", "ReaderNavFace", 0.0, 0.0018)])
 # (the screen: a grey LCD in a glossy black surround, steeper than the keypad, its figures dark)
 sc = panel("ReaderScreenPanel", 0.022, 0.054)
 cr.append(sc)
