@@ -1,9 +1,9 @@
 // A koban (小判), the old oval gold coin, standing in its little lacquered stand between the beckoning cats at the door (the owner's, after
 // a Sketchfab model they pointed to; blender/koban.py, a coin of 48 faces). Its faces are painted here: its raised rim, the hammer's fine
 // lines across them (茣蓙目), the
-// paulownia in its fan-shaped frame stamped at top and foot, 壹両 and 光次 with the mint's mark down the middle, the little stamps on the
-// back; and the same painted again in greys for how high each part stands, made into a normal map, so the stamps stand up and the lines
-// sink in the light. Real gold: it shines with the studio's reflections, as the shrine's metal does.
+// paulownia in its fan-shaped frame stamped at top and foot, 壹両 and 光次 with the mint's mark down the middle, the back plain (its three
+// little stamps taken off: item 517); and the same painted again in greys for how high each part stands, made into a normal map, so the
+// stamps stand up and the lines sink in the light. Real gold: it shines with the studio's reflections, as the shrine's metal does.
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
@@ -99,8 +99,7 @@ function kao(g: CanvasRenderingContext2D, x: number, y: number, r: number, mode:
   g.restore()
 }
 
-/** one face, in its cell from x0: the face inside the rim, its fine lines, and (the front) the stamps and characters, (the back) its
- * little round stamps */
+/** one face, in its cell from x0: the face inside the rim, its fine lines, and (the front) the stamps and characters */
 function face(g: CanvasRenderingContext2D, x0: number, back: boolean, mode: Mode) {
   const { w, h } = CELL
   const cx = x0 + w / 2, cy = h / 2
@@ -146,25 +145,13 @@ function face(g: CanvasRenderingContext2D, x0: number, back: boolean, mode: Mode
     g.stroke()
   }
   g.restore()
+  // (the back plain: its rim and the hammer's lines only (item 517, the owner's 「背後小圈圈拿掉」: the three little round stamps it had)
   if (!back) {
     kiri(g, cx, h * 0.13, w * 0.24, mode)
     kiri(g, cx, h * 0.79, w * 0.24, mode)
     stamp(g, '壹両', cx, h * 0.3, w * 0.25, mode)
     stamp(g, '光次', cx, h * 0.53, w * 0.2, mode)
     kao(g, cx, h * 0.7, w * 0.12, mode)
-  } else {
-    // (the back: three little round stamps, a ring with a mark in it)
-    for (const [fx, fy] of [[0.5, 0.33], [0.38, 0.55], [0.62, 0.7]]) {
-      g.beginPath()
-      g.arc(x0 + w * fx, h * fy, w * 0.07, 0, Math.PI * 2)
-      g.lineWidth = w * 0.018
-      g.strokeStyle = mode === 'height' ? '#ffffff' : '#8c5e18'
-      g.stroke()
-      g.beginPath()
-      g.arc(x0 + w * fx, h * fy, w * 0.025, 0, Math.PI * 2)
-      g.fillStyle = mode === 'height' ? '#ffffff' : '#f2cf6c'
-      g.fill()
-    }
   }
   g.restore()
 }
