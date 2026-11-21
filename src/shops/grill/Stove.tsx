@@ -25,7 +25,9 @@ const FOOD_URL = import.meta.env.BASE_URL + 'models/stovefood.glb'
 useGLTF.preload(FOOD_URL)
 
 /** where it stands on the counter (Decor's frame: along the counter (LAY), across it (ALONG)), how big (its model's metres to the bar's
- * units; a little under the cooker's 1.45: the counter's room between the cooker's rice bowl and the rice-ball things is 0.32) */
+ * units; a little under the cooker's 1.45: the counter's room between the cooker's rice bowl and the rice-ball things is 0.32); let into
+ * the counter since item 513 (the owner's 「瓦斯爐與油炸的爐是鑲嵌在料理臺的」): its body down a hole in the top, cut by these numbers
+ * (blender/warmer.py's STOVE_HOLE), its top plate 1.2 cm over the counter (blender/gasstove.py's SINK) */
 export const STOVE_AT = { along: 4.435, lay: -0.0835 }
 export const STOVE_SCALE = 0.95
 /** the counter's top (blender/warmer.py's H, as the cooker stands on it), and the kitchen's floor under it */
@@ -213,7 +215,8 @@ export const GasStove = memo(function GasStove() {
 const FRYER_URL = import.meta.env.BASE_URL + 'models/fryer.glb'
 useGLTF.preload(FRYER_URL)
 /** where it stands: the fryer's middle, on the counter 4 cm right of the stove's right side (the stove 0.34 across at its 0.95, the fryer
- * 0.3 at its 1.1), its draining tray past it to its right; 4 cm forward of the counter's middle (item 494) */
+ * 0.3 at its 1.1), its draining tray past it to its right; 4 cm forward of the counter's middle (item 494); let into the counter there,
+ * its body down a hole in the top (item 513: blender/fryer.py's SINK, blender/warmer.py's FRYER_HOLE, which is cut by these numbers) */
 export const FRYER_AT = { along: 4.26, lay: STOVE_AT.lay + 0.17 * STOVE_SCALE + 0.04 + 0.15 * 1.1 }
 export const FRYER_SCALE = 1.1
 /** how far the basket's let down into the oil when it's frying (its model's metres) */
@@ -275,7 +278,8 @@ export const Fryer = memo(function Fryer() {
   return (
     <group position={[at.x, TOP, at.z]} rotation-y={Math.atan2(-ALONG.x, -ALONG.z)} scale={FRYER_SCALE}>
       <primitive object={parts.r} />
-      <mesh visible={false} position={[0.13, 0.1, 0]} {...FRYER_SAYS}><boxGeometry args={[0.66, 0.3, 0.44]} /></mesh>
+      {/* (what shows of it over the counter since it's let in (item 513): its rim, its control panel, the basket's handle, the rack) */}
+      <mesh visible={false} position={[0.13, 0.05, 0]} {...FRYER_SAYS}><boxGeometry args={[0.66, 0.14, 0.44]} /></mesh>
     </group>
   )
 })

@@ -45,6 +45,13 @@ WELL_X, WELL_R = 0.0, 0.4
 # rice-ball counter's right, one top across both; the rice-ball counter's origin PREP_DX along it from the warmer's (Decor's PREP_AT), its
 # model only what stands on it)
 PREP_DX = WARMER_L / 2 + 0.02 + 0.002 + 0.02 + PREP_L / 2
+# (the holes the stove and the fryer are let into (item 513, the owner's 「瓦斯爐與油炸的爐是鑲嵌在料理臺的」), in the joined counter's frame (x
+# along from the warmer's middle, z toward the cook): each the machine's body as it stands (Stove.tsx's STOVE_AT and STOVE_SCALE, FRYER_AT
+# and FRYER_SCALE, in the rice-ball counter's frame at Decor's PREP_AT: the stove's middle at x -0.8885, z -0.135, its body 0.34 x 0.28 at
+# 0.95; the fryer's at x -0.522, z 0.04, 0.30 x 0.36 at 1.1), 2 mm clear of it all round; through the top and the cupboards' ceiling under
+# it (the fryer's tank hangs down into the middle cupboard, over what's on its shelf)
+STOVE_HOLE = ((2.242 - 0.8885 - 0.1635, 2.242 - 0.8885 + 0.1635), (-0.135 - 0.135, -0.135 + 0.135))
+FRYER_HOLE = ((2.242 - 0.522 - 0.167, 2.242 - 0.522 + 0.167), (0.04 - 0.2, 0.04 + 0.2))
 # (to the right: the cooker stands at its left end now, by the miso pot (the owner's, 2026-11-11))
 # (and further right since item 494 (the owner's 「做飯糰的區域減少至二分之一」, an arrow from the fryer over to beside the stove): the fryer
 # on the counter by the stove where the garnishes and the hand-water bowl were, the rice balls' things in half their room after it (from
@@ -266,6 +273,23 @@ def join(objs, name):
     return o
 
 
+def hole(o, xs, zs, y0, y1):
+    """o less the box over xs, zs (the game's x, z) from y0 to y1: a hole cut through it (item 513)"""
+    bpy.ops.mesh.primitive_cube_add(size=1, location=P((xs[0] + xs[1]) / 2, (y0 + y1) / 2, (zs[0] + zs[1]) / 2))
+    c = bpy.context.active_object
+    c.scale = (xs[1] - xs[0], zs[1] - zs[0], y1 - y0)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    m = o.modifiers.new("hole", "BOOLEAN")
+    m.operation = "DIFFERENCE"
+    m.object = c
+    m.solver = "EXACT"
+    bpy.ops.object.select_all(action="DESELECT")
+    o.select_set(True)
+    bpy.context.view_layer.objects.active = o
+    bpy.ops.object.modifier_apply(modifier=m.name)
+    bpy.data.objects.remove(c, do_unlink=True)
+
+
 def counter(L, pre, doors, cx=0.0):
     """the counter's body: the black kick set back, the sugi cabinet with its doors' panels proud of it and a brass pull on each, the
     terrazzo top a little proud all round (no upstand along its back: the owner's, 2026-11-11, taken away)"""
@@ -280,6 +304,14 @@ def counter(L, pre, doors, cx=0.0):
     leaves = []
     if pre == "Warmer":
         o += cupboards(x0, x1, z0, front, dw, doors, k)
+        # (the stove's and the fryer's holes through the top and the cupboards' ceiling (item 513), their faces' pictures laid again)
+        top_ = o[1]
+        ceil_ = next(q for q in o if q.name.startswith("ceil"))
+        for xs, zs in (STOVE_HOLE, FRYER_HOLE):
+            hole(top_, xs, zs, H - TT - 0.01, H + 0.01)
+            hole(ceil_, xs, zs, H - TT - T_ - 0.01, H - TT + 0.01)
+        box_uv(top_)
+        box_uv(ceil_)
     else:
         o.append(box("cabinet", x0, x1, KICK, H - TT, z0, front, k + "sugi"))
     for i in range(doors):

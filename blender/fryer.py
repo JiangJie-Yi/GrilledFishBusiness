@@ -57,6 +57,10 @@ FW, FD, FH = 0.30, 0.36, 0.22               # (the body)
 WW, WD, WELL = 0.22, 0.24, 0.16             # (the oil well's opening, its depth)
 WZ = 0.03                                   # (the well's middle a little forward of the body's)
 OIL_Y = FH - 0.04                           # (the oil's face)
+# (let into the counter (item 513, the owner's 「瓦斯爐與油炸的爐是鑲嵌在料理臺的」): its body, its oil and its basket sunk this far into a hole
+# cut for it in the counter's top (blender/warmer.py's FRYER_HOLE), its rim 1.1 cm over the counter, its tank down in the cupboard under it,
+# its control panel standing up behind the well; the draining tray and its rack on the counter beside it still)
+SINK = FH - 0.011
 parts = []
 
 
@@ -118,6 +122,8 @@ bpy.context.view_layer.objects.active = FRY
 bpy.ops.object.join()
 FRY = bpy.context.view_layer.objects.active
 FRY.name = "Fryer"
+from mathutils import Matrix  # noqa: E402
+FRY.data.transform(Matrix.Translation(P(0, -SINK, 0)))
 parts.append(FRY)
 
 # ---- the oil's face: one sheet across the well, in from its walls a hair
@@ -125,7 +131,7 @@ bm = bmesh.new()
 vs = [bm.verts.new(P(x, 0, z)) for x, z in ((x0 + 0.001, z0 + 0.001), (x1 - 0.001, z0 + 0.001), (x1 - 0.001, z1 - 0.001), (x0 + 0.001, z1 - 0.001))]
 bm.faces.new(vs[::-1])
 OIL = obj_of("FryerOil", bm, M["oil"])
-OIL.location = P(0, OIL_Y, 0)
+OIL.location = P(0, OIL_Y - SINK, 0)
 parts.append(OIL)
 
 # ---- the basket: a wire box (its four corner posts, its top rim and its floor's frame as bars; its mesh as bars across its floor and up
@@ -179,7 +185,7 @@ bar(Vector((cx[1] - 0.02, BH_, cz[1])), g0 + Vector((0.012, 0, -0.02)))
 bar(g0 + Vector((0, 0, -0.03)), g0 + Vector((0, 0.012, 0.07)), th=0.016, mi=1)
 BASKET = obj_of("FryerBasket", bm, [M["wire"], M["grip"]])
 # (hung over the back: its floor a little under the oil's face when it's down; here up, out of the oil, hooked on the back rim)
-BASKET.location = P(0, OIL_Y + 0.02, WZ)
+BASKET.location = P(0, OIL_Y + 0.02 - SINK, WZ)
 parts.append(BASKET)
 
 # ---- the draining tray and its rack, at the fryer's right: a shallow steel tray, a rack of bars over it, standing on its rim

@@ -74,6 +74,10 @@ TOP_Y = H + 0.004                           # (the top plate's face)
 BURN_X, BURN_Z = 0.05, -0.006               # (the burner: left of the middle (as -BURN_X), the can's lid at the right)
 CAP_R, CAP_H = 0.038, 0.014
 REST_Y = TOP_Y + 0.036                      # (the pan supports' tops: where a pan's bottom rests)
+# (let into the counter (item 513, the owner's 「瓦斯爐與油炸的爐是鑲嵌在料理臺的」): the stove's body sunk this far into a hole cut for it in
+# the counter's top (blender/warmer.py's STOVE_HOLE), its top plate 1.2 cm over the counter; its knob on top now, its front panel under
+# the counter; what stands by it on the counter (StoveTools, SoupPot) at the counter's own height still)
+SINK = TOP_Y - 0.012
 parts = []
 
 
@@ -139,9 +143,6 @@ box(bm, (-W / 2 + 0.014, H - 0.002, -D / 2 + 0.014), (W / 2 - 0.11, TOP_Y, D / 2
 # (the gas can's lid along its right, a little higher, its catch at the front)
 box(bm, (W / 2 - 0.1, H - 0.002, -D / 2 + 0.01), (W / 2 - 0.012, H + 0.01, D / 2 - 0.012))
 plate = obj_of("st", bm, M["top"])
-bm = bmesh.new()
-box(bm, (W / 2 - 0.1, 0.014, D / 2 - 0.002), (W / 2 - 0.014, 0.07, D / 2 + 0.002))
-panel = obj_of("sp", bm, M["top"])
 caps = []
 for k, sd in enumerate((-1,)):
     bm = bmesh.new()
@@ -173,12 +174,14 @@ for k, sd in enumerate((-1,)):
             bm.faces.new((pts[a_], pts[b2], pts[c2], pts[d2]))
     grates.append(obj_of(f"sg{k}", bm, M["iron"]))
 bpy.ops.object.select_all(action="DESELECT")
-for o in [body, plate, panel] + caps + grates:
+for o in [body, plate] + caps + grates:
     o.select_set(True)
 bpy.context.view_layer.objects.active = body
 bpy.ops.object.join()
 STOVE = bpy.context.view_layer.objects.active
 STOVE.name = "GasStove"
+from mathutils import Matrix  # noqa: E402
+STOVE.data.transform(Matrix.Translation(P(0, -SINK, 0)))
 parts.append(STOVE)
 
 # ---- the knob on the front panel under the can's lid: a round with a grip across it and a red mark; its axis at its origin
@@ -203,7 +206,9 @@ for k, sd in enumerate((1,)):
     bpy.ops.object.join()
     knob = bpy.context.view_layer.objects.active
     knob.name = f"StoveKnob{k}"
-    knob.location = P(W / 2 - 0.057, 0.042, front)
+    # (on the can's lid's top at its front, turned to stand up (its axis the game's y): its front panel's under the counter now)
+    knob.location = P(W / 2 - 0.056, H + 0.01 - SINK, D / 2 - 0.07)
+    knob.rotation_euler = (-math.pi / 2, 0, 0)
     parts.append(knob)
 
 # ---- the flames: ten tongues round the cap, leaning out, blue; their origin the cap's middle at its top
@@ -219,7 +224,7 @@ for k, sd in enumerate((-1,)):
         vs = [bm.verts.new(P(*(base - t_ * 0.007))), bm.verts.new(P(*(base + t_ * 0.007))), bm.verts.new(P(*tip))]
         bm.faces.new(vs)
     fl = obj_of(f"StoveFlame{k}", bm, M["flame"])
-    fl.location = P(sd * BURN_X, TOP_Y + CAP_H, BURN_Z)
+    fl.location = P(sd * BURN_X, TOP_Y + CAP_H - SINK, BURN_Z)
     parts.append(fl)
 
 # ---- the frying pan: a shallow round pan, its outside dark, its cooking face a lighter grey, its rim rolled; its handle out to the left,
@@ -244,7 +249,7 @@ for ring_, rev in ((hv[0], True), (hv[1], False)):
     f = bm.faces.new(ring_[::-1] if rev else ring_)
     f.material_index = 2
 FRY = obj_of("FryPan", bm, [M["pan"], M["panin"], M["bakelite"]])
-FRY.location = P(-BURN_X, REST_Y, BURN_Z)
+FRY.location = P(-BURN_X, REST_Y - SINK, BURN_Z)
 parts.append(FRY)
 
 # ---- the tamagoyaki pan: square, its walls straight, copper outside, tinned inside; its wooden handle toward the front on a copper
@@ -282,7 +287,7 @@ for j in range(n):
 for f in ladder_fill(bm, hr[0][::-1]) + ladder_fill(bm, hr[1]):
     f.material_index = 2
 EGG = obj_of("EggPan", bm, [M["copper"], M["tin"], M["wood"]])
-EGG.location = P(-BURN_X + 0.32, REST_Y, BURN_Z)
+EGG.location = P(-BURN_X + 0.32, REST_Y - SINK, BURN_Z)
 parts.append(EGG)
 
 # ---- (item 494) the stove's corner's things: where each stands, on the counter round the stove (its frame: the counter's top at y 0), clear
