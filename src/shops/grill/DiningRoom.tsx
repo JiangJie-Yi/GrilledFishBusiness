@@ -30,7 +30,7 @@ import { BOSS_DRINK, BOSS_FX } from './Boss'
 import { CASE_SIZE, depthOf } from '@/game/drinkStock'
 import { CARTON_CASES, cartonStack } from '@/game/cartonStack'
 import { cartonMaterials } from './drinkCartons'
-import { STAFF_DOOR_HOLD, askPantry, SUPPLIES, fridgesOf, farOf, storeOf, STORE, STORE_STATE, WALL_OUT, DRINK_BACK, setDrinkPanel, DRINKS, FRIDGE, FRIDGE_AT, FRIDGE_STATE, FRIDGE_STOCK, FRIDGE_UNITS, isCan, moveDrink, moveOut, tipOver, handOver, POINTER_HINT, pullOut, putBack, setShrineFlower, SHRINE_FLOWERS, tableHit, TOILETS, WC_ROOM, WC_SLIDE, WC_W, lampsAlong, nameOver, SPILLS, SHOP_MENU, type Counter, type DrinkId } from './bar'
+import { GENKAN, STAFF_DOOR_HOLD, askPantry, SUPPLIES, fridgesOf, farOf, storeOf, STORE, STORE_STATE, WALL_OUT, DRINK_BACK, setDrinkPanel, DRINKS, FRIDGE, FRIDGE_AT, FRIDGE_STATE, FRIDGE_STOCK, FRIDGE_UNITS,isCan, moveDrink, moveOut, tipOver, handOver, POINTER_HINT, pullOut, putBack, setShrineFlower, SHRINE_FLOWERS, tableHit, TOILETS, WC_ROOM, WC_SLIDE, WC_W, lampsAlong, nameOver, SPILLS, SHOP_MENU, type Counter, type DrinkId } from './bar'
 import { EditBlock, Movable } from './Movable'
 import { CatClock } from './CatClock'
 import { getEdit } from './edit'
@@ -5566,7 +5566,11 @@ function Pendant({ z, drop, pool, band = 0, hang = 0 }: { z: number; drop: numbe
  * One counter's stretch of the room: the wall behind its aisle (from/to along it, in the counter's own frame), and
  * pendant lamps over it.
  */
-function DiningWallImpl({ c, from, to, far, lampId, lampName, top, door, altar = false, clear = [], corner = false, hang = [], staffDoor, store }: { c: Counter; from: number; to: number; far: number
+function DiningWallImpl({ c, from, to, far, lampId, lampName, top, door, altar = false, clear = [], corner = false, hang = [], staffDoor, store, genkanDrop }: { c: Counter; from: number; to: number; far: number
+  /** (the first counter's wall, along the genkan's side) how far the genkan's stone lies under the room's floor: its wainscot carried on
+   * down to it along the genkan (item 539, the owner's 「這塊拿掉」: a low curb of stone stood there under the wall, seen from the street
+   * as a course of thin stones under the shoe cupboard; gone, the wall's foot stood over a slot) */
+  genkanDrop?: number
   /** the stock room behind it (items 430, 431): its doorway (the clear opening along it), its two ends along it, how deep it is behind the
    * wall's face, and the fridges set into the wall (each its stretch along it) */
   store?: { door: [number, number]; room: [number, number]; deep: number; fridges: [number, number][] }
@@ -5723,6 +5727,13 @@ function DiningWallImpl({ c, from, to, far, lampId, lampName, top, door, altar =
             {y0 < WAINSCOT && <WallPiece z0={z0} z1={z1} y0={0} y1={WAINSCOT} />}
           </group>
         ))}
+        {/* (along the genkan, its boards on down to the genkan's stone, under the room's floor's line (item 539); hidden with the wall seen
+            from outside, as the rest of it) */}
+        {genkanDrop !== undefined && spans.filter(([z0, z1, y0]) => y0 === 0 && z1 > c.length / 2 + GENKAN.along[0] && z0 < c.length / 2 + GENKAN.along[1])
+          .map(([z0, z1]) => {
+            const a = Math.max(z0, c.length / 2 + GENKAN.along[0]), b = Math.min(z1, c.length / 2 + GENKAN.along[1])
+            return <WallPiece key={`genkan${a}`} z0={a} z1={b} y0={-genkanDrop} y1={0} />
+          })}
         {/* the rail over the wainscot and the beam along the top */}
         {/* (the rail broken where the toilets' doorways are) */}
         {/* (run right up to the doorways' frames (the owner's: these two sides weren't filled, the rail stopped short of the frames and the

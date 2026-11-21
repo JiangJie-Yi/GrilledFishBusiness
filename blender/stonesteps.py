@@ -11,7 +11,8 @@ The two steps and the band over them (StoneStep1, StoneStep2, StoneStep0) are st
 worn round at their edges, in a recessed pebble-wash, moss in their shaded corners (build_step, below); the footing's sides and the genkan's
 side and the footing's side by the steps (StoneSide, StoneFoot) in the steps' own stones too, cut stones in courses (item 496, the owner's,
 2026-11-21: 「這一片沒同步上」: they were still the courses' picture, small stones, beside the steps made over in item 485); the courses'
-picture (paving_atlas, slab) is no part's now.
+picture (paving_atlas, slab) is no part's now. The footing weathered as the steps are (item 527: moss along its foot, its stones' greys
+apart, its foot dark with the ground's damp); the genkan's side's low curb (StoneSide) taken away (item 539, the owner's, 2026-11-22: 「這塊拿掉」).
 
 Run:
     blender -b --factory-startup --python blender/stonesteps.py -- <project path> [preview.png]
@@ -47,9 +48,9 @@ AW, AH = 2048, 2048
 # genkan's edge between the upper step and the floor, a riser of its own now, a thin slab laid on the footing's face), the upper step, the lower)
 SLABS = {"StoneStep0": (1.2369, 0.1123, 0.012), "StoneStep1": (1.2329, 0.2247, 0.168), "StoneStep2": (1.2289, 0.1123, 0.168),
          # (and the rest of the way in's stone, each face its own course (item 404: they were boxes the paving's one picture was laid over at
-         # one scale): the genkan's side by the wall (along it), and the footing itself (its sides; its front's behind the band and the steps);
-         # the door's curb that stood up over the genkan's stone taken away (item 407))
-         "StoneSide": (0.02, 0.112, 1.3155), "StoneFoot": (1.2369, 0.337, 1.3155)}
+         # one scale): the footing itself (its sides; its front's behind the band and the steps); the door's curb that stood up over the
+         # genkan's stone taken away (item 407), and the genkan's side's low curb by the wall (StoneSide, item 539, the owner's 「這塊拿掉」))
+         "StoneFoot": (1.2369, 0.337, 1.3155)}
 # (each slab's faces' places on the atlas (x, y, w, h in its pixels, its row 0 the picture's foot), the faces' own sizes, and how many courses
 # across: the upper step's riser two, its joint where the lower step's tread meets it, so what shows of it over the lower step is one course)
 def _r(x, y, W, H):
@@ -416,26 +417,30 @@ def gv(p):
 
 class Mossy:
     """where a step's moss is (its cushions' corner lines, in the step's frame): how mossy a point is there (0..1),
-    for the stones' and the pebble-wash's colour round it; and a little toward its ends"""
+    for the stones' and the pebble-wash's colour round it; and a little toward its ends. A line can carry a fourth number, how strongly
+    it greens (item 527: the footing's damp foot, its joints' creeping moss, fainter than a cushion's)"""
     def __init__(self, W):
         self.lines, self.W = [], W
 
     def at(self, x, y, z):
         m = 0.0
         q = Vector((x, y, z))
-        for p0, p1, r in self.lines:
+        for ln in self.lines:
+            p0, p1, r = ln[:3]
+            w = ln[3] if len(ln) > 3 else 1.0
             a, b = Vector(p0), Vector(p1)
             t = max(0.0, min(1.0, (q - a).dot(b - a) / max(1e-9, (b - a).length_squared)))
             d = (q - (a + (b - a) * t)).length
-            m = max(m, min(1.0, max(0.0, 1.0 - (d - r * 1.2) / 0.05)))
+            m = max(m, w * min(1.0, max(0.0, 1.0 - (d - r * 1.2) / 0.05)))
         m = max(m, 0.3 * min(1.0, max(0.0, (abs(x) - (self.W / 2 - 0.1)) / 0.1)))
         return m
 
 
-def stone(bm, L, poly, face, crown, tint, moss, rnd=S_ROUND, rings=S_RINGS, dome=S_DOME, thick=SK):
+def stone(bm, L, poly, face, crown, tint, moss, rnd=S_ROUND, rings=S_RINGS, dome=S_DOME, thick=SK, shade=None):
     """a stone on a face, as the genkan floor's pillow(): its outline (convex, in the face's a, b), its crown `crown` out of the face (a
     little domed toward its middle, a hair tilted), its edge rounded off (`rnd`), its sides straight in to its foot `thick` under the crown;
-    its picture laid on it from the face (world size, its own place in it), its colour its tint, greened at its edge where moss is near"""
+    its picture laid on it from the face (world size, its own place in it), its colour its tint, greened at its edge where moss is near
+    (and `shade`, if given, what its colour's taken down to at a point: item 527, the footing's foot dark with the ground's damp)"""
     fr, out = FR[face], Vector(gv(OUT[face]))
     poly = ccw2(poly)
     n = len(poly)
@@ -489,11 +494,12 @@ def stone(bm, L, poly, face, crown, tint, moss, rnd=S_ROUND, rings=S_RINGS, dome
             else:
                 lp[L["uv"]].uv = ((a + b) / tile + off[0], h / tile * 3 + off[1])
             m = moss.at(*g) * (1.0, 0.85, 0.55, 0.3, 0.15)[min(ring, 4)]
-            lp[L["col"]] = (*(tint[i_] * (1 - m * (1 - GREEN[i_])) for i_ in range(3)), 1.0)
+            k = shade(*g) if shade else 1.0
+            lp[L["col"]] = (*(tint[i_] * (1 - m * (1 - GREEN[i_])) * k for i_ in range(3)), 1.0)
     return len(sides) * 2 + sum(len(f.verts) - 2 for f in tops)
 
 
-def mortar(bm, L, lo, hi, moss, tile=0.25, cell=0.06, shows_only=None):
+def mortar(bm, L, lo, hi, moss, tile=0.25, cell=0.06, shows_only=None, shade=None):
     """the pebble-wash's block from lo to hi (the game's x, y, z), its faces' picture laid at world size; each face that shows a coarse grid
     (`cell`), its points greened where moss is (the joints there mossy), the back and the foot one quad (`shows_only`: the faces that show,
     by name (front, back, top, foot, right, left), where it's not a step's)"""
@@ -526,7 +532,8 @@ def mortar(bm, L, lo, hi, moss, tile=0.25, cell=0.06, shows_only=None):
                     gx, gy, gz = co.x, co.z, -co.y
                     lp[L["uv"]].uv = {"z": (gx / tile, gy / tile), "y": (gx / tile, gz / tile), "x": (gz / tile, gy / tile)}[ax]
                     m = min(1.0, moss.at(gx, gy, gz) * 1.2) if shows else 0.0
-                    lp[L["col"]] = (*(1 - m * (1 - MOSS_TINT[k]) for k in range(3)), 1.0)
+                    sh = shade(gx, gy, gz) if shade and shows else 1.0
+                    lp[L["col"]] = (*((1 - m * (1 - MOSS_TINT[k])) * sh for k in range(3)), 1.0)
                 tris += 2
     return tris
 
@@ -578,6 +585,20 @@ def tint_of():
 
 # (the pale four, as the points' colours take them (written as they're seen, the exporter making them linear): a hair warmer or cooler)
 STEP_TINTS = [(1.0, 1.0, 1.0), (1.0, 0.97, 0.92), (0.93, 0.95, 0.98), (0.96, 0.95, 0.94)]
+# (the wall's stones, the footing's side (item 527): a wall's stones come from more than one block, so a little wider
+# than the steps' (each one apart from the one laid before it): greys a shade and two deeper, a hair warmer and cooler (their hue as faint
+# as the steps': the exporter takes them linear, and (1, 0.95, 0.88) came out a brick's orange); the night's light shows them apart, where
+# the pale four all read as one grey and the courses as a brick wall's)
+WALL_TINTS = [(1.0, 1.0, 1.0), (0.99, 0.975, 0.95), (0.94, 0.955, 0.98), (0.90, 0.895, 0.89), (0.83, 0.83, 0.835), (0.96, 0.96, 0.955)]
+_last_wall = [None]
+
+
+def wall_tint():
+    while True:
+        t = WALL_TINTS[int(RS.integers(0, len(WALL_TINTS)))]
+        if t is not _last_wall[0]:
+            _last_wall[0] = t
+            return t
 
 
 def build_step(name):
@@ -671,13 +692,13 @@ def build_step(name):
     return o
 
 
-def runs(D, avoid):
-    """a course's stones' runs along a face D long (item 496), from its front (the steps' corner) back: each 0.2 to 0.32 long, its joints
+def runs(D, avoid, lo=0.2, hi=0.32):
+    """a course's stones' runs along a face D long (item 496), from its front (the steps' corner) back: each `lo` to `hi` long, its joints
     kept 5 cm off `avoid`'s (the course next to it: staggered), the last one to the back rather than a sliver"""
     out, z = [], D / 2
     while z > -D / 2 + 1e-6:
         for _ in range(30):
-            nz = z - RS.uniform(0.2, 0.32)
+            nz = z - RS.uniform(lo, hi)
             if nz + D / 2 < 0.13:
                 nz = -D / 2
             if nz <= -D / 2 + 1e-6 or all(abs(nz - a) > 0.05 for a in avoid):
@@ -697,8 +718,13 @@ def build_foot():
     stones in dark joints, beside the steps made over in item 485): that side (its right, the street's corner; its left's against the shop's
     base) in the steps' own stones, as big (0.24 apart), as domed, in the same pebble-wash; in two courses, the lower as high as the upper
     step beside it (its joint level with the upper tread, as the upper step's end stones are that high), the upper as high as the band over
-    the steps; moss along its foot toward the steps, as theirs is along their ends' feet. Its front (behind the band and the steps), its top
-    (under the genkan's stone), its back and its left the pebble-wash's block, plain. One node, the steps' three materials."""
+    the steps. Weathered as the steps are (item 527, the owner's 「這邊還未做處理」: beside the steps' moss it stood bare, its moss one 34 cm
+    cushion at the steps' corner, its stones all of a length, a brick wall's courses): moss along its whole foot in clumps as the steps' is
+    along theirs (the most by the steps' corner and in the far corner against the shop's base, two smaller between), its lowest stones'
+    edges and the joints at their feet a little green all along (the ground's damp) and more over the clumps, the moss creeping a little way
+    up the upright joints there; the lower course's stones longer (0.26 to 0.42, a tall course's) than the upper's (0.17 to 0.32). Its
+    front (behind the band and the steps), its top (under the genkan's stone), its back and its left the pebble-wash's block, plain. One
+    node, the steps' three materials."""
     W, H, D = SLABS["StoneFoot"]
     bm = bmesh.new()
     L = {"uv": bm.loops.layers.uv.new("UVMap"), "col": bm.loops.layers.color.new("Col")}
@@ -706,16 +732,35 @@ def build_foot():
     moss = Mossy(W * 8)
     tris = {"stone": 0, "mortar": 0, "moss": 0}
     gnd, rise = -H / 2 - 0.008, H / 3
-    cush = [((W / 2, gnd, D / 2 - 0.34), (W / 2, gnd, D / 2 - 0.004), (0, 1, 0), (1, 0, 0), 0.013)]
+    X, UP, RX = W / 2, (0, 1, 0), (1, 0, 0)
+    # (the clumps along its foot: from, to (along it, its back -D/2 to the steps' corner D/2) and how thick)
+    def j():
+        return RS.uniform(-0.025, 0.025)
+    clumps = [(D / 2 - 0.36 + j(), D / 2 - 0.004, 0.014), (0.03 + j(), 0.19 + j(), 0.010), (-0.33 + j(), -0.20 + j(), 0.009),
+              (-D / 2 + 0.004, -D / 2 + 0.24 + j(), 0.013)]
+    cush = [((X, gnd, z0), (X, gnd, z1), UP, RX, r) for z0, z1, r in clumps]
     for p0, p1, nf, nw, r in cush:
         moss.lines.append((p0, p1, r))
+    # (all along its foot the ground's damp: half a cushion's green, fading out 5 cm up)
+    moss.lines.append(((X, gnd, -D / 2), (X, gnd, D / 2), 0.0, 0.5))
     # (cut stones in courses, as the steps' risers and ends are (a stone of a rectangle each, their joints upright), not crazy paving: its
     # joints slanted every way read as a wall of rubble beside the steps' upright joints)
-    upper = runs(D, [])
-    for (y0, y1), course in (((-H / 2 + 2 * rise, H / 2), upper), ((-H / 2, -H / 2 + 2 * rise), runs(D, [a0 for a0, _ in upper]))):
+    upper = runs(D, [], 0.17, 0.32)
+    lower = runs(D, [a0 for a0, _ in upper], 0.26, 0.42)
+    # (over a clump, the moss up the lower course's upright joints a little way, 7 to 12 cm)
+    for a0, _ in lower:
+        if a0 > -D / 2 + 1e-6 and any(z0 - 0.03 <= a0 <= z1 + 0.03 for z0, z1, _ in clumps):
+            moss.lines.append(((X, gnd, a0), (X, gnd + RS.uniform(0.07, 0.12), a0), 0.002, 0.75))
+    # (the ground's damp darkening its foot: a fifth darker at the ground, gone 12 cm up; the dark the night's light shows, as moss alone
+    # doesn't: it reads as the ground's at night)
+    def damp(x, y, z):
+        t = min(1.0, max(0.0, (y - gnd) / 0.12))
+        return 0.8 + 0.2 * t * t * (3 - 2 * t)
+    for (y0, y1), course in (((-H / 2 + 2 * rise, H / 2), upper), ((-H / 2, -H / 2 + 2 * rise), lower)):
         for b0, b1 in inset_runs(course, D):
-            tris["stone"] += stone(bm, L, [(b0, y0 + SJ), (b1, y0 + SJ), (b1, y1 - SJ), (b0, y1 - SJ)], "right", W / 2, tint_of(), moss)
-    tris["mortar"] += mortar(bm, L, (-W / 2, -H / 2, -D / 2), (W / 2 - RECESS, H / 2, D / 2), moss, shows_only=("right",))
+            tris["stone"] += stone(bm, L, [(b0, y0 + SJ), (b1, y0 + SJ), (b1, y1 - SJ), (b0, y1 - SJ)], "right", W / 2, wall_tint(), moss,
+                                   shade=damp)
+    tris["mortar"] += mortar(bm, L, (-W / 2, -H / 2, -D / 2), (W / 2 - RECESS, H / 2, D / 2), moss, shows_only=("right",), shade=damp)
     for p0, p1, nf, nw, r in cush:
         tris["moss"] += cushion(bm, L, p0, p1, nf, nw, r * 1.2, RS.uniform(0.85, 1.0))
     me = bpy.data.meshes.new("StoneFoot")
@@ -727,34 +772,6 @@ def build_foot():
         o.data.materials.append(m)
     parts.append(o)
     print("STEP424", "StoneFoot", tris)
-    return o, [a0 for a0, _ in upper]
-
-
-def build_side(avoid):
-    """the genkan's side (item 496): the low curb of stone along its open edge, from its stone up to the room's boards, over the footing's
-    side (it was the courses' picture still, a strip of small stones over the footing's new ones): one course of cut stones on each face
-    (it's seen from the street and from the genkan), their joints off the footing's upper course's under it, thin as the band's stones (it's
-    2 cm through), their rounded edges meeting along its top; its core the pebble-wash"""
-    W, H, D = SLABS["StoneSide"]
-    bm = bmesh.new()
-    L = {"uv": bm.loops.layers.uv.new("UVMap"), "col": bm.loops.layers.color.new("Col")}
-    moss = Mossy(W * 400)
-    tris = {"stone": 0, "mortar": 0}
-    course = runs(D, avoid)
-    for face in ("right", "left"):
-        for b0, b1 in inset_runs(course, D):
-            tris["stone"] += stone(bm, L, [(b0, -H / 2 + SJ), (b1, -H / 2 + SJ), (b1, H / 2 - SJ), (b0, H / 2 - SJ)], face, W / 2, tint_of(), moss,
-                                   rnd=0.005, rings=(0.0, 0.0015, 0.003, 0.005, 0.009), dome=0.002, thick=0.0094)
-    tris["mortar"] += mortar(bm, L, (-W / 2 + 0.004, -H / 2, -D / 2), (W / 2 - 0.004, H / 2 - 0.002, D / 2), moss, shows_only=("right", "left", "top"))
-    me = bpy.data.meshes.new("StoneSide")
-    bm.to_mesh(me)
-    bm.free()
-    o = bpy.data.objects.new("StoneSide", me)
-    bpy.context.collection.objects.link(o)
-    for m in STEP_M:
-        o.data.materials.append(m)
-    parts.append(o)
-    print("STEP424", "StoneSide", tris)
     return o
 
 
@@ -762,11 +779,9 @@ s1 = build_step("StoneStep1")
 s2 = build_step("StoneStep2")
 s0 = build_step("StoneStep0")
 
-sf, foot_joints = build_foot()
-ss = build_side(foot_joints)
+sf = build_foot()
 s2.location = P(0, 0, 0.5)   # (apart in the file; the game sets each where it stands)
 s0.location = P(0, 0, -0.5)
-ss.location = P(2, 0, 0)
 sf.location = P(4, 0, 0)
 root = bpy.data.objects.new("StoneSteps", None)
 bpy.context.collection.objects.link(root)

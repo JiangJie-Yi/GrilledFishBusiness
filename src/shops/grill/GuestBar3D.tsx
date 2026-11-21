@@ -2774,9 +2774,9 @@ const STEP_GO = 0.17
 const STEPS_URL = import.meta.env.BASE_URL + 'models/stonesteps.glb'
 useGLTF.preload(STEPS_URL)
 /** each part's size as made (blender/stonesteps.py's SLABS): the footing's band over the upper step (item 404: a riser of its own, laid on the
- * footing's face), the upper step, the lower; the genkan's side by the wall, the footing */
+ * footing's face), the upper step, the lower; the footing (the genkan's side's low curb over it, StoneSide, taken away: item 539) */
 const STONE_MADE: Record<string, [number, number, number]> = { StoneStep0: [1.2369, 0.1123, 0.012], StoneStep1: [1.2329, 0.2247, 0.168],
-  StoneStep2: [1.2289, 0.1123, 0.168], StoneSide: [0.02, 0.112, 1.3155], StoneFoot: [1.2369, 0.337, 1.3155] }
+  StoneStep2: [1.2289, 0.1123, 0.168], StoneFoot: [1.2369, 0.337, 1.3155] }
 /** the way in's stone in the room's toon light, made once for each of the model's materials and shared by all its parts (the stones' tints
  * in their points' colour, item 424) */
 const PAVING = new Map<THREE.Material, THREE.MeshToonMaterial>()
@@ -3151,7 +3151,6 @@ const GROUND_SHADOW = (() => {
   return t
 })()
 function RoomFloorImpl({ counters, drop }: { counters: Counter[]; drop: number }) {
-  const stone = useStoneParts(['StoneSide'])
   const c = counters[0]
   const { along: [a0, a1], lay: [l0, l1] } = useMemo(() => roomOf(counters), [counters])
   const kitchen = useMemo(() => kitchenOf(counters), [counters])
@@ -3255,9 +3254,8 @@ function RoomFloorImpl({ counters, drop }: { counters: Counter[]; drop: number }
           geometry={timberBox(l[1] - l[0], baseDrop + 0.004, a[1] - a[0], BASE_TILE.along, BASE_TILE.across)} material={BASE_TIMBER[1]} />
       )))}
       {drop > 0 ? <KitchenPit counters={counters} drop={drop} /> : <KitchenDais counters={counters} rise={-drop} />}
-      {/* (the wall's foot, and the room's open end, down to the genkan's pebble-wash (its stones, step and threshold: GenkanFloor, below)) */}
-      {/* (in the genkan's stone, as its footing is (item 287): they were dark boards, the doorway's edge read as wood from above) */}
-      <primitive {...laid(stone.StoneSide, STONE_MADE.StoneSide, [-l0 - 0.01, -(D + GENKAN_SUNK), g0], [-l0 + 0.01, 0, a1])} />
+      {/* (the genkan's side's low curb of stone, from its stone up to the boards over the footing's side (StoneSide, item 287 and 496), is
+          gone (item 539, the owner's 「這塊拿掉」)) */}
       {/* (the room's open end at the door, from the boards down to the footing, is gone (item 407, the owner's 「這片到底是甚麼? 拿掉」): the
           genkan's stone lies 10 cm under the boards, and at the door it stood up over the genkan's stone like a low wall) */}
       </StaticBatch>
@@ -9510,7 +9508,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
               {given && <RoomFloor counters={counters} drop={KITCHEN_DROP / scale} />}
               {given && shopPropsLater}
               {given && <DiningWall c={c} from={back} to={c.length / 2 + 1.45} far={FLOOR_FAR} lampId="barlamp" lampName="長吧台" top={top} altar={omiki ?? true} corner={wallBack}
-                staffDoor={STAFF_DOOR_AT} />}
+                staffDoor={STAFF_DOOR_AT} genkanDrop={GENKAN.depth + GENKAN_SUNK} />}
             </group>
           )
         }
