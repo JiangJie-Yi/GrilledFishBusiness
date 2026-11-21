@@ -42,8 +42,10 @@ const KEY_PATHS = 'jgs-edit-paths-1'
 /** the keep-clear patches (item 168) */
 const KEY_ZONES = 'jgs-edit-zones-1'
 const KEY_VIAS = 'jgs-edit-vias-1'
+/** a kept record read back only if it's a plain object (null, a number, a string or a list kept under the key, the page went blank) */
+const asRecord = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {})
 const load = (key: string): Record<string, V3> => {
-  try { return JSON.parse(localStorage.getItem(key) ?? '{}') } catch { return {} }
+  try { return asRecord(JSON.parse(localStorage.getItem(key) ?? '{}')) as Record<string, V3> } catch { return {} }
 }
 /** offsets: where a piece is moved to (from its base); rotations: degrees turned about X, Y, Z; scales: how much larger or smaller on X, Y, Z (1 = as it is) */
 export type Tool = 'select' | 'move' | 'rotate' | 'scale'
@@ -109,7 +111,9 @@ export const isArea = (id: string | null) => !!id && id.startsWith(AREA)
 const RETIRED = (id: string) => id === 'till-cashbox' || id === 'lightswitch' || /^lightswitch-wc-/.test(id) || /^wcswitch-[mf]$/.test(id) || /^(festoon|banners|nobori)/.test(id)
 const loadGroups = (): Record<string, Group> => {
   let g: Record<string, Group> = {}
-  try { g = JSON.parse(localStorage.getItem(KEY_G) ?? '{}') } catch { /* storage blocked */ }
+  try { g = asRecord(JSON.parse(localStorage.getItem(KEY_G) ?? '{}')) as Record<string, Group> } catch { /* storage blocked */ }
+  // (a kept group without its list of members isn't one: let go)
+  for (const [k, x] of Object.entries(g)) if (!x || typeof x !== 'object' || !Array.isArray(x.members)) delete g[k]
   for (const [k, x] of Object.entries(g)) if (x.members.some(RETIRED)) g[k] = { ...x, members: x.members.filter((m) => !RETIRED(m)) }
   // (the helmet off the cats' stand, onto its own stand (the owner's, 2026-11-12): it and its stand out of whatever other kept group holds them,
   // on every load, not once (item 98, the owner's, 2026-11-14: 'the helmet's gone': a page left open from before wrote its old groups back
