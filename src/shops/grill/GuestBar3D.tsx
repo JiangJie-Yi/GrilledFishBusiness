@@ -308,6 +308,12 @@ const STIR_HANDS_ON = { v: false }
 /** (items 461, 469) the third cook's hands at the stove or the fryer, in the world: on the pan's handle and by the pan */
 const COOK_HANDS = { left: new THREE.Vector3(), right: new THREE.Vector3() }
 const COOK_HANDS_ON = { v: false }
+/** (item 509) the plater's jobs at the work counter, whose top comes up to his chin: the soup stirred, the rice balls shaped, the daikon
+ * grated, a dish at its station, the rice and the soup ladled into their bowls */
+const AT_WORK_COUNTER = new Set(['stir', 'shape', 'grate', 'cookStation', 'riceBowl', 'soupBowl'])
+/** how far he's drawn back off the counter at those but the stations (whose own place, Stove's STAND_ALONG, is set back), the bar's units */
+const PLATER_BACK = 0.03
+const BACK_DIR = new THREE.Vector3()
 /** (item 392) the plater's hands grating daikon at the rice-ball counter's grater (the world's): the right on the daikon, up and down the
  * grater, the left holding the grater's near end */
 const GRATE_HANDS = { left: new THREE.Vector3(), right: new THREE.Vector3() }
@@ -4755,6 +4761,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     return pick!
   }
   const platerObj = useRef<THREE.Group | null>(null)
+  /** how far the plater's drawn back off the work counter just now, eased (item 509) */
+  const platerBack = useRef(0)
   const platerStack = useRef<THREE.Group>(null)
   /** the bowl of rice in the plater's hands (washing it, carrying it to the pot, and the cooked rice to the tub) */
   const platerBowl = useRef<THREE.Group>(null)
@@ -7355,6 +7363,10 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         // (down on the genkan's stone where their way crosses it, item 203)
         o.position.y += genkanY(counters, pl.pos) + stoolLift(o, pl.pos, Math.min(dt, 0.1))
         o.rotation.y = pl.yaw
+        // (at the bowls, the grater and the board the work counter's front came to within 2 cm of his head's widest, which is just at its
+        // top's slab (item 509): drawn a little back off it while he's at them, eased there and back, his hands where the work has them)
+        platerBack.current += ((AT_WORK_COUNTER.has(pl.phase) && pl.phase !== 'cookStation' ? PLATER_BACK : 0) - platerBack.current) * Math.min(1, dt * 6)
+        if (platerBack.current > 1e-4) o.position.addScaledVector(BACK_DIR.set(Math.sin(pl.yaw), 0, Math.cos(pl.yaw)), -platerBack.current)
         // (never the idle fanning of a cook at his place: his hands are full with the work here; bent forward to it: well down to the
         // sack on the floor, over the bucket on the table and the hearth to tip the coals in or splash the water, a little over the crate and
         // the soup)
@@ -7365,6 +7377,9 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           : pl.phase === 'rake' ? 0.26 * bend(RAKE_S)
           : pl.phase === 'takeCoal' ? 0.18 * bend(0.6) : pl.phase === 'fillCrate' ? 0.22 * Math.sin(Math.PI * Math.max(0, Math.min(1, (pl.t - 0.2) / 0.7))) : pl.phase === 'stir' ? 0.14
           : pl.phase === 'shape' ? 0.12 : pl.phase === 'grate' ? 0.16 : pl.phase === 'pourSake' ? 0.06 : pl.phase === 'cookStation' ? 0.12 : 0
+        // (at the work counter, its top up to his chin (its slab's top at 71% of his height): bent where its top is, not at the waist
+        // (StaffFigure's LEAN_WAIST, 55%): bent at the waist his chin and glasses went forward under its top, into its slab (item 509))
+        o.userData.leanAt = AT_WORK_COUNTER.has(pl.phase) ? 0.72 : undefined
         // (shaping a rice ball: both hands cupped round it before them, pressed together and turned, three presses to one (StaffFigure))
         o.userData.shape = pl.phase === 'shape' || (pl.phase === 'cookStation' && kitchenJob.current?.station === 'board') ? pl.t / SHAPE_EACH : undefined
         // (at the stove or the fryer (items 461, 469): the right hand on the pan's handle (tossing it now and then) or the basket's, the left by

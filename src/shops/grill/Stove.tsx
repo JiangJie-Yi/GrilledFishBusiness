@@ -39,8 +39,11 @@ const FLOOR = -1
 const EGGPAN_AT = { along: 4.715, lay: 0.064, y: 0.37 }
 /** the frying pan's handle turned out toward the cook's left front (out to the left it lay over the rice cooker) */
 const PAN_TURN = 1.31
-/** where the cook stands at a station: this far out in front of the counter's front edge (along 3.816), the aisle */
-const STAND_ALONG = 3.55
+/** where the cook stands at a station: this far out in front of the counter's front edge (along 3.816), the aisle (item 509: at 3.55 his
+ * head, rounder than his body, its widest just at the height of the counter top's slab (the top as high as his chin), came 19 cm into it;
+ * at 3.42, 6 to 10; at 3.30 it's clear of the slab's front by 1.5 cm, his body 7 cm off the counter, his hands still on the pan's handle and
+ * the basket's (a step to stand on would have to be 29 cm to lift his head over the slab)) */
+const STAND_ALONG = 3.3
 
 /** the stove's state, the game's: lit or not (the cook's work sets it) */
 export const STOVE = { on: false, flame: 0 }

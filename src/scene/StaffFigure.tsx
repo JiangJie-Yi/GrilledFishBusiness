@@ -567,6 +567,8 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
     // for something on the fire (Roasting's CrewWalk); anyone finishing up for the day with a stretch, nodding back in at the door, fading
     // through it (commuteWalk))
     const job = o.parent?.userData as { carry?: boolean; prep?: boolean; pierce?: number; fanNow?: boolean; fetcher?: boolean; stretch?: boolean; nod?: number; fade?: number; lean?: number; leanBack?: number; wipe?: number
+      /** where they bend, of their height, if not at the waist (LEAN_WAIST): at a counter as high as their chin, its top (item 509) */
+      leanAt?: number
       sweep?: number; broom?: boolean; scrub?: number; shape?: number
       /** wiping the floor (item 164): how long at it, and where the cloth is in their own upright frame */
       floorWipe?: number; wipeAt?: [number, number, number]
@@ -623,9 +625,11 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
     // (a lean to their work bent at the waist, about where a counter's top comes on them, not from their feet: what's under it drawn back as
     // what's over it goes forward, so they bend over the counter and not into it (item 387, the owner's 「有個致命的問題動作都會深陷進模型去」:
     // tipped from their feet, the belly went into the counter's front))
+    // (at a counter whose top comes up to their chin (the work counter's, the third cook's (item 509)), bent where its top is: bent at the
+    // waist, their chin and glasses went forward under it, into its top's slab 3.5 cm)
     if (tall.current) {
       const own = tall.current / (fig.root.getWorldScale(EMOTE_SCALE).y || 1)
-      fig.body.position.z = -LEAN_WAIST * own * Math.sin(workLean)
+      fig.body.position.z = -(job?.leanAt ?? LEAN_WAIST) * own * Math.sin(workLean)
       // (for whoever puts things in their hands as they lean (GuestBar3D's plater): how far back they've been drawn, in their own measure)
       if (job) job.leanBack = fig.body.position.z
     }
@@ -775,9 +779,13 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
       } else hand.rotation.z = 0
     }
     if (reachK.current > 0.002) {
+      // (up first, then out to it, and back the same way: in a line from their side to what's on a counter as high as their chin, the hand
+      // went through the counter's front and its top's slab on its way (item 509: the third cook's at the rice, the soup, the grater))
+      const k = reachK.current, up = 1 - (1 - k) ** 3, out = k ** 3
       for (const [hand, sd] of [[fig.handL, -1], [fig.handR, 1]] as const) {
         if (!hand) continue
-        hand.position.lerp(sd > 0 ? reachAt.current.R : reachAt.current.L, reachK.current)
+        const to = sd > 0 ? reachAt.current.R : reachAt.current.L
+        hand.position.set(hand.position.x + (to.x - hand.position.x) * out, hand.position.y + (to.y - hand.position.y) * up, hand.position.z + (to.z - hand.position.z) * out)
         hand.rotation.x += (-0.9 - hand.rotation.x) * reachK.current
         hand.rotation.z *= 1 - reachK.current
       }
