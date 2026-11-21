@@ -4011,8 +4011,6 @@ const NotchStep = memo(function NotchStep({ id = 'notchstep', label = '木台階
  * it folded away before they're down again); and his way there from his fire, as his cooks who live upstairs go to the door: across the
  * kitchen to the gate, out, along the aisle to its corner, to before the futon's foot and onto it. In the grill's frame (this group's).
  */
-/** the boss's futon's place (item 480), in the world: its foot, its head and before its foot, from where the barrel and the rice sacks stand
- * (their middles; across the line between them, its head toward the floor's edge, away from the room's middle); null without them */
 /**
  * The floor round a spot, as the owner's futon sees it (item 537, the owner's 「老闆這邊睡會穿模型，找一個不會穿模型的地方睡。」: laid between
  * the barrel and the rice sacks it ran over the sacks under its head, the potted willow's boughs over its pillow and the sake barrels by its
@@ -4020,55 +4018,100 @@ const NotchStep = memo(function NotchStep({ id = 'notchstep', label = '木台階
  * in the world), from `c0`, R each way, each one taken where anything stands in it up to 60 cm over `floorY` (every mesh's triangles, edges
  * and insides: but the floors' own flat faces, the people, the unseen), the step between the kitchen's floor and the room's with it; a test
  * of a rectangle on it (taken anywhere in it), a point on it in the world. Made as the owner sets off for bed: what's moved in the editor since
- * is where it is now
+ * is where it is now. Quick enough for that frame (item 543: each mesh's points worked out once, not once for each of its triangles; the meshes
+ * clear of the square passed by; a triangle within one square marked as that square, as its edges would: two maps took 60 to 70 ms, the
+ * frame he set off in held that long)
  */
-function floorMap(scene: THREE.Object3D, g: THREE.Object3D, c0: THREE.Vector3, floorY: number) {
+/** (floorMap's scratch: a mesh's points, each worked out once: in the world, then across the map in squares (item 543)) */
+let FLOOR_PTS = new Float64Array(5 * 4096), FLOOR_SEEN = new Int32Array(4096), FLOOR_STAMP = 0
+function floorMap(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vector3, floorY: number, R = 4.5) {
   g.updateWorldMatrix(true, false)
   const c = GRILL_COUNTERS[0]
   const dirOf = (d: THREE.Vector3) => { const o = g.localToWorld(fromBar(c.at.clone())), t = g.localToWorld(fromBar(c.at.clone().add(d))); return t.sub(o).setY(0).normalize() }
   const U = dirOf(c.along), V = dirOf(c.lay)
-  const R = 4.5, CELL = 0.05, N = Math.round((2 * R) / CELL)
+  const CELL = 0.05, N = Math.round((2 * R) / CELL)
   const occ = new Uint8Array(N * N)
   const lo = floorY - 0.25, hi = floorY + 0.6
-  const P0 = new THREE.Vector3(), P1 = new THREE.Vector3(), P2 = new THREE.Vector3(), E1 = new THREE.Vector3(), E2 = new THREE.Vector3(), WB = new THREE.Box3()
-  const cellOf = (p: THREE.Vector3) => [((p.x - c0.x) * U.x + (p.z - c0.z) * U.z + R) / CELL, ((p.x - c0.x) * V.x + (p.z - c0.z) * V.z + R) / CELL]
+  const E1 = new THREE.Vector3(), E2 = new THREE.Vector3(), WB = new THREE.Box3(), WS = new THREE.Sphere()
+  // (the square's reach in the world, the box round its corners: a mesh's box clear of it isn't looked into)
+  let sx0 = Infinity, sx1 = -Infinity, sz0 = Infinity, sz1 = -Infinity
+  for (const ka of [-R, R]) for (const kb of [-R, R]) {
+    const x = c0.x + U.x * ka + V.x * kb, z = c0.z + U.z * ka + V.z * kb
+    sx0 = Math.min(sx0, x); sx1 = Math.max(sx1, x); sz0 = Math.min(sz0, z); sz1 = Math.max(sz1, z)
+  }
   const mark = (i: number, j: number) => { if (i >= 0 && j >= 0 && i < N && j < N) occ[j * N + i] = 1 }
   // (a triangle's edges, stepped along at half a square, and its inside where it isn't edge-on from above)
-  const seg = (a: number[], b: number[]) => {
-    const k = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) * 2))
-    for (let q = 0; q <= k; q++) mark(Math.floor(a[0] + ((b[0] - a[0]) * q) / k), Math.floor(a[1] + ((b[1] - a[1]) * q) / k))
+  const seg = (ax: number, ay: number, bx: number, by: number) => {
+    const k = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) * 2))
+    for (let q = 0; q <= k; q++) mark(Math.floor(ax + ((bx - ax) * q) / k), Math.floor(ay + ((by - ay) * q) / k))
   }
-  const side = (p: number[], q: number[], x: number, y: number) => (q[0] - p[0]) * (y - p[1]) - (x - p[0]) * (q[1] - p[1])
-  scene.updateMatrixWorld(true)
-  scene.traverse((o) => {
-    const m = o as THREE.Mesh
-    if (!m.isMesh || (m as THREE.SkinnedMesh).isSkinnedMesh || (m as THREE.InstancedMesh).isInstancedMesh || !m.visible || /^Futon/.test(m.name)) return
-    const pos = m.geometry?.attributes.position as THREE.BufferAttribute | undefined
-    if (!pos) return
-    if (([] as THREE.Material[]).concat(m.material).every((x) => x.transparent && x.opacity < 0.05)) return
-    if (!m.geometry.boundingBox) m.geometry.computeBoundingBox()
-    WB.copy(m.geometry.boundingBox!).applyMatrix4(m.matrixWorld)
-    if (WB.max.y < lo || WB.min.y > hi || WB.distanceToPoint(c0) > R * 1.5) return
-    const idx = m.geometry.index, n = idx ? idx.count : pos.count
-    for (let i = 0; i + 2 < n; i += 3) {
-      P0.fromBufferAttribute(pos, idx ? idx.getX(i) : i).applyMatrix4(m.matrixWorld)
-      P1.fromBufferAttribute(pos, idx ? idx.getX(i + 1) : i + 1).applyMatrix4(m.matrixWorld)
-      P2.fromBufferAttribute(pos, idx ? idx.getX(i + 2) : i + 2).applyMatrix4(m.matrixWorld)
-      const y0 = Math.min(P0.y, P1.y, P2.y), y1 = Math.max(P0.y, P1.y, P2.y)
+  // (the meshes bedFinds gathered, their matrices as they were drawn last: it isn't made to work them all out again (item 543))
+  for (const m of meshes) {
+    const pos = m.geometry.attributes.position as THREE.BufferAttribute
+    // (its box if it has one, or the ball round it the renderer made for culling: 3,340 of the meshes had no box, and making them took 44 ms
+    // the first time he went to bed (item 543); one passed that might have been passed by is looked into for nothing, no more)
+    const gb = m.geometry.boundingBox
+    if (gb) {
+      WB.copy(gb).applyMatrix4(m.matrixWorld)
+      if (WB.max.y < lo || WB.min.y > hi || WB.distanceToPoint(c0) > R * 1.5 || WB.max.x < sx0 || WB.min.x > sx1 || WB.max.z < sz0 || WB.min.z > sz1) continue
+    } else {
+      if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere()
+      WS.copy(m.geometry.boundingSphere!).applyMatrix4(m.matrixWorld)
+      const r = WS.radius, sc = WS.center
+      if (sc.y + r < lo || sc.y - r > hi || sc.distanceTo(c0) - r > R * 1.5 || sc.x + r < sx0 || sc.x - r > sx1 || sc.z + r < sz0 || sc.z - r > sz1) continue
+    }
+    // (its points' heights first, each once (the same sums as a point's own applyMatrix4); the rest of a point (across the world, and across
+    // the map in squares (u, v)) only for a triangle in the band, once (item 543: most of a merged batch's points are well up off the floor))
+    const n = pos.count
+    if (FLOOR_PTS.length < 5 * n) { FLOOR_PTS = new Float64Array(5 * n); FLOOR_SEEN = new Int32Array(n) }
+    const P = FLOOR_PTS, seen = FLOOR_SEEN, e = m.matrixWorld.elements, stamp = ++FLOOR_STAMP
+    // (straight from their array where they lie plain in it, three's getX otherwise (interleaved, or packed small): the same numbers, and
+    // the first night's call no longer held up in getX, 27 ms of it (item 543))
+    const arr = pos.array, plain = !(pos as unknown as { isInterleavedBufferAttribute?: boolean }).isInterleavedBufferAttribute && !pos.normalized && pos.itemSize === 3
+    const affine = e[3] === 0 && e[7] === 0 && e[11] === 0 && e[15] === 1
+    const wOf = (x: number, y: number, z: number) => affine ? 1 : 1 / (e[3] * x + e[7] * y + e[11] * z + e[15])
+    for (let i = 0; i < n; i++) {
+      const x = plain ? arr[3 * i] : pos.getX(i), y = plain ? arr[3 * i + 1] : pos.getY(i), z = plain ? arr[3 * i + 2] : pos.getZ(i)
+      P[5 * i + 1] = (e[1] * x + e[5] * y + e[9] * z + e[13]) * wOf(x, y, z)
+    }
+    const fill = (i: number) => {
+      if (seen[i] === stamp) return
+      seen[i] = stamp
+      const x = plain ? arr[3 * i] : pos.getX(i), y = plain ? arr[3 * i + 1] : pos.getY(i), z = plain ? arr[3 * i + 2] : pos.getZ(i)
+      const w = wOf(x, y, z), wx = (e[0] * x + e[4] * y + e[8] * z + e[12]) * w, wz = (e[2] * x + e[6] * y + e[10] * z + e[14]) * w
+      const k = 5 * i
+      P[k] = wx; P[k + 2] = wz
+      P[k + 3] = ((wx - c0.x) * U.x + (wz - c0.z) * U.z + R) / CELL
+      P[k + 4] = ((wx - c0.x) * V.x + (wz - c0.z) * V.z + R) / CELL
+    }
+    const idx = m.geometry.index, ix = idx?.array, cnt = idx ? idx.count : n
+    for (let t = 0; t + 2 < cnt; t += 3) {
+      const ia = ix ? ix[t] : t, ib = ix ? ix[t + 1] : t + 1, ic = ix ? ix[t + 2] : t + 2
+      const a = 5 * ia, b = 5 * ib, d = 5 * ic
+      const y0 = Math.min(P[a + 1], P[b + 1], P[d + 1]), y1 = Math.max(P[a + 1], P[b + 1], P[d + 1])
       if (y1 < lo || y0 > hi) continue
+      fill(ia); fill(ib); fill(ic)
       // (a flat face low down is a floor's, the kitchen's or the room's, or a mat or a shadow on one: not in the way)
-      if (Math.abs(E1.subVectors(P1, P0).cross(E2.subVectors(P2, P0)).normalize().y) > 0.9 && y1 < floorY + 0.25) continue
-      const a = cellOf(P0), b = cellOf(P1), d = cellOf(P2)
-      seg(a, b); seg(b, d); seg(d, a)
-      if (Math.abs((b[0] - a[0]) * (d[1] - a[1]) - (d[0] - a[0]) * (b[1] - a[1])) < 0.5) continue
-      const i0 = Math.max(0, Math.floor(Math.min(a[0], b[0], d[0]))), i1 = Math.min(N - 1, Math.floor(Math.max(a[0], b[0], d[0])))
-      const j0 = Math.max(0, Math.floor(Math.min(a[1], b[1], d[1]))), j1 = Math.min(N - 1, Math.floor(Math.max(a[1], b[1], d[1])))
+      if (y1 < floorY + 0.25) {
+        E1.set(P[b] - P[a], P[b + 1] - P[a + 1], P[b + 2] - P[a + 2])
+        E2.set(P[d] - P[a], P[d + 1] - P[a + 1], P[d + 2] - P[a + 2])
+        if (Math.abs(E1.cross(E2).normalize().y) > 0.9) continue
+      }
+      const au = P[a + 3], av = P[a + 4], bu = P[b + 3], bv = P[b + 4], du = P[d + 3], dv = P[d + 4]
+      const fi0 = Math.floor(Math.min(au, bu, du)), fi1 = Math.floor(Math.max(au, bu, du)), fj0 = Math.floor(Math.min(av, bv, dv)), fj1 = Math.floor(Math.max(av, bv, dv))
+      // (within one square: that square, all its edges would mark; off the map altogether: nothing)
+      if (fi0 === fi1 && fj0 === fj1) { mark(fi0, fj0); continue }
+      if (fi1 < 0 || fj1 < 0 || fi0 >= N || fj0 >= N) continue
+      seg(au, av, bu, bv); seg(bu, bv, du, dv); seg(du, dv, au, av)
+      if (Math.abs((bu - au) * (dv - av) - (du - au) * (bv - av)) < 0.5) continue
+      const i0 = Math.max(0, fi0), i1 = Math.min(N - 1, fi1), j0 = Math.max(0, fj0), j1 = Math.min(N - 1, fj1)
       for (let jj = j0; jj <= j1; jj++) for (let ii = i0; ii <= i1; ii++) {
-        const x = ii + 0.5, y = jj + 0.5, s1 = side(a, b, x, y), s2 = side(b, d, x, y), s3 = side(d, a, x, y)
+        const x = ii + 0.5, y = jj + 0.5
+        const s1 = (bu - au) * (y - av) - (x - au) * (bv - av), s2 = (du - bu) * (y - bv) - (x - bu) * (dv - bv), s3 = (au - du) * (y - dv) - (x - du) * (av - dv)
         if ((s1 >= 0 && s2 >= 0 && s3 >= 0) || (s1 <= 0 && s2 <= 0 && s3 <= 0)) occ[jj * N + ii] = 1
       }
     }
-  })
+  }
   // (its sums, for any rectangle of it at once)
   const sum = new Uint32Array((N + 1) * (N + 1))
   for (let jj = 0; jj < N; jj++) for (let ii = 0; ii < N; ii++) sum[(jj + 1) * (N + 1) + ii + 1] = occ[jj * N + ii] + sum[jj * (N + 1) + ii + 1] + sum[(jj + 1) * (N + 1) + ii] - sum[jj * (N + 1) + ii]
@@ -4107,16 +4150,31 @@ function futonFits(f: FloorMap, u: number, v: number, du: number, dv: number, ke
   if (!corners.every((q) => f.level(q) === lv) || f.level(before) !== lv) return null
   return { foot: f.at(u + du * half, v + dv * half), head: f.at(u - du * half, v - dv * half), before }
 }
+/** what the boss's way to bed goes by, found in one walk round the scene (item 543: a walk round it for each, eight thousand things a walk) */
+type BedFinds = { door: THREE.Object3D | null; fridge: THREE.Object3D | null; floor: THREE.Object3D | null; barrel: THREE.Object3D | null; sacks: THREE.Object3D | null
+  /** the meshes a floor map looks at: drawn, not people (skinned) or many at once (instanced), not the futon, not unseen */
+  meshes: THREE.Mesh[] }
+function bedFinds(scene: THREE.Object3D): BedFinds {
+  const f: BedFinds = { door: null, fridge: null, floor: null, barrel: null, sacks: null, meshes: [] }
+  scene.traverse((q) => {
+    if (q.name === 'staff-door') f.door ??= q
+    else if (q.name === 'look-fridge') f.fridge ??= q
+    else if (q.name === 'room-floor') f.floor ??= q
+    const id = q.userData?.editId
+    if (id === 'takeoutstand') f.barrel ??= q
+    else if (id === 'ricesacks') f.sacks ??= q
+    const m = q as THREE.Mesh
+    if (!m.isMesh || (m as THREE.SkinnedMesh).isSkinnedMesh || (m as THREE.InstancedMesh).isInstancedMesh || !m.visible || /^Futon/.test(m.name)) return
+    if (!m.geometry?.attributes.position) return
+    if (([] as THREE.Material[]).concat(m.material).every((x) => x.transparent && x.opacity < 0.05)) return
+    f.meshes.push(m)
+  })
+  return f
+}
 /** the boss's futon's place (item 480), in the world: its foot, its head and before its foot, from where the barrel and the rice sacks stand
  * (their middles; across the line between them, its head toward the floor's edge, away from the room's middle), if it's clear there as it
  * is (item 537: it wasn't, the stretch was full); null otherwise, or without them */
-function futonSpot(scene: THREE.Object3D, frame: THREE.Object3D) {
-  let barrel: THREE.Object3D | null = null, sacks: THREE.Object3D | null = null
-  scene.traverse((q) => {
-    if (!barrel && q.userData?.editId === 'takeoutstand') barrel = q
-    if (!sacks && q.userData?.editId === 'ricesacks') sacks = q
-  })
-  const floor = scene.getObjectByName('room-floor')
+function futonSpot(frame: THREE.Object3D, { barrel, sacks, floor, meshes }: BedFinds) {
   if (!barrel || !sacks || !floor) return null
   const ba = new THREE.Box3().setFromObject(barrel), bb = new THREE.Box3().setFromObject(sacks)
   const a = ba.getCenter(new THREE.Vector3()), b = bb.getCenter(new THREE.Vector3())
@@ -4128,7 +4186,9 @@ function futonSpot(scene: THREE.Object3D, frame: THREE.Object3D) {
   if (inward.dot(room.sub(mid)) < 0) inward.negate()
   // (the world's units: its middle 0.74 on from halfway toward the sacks and 0.53 in from the line; 2.5 long (the bar's 1.25), its foot inward)
   const c0 = mid.addScaledVector(axis, 0.74).addScaledVector(inward, 0.53)
-  const f = floorMap(scene, frame, c0, Math.min(ba.min.y, bb.min.y))
+  // (its map no wider than the futon there and the step before its foot need, 2.2 out (item 543): its squares as a wider one's, 2 m 40
+  // of them)
+  const f = floorMap(meshes, frame, c0, Math.min(ba.min.y, bb.min.y), 2.5)
   // (its length's way in the map: the room's own nearest to `inward`)
   const ku = f.U.dot(inward), kv = f.V.dot(inward)
   return Math.abs(ku) >= Math.abs(kv) ? futonFits(f, 0, 0, Math.sign(ku), 0) : futonFits(f, 0, 0, 0, Math.sign(kv))
@@ -4144,13 +4204,14 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
   useEffect(() => {
     BOSS_BED.frame = ref.current
     BOSS_BED.way = (fromGrill) => {
-      const g = ref.current, sd = scene.getObjectByName('staff-door'), fr = scene.getObjectByName('look-fridge')
+      const g = ref.current
       if (!g) return null
+      const finds = bedFinds(scene), sd = finds.door, fr = finds.fridge
       g.updateWorldMatrix(true, false)
       // (item 480, the owner's 「老闆打地鋪在這邊」: on the floor between the barrel and the rice sacks at the back, where the willow stood (moved
       // up by the barrel, item 479): across it, his head to the wall, his feet into the room, a little nearer the sacks than the barrel (the
       // willow's by that); his way there across the kitchen as it routes him, to before its foot and onto it)
-      const spot = import.meta.env.DEV && (window as unknown as { __futonAt?: string }).__futonAt === 'stair' ? null : futonSpot(scene, g)
+      const spot = import.meta.env.DEV && (window as unknown as { __futonAt?: string }).__futonAt === 'stair' ? null : futonSpot(g, finds)
       if (spot && KITCHEN_ROUTE.route) {
         const toB = (w: THREE.Vector3) => toBar(g.worldToLocal(w.clone()))
         const onFloor = (v: THREE.Vector3) => { const q = fromBar(v); return q.setY(floorAt(q)) }
@@ -4176,7 +4237,7 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
       let beforeW: THREE.Vector3 | null = null
       {
         const w = (v: THREE.Vector3) => g.localToWorld(onFloor(v))
-        const midW = w(mid), f = floorMap(scene, g, midW, midW.y)
+        const midW = w(mid), f = floorMap(finds.meshes, g, midW, midW.y)
         const toMap = (p: THREE.Vector3) => { const q = p.clone().sub(midW); return [q.dot(f.U), q.dot(f.V)] }
         const alongW = w(mid.clone().add(along)).sub(midW).setY(0).normalize(), roomW = w(mid.clone().add(room)).sub(midW).setY(0).normalize()
         const dW = w(d)
