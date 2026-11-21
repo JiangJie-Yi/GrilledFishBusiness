@@ -5845,7 +5845,7 @@ function DiningWallImpl({ c, from, to, far, lampId, lampName, top, door, altar =
       {/* pendant lamps over the bar's customer side, low: one between each two places, midway (the owner's: a lamp between one customer and
           the next; bar's lampsAlong), their bands 鱗 and 立涌 in turn */}
       {lampsAlong(c).map((z, i) => (
-        <Movable key={i} id={`${lampId}${i}`} label={`吊燈（${lampName} ${i + 1}）`} blocks><group position-x={0.05} userData={{ fadeOccluder: 0.5 }}><Pendant z={z} drop={LAMP_DROP} hang={WALL_H - BAR_SHELF.foot} pool={top} band={i % 2} /></group></Movable>
+        <Movable key={i} id={`${lampId}${i}`} label={`吊燈（${lampName} ${i + 1}）`} blocks><group position-x={0.05} userData={{ fadeOccluder: 0.5 }}><Pendant z={z} drop={LAMP_DROP} pool={top} band={i % 2} /></group></Movable>
       ))}
     </group>
   )
@@ -8891,134 +8891,7 @@ function WillowModel() {
   return <group {...WILLOW_SAYS}><primitive object={obj} /></group>
 }
 const WILLOW_SAYS = nameOver('【觀賞盆栽】垂柳', '墨色粗陶盆裡的垂柳，枝條隨意垂下，盆面鋪著青苔')
-/**
- * The premium liquor's hanging shelf over the bar (items 443, 450, the owner's, 2026-11-21: 「上面新增系統櫃壩台，專門放高級酒」, then
- * 「要做在燈的上面」, the cabinet over the kitchen crossed out and the L of the bar boxed): blender/liquorshelf.py, an open L of dark walnut
- * over the two counters from their corner out past their last seats, hung from the room's top on short rods, the bar's lamps hanging from
- * its foot; on it the shop's better bottles, their labels to the customers, a warm LED strip under its top on their side (its own light:
- * no lamp added). Made over (item 504, the owner's 「酒櫃實在不好看，幫我美化並調整酒瓶位置，要美觀」): each bay backed by warm washi lit
- * from behind, a fascia with a brass line hiding the strip, a lip along each foot; one kind to a bay, sake six, the others five, spread
- * evenly, square to the customers, their glass mirrored about the bay's middle. Fades as the lamps do when it's between the camera and
- * what it's looking at (OccluderFade).
- */
-const LIQUOR_URL = import.meta.env.BASE_URL + 'models/liquorshelf.glb'
-useGLTF.preload(LIQUOR_URL)
-/** the shelf over the bar (item 450): its foot's height over the room's floor (its top 2.25, its rods up to the room's top, 2.3); the bar's
- * lamps hung from it, lower than they were (their cords 0.25 from the room's top, their lanterns' tops 2.06: the shelf's 0.23 and the
- * lamps' cords between wouldn't go in over them), their lanterns' tops at 1.97 now */
-const BAR_SHELF = { foot: 2.02 }
 const LAMP_DROP = 0.36
-type LabelStyle = { bg: string; ink: string; edge: string; seal?: string }
-/** the labels' cells, in blender/liquorshelf.py's order (item 504: sixteen sake, six shochu, five whisky, five umeshu; each bottle the next
- * of its kind's, so a bay of sake reads light and dark by turns): each its kind, its name (made up, not any brewer's), what it is, and its
- * colours */
-const LIQUOR_LABELS: { kind: 'sake' | 'shochu' | 'whisky' | 'umeshu'; name: string; sub: string; st: LabelStyle }[] = (() => {
-  const W: LabelStyle = { bg: '#f3ecdc', ink: '#1b1713', edge: '#8c1c16', seal: '#b3261e' }
-  const K: LabelStyle = { bg: '#141210', ink: '#d9b25a', edge: '#d9b25a' }
-  const B: LabelStyle = { bg: '#203457', ink: '#f2ede2', edge: '#f2ede2', seal: '#b3261e' }
-  const R: LabelStyle = { bg: '#9c241c', ink: '#f6efe2', edge: '#f6efe2' }
-  const S: LabelStyle = { bg: '#e9eef2', ink: '#1d3a6b', edge: '#1d3a6b', seal: '#b3261e' }
-  const D: LabelStyle = { bg: '#3a2414', ink: '#efe2c6', edge: '#c9a44c' }
-  const P: LabelStyle = { bg: '#f4d9d6', ink: '#8c1c2a', edge: '#8c1c2a' }
-  const G: LabelStyle = { bg: '#efe4c8', ink: '#2a1a0e', edge: '#7a5420' }
-  const sake = (name: string, sub: string, st: LabelStyle) => ({ kind: 'sake' as const, name, sub, st })
-  const sho = (name: string) => ({ kind: 'shochu' as const, name, sub: '焼酎', st: D })
-  const wh = (name: string, sub: string) => ({ kind: 'whisky' as const, name, sub, st: G })
-  const ume = (sub: string) => ({ kind: 'umeshu' as const, name: '梅酒', sub, st: P })
-  return [
-    sake('雪月', '大吟醸', W), sake('凪', '純米', K), sake('鶴', '吟醸', S), sake('山廃', '純米', B),
-    sake('月', '吟醸', W), sake('原酒', '', R), sake('蔵', '大吟醸', K), sake('雪', '純米', S),
-    sake('龍', '純米', W), sake('澄', '吟醸', B), sake('古酒', '', K), sake('花', '純米', W),
-    sake('結', '吟醸', S), sake('粋', '', R), sake('光', '大吟醸', B), sake('和', '純米', K),
-    sho('芋'), sho('麦'), sho('黒'), sho('米'), sho('蕎麦'), sho('黒糖'),
-    // (the whiskies' in the order they stand along the bay: the oldest in its middle, 18 and 21 by it, 12 and 17 at its ends)
-    wh('17', 'PURE MALT'), wh('21', 'BLENDED'), wh('25', 'RESERVE'), wh('18', 'SINGLE CASK'), wh('12', 'SINGLE MALT'),
-    ume('紀州'), ume('熟成'), ume('完熟'), ume('本格'), ume('古酒'),
-  ]
-})()
-/** the labels' picture: eight cells across, four down, each 128 x 192, every label drawn as a small brewer's would (a washi or a coloured
- * ground, a fine border, its name brushed big down the middle, what it is small beside it, a red seal), the whiskies' printed across */
-const LIQUOR_LABEL_TEX = (() => {
-  const t = signTexture(1024, 768, (g) => {
-    LIQUOR_LABELS.forEach((l, k) => {
-      const x = (k % 8) * 128, y = Math.floor(k / 8) * 192
-      g.save()
-      g.translate(x, y)
-      g.fillStyle = l.st.bg; g.fillRect(0, 0, 128, 192)
-      g.strokeStyle = l.st.edge; g.lineWidth = 3; g.strokeRect(7, 7, 114, 178)
-      if (l.kind === 'whisky') {
-        g.fillStyle = l.st.ink; g.textAlign = 'center'; g.textBaseline = 'middle'
-        g.font = '700 15px Georgia, "Times New Roman", serif'
-        g.fillText(l.sub, 64, 46)
-        g.font = '700 70px Georgia, "Times New Roman", serif'
-        g.fillText(l.name, 64, 104)
-        g.font = '700 14px Georgia, "Times New Roman", serif'
-        g.fillText('YEARS OLD', 64, 150)
-        g.fillStyle = l.st.edge; g.fillRect(30, 68, 68, 2); g.fillRect(30, 166, 68, 2)
-      } else {
-        // (its name down the middle, a character at a time; what it is small, down its left)
-        const chars = [...l.name], size = chars.length > 1 ? 50 : 76
-        chars.forEach((ch, i) => brushText(g, ch, l.sub ? 72 : 64, 96 + (i - (chars.length - 1) / 2) * (size * 1.02), size, { fill: l.st.ink }))
-        if (l.sub) [...l.sub].forEach((ch, i) => brushText(g, ch, 26, 44 + i * 24, 20, { fill: l.st.ink }))
-        if (l.st.seal) { g.fillStyle = l.st.seal; g.fillRect(96, 152, 18, 18); g.fillStyle = l.st.bg; g.fillRect(100, 156, 10, 10); g.fillStyle = l.st.seal; g.fillRect(102, 158, 6, 6) }
-      }
-      g.restore()
-    })
-  })
-  if (t) { t.flipY = false; t.anisotropy = 4 }
-  return t
-})()
-let liquorMats: Record<string, THREE.Material> | null = null
-const liquorMatOf = (src: THREE.MeshStandardMaterial) => {
-  if (!liquorMats) {
-    const glass = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, roughness: 0.1, metalness: 0, envMapIntensity: 1.1 })
-    reflectStudio(glass)
-    liquorMats = {
-      LiquorGlass: glass,
-      LiquorLED: new THREE.MeshBasicMaterial({ color: '#ffe2b4' }),
-      LiquorRod: new THREE.MeshToonMaterial({ color: '#1c1c1f' }),
-      // (the fine brass line along the fascia under its top (item 504))
-      LiquorBrass: new THREE.MeshToonMaterial({ color: '#c49a48' }),
-      // (its body's panes (item 508, the owner's 「酒櫃主體為玻璃質感」「會通透」「但上下層還是木質」): clear glass, a breath of green in it, the
-      // studio's gleams on it; see-through, no transmission)
-      LiquorPane: (() => { const g = new THREE.MeshStandardMaterial({ color: '#d4e8e6', transparent: true, opacity: 0.2, depthWrite: false, roughness: 0.05, metalness: 0.1, envMapIntensity: 1.3 }); reflectStudio(g); return g })(),
-      LiquorLabel: new THREE.MeshToonMaterial({ color: '#ffffff', map: LIQUOR_LABEL_TEX }),
-    }
-  }
-  let m = liquorMats[src.name]
-  if (!m) {
-    // (the walnut, and each bay's back (item 504): warm washi lit from behind, its own picture glowing in the dark so the bottles stand
-    // against it as silhouettes)
-    m = src.name === 'LiquorBack'
-      ? new THREE.MeshToonMaterial({ color: '#ffffff', map: src.map ?? null, emissive: '#ffffff', emissiveMap: src.map ?? null, emissiveIntensity: 0.7 })
-      : new THREE.MeshToonMaterial({ color: '#ffffff', map: src.map ?? null, normalMap: src.normalMap ?? null })
-    m.name = src.name
-    liquorMats[src.name] = m
-  }
-  return m
-}
-function LiquorShelf() {
-  const gltf = useGLTF(LIQUOR_URL) as unknown as { scene: THREE.Group }
-  const obj = useMemo(() => {
-    const r = (gltf.scene.getObjectByName('LiquorShelf') ?? gltf.scene).clone(true)
-    r.position.set(0, 0, 0)
-    r.traverse((o) => {
-      const m = o as THREE.Mesh
-      if (!m.isMesh) return
-      m.material = Array.isArray(m.material) ? m.material.map((x) => liquorMatOf(x as THREE.MeshStandardMaterial)) : liquorMatOf(m.material as THREE.MeshStandardMaterial)
-      m.castShadow = false
-      m.receiveShadow = false
-    })
-    // (an ink line round its boards and rods, not its strips, its back, its glass or its labels)
-    inkModel(r, (m) => !/LiquorWood|LiquorRod/.test((m.material as THREE.Material).name))
-    return mergeByMaterial(r)
-  }, [gltf])
-  // (in the way of what's looked at (scene/OccluderFade), all but gone: at a third its dark boards and its bottles lay a veil over what's
-  // behind it, read as a shadow (item 478, the owner's 「有不明陰影 很不自然」: over the beckoning cats' stand from the room's height); its
-  // ink lines put away while it's faded, as every faded hanging's are)
-  // (and seen from over it, the room looked down on, half of it: the bar under it shows through (fadeAbove))
-  return <group name="look-liquor" userData={{ fadeOccluder: 0.06, fadeAbove: 0.5 }}><primitive object={obj} /></group>
-}
 /**
  * The milk crates of cold drinks (item 437, the owner's, 2026-11-21: 「新整另一種籃子風格，裡面也是用來裝冷飲類」, after a pink milk crate):
  * blender/milkcrate.py, faded magenta moulded plastic, ribs round its top, a hand-hold in each end, its sides a lattice of diamonds (a
@@ -9880,21 +9753,6 @@ function ShopPropsImpl({ counters }: { counters: Counter[] }) {
   // beer crates 0.43 across, the cartons 0.83, the milk crates' two stacks 0.73 from the first's middle); they were spread along it behind
   // the fridges and the doorway, 0.44 bare by the end)
   const crateAt = useMemo(() => (fr && st ? st.at(st.room[1] - 0.241, STORE.deep - 0.16) : new THREE.Vector3()), [fr, st])
-  // (the premium liquor's shelf over the bar (item 450): its corner where the two counters' lamp lines meet (each one's middle line 5 cm
-  // toward its customers, as DiningWall hangs them: its frame's x, (along.z, 0, -along.x)), its run A out along the long counter, B along
-  // the side one (the model's z, the side counter's way out from the corner); its foot at BAR_SHELF.foot)
-  const barShelf = useMemo(() => {
-    const [a, b] = counters
-    if (!a || !b) return null
-    const line = (c: Counter) => ({ p: c.at.clone().add(new THREE.Vector3(c.along.z, 0, -c.along.x).multiplyScalar(0.05)), d: c.along.clone().setY(0).normalize() })
-    const la = line(a), lb = line(b)
-    const den = la.d.x * lb.d.z - la.d.z * lb.d.x
-    if (Math.abs(den) < 1e-6) return null
-    const s = ((lb.p.x - la.p.x) * lb.d.z - (lb.p.z - la.p.z) * lb.d.x) / den
-    const p = la.p.clone().addScaledVector(la.d, s)
-    p.y = BAR_SHELF.foot
-    return { p, yaw: Math.atan2(-la.d.z, la.d.x) }
-  }, [counters])
   // (the milk crates of cold drinks (item 437): behind the doorway against the back wall, two stacked by the room's end, one beside them,
   // seen through the doorway; clear of the room's end (2.5 cm) and of the cartons (1.7 cm), their backs a centimetre off the wall)
   // (the stack of two 4 cm further from the single than they stood (item 437): the two had run 2.5 cm into each other)
@@ -9932,8 +9790,6 @@ function ShopPropsImpl({ counters }: { counters: Counter[] }) {
         {/* (only to look at (the owner's): named when pointed at, the cursor left an arrow, a click does nothing) */}
         <group position={cornerAt} rotation-y={0.4}><BambooHit {...BAMBOO_SAYS} /></group>
       </Movable>
-      {/* (the premium liquor's shelf over the bar, the lamps under it (items 443, 450)) */}
-      {barShelf && <Movable id="barshelf" label="高級酒吊棚"><group position={barShelf.p} rotation-y={barShelf.yaw}><Suspense fallback={null}><LiquorShelf /></Suspense></group></Movable>}
       {/* (the crates of red bottles and the cartons of cans, in the stock room behind the side wall now, along its back wall (item 430)) */}
       {fr && <Movable id="crates" label="酒箱"><group ref={cratesRef}><StaticBatch plain>
         <group position={crateAt} rotation-y={Math.atan2(counters[1].lay.x, counters[1].lay.z)}>
