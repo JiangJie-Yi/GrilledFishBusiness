@@ -101,7 +101,7 @@ import { CREW_LOAD, GAZE, SHOP, STAFF_SAY, clockIn, idleTick, paceOfStaff, LATE,
 import { loadOf } from '@/game/crewMood'
 /** (where a customer's looking, worked out) */
 const GAZE_AT = new THREE.Vector3()
-import { aisleCornerOf, aisleOf, FIGURES, CARRIED, FED, EAT_PHASE, PLATE_FACES, SEATS_SAT, DRAWER_KICK, TISSUE_REACH_MS, SAY_SEATED, BOWLS, RICE_SEATS, SIDE_SALE, FIRE_TEND, SKEWERS, SEAT_MOVE, STAFF_DOOR_HOLD, CUBBY_KICK, seatLabel, CHOPS_UP, GRIPES, gripe, CUBBY_OPEN, meterWater, KITCHEN_ROUTE, askPantry, shutPantry, SUPPLIES, PLACE, sharedAlong, SICK, LIP_H, PLATING, READY_SLOTS, readyAlong, PLATES_OUT, PLATER_OUT, OWNER_GRILL, FETCHER, SEAT_STICKS, SEAT_BONES, WHOLE_FISH, RICE, seatAlong, tipOver, ALONG, handOver, genkanY, ONIGIRI_TRAY, FLOOR_NEAR, staffWayOut, doorOutOf, inKitchen, alongPath, pathLength, drinkFor, type DrinkId, sauceSide, POINTER_HINT, PLATES_SET, SEATS_TAKEN, SERVICE, PANTRY, KITCHEN_FOLK, platingOf, BAR_GATES, gateCut, gateOf, type Gate, TILL, GRILL_BAR_TOP, GRILL_COUNTERS, GRILL_OFFSET, GRILL_SCALE, GRILL_SEATS, SIDE_PULL, FIRE_SHIFT, KITCHEN_DROP, LAY, toGrillScene, CUBBY, CUBBY2, CUBBY_FLOOR_Y, CUBBY_SHELF_Y, COOK_NOTCH, SOUS_NOTCH, nameOver, BAR_BASE_Z, SOY_DISH_AT, seatTurn, type Counter } from './bar'
+import { aisleCornerOf, aisleOf, FIGURES, CARRIED, FED, EAT_PHASE, PLATE_FACES, SEATS_SAT, DRAWER_KICK, TISSUE_REACH_MS, SAY_SEATED, BOWLS, RICE_SEATS, SIDE_SALE, FIRE_TEND, SKEWERS, SEAT_MOVE, STAFF_DOOR_HOLD, CUBBY_KICK, seatLabel, CHOPS_UP, GRIPES, gripe, CUBBY_OPEN, meterWater, KITCHEN_ROUTE, askPantry, shutPantry, SUPPLIES, PLACE, sharedAlong, SICK, LIP_H, PLATING, READY_SLOTS, readyAlong, PLATES_OUT, PLATER_OUT, OWNER_GRILL, FETCHER, SEAT_STICKS, SEAT_BONES, WHOLE_FISH, RICE, seatAlong, tipOver, ALONG, handOver, genkanY, ONIGIRI_TRAY, FLOOR_NEAR, staffWayOut, doorOutOf, inKitchen, alongPath, pathLength, drinkFor, type DrinkId, sauceSide, POINTER_HINT, PLATES_SET, SEATS_TAKEN, SERVICE, PANTRY, KITCHEN_FOLK, platingOf, BAR_GATES, gateCut, gateOf, type Gate, TILL, GRILL_BAR_TOP, GRILL_COUNTERS, GRILL_OFFSET, GRILL_SCALE, GRILL_SEATS, SIDE_PULL, FIRE_SHIFT, KITCHEN_DROP, LAY, toGrillScene, CUBBY, CUBBY2, CUBBY_FLOOR_Y, CUBBY_SHELF_Y, COOK_NOTCH, SOUS_NOTCH, nameOver, BAR_BASE_Z, SOY_DISH_AT, seatTurn, roomOf, type Counter } from './bar'
 import { freshFactor, sickChance } from '@/game/freshness'
 import { warmLater } from '@/scene/Prewarm'
 import { NO_POINTER, zr } from '@/scene/htmlProps'
@@ -4013,7 +4013,104 @@ const NotchStep = memo(function NotchStep({ id = 'notchstep', label = '木台階
  */
 /** the boss's futon's place (item 480), in the world: its foot, its head and before its foot, from where the barrel and the rice sacks stand
  * (their middles; across the line between them, its head toward the floor's edge, away from the room's middle); null without them */
-function futonSpot(scene: THREE.Object3D) {
+/**
+ * The floor round a spot, as the owner's futon sees it (item 537, the owner's 「老闆這邊睡會穿模型，找一個不會穿模型的地方睡。」: laid between
+ * the barrel and the rice sacks it ran over the sacks under its head, the potted willow's boughs over its pillow and the sake barrels by its
+ * foot, its head off the kitchen's floor down the step past it): 5 cm squares in the room's own lie (U along the first counter, V across it,
+ * in the world), from `c0`, R each way, each one taken where anything stands in it up to 60 cm over `floorY` (every mesh's triangles, edges
+ * and insides: but the floors' own flat faces, the people, the unseen), the step between the kitchen's floor and the room's with it; a test
+ * of a rectangle on it (taken anywhere in it), a point on it in the world. Made as the owner sets off for bed: what's moved in the editor since
+ * is where it is now
+ */
+function floorMap(scene: THREE.Object3D, g: THREE.Object3D, c0: THREE.Vector3, floorY: number) {
+  g.updateWorldMatrix(true, false)
+  const c = GRILL_COUNTERS[0]
+  const dirOf = (d: THREE.Vector3) => { const o = g.localToWorld(fromBar(c.at.clone())), t = g.localToWorld(fromBar(c.at.clone().add(d))); return t.sub(o).setY(0).normalize() }
+  const U = dirOf(c.along), V = dirOf(c.lay)
+  const R = 4.5, CELL = 0.05, N = Math.round((2 * R) / CELL)
+  const occ = new Uint8Array(N * N)
+  const lo = floorY - 0.25, hi = floorY + 0.6
+  const P0 = new THREE.Vector3(), P1 = new THREE.Vector3(), P2 = new THREE.Vector3(), E1 = new THREE.Vector3(), E2 = new THREE.Vector3(), WB = new THREE.Box3()
+  const cellOf = (p: THREE.Vector3) => [((p.x - c0.x) * U.x + (p.z - c0.z) * U.z + R) / CELL, ((p.x - c0.x) * V.x + (p.z - c0.z) * V.z + R) / CELL]
+  const mark = (i: number, j: number) => { if (i >= 0 && j >= 0 && i < N && j < N) occ[j * N + i] = 1 }
+  // (a triangle's edges, stepped along at half a square, and its inside where it isn't edge-on from above)
+  const seg = (a: number[], b: number[]) => {
+    const k = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) * 2))
+    for (let q = 0; q <= k; q++) mark(Math.floor(a[0] + ((b[0] - a[0]) * q) / k), Math.floor(a[1] + ((b[1] - a[1]) * q) / k))
+  }
+  const side = (p: number[], q: number[], x: number, y: number) => (q[0] - p[0]) * (y - p[1]) - (x - p[0]) * (q[1] - p[1])
+  scene.updateMatrixWorld(true)
+  scene.traverse((o) => {
+    const m = o as THREE.Mesh
+    if (!m.isMesh || (m as THREE.SkinnedMesh).isSkinnedMesh || (m as THREE.InstancedMesh).isInstancedMesh || !m.visible || /^Futon/.test(m.name)) return
+    const pos = m.geometry?.attributes.position as THREE.BufferAttribute | undefined
+    if (!pos) return
+    if (([] as THREE.Material[]).concat(m.material).every((x) => x.transparent && x.opacity < 0.05)) return
+    if (!m.geometry.boundingBox) m.geometry.computeBoundingBox()
+    WB.copy(m.geometry.boundingBox!).applyMatrix4(m.matrixWorld)
+    if (WB.max.y < lo || WB.min.y > hi || WB.distanceToPoint(c0) > R * 1.5) return
+    const idx = m.geometry.index, n = idx ? idx.count : pos.count
+    for (let i = 0; i + 2 < n; i += 3) {
+      P0.fromBufferAttribute(pos, idx ? idx.getX(i) : i).applyMatrix4(m.matrixWorld)
+      P1.fromBufferAttribute(pos, idx ? idx.getX(i + 1) : i + 1).applyMatrix4(m.matrixWorld)
+      P2.fromBufferAttribute(pos, idx ? idx.getX(i + 2) : i + 2).applyMatrix4(m.matrixWorld)
+      const y0 = Math.min(P0.y, P1.y, P2.y), y1 = Math.max(P0.y, P1.y, P2.y)
+      if (y1 < lo || y0 > hi) continue
+      // (a flat face low down is a floor's, the kitchen's or the room's, or a mat or a shadow on one: not in the way)
+      if (Math.abs(E1.subVectors(P1, P0).cross(E2.subVectors(P2, P0)).normalize().y) > 0.9 && y1 < floorY + 0.25) continue
+      const a = cellOf(P0), b = cellOf(P1), d = cellOf(P2)
+      seg(a, b); seg(b, d); seg(d, a)
+      if (Math.abs((b[0] - a[0]) * (d[1] - a[1]) - (d[0] - a[0]) * (b[1] - a[1])) < 0.5) continue
+      const i0 = Math.max(0, Math.floor(Math.min(a[0], b[0], d[0]))), i1 = Math.min(N - 1, Math.floor(Math.max(a[0], b[0], d[0])))
+      const j0 = Math.max(0, Math.floor(Math.min(a[1], b[1], d[1]))), j1 = Math.min(N - 1, Math.floor(Math.max(a[1], b[1], d[1])))
+      for (let jj = j0; jj <= j1; jj++) for (let ii = i0; ii <= i1; ii++) {
+        const x = ii + 0.5, y = jj + 0.5, s1 = side(a, b, x, y), s2 = side(b, d, x, y), s3 = side(d, a, x, y)
+        if ((s1 >= 0 && s2 >= 0 && s3 >= 0) || (s1 <= 0 && s2 <= 0 && s3 <= 0)) occ[jj * N + ii] = 1
+      }
+    }
+  })
+  // (its sums, for any rectangle of it at once)
+  const sum = new Uint32Array((N + 1) * (N + 1))
+  for (let jj = 0; jj < N; jj++) for (let ii = 0; ii < N; ii++) sum[(jj + 1) * (N + 1) + ii + 1] = occ[jj * N + ii] + sum[jj * (N + 1) + ii + 1] + sum[(jj + 1) * (N + 1) + ii] - sum[jj * (N + 1) + ii]
+  const taken = (u0: number, u1: number, v0: number, v1: number) => {
+    const ia = Math.floor((u0 + R) / CELL), ib = Math.ceil((u1 + R) / CELL), ja = Math.floor((v0 + R) / CELL), jb = Math.ceil((v1 + R) / CELL)
+    if (ia < 0 || ja < 0 || ib > N || jb > N) return true
+    return sum[jb * (N + 1) + ib] - sum[ja * (N + 1) + ib] - sum[jb * (N + 1) + ia] + sum[ja * (N + 1) + ia] > 0
+  }
+  const at = (u: number, v: number) => c0.clone().addScaledVector(U, u).addScaledVector(V, v)
+  // (in the shop: in the room's floor (its rectangle), all on the one floor, the kitchen's or the room's)
+  const rm = roomOf(GRILL_COUNTERS)
+  const bar = (w: THREE.Vector3) => toBar(g.worldToLocal(w.clone()))
+  const inRoom = (w: THREE.Vector3) => {
+    const dd = bar(w).sub(c.at), al = dd.dot(c.along), ly = dd.dot(c.lay)
+    return al > rm.along[0] + 0.02 && al < rm.along[1] - 0.02 && ly > rm.lay[0] + 0.02 && ly < rm.lay[1] - 0.02
+  }
+  const level = (w: THREE.Vector3) => inKitchen(GRILL_COUNTERS, bar(w))
+  if (import.meta.env.DEV) (window as unknown as { __futonMap?: unknown }).__futonMap = { N, occ, c0: c0.toArray() }
+  return { U, V, R, taken, at, inRoom, level }
+}
+type FloorMap = ReturnType<typeof floorMap>
+/** where the futon lies clear on a map, its middle at (u, v) and its length's way (du, dv) one of the room's four: the futon and a hand's
+ * margin clear and in the shop on the one floor, and the spot before its foot he steps up from; and nothing of it in `keepOut` (the map's
+ * rectangles: before a door) */
+function futonFits(f: FloorMap, u: number, v: number, du: number, dv: number, keepOut: [number, number, number, number][] = []) {
+  const half = FUTON.L * GRILL_SCALE / 2, wide = FUTON.W * GRILL_SCALE / 2 + 0.06
+  const eu = du ? half + 0.06 : wide, ev = dv ? half + 0.06 : wide
+  if (f.taken(u - eu, u + eu, v - ev, v + ev)) return null
+  if (keepOut.some(([u0, u1, v0, v1]) => u + eu > u0 && u - eu < u1 && v + ev > v0 && v - ev < v1)) return null
+  const bu = u + du * (half + 0.8), bv = v + dv * (half + 0.8)
+  if (f.taken(bu - 0.15, bu + 0.15, bv - 0.15, bv + 0.15)) return null
+  const m = f.at(u, v), before = f.at(bu, bv)
+  const corners = [-1, 1].flatMap((su) => [-1, 1].map((sv) => f.at(u + su * eu, v + sv * ev)))
+  if (![m, ...corners, before].every(f.inRoom)) return null
+  const lv = f.level(m)
+  if (!corners.every((q) => f.level(q) === lv) || f.level(before) !== lv) return null
+  return { foot: f.at(u + du * half, v + dv * half), head: f.at(u - du * half, v - dv * half), before }
+}
+/** the boss's futon's place (item 480), in the world: its foot, its head and before its foot, from where the barrel and the rice sacks stand
+ * (their middles; across the line between them, its head toward the floor's edge, away from the room's middle), if it's clear there as it
+ * is (item 537: it wasn't, the stretch was full); null otherwise, or without them */
+function futonSpot(scene: THREE.Object3D, frame: THREE.Object3D) {
   let barrel: THREE.Object3D | null = null, sacks: THREE.Object3D | null = null
   scene.traverse((q) => {
     if (!barrel && q.userData?.editId === 'takeoutstand') barrel = q
@@ -4021,8 +4118,8 @@ function futonSpot(scene: THREE.Object3D) {
   })
   const floor = scene.getObjectByName('room-floor')
   if (!barrel || !sacks || !floor) return null
-  const a = new THREE.Box3().setFromObject(barrel).getCenter(new THREE.Vector3())
-  const b = new THREE.Box3().setFromObject(sacks).getCenter(new THREE.Vector3())
+  const ba = new THREE.Box3().setFromObject(barrel), bb = new THREE.Box3().setFromObject(sacks)
+  const a = ba.getCenter(new THREE.Vector3()), b = bb.getCenter(new THREE.Vector3())
   const axis = b.clone().sub(a).setY(0)
   if (axis.lengthSq() < 1e-6) return null
   axis.normalize()
@@ -4030,9 +4127,11 @@ function futonSpot(scene: THREE.Object3D) {
   const inward = new THREE.Vector3(-axis.z, 0, axis.x)
   if (inward.dot(room.sub(mid)) < 0) inward.negate()
   // (the world's units: its middle 0.74 on from halfway toward the sacks and 0.53 in from the line; 2.5 long (the bar's 1.25), its foot inward)
-  const c = mid.addScaledVector(axis, 0.74).addScaledVector(inward, 0.53)
-  const half = FUTON.L * GRILL_SCALE / 2
-  return { foot: c.clone().addScaledVector(inward, half), head: c.clone().addScaledVector(inward, -half), before: c.clone().addScaledVector(inward, half + 0.8) }
+  const c0 = mid.addScaledVector(axis, 0.74).addScaledVector(inward, 0.53)
+  const f = floorMap(scene, frame, c0, Math.min(ba.min.y, bb.min.y))
+  // (its length's way in the map: the room's own nearest to `inward`)
+  const ku = f.U.dot(inward), kv = f.V.dot(inward)
+  return Math.abs(ku) >= Math.abs(kv) ? futonFits(f, 0, 0, Math.sign(ku), 0) : futonFits(f, 0, 0, 0, Math.sign(kv))
 }
 const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolean; research: boolean }) {
   const ref = useRef<THREE.Group>(null)
@@ -4051,7 +4150,7 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
       // (item 480, the owner's 「老闆打地鋪在這邊」: on the floor between the barrel and the rice sacks at the back, where the willow stood (moved
       // up by the barrel, item 479): across it, his head to the wall, his feet into the room, a little nearer the sacks than the barrel (the
       // willow's by that); his way there across the kitchen as it routes him, to before its foot and onto it)
-      const spot = futonSpot(scene)
+      const spot = import.meta.env.DEV && (window as unknown as { __futonAt?: string }).__futonAt === 'stair' ? null : futonSpot(scene, g)
       if (spot && KITCHEN_ROUTE.route) {
         const toB = (w: THREE.Vector3) => toBar(g.worldToLocal(w.clone()))
         const onFloor = (v: THREE.Vector3) => { const q = fromBar(v); return q.setY(floorAt(q)) }
@@ -4069,14 +4168,43 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
       const along = new THREE.Vector3(-room.z, 0, room.x)
       if (fr && bar(fr.getWorldPosition(new THREE.Vector3())).setY(0).sub(d).dot(along) < 0) along.negate()
       const mid = d.clone().addScaledVector(room, FUTON.out).addScaledVector(along, FUTON.along)
-      const head = mid.clone().addScaledVector(along, FUTON.L / 2), foot = mid.clone().addScaledVector(along, -FUTON.L / 2)
+      let head = mid.clone().addScaledVector(along, FUTON.L / 2), foot = mid.clone().addScaledVector(along, -FUTON.L / 2)
       const onFloor = (v: THREE.Vector3) => { const q = fromBar(v); return q.setY(floorAt(q)) }
+      // (item 537: there if it's clear, or the nearest place round it that is (a potted bamboo had come to stand by the door, and laid
+      // there it was across the door's way): its length along the wall the first way tried, the strip before the door kept clear for it to
+      // be slid open, all of it on the map of what stands there (floorMap))
+      let beforeW: THREE.Vector3 | null = null
+      {
+        const w = (v: THREE.Vector3) => g.localToWorld(onFloor(v))
+        const midW = w(mid), f = floorMap(scene, g, midW, midW.y)
+        const toMap = (p: THREE.Vector3) => { const q = p.clone().sub(midW); return [q.dot(f.U), q.dot(f.V)] }
+        const alongW = w(mid.clone().add(along)).sub(midW).setY(0).normalize(), roomW = w(mid.clone().add(room)).sub(midW).setY(0).normalize()
+        const dW = w(d)
+        const door = [dW.clone().addScaledVector(alongW, -0.95), dW.clone().addScaledVector(alongW, 0.95).addScaledVector(roomW, 0.8)].map(toMap)
+        const keepOut: [number, number, number, number][] = [[Math.min(door[0][0], door[1][0]), Math.max(door[0][0], door[1][0]), Math.min(door[0][1], door[1][1]), Math.max(door[0][1], door[1][1])]]
+        // (its foot toward the corner as it was, then the other ways round)
+        const ways = ([[1, 0], [-1, 0], [0, 1], [0, -1]] as [number, number][])
+          .map((k) => ({ k, s: -(f.U.clone().multiplyScalar(k[0]).addScaledVector(f.V, k[1]).dot(alongW)) })).sort((p, q) => q.s - p.s).map((x) => x.k)
+        let best: ReturnType<typeof futonFits> = null, bestScore = Infinity
+        for (let v = -2.5; v <= 2.5001; v += 0.1) for (let u = -2.5; u <= 2.5001; u += 0.1) {
+          for (let k = 0; k < ways.length; k++) {
+            const score = Math.hypot(u, v) + k * 0.15
+            if (score >= bestScore) continue
+            const fit = futonFits(f, u, v, ways[k][0], ways[k][1], keepOut)
+            if (fit) { best = fit; bestScore = score }
+          }
+        }
+        if (best) {
+          const b = (x: THREE.Vector3) => bar(x).setY(0)
+          foot = b(best.foot); head = b(best.head); beforeW = best.before
+        }
+      }
       const out = staffWayOut(GRILL_COUNTERS)
       const across = KITCHEN_ROUTE.route ? KITCHEN_ROUTE.route(toBar(fromGrill), out[0]) : null
       const head0 = across ? [fromGrill.clone(), ...across.slice(1).map((v) => onFloor(v))] : [fromGrill.clone()]
       const c0 = GRILL_COUNTERS[0], gate = gateOf(c0, BAR_GATES[0]).mid
       const aisle = [gate.clone().addScaledVector(c0.lay, -aisleOf(c0)), aisleCornerOf(GRILL_COUNTERS, GRILL_COUNTERS[1])]
-      const before = foot.clone().addScaledVector(along, -0.4)
+      const before = beforeW ? bar(beforeW).setY(0) : foot.clone().addScaledVector(along, -0.4)
       return { path: [...head0, onFloor(out[1]), ...aisle.map(onFloor), onFloor(before), onFloor(foot)], foot: onFloor(foot), head: onFloor(head) }
     }
     return () => { BOSS_BED.way = null; BOSS_BED.frame = null }
