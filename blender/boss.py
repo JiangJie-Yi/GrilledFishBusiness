@@ -600,17 +600,27 @@ for i in range(NROLL):
 if WEAR != "bun":
     tube("BossTenuguiRoll", roll, 0.013 if CAPPED else 0.017, M["tenugui"], cyclic=True, most=16 if WEAR == "band" else 8)
 # (the knot at the back, and its two corners: flat flaps of the cloth, hanging and flaring out)
-kp = head_at(math.pi, 0.14 if CAPPED else HB - 0.12, 0.035 if CAPPED else 0.05)
+# (the cooks' white caps (item 518, the owner's 「二廚有BUG」): tied 3.5 cm out from the hair, under the cap's edge, its corners hanging back
+# and out from there, seen from the side it stood off the head like a white hook; now tied snug at the cap's back edge, its corners lying
+# down along the back of the head, a little apart, as a tenugui's tied ends do. The owner's indigo one as it was)
+SNUG = CAPPED and CREW is not None
+kp = head_at(math.pi, (0.19 if SNUG else 0.14) if CAPPED else HB - 0.12, (0.016 if SNUG else 0.035) if CAPPED else 0.05)
 ring_ball(radius=0.034, segs=5, rings=3, location=P(*kp))
 k_ = active(); k_.scale = (1.35, 0.95, 0.85)
 fin(k_, "BossKnot", M["tenugui"])
-for k, sd in enumerate((-1, 1)):
+# (a woman cook's bun is where its corners would lie: the knot alone, over the bun (they were in it))
+for k, sd in enumerate(() if SNUG and FEMALE else (-1, 1)):
     pts, outs = [], []
     for i in range(3):
         t = i / 2
-        q = kp + Vector((sd * (0.02 + 0.07 * t), -0.02 - 0.09 * t * t, -0.025 - 0.02 * t))
-        pts.append(q); outs.append(Vector((sd * 0.3, 0.1, -1)))
-    o = ribbon(f"BossKnotEnd{k}", pts, outs, 0.045 if CAPPED else 0.032, 0.006, M["tenugui"])
+        if SNUG:
+            # (on the head, 1.4 cm out (over the hair), from under the knot down and a little apart)
+            q = head_at(math.pi + sd * (0.07 + 0.09 * t), 0.13 - 0.2 * t, 0.014)
+            pts.append(q); outs.append((q - C).normalized())
+        else:
+            q = kp + Vector((sd * (0.02 + 0.07 * t), -0.02 - 0.09 * t * t, -0.025 - 0.02 * t))
+            pts.append(q); outs.append(Vector((sd * 0.3, 0.1, -1)))
+    o = ribbon(f"BossKnotEnd{k}", pts, outs, 0.04 if SNUG else 0.045 if CAPPED else 0.032, 0.006, M["tenugui"])
 if WEAR == "bun":
     for o in [x for x in parts if x.name.startswith("BossKnot")]:
         parts.remove(o); bpy.data.objects.remove(o)
