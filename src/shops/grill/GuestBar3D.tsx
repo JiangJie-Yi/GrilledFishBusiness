@@ -2483,6 +2483,14 @@ const SHOES_IN_MAT = new THREE.MeshToonMaterial({ color: '#ffffff' })
 const SHOE_NONE = new THREE.Matrix4().makeScale(0, 0, 0)
 const SHOE_M = new THREE.Matrix4()
 const SHOE_C = new THREE.Color()
+/** the cubby whose door it is, from anything of the shoe cupboard's under the pointer; -1, not a door (its top, back, sides, its veil) */
+const cubbyOf = (o: THREE.Object3D | null) => {
+  for (; o; o = o.parent) { const m = /^ShoeDoor[LR](\d+)$/.exec(o.name); if (m) return +m[1] }
+  return -1
+}
+const SHOE_P = new THREE.Vector3()
+const SHOE_TITLE = '【下駄箱】'
+const shoeHint = (open: boolean) => (open ? '再點一下關上這一格' : '點一格的門，開那一格')
 function ShoeCupboard() {
   const gltf = useGLTF(SHOE_URL) as unknown as { scene: THREE.Group }
   const model = useMemo(() => {
@@ -2543,10 +2551,16 @@ function ShoeCupboard() {
     const cab = root.getObjectByName('ShoeCab')
     const cabBox = cab ? new THREE.Box3().setFromObject(cab) : new THREE.Box3()
     const cells: THREE.Vector3[] = []
+    /** each cubby's room, its door shut to the carcass's back (a hair over all round): pointed into while its door's open, it's that cubby
+     * (item 528: its door swung away, the pointer on the cubby's inside is where it was) */
+    const rooms: THREE.Box3[] = []
+    const toRoot = root.matrixWorld.clone().invert()
     for (const d of doors) {
       const b = new THREE.Box3().setFromObject(d.o), c = b.getCenter(new THREE.Vector3())
       // (the shoes in the middle of its depth: it's shallow now, a pair just fits)
       cells[d.cell] = new THREE.Vector3(c.x, b.min.y + 0.004, (cabBox.min.z + cabBox.max.z) / 2)
+      rooms[d.cell] = new THREE.Box3(new THREE.Vector3(b.min.x, b.min.y, Math.min(b.min.z, cabBox.min.z)),
+        new THREE.Vector3(b.max.x, b.max.y, Math.max(b.max.z, cabBox.max.z))).expandByScalar(0.003).applyMatrix4(toRoot)
     }
     for (const d of doors) together(d.o)
     if (cab) together(cab)
@@ -2555,10 +2569,55 @@ function ShoeCupboard() {
     if (veil?.isMesh) { veil.material = SHOE_VEIL_MAT; veil.castShadow = veil.receiveShadow = false }
     // (all eight shut, drawn as one with one ink line, two draws not eighteen; any of them swinging, each its own again)
     const shut = homeCopy(root, doors.map((d) => d.o))
-    return { root, doors, cells, shut }
+    return { root, doors, cells, rooms, shut }
   }, [gltf])
   /** the cubbies opened by a click, each on its own (item 256, the owner's: 「這櫃子我點一下就全開，能否一個一個開」) */
   const st = useRef({ cells: new Set<number>() })
+  /** the cubby whose door's under the pointer; -1 the cupboard itself, null none of it (item 528, the owner's 「有BUG點上面、後面也有聲音，只有門
+   * 可以點」: the whole of it lit under the pointer and answered a click, its top and back too: lit, a press on them ticked; clicked, it shut
+   * whatever was open, a door's knock with nothing to shut. Only its doors answer now: the one pointed at lit alone, the hand, a click; the
+   * rest of it named, nothing lit, the arrow) */
+  const hov = useRef<number | null>(null)
+  const doorObj = (cell: number) => model.doors.find((d) => d.cell === cell)?.o ?? null
+  /** the cubby a pointer's on: its door, or inside it while its door's open (swung away, the pointer where the door was is on its inside:
+   * a click there shuts it, as its hint says); -1 the rest of the cupboard */
+  const cubbyAt = (e: ThreeEvent<PointerEvent> | ThreeEvent<MouseEvent>) => {
+    const c = cubbyOf(e.object)
+    if (c >= 0) return c
+    const p = model.root.worldToLocal(SHOE_P.copy(e.point))
+    for (const d of model.doors) if ((st.current.cells.has(d.cell) || d.k > 0.5) && model.rooms[d.cell]?.containsPoint(p)) return d.cell
+    return -1
+  }
+  const hand = (on: boolean, e: ThreeEvent<PointerEvent>) => {
+    POINTER_HINT.hand = Math.max(0, POINTER_HINT.hand + (on ? 1 : -1))
+    const el = e.nativeEvent.target as HTMLElement | null
+    if (el?.style) el.style.cursor = on || POINTER_HINT.hand ? 'pointer' : ''
+  }
+  const point = (e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation()
+    if (getEdit().on) return
+    const cell = cubbyAt(e), was = hov.current
+    if (cell === was) return
+    hov.current = cell
+    if (was !== null && was >= 0) { glowLeave(doorObj(was)); if (cell < 0) hand(false, e) }
+    if (cell >= 0) {
+      // (a door: it alone lit, drawn by itself while it's pointed at (the doors' one shut drawing let go: useFrame), its tag over it)
+      if (was === null || was < 0) hand(true, e)
+      glowOnly(doorObj(cell))
+      aimTip({ eventObject: doorObj(cell) ?? e.eventObject, camera: e.camera, nativeEvent: e.nativeEvent })
+      setTip({ title: SHOE_TITLE, hint: shoeHint(st.current.cells.has(cell)) })
+    } else {
+      // (the cupboard itself: what it is and where to click, nothing lit, the plain arrow: it can't be clicked)
+      aimTip(e)
+      setTip({ title: SHOE_TITLE, hint: shoeHint(false) })
+    }
+  }
+  const leave = (e: ThreeEvent<PointerEvent>) => {
+    const was = hov.current
+    hov.current = null
+    if (was !== null && was >= 0) { glowLeave(doorObj(was)); hand(false, e) }
+    setTip(null)
+  }
   const g = useRef<THREE.Group>(null)
   // (every cubby's pair of shoes one instanced mesh, each shoe its customer's colour (item 227: two meshes a pair, a material each, some
   // thirty draws with the cupboard full); a cubby with none, its two drawn at nothing; made with the rest, its program at load)
@@ -2568,6 +2627,9 @@ function ShoeCupboard() {
     m.frustumCulled = false
     m.raycast = () => {}
     for (let i = 0; i < m.count; i++) { m.setMatrixAt(i, SHOE_NONE); m.setColorAt(i, SHOE_C.set('#444444')) }
+    // (only the shoes there are, drawn, side by side from the first (item 528, the Art window's find: every cubby's two were drawn, at
+    // nothing where there were none, 4,800 faces with the cupboard empty); none at first)
+    m.count = 0
     return m
   }, [model])
   useEffect(() => () => shoes.dispose(), [shoes])
@@ -2583,36 +2645,45 @@ function ShoeCupboard() {
       const e = d.k * d.k * (3 - 2 * d.k)
       d.o.rotation.y = d.s * e * (75 * Math.PI / 180)
     })
-    // (shut, the one drawing of them all; the doors themselves hidden (still pointed at: the pointer's rays don't mind))
-    model.shut.home(model.doors.every((d) => d.o.rotation.y === 0))
+    // (shut, the one drawing of them all; the doors themselves hidden (still pointed at: the pointer's rays don't mind)); and while a door's
+    // pointed at, each drawn by itself, the one lit alone (item 528)
+    model.shut.home(model.doors.every((d) => d.o.rotation.y === 0) && !(hov.current !== null && hov.current >= 0))
     let changed = false
     model.cells.forEach((at, i) => {
       const c = SHOE_CELLS.shoes.get(i) ?? ''
       if (drawn.current[i] === c || !at) return
       drawn.current[i] = c
       changed = true
-      for (let sd = 0; sd < 2; sd++) {
-        if (c) { SHOE_M.makeTranslation(at.x + (sd ? 0.045 : -0.045), at.y + 0.026, at.z); shoes.setMatrixAt(i * 2 + sd, SHOE_M); shoes.setColorAt(i * 2 + sd, SHOE_C.set(c)) }
-        else shoes.setMatrixAt(i * 2 + sd, SHOE_NONE)
-      }
     })
-    if (changed) { shoes.instanceMatrix.needsUpdate = true; if (shoes.instanceColor) shoes.instanceColor.needsUpdate = true }
+    if (changed) {
+      // (the cubbies with shoes, their pairs written from the first instance on, as many drawn as there are)
+      let k = 0
+      model.cells.forEach((at, i) => {
+        const c = drawn.current[i]
+        if (!c || !at) return
+        for (let sd = 0; sd < 2; sd++, k++) { SHOE_M.makeTranslation(at.x + (sd ? 0.045 : -0.045), at.y + 0.026, at.z); shoes.setMatrixAt(k, SHOE_M); shoes.setColorAt(k, SHOE_C.set(c)) }
+      })
+      shoes.count = k
+      shoes.instanceMatrix.needsUpdate = true
+      if (shoes.instanceColor) shoes.instanceColor.needsUpdate = true
+    }
     if (g.current) { g.current.getWorldPosition(SHOE_CELLS.at); SHOE_CELLS.ready = true }
   })
   return (
     <group onClick={(e) => {
       e.stopPropagation()
       if (getEdit().on) return
-      // (the cubby whose door was clicked opened or shut, that one alone; a click on the cupboard itself shuts any that are open)
-      let cell = -1
-      for (let o: THREE.Object3D | null = e.object; o && cell < 0; o = o.parent) { const m = /^ShoeDoor[LR](\d+)$/.exec(o.name); if (m) cell = +m[1] }
+      // (the cubby whose door (or open inside) was clicked opened or shut, that one alone; a click on the cupboard itself does nothing (item
+      // 528: it shut whatever was open, a knock heard with nothing to shut))
+      const cell = cubbyAt(e)
+      if (cell < 0) return
       const cells = st.current.cells
-      if (cell >= 0) { if (cells.has(cell)) cells.delete(cell); else cells.add(cell) } else cells.clear()
-      const open = cell >= 0 && cells.has(cell)
+      if (cells.has(cell)) cells.delete(cell); else cells.add(cell)
+      const open = cells.has(cell)
       shrineDoor(open)
-      setTip({ title: '【下駄箱】', hint: open ? '再點一下關上這一格' : '點一格的門，開那一格' })
+      setTip({ title: SHOE_TITLE, hint: shoeHint(open) })
     }}
-      {...tipOver('【下駄箱】', '點一格的門，開那一格')}>
+      onPointerOver={point} onPointerMove={point} onPointerOut={leave}>
       <primitive object={model.root} />
       <group ref={g}>
         {/* (the shoes in each cubby: a pair, the customer's colour, toes out; all of them one instanced mesh) */}
