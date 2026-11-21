@@ -155,7 +155,8 @@ def blade(k):
     the edge's and the spine's narrow faces, the heel's end; closing to one point at the tip"""
     bm = bmesh.new()
     uvl = bm.loops.layers.uv.new()
-    NX = 30
+    # (item 533: 20 steps along it, not 30 (at 16 the deba's belly showed a kink close to))
+    NX = 20
     rows = (0.0, k.bevel, 1.0)
     rows_v = (0.0, 0.1 if k.double else SH, 1.0)
     front, back = [], []
@@ -229,7 +230,8 @@ def octagon(name, cx, cy, z0, z1, r0, r1, mat, squash=0.86, grain=True):
         for loop in fc.loops:
             loop[uvl].uv = (0.5, 0.5)
     o = from_bm(name, bm, mat)
-    bev = bevel(o, min(0.0009, r0 * 0.08), 2, angle=False)
+    # (item 533: its eased edges one step, not two: 2 cm pieces at 220 triangles each, the bevels' rounds unseen at the rack's distance)
+    bev = bevel(o, min(0.0009, r0 * 0.08), 1, angle=False)
     bpy.context.view_layer.objects.active = o
     bpy.ops.object.modifier_apply(modifier=bev.name)
     return o

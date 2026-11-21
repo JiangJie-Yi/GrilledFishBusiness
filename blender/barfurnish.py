@@ -211,7 +211,9 @@ def bamboo():
             bpy.ops.object.transform_apply(rotation=True)
             fin(c, f"BambooCulm{k}_{i}", M["culm"], parts)
             if i:
-                bpy.ops.mesh.primitive_torus_add(major_radius=ra * 1.02, minor_radius=ra * 0.13, major_segments=8, minor_segments=4, location=a_)
+                # (its node a band standing proud of the culm, eight round, open: 16 triangles, not a torus's 64 (item 533: 32 of them were
+                # 2,048 triangles, a fifth of the plant); the culm fills it, its ink draws its two edges)
+                bpy.ops.mesh.primitive_cone_add(vertices=8, radius1=ra * 1.1, radius2=ra * 1.06, depth=ra * 0.32, end_fill_type="NOTHING", location=a_)
                 nd = active()
                 nd.rotation_euler = d.to_track_quat("Z", "Y").to_euler()
                 fin(nd, f"BambooNode{k}_{i}", M["node"], parts)

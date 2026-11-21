@@ -148,15 +148,15 @@ FCX = TW / 2 - BORDER / 2
 tab.append(cyl("IpadFrontCamRing", 0.0019, 0.0003, (FCX, -TD / 2 - 0.00055, 0), M["dark"], rot=(math.pi / 2, 0, 0), verts=20))
 tab.append(cyl("IpadFrontCam", 0.0012, 0.0003, (FCX, -TD / 2 - 0.00062, 0), M["lens"], rot=(math.pi / 2, 0, 0), verts=20))
 # the top button on the top edge at the right, the volume keys down the right edge, near the top
-tab.append(box("IpadTopButton", S(0.024, 0.001, 0.0024), P(TW / 2 - 0.038, TH / 2 + 0.0003, 0), M["alu"], bev=0.0004))
+tab.append(box("IpadTopButton", S(0.024, 0.001, 0.0024), P(TW / 2 - 0.038, TH / 2 + 0.0003, 0), M["alu"]))
 for k in range(2):
-    tab.append(box(f"IpadVolume{k}", S(0.001, 0.018, 0.0024), P(TW / 2 + 0.0003, TH / 2 - 0.046 - k * 0.023, 0), M["alu"], bev=0.0004))
+    tab.append(box(f"IpadVolume{k}", S(0.001, 0.018, 0.0024), P(TW / 2 + 0.0003, TH / 2 - 0.046 - k * 0.023, 0), M["alu"]))
 # the four speakers: a short row of holes near each end of the top and bottom edges; the USB-C port in the middle of the bottom
 for sy in (1, -1):
     for side in (-1, 1):
         for k in range(6):
             tab.append(cyl(f"IpadGrille{sy}{side}{k}", 0.0005, 0.001, P(side * (0.062 + k * 0.0035), sy * (TH / 2 + 0.0001), 0), M["dark"], verts=8))
-tab.append(box("IpadPort", S(0.0085, 0.001, 0.0024), P(0, -TH / 2 - 0.0002, 0), M["dark"], bev=0.0008))
+tab.append(box("IpadPort", S(0.0085, 0.001, 0.0024), P(0, -TH / 2 - 0.0002, 0), M["dark"]))
 # the back camera, top left seen from the back, as on the Pro: a rounded-square plateau in the body's own metal standing proud, and on it
 # the wide lens (top left) in its dark ring, the LiDAR scanner's black glass (below it), the flash (bottom right), the microphone (top right)
 BACK = -TD / 2
@@ -168,12 +168,12 @@ tab.append(bump)
 TOPB = BACK - BH
 q = BS / 4.1
 LX, LY = BX + q, BY + q          # (seen from the back, +x is the left)
-tab.append(cyl("IpadBackLensRing", 0.0058, 0.0012, P(LX, LY, TOPB - 0.0006), M["ring"], rot=(math.pi / 2, 0, 0), verts=36))
-tab.append(cyl("IpadBackLens", 0.0045, 0.0006, P(LX, LY, TOPB - 0.0012), M["lens"], rot=(math.pi / 2, 0, 0), verts=36))
+tab.append(cyl("IpadBackLensRing", 0.0058, 0.0012, P(LX, LY, TOPB - 0.0006), M["ring"], rot=(math.pi / 2, 0, 0), verts=12))
+tab.append(cyl("IpadBackLens", 0.0045, 0.0006, P(LX, LY, TOPB - 0.0012), M["lens"], rot=(math.pi / 2, 0, 0), verts=12))
 tab.append(cyl("IpadBackIris", 0.002, 0.0002, P(LX, LY, TOPB - 0.0015), M["iris"], rot=(math.pi / 2, 0, 0), verts=24))
-tab.append(cyl("IpadLidarRing", 0.0042, 0.0006, P(LX, BY - q, TOPB - 0.0003), M["ring"], rot=(math.pi / 2, 0, 0), verts=32))
-tab.append(cyl("IpadLidar", 0.0034, 0.0004, P(LX, BY - q, TOPB - 0.0006), M["lens"], rot=(math.pi / 2, 0, 0), verts=32))
-tab.append(cyl("IpadFlash", 0.0028, 0.0003, P(BX - q, BY - q, TOPB - 0.0002), M["flash"], rot=(math.pi / 2, 0, 0), verts=24))
+tab.append(cyl("IpadLidarRing", 0.0042, 0.0006, P(LX, BY - q, TOPB - 0.0003), M["ring"], rot=(math.pi / 2, 0, 0), verts=10))
+tab.append(cyl("IpadLidar", 0.0034, 0.0004, P(LX, BY - q, TOPB - 0.0006), M["lens"], rot=(math.pi / 2, 0, 0), verts=10))
+tab.append(cyl("IpadFlash", 0.0028, 0.0003, P(BX - q, BY - q, TOPB - 0.0002), M["flash"], rot=(math.pi / 2, 0, 0), verts=8))
 tab.append(cyl("IpadMicHole", 0.0007, 0.0003, P(BX - q, LY, TOPB - 0.0002), M["dark"], rot=(math.pi / 2, 0, 0), verts=10))
 # the logo, in the middle of the back where the maker's would be: an avocado cut in half, polished, its stone a round hollow
 def avocado(w, h, n=20):
@@ -251,7 +251,7 @@ base.rotation_euler = (math.pi / 2, 0, 0)
 base.location = P(0, 0.0045, -0.005)
 stand.append(base)
 # (a rubber ring under it)
-stand.append(box("IpadStandFoot", S(0.14, 0.0015, 0.11), P(0, 0.0004, -0.005), M["rubber"], bev=0.0006))
+stand.append(box("IpadStandFoot", S(0.14, 0.0015, 0.11), P(0, 0.0004, -0.005), M["rubber"]))
 # the back arm, up from a hinge at the base's back, leaning forward under the tablet's back
 hinge = Vector(P(0, 0.012, -0.05))
 top = Vector(P(0, 0.12, -0.008))
@@ -265,7 +265,7 @@ stand.append(arm)
 stand.append(cyl("IpadStandHinge", 0.006, 0.075, tuple(hinge), M["stand"], rot=(0, math.pi / 2, 0), verts=20))
 # the ledge the tablet's foot rests on: a lip along the base's front, rubber lined
 stand.append(box("IpadStandLedge", S(0.11, 0.013, 0.012), P(0, 0.0155, 0.046), M["stand"], bev=0.002))
-stand.append(box("IpadStandLedgePad", S(0.1, 0.003, 0.004), P(0, 0.0175, 0.0405), M["rubber"], bev=0.001))
+stand.append(box("IpadStandLedgePad", S(0.1, 0.003, 0.004), P(0, 0.0175, 0.0405), M["rubber"]))
 
 root = bpy.data.objects.new("Ipad", None)
 bpy.context.collection.objects.link(root)
