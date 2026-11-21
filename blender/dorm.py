@@ -716,17 +716,53 @@ soft("DormBathTowel", (DX1 + 0.055, BF + 0.8, PZ1 + 0.012), (BX1 - 0.025, BF + 1
 soft("DormBathMat", (DX0 + 0.03, BF, PZ1 + 0.03), (DX1 - 0.03, BF + 0.012, PZ1 + 0.35), "bathmat", r=0.006, tile=0.6)
 
 # ---------------------------------------------------------------------------------------------------- its door, sliding into the wall
-# (a frosted pane in a dark frame over a solid lower panel, in the wall's middle, sliding left into the wall's pocket; the work clothes on
-# two hooks on its room side: a piece of its own, the game slides it)
+# (item 519, the owner's 「衛浴的門要正式點，日式拉門 有設計感」: it was a frosted pane in a plain dark slab over a board, the work clothes
+# hung over it. Now a proper Japanese sliding door, as a house's changing room's is: a dark lacquered frame (its stiles 4.5 cm, its top rail
+# 5, its foot 9, a mid rail over the panel), a hinoki board panel under it in three boards, and over it frosted glass behind a lattice of
+# light hinoki, set back in the frame: its uprights in pairs (吹寄せ), crossed by two rails; a rounded iron pull either face on its leading
+# stile. 3.4 cm thick in the wall's middle, sliding left into the wall's pocket: a piece of its own, the game slides it. The work clothes off
+# it (they hid it), on their hook on the wall beside it)
 DZ = Z0 - WALL / 2
 DOOR = "DormBathDoor"
-block("DormBathDoorFrame", (BD0 - 0.002, BF, DZ - 0.016), (BD1 + 0.002, BDH - 0.004, DZ + 0.016), "lacquer", 0.5, group=DOOR)
-block("DormBathDoorPane", (BD0 + 0.05, BF + 0.62, DZ - 0.018), (BD1 - 0.05, BDH - 0.06, DZ + 0.018), "frost", 0.6, group=DOOR)
-block("DormBathDoorLow", (BD0 + 0.05, BF + 0.06, DZ - 0.018), (BD1 - 0.05, BF + 0.56, DZ + 0.018), "wood", 0.5, group=DOOR)
-block("DormBathDoorPull", (BD1 - 0.09, BF + 0.85, DZ + 0.018), (BD1 - 0.07, BF + 1.05, DZ + 0.024), "iron", 0.2, group=DOOR)
-for k, (x, mat, w, h) in enumerate(((BD0 + 0.18, "happi", 0.3, 0.72), (BD0 + 0.5, "apron", 0.3, 0.62))):
-    block(f"DormHook{k}", (x - 0.012, 1.7, DZ + 0.016), (x + 0.012, 1.73, DZ + 0.042), "iron", 0.2, group=DOOR)
-    soft(f"DormCloth{k}", (x - w / 2, 1.7 - h, DZ + 0.02), (x + w / 2, 1.7, DZ + 0.046), mat, r=0.012, tile=0.6, group=DOOR)
+FT = 0.017                                      # (the frame's half thickness)
+DX0_, DX1_, DY0, DY1 = BD0 - 0.002, BD1 + 0.002, BF, BDH - 0.004
+ST, TRL, FRL, MRL = 0.045, 0.05, 0.09, 0.035    # (its stiles' width, its top, foot and mid rails' heights)
+PY = DY0 + 0.5                                  # (the panel's top, the mid rail over it)
+GX0, GX1, GY0, GY1 = DX0_ + ST, DX1_ - ST, PY + MRL, DY1 - TRL   # (the glass's opening)
+for nm, lo, hi in (("L", (DX0_, DY0, DZ - FT), (DX0_ + ST, DY1, DZ + FT)), ("R", (DX1_ - ST, DY0, DZ - FT), (DX1_, DY1, DZ + FT)),
+                   ("T", (GX0, GY1, DZ - FT), (GX1, DY1, DZ + FT)), ("B", (GX0, DY0, DZ - FT), (GX1, DY0 + FRL, DZ + FT)),
+                   ("M", (GX0, PY, DZ - FT), (GX1, GY0, DZ + FT))):
+    block(f"DormBathDoor{nm}", lo, hi, "lacquer", 0.5, group=DOOR)
+# (the panel: a hinoki board 6 mm back from the frame's faces either side, two thin dark battens over its joints)
+block("DormBathDoorPanel", (GX0, DY0 + FRL, DZ - 0.011), (GX1, PY, DZ + 0.011), "hinoki", 0.6, group=DOOR)
+for k in (1, 2):
+    bx = GX0 + (GX1 - GX0) * k / 3
+    block(f"DormBathDoorBatten{k}", (bx - 0.006, DY0 + FRL, DZ - 0.014), (bx + 0.006, PY, DZ + 0.014), "lacquer", 0.3, group=DOOR)
+# (the glass, thin in the middle; the lattice before it either side, 6 mm back from the frame's faces: its uprights in three pairs, each
+# two 1.2 cm bars 1.2 cm apart, and two rails across them a millimetre behind their faces (no face shared where they cross))
+block("DormBathDoorPane", (GX0, GY0, DZ - 0.003), (GX1, GY1, DZ + 0.003), "frost", 0.6, group=DOOR)
+for k in (1, 2, 3):
+    cx = GX0 + (GX1 - GX0) * k / 4
+    for sd in (-1, 1):
+        bx = cx + sd * 0.012
+        block(f"DormBathDoorBar{k}{'ab'[sd > 0]}", (bx - 0.006, GY0, DZ - 0.011), (bx + 0.006, GY1, DZ + 0.011), "hinoki", 0.3, group=DOOR)
+# (a band of three close thin rails low over the mid rail (横繁), one across over the middle: the lattice's rhythm, dense under, open over)
+for k, (f, hw) in enumerate(((0.05, 0.004), (0.085, 0.004), (0.12, 0.004), (0.56, 0.006))):
+    by = GY0 + (GY1 - GY0) * f
+    block(f"DormBathDoorRail{k}", (GX0, by - hw, DZ - 0.010), (GX1, by + hw, DZ + 0.010), "hinoki", 0.3, group=DOOR)
+# (its pull: a rounded bright plate on the leading stile, either face, its dark hollow in it, at a hand's height (iron, dark on the dark
+# frame, it wasn't seen))
+PX, PYU = DX1_ - ST / 2, BF + 0.88
+for sd in (-1, 1):
+    zf = DZ + sd * FT
+    soft(f"DormBathDoorPull{'ab'[sd > 0]}", (PX - 0.016, PYU, min(zf, zf + sd * 0.003)), (PX + 0.016, PYU + 0.06, max(zf, zf + sd * 0.003)), "chrome", r=0.008, tile=0.2, group=DOOR)
+    block(f"DormBathDoorHollow{'ab'[sd > 0]}", (PX - 0.009, PYU + 0.012, min(zf, zf + sd * 0.0042)), (PX + 0.009, PYU + 0.048, max(zf, zf + sd * 0.0042)), "dark", 0.2, group=DOOR)
+# (the work clothes: on one hook on the wall left of the door, between the calendar and the doorway's jamb (1 cm clear of each), the
+# apron over the happi coat; the room's own, not the door's)
+HX = (0.66 + BD0 - 0.04) / 2
+block("DormHook0", (HX - 0.012, 1.7, Z0), (HX + 0.012, 1.73, Z0 + 0.03), "iron", 0.2)
+soft("DormCloth0", (HX - 0.14, 1.7 - 0.72, Z0 + 0.004), (HX + 0.14, 1.7, Z0 + 0.028), "happi", r=0.012, tile=0.6)
+soft("DormCloth1", (HX - 0.13, 1.7 - 0.6, Z0 + 0.03), (HX + 0.13, 1.69, Z0 + 0.052), "apron", r=0.012, tile=0.6)
 
 # ---------------------------------------------------------------------------------------------------- joined, named, marked
 def join(objs, name):
