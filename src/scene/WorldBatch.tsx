@@ -12,7 +12,7 @@ const LOOK_MS = 1200
  * whole by itself: what's taken out is drawn by itself, as before the merge; made again whole only as the editor's shut) */
 const ADD_MIN = 24
 const ADD_MS = 3000
-/** (item 523, the owner's 「先啟用整間合併」) by default the whole room merged, a look at a time, by stretches of the room (CELL 3): the
+/** (item 523, the owner's 「先啟用整間合併」) by default the whole room merged, a look at a time, by stretches of the room (CELL 3, 6 since item 529): the
  * overview 1,587 draws to 1,119 (the ink lines alone merged, as before, about 1,400), the close views 20 to 30% fewer, their triangles about as
  * unmerged (one mesh a look for the whole room, `?world=1`, drew fewer still, 888, but two to three times the close views' triangles: the merge
  * isn't culled by piece), each view's picture the same as unmerged but for what moves (the clock's pendulum, the window's street, the cats'
@@ -23,7 +23,10 @@ const INK_ONLY = WORLD_ASK === 'ink'
 const OFF = !INK_ONLY && WORLD_ASK !== '1' && WORLD_ASK !== null
 /** the room's merge split by stretches of the room this many units across (x and z), a look's mesh a stretch (`?wcell=<units>`, item 374:
  * tried against a look's one mesh for all the room); 0: not split (only as `?world=1` asks) */
-const CELL = typeof location === 'undefined' ? 0 : Number(new URLSearchParams(location.search).get('wcell')) || (WORLD_ASK === '1' ? 0 : 3)
+// (item 529, the owner's 「這遊戲玩到後面都很卡」: six across, not three: with the shop full the CPU's held up by how many things are drawn,
+// not their triangles: busy, the overview 1,755 draws to 1,506 and 32.8 ms a frame to 26.9 (30 to 37 frames a second), shut 1,104 to 1,001,
+// the triangles the same in every view, the worst 1% of the views' frames 25 to 36 a second; one for the whole room, 1,439 and 26.3 ms)
+const CELL = typeof location === 'undefined' ? 0 : Number(new URLSearchParams(location.search).get('wcell')) || (WORLD_ASK === '1' ? 0 : 6)
 const CENTRE = new THREE.Vector3()
 
 /** what of a material's look keyOf doesn't say, that two merged must share */
