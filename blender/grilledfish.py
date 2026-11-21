@@ -38,6 +38,26 @@ PREVIEW = argv[1] if len(argv) > 1 else None
 bpy.ops.wm.read_factory_settings(use_empty=True)
 seed(44)
 
+
+def keeps_draws(*words):
+    """(item 536) a builder made with fewer faces takes as many of the shared random numbers as it did with more: `words`, for each call
+    in turn, the 32-bit words it took then (counted once, on the build before it); its own draws start where they did (the same sizes,
+    turns and places), and what's made after it is made as it was"""
+    def wrap(f):
+        calls = [0]
+
+        def g(*a, **k):
+            n = calls[0]
+            calls[0] += 1
+            st = random.getstate()
+            out = f(*a, **k)
+            random.setstate(st)
+            for _ in range(words[n]):
+                random.getrandbits(32)
+            return out
+        return g
+    return wrap
+
 STONE_R = 0.9
 STICK_FOOT_R = 0.74        # planted inside the stones (clear of them, so no stick runs through a stone)…
 STICK_TOP_R = 0.42        # …and every one leaning in over the coals
@@ -1416,10 +1436,10 @@ def fish(species="ayu"):
     ez = wave(ex) + depth_at(ex) * 0.22
     for side in (-1, 1):
         ey = bend(ex) + side * (width_at(ex) * 0.86)
-        bpy.ops.mesh.primitive_uv_sphere_add(radius=er, segments=8, ring_count=5, location=(ex, ey, ez))
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=er, segments=6, ring_count=4, location=(ex, ey, ez))   # (8 by 5 before (item 536))
         active().scale = (1, 0.38, 1)
         parts.append(finish(active(), "Eye", M["eye"]))
-        bpy.ops.mesh.primitive_uv_sphere_add(radius=er * 0.42, segments=8, ring_count=4, location=(ex, ey + side * er * 0.3, ez))
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=er * 0.42, segments=6, ring_count=3, location=(ex, ey + side * er * 0.3, ez))
         active().scale = (1, 0.3, 1)
         parts.append(finish(active(), "Pupil", M["pupil"]))
         # (the gill cover's edge: a dark arc from the nape down behind the eye to the throat)
@@ -1427,10 +1447,10 @@ def fish(species="ayu"):
         # (laid on the head's own curve: as wide there as the body is at that height)
         arc = [(gx + L * 0.06 * math.cos(t), bend(gx) + side * (width_at(gx + L * 0.06 * math.cos(t)) * math.sqrt(max(0.0, 1 - (0.8 * math.sin(t)) ** 2)) + 0.0012),
                 wave(gx) + depth_at(gx) * 0.8 * math.sin(t)) for t in (1.15, 0.8, 0.4, 0.0, -0.4, -0.8, -1.1)]
-        parts.append(tube(arc, 0.0022 + D * 0.012, (0.0022 + D * 0.012) * 0.6, M["pupil"], "Gill", 4))
+        parts.append(tube(arc, 0.0022 + D * 0.012, (0.0022 + D * 0.012) * 0.6, M["pupil"], "Gill", 3))
     # the mouth, open toward the coals: a dark gape at the snout's tip, its lower jaw jutting a little
     mx = L * 0.97
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=D * 0.16, segments=8, ring_count=4, location=(mx, bend(mx), wave(mx) - depth_at(L * 0.9) * 0.15))
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=D * 0.16, segments=6, ring_count=3, location=(mx, bend(mx), wave(mx) - depth_at(L * 0.9) * 0.15))
     active().scale = (0.7, max(0.4, W / D * 1.1), 1)
     parts.append(finish(active(), "Mouth", M["pupil"]))
 
@@ -1557,7 +1577,9 @@ def corn_cob():
     # (two points round a kernel, three along it: the kernels' rows still stand in ridges, their roundness the normal map's; 72 by 64 was
     # some ten thousand triangles for one cob)
     # (30 along and 24 round (item 85, the owner's, 2026-11-14: "far too many faces round the fire"): its kernels are the bumps in these rows, so only a little fewer; 36 by 32 before)
-    rings, seg = 30, 24
+    # (item 536, the owner's 「食物面數超高」: one point a kernel round it and one a row along it, 16 by 13: the bumps were the picture's
+    # job anyway, its normals; 1,484 triangles to some 450)
+    rings, seg = KERNELS_ALONG, KERNELS_AROUND
     bm = bmesh.new()
     grid = []
     for i in range(rings + 1):
@@ -1594,6 +1616,7 @@ def corn_cob():
     return [cob]
 
 
+@keeps_draws(24)
 def shiitake_halves():
     """Big shiitake cut in half top to bottom: each half is the whole mushroom's shape spun through 180°,
     a brown domed cap and pale stem behind, and the flat cut face (cap flesh, gills, stem) turned out of the
@@ -1611,10 +1634,10 @@ def shiitake_halves():
         sw = rx * random.uniform(0.3, 0.38)            # stem half-width
         sl = rx * random.uniform(0.8, 1.0)             # stem length below the cap
         # half-profile from the crown down, as (radius, height, is cap skin)
-        prof = [(max(eps, rx * math.sin(t)), zc + hc * math.cos(t), True) for t in (math.pi / 2 * k / 10 for k in range(11))]
+        prof = [(max(eps, rx * math.sin(t)), zc + hc * math.cos(t), True) for t in (math.pi / 2 * k / 5 for k in range(6))]
         prof += [(rx * 0.92, zc - hc * 0.12, False), (sw, zc - hc * 0.2, False), (sw * 0.85, zc - sl, False),
                  (eps, zc - sl, False)]
-        steps = 14
+        steps = 8                                      # (14 before (item 536))
         bm = bmesh.new()
         rings = []
         for k in range(steps + 1):
@@ -1674,6 +1697,7 @@ M["okra"] = pbr("Okra", tex=TEX["okra"], nrm=TEX["okra_n"], rough=0.45, coat=0.2
 M["scallop"] = pbr("Scallop", tex=TEX["scallop"], rough=0.3, coat=0.4)
 
 
+@keeps_draws(45)
 def okra():
     """Four okra pods across the stick, like the real thing: five sharp ridges with the faces between them slightly
     hollowed, a little twist along the pod, fullest just below the shoulder then tapering to a pointed tip that
@@ -1687,7 +1711,7 @@ def okra():
         uvl = bm.loops.layers.uv.new()
         # (four points a ridge round it: 30 by 22 made the four pods 5,300 triangles)
         # (ten along and ten round, its five ridges two points each (item 85, the owner's, 2026-11-14: "far too many faces round the fire"); 14 by 20 before)
-        rings, seg = 10, 10
+        rings, seg = 6, 10                             # (ten rings before (item 536))
         grid = []
         for k in range(rings + 1):
             t = k / rings
@@ -1724,19 +1748,20 @@ def okra():
         bpy.ops.mesh.primitive_torus_add(major_radius=0.028, minor_radius=0.008, major_segments=12, minor_segments=5,
                                          location=(x, 0, cap_z))
         parts.append(finish(active(), "OkraCalyx", M["okra_calyx"]))
-        bpy.ops.mesh.primitive_cone_add(vertices=10, radius1=0.014, radius2=0.008, depth=0.03,
+        bpy.ops.mesh.primitive_cone_add(vertices=5, radius1=0.014, radius2=0.008, depth=0.03,
                                         location=(x, 0, cap_z + s * 0.018),
                                         rotation=(0 if s > 0 else math.pi, 0, 0))
         parts.append(finish(active(), "OkraStalk", M["leek_green"]))
     return parts
 
 
+@keeps_draws(678)
 def scallops():
     """Three plump scallops skewered through the side, their seared faces turned to the viewer."""
     parts = []
     for x in (-0.12, 0.0, 0.12):
         rr = random.uniform(0.046, 0.054)
-        bpy.ops.mesh.primitive_cylinder_add(vertices=28, radius=rr, depth=rr * 1.25, location=(x, 0, 0),
+        bpy.ops.mesh.primitive_cylinder_add(vertices=14, radius=rr, depth=rr * 1.25, location=(x, 0, 0),
                                             rotation=(math.radians(90), 0, 0))
         o = active()
         bm = bmesh.new()
@@ -1747,11 +1772,12 @@ def scallops():
         bm.to_mesh(o.data)
         bm.free()
         cyl_uv(o)
-        bevel(o, rr * 0.28, 3, angle=False)
+        bevel(o, rr * 0.28, 2, angle=False)
         parts.append(finish(o, "Scallop", M["scallop"]))
     return parts
 
 
+@keeps_draws(90)
 def asparagus():
     """Five spears laid side by side across the skewer like a raft (out from the fire, so they show side-on),
     each like the real thing: a slightly bowed stalk, thicker and paler toward its cut end, small pointed bracts
@@ -1765,7 +1791,7 @@ def asparagus():
         bow = random.uniform(-0.01, 0.01)
         # (eight round, seven points along (item 85, the owner's, 2026-11-14: "far too many faces round the fire"); twelve and thirteen before)
         pts = [(x + bow * math.sin(math.pi * s), y0 + s * length, 0.0) for s in (k / 6 for k in range(7))]
-        parts.append(tube(pts, r * 1.15, r * 0.82, M["asparagus"], "Asparagus", seg=8))
+        parts.append(tube(pts, r * 1.15, r * 0.82, M["asparagus"], "Asparagus", seg=6))
         # the cut end, pale and woody
         bpy.ops.mesh.primitive_cylinder_add(vertices=8, radius=r * 1.16, depth=0.004, location=(x, y0, 0),
                                             rotation=(math.radians(90), 0, 0))
@@ -1850,7 +1876,7 @@ def shrimp_body(cx, R, size, name, flip=1, straight=0.0):
     th0, th1 = math.pi, 2 * math.pi + 0.18                     # head end .. tail end, round the bottom of the U
     # (44 along, about four to each of its six tail segments' rims, and 12 round: 64 and 16 were 2,000 triangles a shell)
     # (30 along, five to each tail segment's rim, and 8 round (item 85, the owner's, 2026-11-14: "far too many faces round the fire"); 44 by 12 before)
-    rings, seg = 30, 8
+    rings, seg = 16, 8                                 # (thirty before (item 536))
     centre = Vector((cx, 0, 0))
 
     def frame(s):
@@ -1951,7 +1977,7 @@ def shrimp_body(cx, R, size, name, flip=1, straight=0.0):
     parts.append(flat("ShrimpRostrum", rost, 0.0025, M["shrimp_tail"]))
     for sd in (-1, 1):
         e = h + (fwd * 0.004 - hn * 0.008 + y * sd * 0.017) * size
-        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.0075 * size, segments=10, ring_count=6, location=e)
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.0075 * size, segments=6, ring_count=4, location=e)   # (10 by 6 before (item 536))
         parts.append(finish(active(), "ShrimpEye", M["pupil"]))
         # long antennae sweeping back over the curl, and the short antennules
         pts = []
@@ -1966,11 +1992,11 @@ def shrimp_body(cx, R, size, name, flip=1, straight=0.0):
             pts.append(Vector((cx + rr * math.cos(ang) - (1 - a) * 0.02, sd * (0.012 + 0.07 * a ** 1.5),
                                flip * (rr * math.sin(ang) * 0.9 + 0.012 * (1 - a)) - flip * sd * 0.02 * a)))
         pts[0] = h + (fwd * 0.012 - hn * 0.006 + y * sd * 0.008) * size
-        parts.append(tube([tuple(q) for q in pts], 0.0016 * size, 0.0005, M["shrimp_leg"], "ShrimpAntenna", seg=5))
+        parts.append(tube([tuple(q) for q in pts], 0.0016 * size, 0.0005, M["shrimp_leg"], "ShrimpAntenna", seg=3))
         a0 = h + (fwd * 0.01 + y * sd * 0.005) * size
         parts.append(tube([tuple(a0), tuple(a0 + (fwd * 0.03 + hn * 0.01) * size),
                            tuple(a0 + (fwd * 0.05 + hn * 0.005 + y * sd * 0.008) * size)],
-                          0.0016 * size, 0.0007, M["shrimp_leg"], "ShrimpAntennule", seg=5))
+                          0.0016 * size, 0.0007, M["shrimp_leg"], "ShrimpAntennule", seg=3))
         # five pairs of walking legs under the head, bent forward; five pairs of little swimmerets under the tail
         for k in range(5):
             s = 0.1 + k * 0.05
@@ -1980,17 +2006,18 @@ def shrimp_body(cx, R, size, name, flip=1, straight=0.0):
             knee = root - nq * ln * 0.5 + tq * ln * 0.12 + y * sd * 0.007
             foot = knee - nq * ln * 0.2 - tq * ln * (0.5 + random.uniform(-0.1, 0.15)) + y * sd * 0.003
             parts.append(tube([tuple(root), tuple(knee), tuple(foot)], 0.0019 * size, 0.0007, M["shrimp_leg"],
-                              "ShrimpLeg", seg=5))
+                              "ShrimpLeg", seg=3))
         for k in range(5):
             s = 0.42 + k * 0.095
             q, tq, nq = frame(s)
             root = q - nq * radius(s) * 0.85 + y * sd * radius(s) * 0.35
             ln = 0.013 * size * (1 - k * 0.1)
             parts.append(tube([tuple(root), tuple(root - nq * ln * 0.45 + tq * ln * 0.9)], 0.0024 * size, 0.0012,
-                              M["shrimp_leg"], "ShrimpSwimmeret", seg=5))
+                              M["shrimp_leg"], "ShrimpSwimmeret", seg=3))
     return parts
 
 
+@keeps_draws(42)
 def shrimp_pair():
     """One big tiger prawn on its skewer the robatayaki way: run straight through from head to tail, hung head down toward the coals, its
     legs and long feelers trailing (the name kept: the menu and the game know it by it)."""
@@ -2098,7 +2125,7 @@ def rounded_box(name, size, mat, at, bev=0.012):
     o = active()
     o.scale = size
     apply_scale(o)
-    bevel(o, bev, 3, angle=False)
+    bevel(o, bev, 2, angle=False)                      # (three steps before (item 536): 260 triangles a block to 132)
     return finish(o, name, mat)
 
 
@@ -2109,7 +2136,7 @@ def yakitori():
         if i % 2 == 0:
             parts.append(rounded_box("Chicken", (0.06, 0.055, 0.05), M["chicken"], (x, 0, 0), 0.018))
         else:
-            bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.02, depth=0.04, location=(x, 0, 0),
+            bpy.ops.mesh.primitive_cylinder_add(vertices=10, radius=0.02, depth=0.04, location=(x, 0, 0),
                                                 rotation=(math.radians(90), 0, 0))
             parts.append(finish(active(), "Leek", M["leek"]))
     return parts
@@ -2603,12 +2630,14 @@ def piece(src, name, mat, keep, cut=CUT):
     return finish(o, name, mat)
 
 
+@keeps_draws(1505, 2447)
 def roast_in_ash(name, mat, top_mat, flesh_mat, angle_deg, r, size, bend=0.0):
     a = math.radians(angle_deg)
     # (the whole tuber as dug (blender/tubers.py), two across, then sized: a potato knobbly with its eyes sunk in, a sweet potato a long
     # spindle, blunt at the stem and tailing off at the root, a little bent)
-    whole = (sweet_potato(name + "Whole", mat, length=2.0, girth=2.0, bend=bend * 0.4, seed=7, rings=20, around=16) if bend
-             else potato(name + "Whole", mat, size=2.0, seed=3, seg=24, rings=14))
+    # (item 536: 20 by 16 and 24 by 14 before; the skin's eyes and roots are in its pictures)
+    whole = (sweet_potato(name + "Whole", mat, length=2.0, girth=2.0, bend=bend * 0.4, seed=7, rings=12, around=10) if bend
+             else potato(name + "Whole", mat, size=2.0, seed=3, seg=14, rings=8))
     whole.location = (r * math.cos(a), r * math.sin(a), size[2] * 0.7 + salt_height(r * math.cos(a), r * math.sin(a)))
     whole.rotation_euler = (0, 0, a + math.pi / 2 + random.uniform(-0.4, 0.4))
     whole.scale = size
@@ -3572,7 +3601,7 @@ bpy.ops.mesh.primitive_cube_add(size=2, location=(-0.11, 0.0, NET_Z + HZ + 0.004
 mochi_o = active()
 bm = bmesh.new()
 bm.from_mesh(mochi_o.data)
-bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=7, use_grid_fill=True)
+bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=3, use_grid_fill=True)     # (seven before (item 536))
 for vtx in bm.verts:
     c = vtx.co
     rounded = c.normalized() * 1.0
@@ -3635,12 +3664,13 @@ M["wakame"] = pbr("Wakame", (0.12, 0.24, 0.1), rough=0.3, coat=0.4)
 M["negi"] = pbr("Scallion", (0.45, 0.68, 0.25), rough=0.4)
 
 
+@keeps_draws(248)
 def miso_soup(x0, y0):
     outer = [(0.068, 0.0), (0.076, 0.004), (0.078, 0.016), (0.072, 0.02), (0.085, 0.024), (0.125, 0.05),
              (0.152, 0.088), (0.166, 0.128), (0.17, 0.142)]
     inner = [(0.161, 0.142), (0.156, 0.124), (0.142, 0.088), (0.11, 0.055), (0.06, 0.036), (0.001, 0.032)]
     prof = outer + inner
-    seg = 56
+    seg = 24                                           # (56 before (item 536))
     bm = bmesh.new()
     rings = [[bm.verts.new((x0 + r * math.cos(2 * math.pi * k / seg), y0 + r * math.sin(2 * math.pi * k / seg), z))
               for r, z in prof] for k in range(seg)]
@@ -3666,7 +3696,7 @@ def miso_soup(x0, y0):
     # the soup: a disc just under the rim, mapped flat for its swirl of miso
     level = 0.112
     rs = 0.148
-    bpy.ops.mesh.primitive_circle_add(vertices=48, radius=rs, fill_type="NGON", location=(x0, y0, level))
+    bpy.ops.mesh.primitive_circle_add(vertices=24, radius=rs, fill_type="NGON", location=(x0, y0, level))
     soup = active()
     bm = bmesh.new()
     bm.from_mesh(soup.data)
@@ -3707,7 +3737,7 @@ def miso_soup(x0, y0):
     for k in range(7):
         a = random.uniform(0, math.pi * 2)
         d = random.uniform(0.01, 0.11)
-        bpy.ops.mesh.primitive_torus_add(major_radius=0.008, minor_radius=0.0028, major_segments=12, minor_segments=6,
+        bpy.ops.mesh.primitive_torus_add(major_radius=0.008, minor_radius=0.0028, major_segments=8, minor_segments=3,
                                          location=(x0 + d * math.cos(a), y0 + d * math.sin(a), level + 0.002))
         floats.append(finish(active(), "MisoNegi", M["negi"]))
     liquid = join(floats, "MisoLiquid")
@@ -3727,7 +3757,7 @@ M["indigo"] = pbr("SakeIndigo", (0.12, 0.22, 0.45), rough=0.25, coat=0.6)
 M["sake"] = pbr("Sake", (0.86, 0.82, 0.62), rough=0.05, coat=1.0)
 
 
-def revolve(prof, x0, y0, name, mat_of, seg=40):
+def revolve(prof, x0, y0, name, mat_of, seg=20):      # (forty round before (item 536))
     """A lathe of (radius, height) points round (x0, y0); mat_of(j) picks the material slot of band j."""
     bm = bmesh.new()
     rings = [[bm.verts.new((x0 + r * math.cos(2 * math.pi * k / seg), y0 + r * math.sin(2 * math.pi * k / seg), z))
