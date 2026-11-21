@@ -15,7 +15,10 @@ const TOL = Number(process.env.TOL ?? 0.015)
 const TOP = Number(process.env.TOP ?? 40)
 const browser = await chromium.launch({ ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : { channel: 'chrome' }), headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] })
 const page = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage()
-await page.goto(URL + (URL.includes('?') ? '&' : '?') + 'q=low', { timeout: 60000 })
+// (the room's merge off (item 542): merged, its meshes stood as one piece spanning the room, every piece in it overlapping it, some 18 false
+// pairs, a takeaway bucket against itself; each piece is measured by its own meshes, as the merge leaves them where they are. A `world=` in
+// the url given is kept)
+await page.goto(URL + (URL.includes('?') ? '&' : '?') + 'q=low' + (/[?&]world=/.test(URL) ? '' : '&world=0'), { timeout: 60000 })
 await page.waitForFunction(() => window.__scene && window.__scene.getObjectByName('FirePit'), null, { timeout: 120000 })
 await page.waitForTimeout(12000)
 
