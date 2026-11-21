@@ -439,7 +439,8 @@ keep(box_obj("FacadeBack", [((XB0 + 0.004, BEAM[1], BACK_Z[0]), (XB1 - 0.004, RA
 
 LZ = 0.295                                   # the lanterns' middles, out from the wall
 LANT_ROWS = [(3.03, 2.862), (2.846, 2.676)]  # each row: its rail's top, its lanterns' feet
-LANT_P = [(0.022, 0.0), (0.034, 0.018), (0.042, 0.048), (0.043, 0.075), (0.042, 0.102), (0.034, 0.132), (0.022, 0.15)]
+# (item 533: five rings, not seven: 40 lanterns of 96 triangles were 3,840; their swell kept at its widest and at its shoulders)
+LANT_P = [(0.022, 0.0), (0.037, 0.026), (0.043, 0.075), (0.037, 0.124), (0.022, 0.15)]
 LSEG = 8
 lant_x = []
 _x = XB0 + 0.08
