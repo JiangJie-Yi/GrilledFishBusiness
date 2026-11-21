@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import type { CrewEmote } from '@/game/crewMood'
 import { warmLater } from './Prewarm'
-import { SOFT_DOT } from './softDot'
+import { puffBurst } from './angerPuffs'
 
 /**
  * What the staff feel, over their heads (item 381, the owner's 「員工也得有情緒」; game/crewMood says what): drawn emotes, each a sticker, bold
@@ -103,9 +103,8 @@ const TEX: Record<Kind, THREE.Texture | null> = {
   }, '#7a3fb0')),
 }
 const MAT = Object.fromEntries((Object.keys(TEX) as Kind[]).map((k) => [k, new THREE.SpriteMaterial({ map: TEX[k], transparent: true, depthWrite: false, depthTest: false })])) as Record<Kind, THREE.SpriteMaterial>
-/** steam off the top when cross, soft white puffs */
-const PUFF = new THREE.SpriteMaterial({ map: SOFT_DOT, color: '#f6f3ee', transparent: true, depthWrite: false, depthTest: false, opacity: 0.85 })
-if (typeof document !== 'undefined') { const g = new THREE.Group(); g.add(new THREE.Sprite(MAT.alarm), new THREE.Sprite(PUFF)); warmLater(g) }
+// (steam off the top when cross: bursts of cartoon puffs, a customer's alike (scene/angerPuffs, item 534); they were soft white dots)
+if (typeof document !== 'undefined') { const g = new THREE.Group(); g.add(new THREE.Sprite(MAT.alarm)); warmLater(g) }
 
 /** an emote's way of popping up: from nothing, past its size, back (s since it began) */
 const pop = (s: number) => (s >= 0.32 ? 1 : s <= 0 ? 0 : 1 + 2.4 * Math.pow(s / 0.32 - 1, 3) + 1.4 * Math.pow(s / 0.32 - 1, 2))
@@ -130,9 +129,11 @@ export function makeEmote(top: number, side: number): Emote {
   const main = new THREE.Sprite(MAT.alarm)
   main.renderOrder = 21
   const bits = [0, 1, 2].map(() => { const s = new THREE.Sprite(MAT.sweat); s.renderOrder = 21; return s })
-  g.add(main, ...bits)
-  g.visible = false
   const size = top * 0.24
+  // (the steam's puffs, from just over the head's top, as big and as far as a customer's for an emote this size)
+  const steam = puffBurst(7, top + 0.02, size / 0.3, size / 0.3)
+  g.add(main, ...bits, ...steam.sprites)
+  g.visible = false
   let was: CrewEmote = 'none', since = 0, goneAt = -1
   /** the one on the sprite (kept as it shrinks away) */
   let cur: Kind = 'alarm'
@@ -145,6 +146,7 @@ export function makeEmote(top: number, side: number): Emote {
     }
     const k = e === 'none' ? Math.max(0, 1 - (t - goneAt) / 0.15) : pop(t - since)
     g.visible = k > 0.01
+    if (cur !== 'anger' || !g.visible) steam.update(t, false, 0)
     if (!g.visible) return
     const s = size * (0.85 + 0.15 * level) * k
     for (const b of bits) b.visible = false
@@ -155,17 +157,12 @@ export function makeEmote(top: number, side: number): Emote {
         main.scale.setScalar(s * 1.1)
         break
       case 'anger': {
-        // (at the head's top corner, throbbing; steam off the top, more as it's stronger)
+        // (at the head's top corner, throbbing, swelling up to each burst of steam and giving as it goes; the steam bursting off the top
+        // (scene/angerPuffs), more and oftener as it's stronger)
+        steam.update(t, level > 0.5 && k >= 1, Math.min(1, Math.max(0, (level - 0.5) / 0.5)))
         const beat = Math.max(0, Math.sin(t * 8))
         main.position.set(side, top - size * 0.1, 0)
-        main.scale.setScalar(s * (1 + 0.16 * beat))
-        bits.forEach((b, i) => {
-          b.material = PUFF
-          const q = (t * 0.9 + i / 3) % 1
-          b.visible = level > 0.5 && k >= 1
-          b.position.set(Math.sin((t + i) * 2.3) * 0.03 * q + (i - 1) * 0.05, top + 0.02 + 0.3 * q, 0)
-          b.scale.setScalar(size * (0.35 + 0.5 * Math.sin(Math.PI * q)))
-        })
+        main.scale.setScalar(s * (1 + 0.12 * beat + 0.22 * steam.windUp(t) - 0.1 * steam.give(t)))
         break
       }
       case 'shy':

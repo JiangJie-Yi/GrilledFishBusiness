@@ -11,7 +11,6 @@ import { useFrame, useLoader, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { BOWL_LIFT } from './bowlLift'
-import { SOFT_DOT } from './softDot'
 import { footDust, newSteps } from './DustPuffs'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { KINDS as GUEST_KINDS, kindOf, type GuestKind } from '@/data/guests'
@@ -21,6 +20,7 @@ import { bakeable, colourVertices } from './StaticBatch'
 import { cloth } from './patterns'
 import type { Mood } from './people'
 import { warmLater } from './Prewarm'
+import { crownOf, puffBurst } from './angerPuffs'
 
 /*
  * A customer in the boss's style (blender/folk.py: public/models/folk.glb): an Overcooked cook's big round head on a short plump body, no
@@ -157,8 +157,8 @@ const BITE_UP = new THREE.Vector3(0, 0.05, 0)
 /** a mouthful of miso soup (item 345), in the body's frame: the bowl's middle with nothing on the bar to go to, at the mouth (a little out in
  * front of it and below, the rim at the lips), where the right hand and the left hold it from its middle; the bowl's foot is that far under
  * its middle (its place on the bar is its foot) */
-/** the anger mark (怒りマーク, item 347): four red veins bulging toward a middle, white-edged, drawn, not a character; the steam's puffs soft
- * white dots; both drawn as sprites facing the camera, their program made at load */
+/** the anger mark (怒りマーク, item 347): four red veins bulging toward a middle, white-edged, drawn, not a character; drawn as a sprite
+ * facing the camera, its program made at load (the steam over the head: scene/angerPuffs, item 534) */
 const VEIN_TEX = (() => {
   if (typeof document === 'undefined') return null
   const n = 64, c = document.createElement('canvas')
@@ -186,8 +186,7 @@ const VEIN_TEX = (() => {
 })()
 // (drawn over everything, as an emote is: by the head it stood inside the hair and was never seen)
 const VEIN_MAT = new THREE.SpriteMaterial({ map: VEIN_TEX, transparent: true, depthWrite: false, depthTest: false })
-const PUFF_MAT = new THREE.SpriteMaterial({ map: SOFT_DOT, color: '#f6f3ee', transparent: true, depthWrite: false, depthTest: false, opacity: 0.85 })
-if (typeof document !== 'undefined') { const g = new THREE.Group(); g.add(new THREE.Sprite(VEIN_MAT), new THREE.Sprite(PUFF_MAT)); warmLater(g) }
+if (typeof document !== 'undefined') { const g = new THREE.Group(); g.add(new THREE.Sprite(VEIN_MAT)); warmLater(g) }
 const SOUP_REST = new THREE.Vector3(0.05, 0.36, 0.46)
 const SOUP_MOUTH = new THREE.Vector3(-0.01, 0.6, 0.3)
 const SOUP_GRIP_R = new THREE.Vector3(-0.075, 0.015, 0)
@@ -573,11 +572,13 @@ function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = nu
     // (up at the head's top corner, out past the hair)
     vein.position.set(0.3, 0.42, 0.1)
     vein.renderOrder = 20
-    const puffs = [0, 1, 2].map(() => new THREE.Sprite(PUFF_MAT))
-    g.add(vein, ...puffs)
+    // (the steam (item 534, scene/angerPuffs): bursts of puffs out of the crown (their hair's or hat's top, as their head carries it), from
+    // just under it)
+    const steam = puffBurst(8, crownOf(fig.mesh, fig.head) - 0.03)
+    g.add(vein, ...steam.sprites)
     g.visible = false
-    return { g, vein, puffs }
-  }, [])
+    return { g, vein, steam }
+  }, [fig])
   // (a drink in their hand rides with it: handL is at the figure's -x, which facing +z is its right hand (the chopsticks and a drink in the
   // right, the phone and the briefcase in the left: parts of the one mesh))
   useEffect(() => {
@@ -922,15 +923,12 @@ function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = nu
     if (fig.head && fx.g.parent !== fig.head) fig.head.add(fx.g)
     fx.g.visible = f > 0.55
     if (fx.g.visible) {
+      // (the steam, past eight tenths (item 534, scene/angerPuffs): bursts of puffs out of the crown, more and oftener as they get crosser;
+      // the mark beside the head swells just before each burst (the wind-up) and gives as it goes)
+      fx.steam.update(t, f > 0.8, Math.min(1, Math.max(0, (f - 0.8) / 0.2)))
       const beat = Math.max(0, Math.sin(t * (f > 0.8 ? 9 : 6)))
-      fx.vein.scale.setScalar((0.1 + 0.08 * Math.min(1, (f - 0.55) / 0.3)) * (1 + 0.18 * beat))
-      fx.puffs.forEach((p, i) => {
-        const k = (t * 0.85 + i / 3) % 1
-        p.visible = f > 0.8
-        p.position.set(Math.sin((t + i) * 2.3) * 0.03 * k + (i - 1) * 0.04, 0.3 + 0.32 * k, 0)
-        p.scale.setScalar((0.05 + 0.11 * Math.sin(Math.PI * k)) * (0.7 + 0.6 * Math.min(1, (f - 0.8) / 0.2)))
-      })
-    }
+      fx.vein.scale.setScalar((0.1 + 0.08 * Math.min(1, (f - 0.55) / 0.3)) * (1 + 0.12 * beat + 0.22 * fx.steam.windUp(t) - 0.1 * fx.steam.give(t)))
+    } else fx.steam.update(t, false, 0)
     // (their mood's face (the food just come, cross, sad, sleepy, chewing), through the face's life (game/faceLife, item 368): a blink at no
     // fixed beat that closes and opens, now and then twice; a new face through a blink; the mouth in syllables while a word's up, a laugh
     // between a delighted one's words; a glance aside now and then while they sit at ease, the eyes first where the head's turning)
