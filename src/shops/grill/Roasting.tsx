@@ -1054,6 +1054,8 @@ export const CHEF_TRIP = {
   /** when he last pushed a skewer through what's on the board (his hand drawn pushing it in, for the 0.6 s the rod takes to go in) */
   pierceAt: -1e9,
   phase: 'idle' as ChefPhase, store: 'freezer' as Store, keys: [] as string[], t: 0, seenAt: -1e9, fanUntil: 0,
+  /** the foods he's fetching (their ids, the keys' order): at the sacks, the potatoes' kind go from a sack, the rest from the basket */
+  ids: [] as string[],
   /** of an order of rice balls, how many he's to shape himself, the rest taken off the third cook's tray (item 129; -1: not looked yet) */
   shape: -1,
   /** where he stands to take it out, and what he faces there (Roasting's frame) */
@@ -1172,8 +1174,20 @@ function clearOfTable(spot: THREE.Vector3, frame: THREE.Object3D, scene: THREE.O
 function storeSpot(store: Store, scene: THREE.Object3D, frame: THREE.Object3D, home: THREE.Vector3) {
   if (store === 'cubby') {
     const face = new THREE.Vector3().addScaledVector(ALONG, (CUBBY2.along[0] + CUBBY2.along[1]) / 2).addScaledVector(LAY, COOK_TABLE.lay[1] - 0.11).sub(FIRE_SHIFT)
-    const spot = face.clone().addScaledVector(LAY, 0.95)
+    // (out of its doors' swing, 0.95 before its front, or as near as it is that's clear of what stands on the floor there (item 516: the
+    // vegetables' basket and the sacks are there now, the owner's places, and he stood in the basket, his hand in the sweet potatoes' sack;
+    // its doors open part way (CUBBY_KICK), their edges 0.47 out at the most, his round 0.21 past that at 0.68))
+    const floor = floorPieces(scene, frame)
+    let spot = face.clone().addScaledVector(LAY, 0.95)
+    for (const [d, a] of CUBBY_STANDS) {
+      const q = face.clone().addScaledVector(LAY, d).addScaledVector(ALONG, a)
+      if (floorGap(q, floor) >= SACK_STAND) { spot = q; break }
+    }
     return { spot: spot.setY(floorAt(spot)), face }
+  }
+  if (store === 'sacks') {
+    const s = sackSpot(scene, frame, home, CHEF_TRIP.ids[0] ?? '')
+    if (s) return s
   }
   let piece: THREE.Object3D | undefined
   scene.traverse((o) => { if (!piece && o.userData.editId === STORE_PIECE[store]) piece = o })
@@ -1194,6 +1208,134 @@ function storeSpot(store: Store, scene: THREE.Object3D, frame: THREE.Object3D, h
   const out = Math.min(Math.abs(d.x) > 1e-4 ? half.x / Math.abs(d.x) : 1e9, Math.abs(d.z) > 1e-4 ? half.z / Math.abs(d.z) : 1e9)
   const spot = clearOfTable(face.clone().addScaledVector(d, out + 0.45), frame, scene)
   return { spot: spot.setY(floorAt(spot)), face }
+}
+/** how far (Roasting's frame) the second cook's middle stands off a sack's side to reach into it, bent over its mouth: his body's own
+ * round (his blob shadow's, 0.17) and a little more; and clear of anything else on the floor by as much */
+const SACK_STAND = 0.21
+/** where he can stand before the fridge under the cook table, in the order tried: how far out from its front, and along it (Roasting's
+ * frame): out of its doors' swing first, then nearer, then to either side */
+const CUBBY_STANDS: [number, number][] = [[0.95, 0], [0.85, 0], [0.75, 0], [0.68, 0], [0.75, 0.2], [0.75, -0.2], [0.68, 0.35], [0.68, -0.35]]
+/** the pieces standing on the kitchen floor round the second cook's board (the sacks, the vegetables' basket and crates): their points
+ * on the floor, in `frame` (every third of their meshes' points), taken afresh as he sets off (they can be moved in edit mode) */
+function floorPieces(scene: THREE.Object3D, frame: THREE.Object3D) {
+  frame.updateWorldMatrix(true, false)
+  const inv = frame.matrixWorld.clone().invert(), v = new THREE.Vector3(), out: number[] = []
+  scene.traverse((o) => {
+    if (!FLOOR_PIECES.has(o.userData.editId as string)) return
+    o.updateWorldMatrix(true, true)
+    o.traverse((m) => {
+      const pos = (m as THREE.Mesh).isMesh && m.visible ? (m as THREE.Mesh).geometry.attributes.position : null
+      if (!pos) return
+      for (let k = 0; k < pos.count; k += 3) {
+        v.fromBufferAttribute(pos, k).applyMatrix4(m.matrixWorld).applyMatrix4(inv)
+        out.push(v.x, v.z)
+      }
+    })
+  })
+  return out
+}
+const FLOOR_PIECES = new Set(['produce', 'vegbasket', 'vegcrate', 'vegcrate2'])
+/** how far a place on the floor (`frame`) is from the nearest of those points */
+function floorGap(p: THREE.Vector3, pts: number[]) {
+  let d = Infinity
+  for (let i = 0; i < pts.length; i += 2) d = Math.min(d, Math.hypot(pts[i] - p.x, pts[i + 1] - p.z))
+  return d
+}
+/** the sack's mouth he reaches into and the way across it (Roasting's frame; set as he sets off, read by his walk while he takes it out),
+ * how far apart his hands go in it, and his hands there (the world: StaffFigure's handsAt) */
+const SACK_MOUTH = new THREE.Vector3()
+const SACK_ACROSS = new THREE.Vector3()
+const SACK_HAND_GAP = 0.075
+/** how far he bends over it at the deepest (half way through taking them out) */
+const SACK_LEAN = 0.5
+const SACK_HANDS = { left: new THREE.Vector3(), right: new THREE.Vector3() }
+/** what he's taken out lifted up out of the sack (item 516): from this far through taking them out his hands come up over its rim and in
+ * close before his chest (how far before him and how far over the mouth), and so they stay till he's walked this far away from it; held
+ * out to carry at once, his hands were in the sack's side as he turned from it */
+const SACK_LIFT_AT = 0.45
+const SACK_LIFT_OUT = 0.35
+const SACK_LIFT_UP = 0.12
+const SACK_CLEAR_WALK = 0.4
+/** how far from the end of his way he turns to what's next there (Roasting's frame) */
+const ARRIVE_TURN = 0.5
+const SACK_FWD = new THREE.Vector3(), SACK_SIDE = new THREE.Vector3()
+/** his hands held up before him over the sack's mouth's height (Roasting's frame: his own place and turn) */
+function sackLift(o: THREE.Object3D) {
+  if (!o.parent) return
+  SACK_FWD.set(Math.sin(o.rotation.y), 0, Math.cos(o.rotation.y))
+  SACK_SIDE.set(SACK_FWD.z, 0, -SACK_FWD.x)
+  for (const [h, s] of [[SACK_HANDS.left, 1], [SACK_HANDS.right, -1]] as const) {
+    h.copy(o.position).addScaledVector(SACK_FWD, SACK_LIFT_OUT).addScaledVector(SACK_SIDE, s * SACK_HAND_GAP).setY(SACK_MOUTH.y + SACK_LIFT_UP)
+    o.parent.localToWorld(h)
+  }
+  o.userData.handsAt = SACK_HANDS
+}
+/** what he takes out of a sack (the rest that keeps at room temperature is in the vegetables' basket and crates beside them) */
+const IN_SACKS = new Set(['Potato', 'SweetPotato', 'Onion'])
+/**
+ * Where he stands to take what keeps at room temperature out (item 516): by the open sack nearest his place (KitchenStores' produce-sack-0..2,
+ * an emptied one left out), his middle SACK_STAND off its side toward him, and from there he bends into that sack for the potatoes' kind
+ * (IN_SACKS) or into the vegetables' basket at his other hand for the rest (Decor's vegbasket), facing it, his hands into its mouth
+ * (SACK_MOUTH). Off the whole row's box toward him he stood by the board a metre and more from any of them and took them out of the air;
+ * the sacks at the row's far end and the two crates are walled in by one another (the owner's places, item 524), so it's the near sack and
+ * the basket he reaches into, as a cook would.
+ */
+function sackSpot(scene: THREE.Object3D, frame: THREE.Object3D, home: THREE.Vector3, food: string) {
+  frame.updateWorldMatrix(true, false)
+  const inv = frame.matrixWorld.clone().invert(), v = new THREE.Vector3()
+  /** a piece's middle on the floor, its round and its rim's height (this frame), from its points */
+  const measure = (g: THREE.Object3D, c: THREE.Vector3) => {
+    let r = 0, top = -Infinity
+    g.updateWorldMatrix(true, true)
+    g.traverse((m) => {
+      const pos = (m as THREE.Mesh).isMesh ? (m as THREE.Mesh).geometry.attributes.position : null
+      if (!pos) return
+      for (let k = 0; k < pos.count; k += 3) {
+        v.fromBufferAttribute(pos, k).applyMatrix4(m.matrixWorld).applyMatrix4(inv)
+        r = Math.max(r, Math.hypot(v.x - c.x, v.z - c.z))
+        top = Math.max(top, v.y)
+      }
+    })
+    return { c, r, top }
+  }
+  let best: { c: THREE.Vector3; r: number; top: number; d: number } | null = null
+  for (let i = 0; i < 3; i++) {
+    const g = scene.getObjectByName(`produce-sack-${i}`)
+    if (!g || !g.visible) continue
+    const m = measure(g, g.getWorldPosition(new THREE.Vector3()).applyMatrix4(inv))
+    const d = Math.hypot(home.x - m.c.x, home.z - m.c.z)
+    if (m.r > 0 && (!best || d < best.d)) best = { ...m, d }
+  }
+  if (!best) return null
+  const out = new THREE.Vector3(home.x - best.c.x, 0, home.z - best.c.z)
+  if (out.lengthSq() < 1e-6) out.set(1, 0, 0)
+  out.normalize()
+  // (straight off it toward his place, or turned round it a little either way till he's clear of the basket and the rest beside it)
+  const floor = floorPieces(scene, frame), at = (a: number) => best.c.clone().addScaledVector(out.clone().applyAxisAngle(UP_AXIS, a), best.r + SACK_STAND)
+  const turn = [0, 0.26, -0.26, 0.52, -0.52, 0.79, -0.79].find((a) => floorGap(at(a), floor) >= SACK_STAND - 0.005) ?? 0
+  out.applyAxisAngle(UP_AXIS, turn)
+  const spot = clearOfTable(best.c.clone().addScaledVector(out, best.r + SACK_STAND), frame, scene)
+  // (the basket, for what isn't in a sack: its middle (its box's, the handle over it), its rim under the handle's top)
+  let into: { c: THREE.Vector3; r: number; top: number } = best
+  if (!IN_SACKS.has(food)) {
+    let basket: THREE.Object3D | undefined
+    scene.traverse((o) => { if (!basket && o.userData.editId === 'vegbasket') basket = o })
+    if (basket) {
+      const wb = new THREE.Box3().setFromObject(basket)
+      const c = wb.getCenter(new THREE.Vector3()).applyMatrix4(inv)
+      const m = measure(basket, c.setY(0))
+      const lo = new THREE.Vector3(0, wb.min.y, 0).applyMatrix4(inv).y
+      into = { c: m.c, r: m.r * 0.8, top: lo + (m.top - lo) * 0.62 }
+    }
+  }
+  // (his hands into its mouth a hand's breadth in from the rim on his side, a little under it, where the top of what's in it is; across it,
+  // the way his shoulders go)
+  const toMe = new THREE.Vector3(spot.x - into.c.x, 0, spot.z - into.c.z)
+  if (toMe.lengthSq() < 1e-6) toMe.copy(out)
+  toMe.normalize()
+  SACK_MOUTH.copy(into.c).addScaledVector(toMe, into.r * 0.35).setY(into.top - 0.05)
+  SACK_ACROSS.set(-toMe.z, 0, toMe.x)
+  return { spot: spot.setY(floorAt(spot)), face: into.c.clone().setY(spot.y) }
 }
 /** the warming counter's front (Decor's Warmer: its own +z the kitchen's side) across from a piece on it, a step out (the chef's frame); null
  * if it's not on it */
@@ -1218,14 +1360,14 @@ function warmerFront(scene: THREE.Object3D, piece: THREE.Object3D, frame: THREE.
   const spot = f.localToWorld(new THREE.Vector3(at.x, 0, b.max.z + 0.4))
   return frame.worldToLocal(spot)
 }
-/** the chef's way from his place to a spot (Roasting's frame): straight back out of the notch onto the aisle, then round all that stands on
- * the kitchen floor (GuestBar3D's route) */
+/** the chef's way from his place by the board to a spot (Roasting's frame): round all that stands on the kitchen floor (GuestBar3D's route)
+ * from where he stands (item 516: it first went straight back off his place onto the aisle's line (WALK_LAY), as out of a notch, where his
+ * place once was; from the board that point is between the onions' sack and the vegetables' basket, and every trip he made went through
+ * them, his hands in the sacks) */
 function chefWay(home: THREE.Vector3, to: THREE.Vector3) {
-  const out = home.clone().sub(new THREE.Vector3().addScaledVector(LAY, home.dot(LAY))).addScaledVector(LAY, WALK_LAY)
-  out.setY(floorAt(out))
-  const across = KITCHEN_ROUTE.route ? KITCHEN_ROUTE.route(toBar(out), toBar(to)) : null
+  const across = KITCHEN_ROUTE.route ? KITCHEN_ROUTE.route(toBar(home), toBar(to)) : null
   const mid = across ? across.slice(1, -1).map(fromBar).map((v) => v.setY(floorAt(v))) : []
-  return [home.clone(), out, ...mid, to.clone()]
+  return [home.clone(), ...mid, to.clone()]
 }
 /** how long sitting down onto a seat (or getting up off it) takes (the shop's seconds), and how high over the straight way up they step */
 const SIT_S = 0.7
@@ -1264,13 +1406,22 @@ function CrewWalk({ id, role, at, yaw, way, seat, round, fetcher, children }: { 
     idleTick(id, T.phase === 'idle' && PLATER_OUT.id !== id && !SHOP.leaving, dt)
     o.userData.fetcher = true
     o.userData.lean = 0
+    o.userData.handsAt = undefined
     o.userData.carry = T.phase === 'toBoard' || (T.phase === 'taking' && T.t > TAKE_S * 0.5)
     // (and shaping the rice balls at the counter as he takes the rice)
-    o.userData.prep = T.phase === 'prepping' || (T.phase === 'taking' && T.store === 'ricetub' && T.shape > 0 && T.t > TAKE_S)
+    // (at the board only once he's turned round to it (item 516): home from a store he turned on the spot with his hands out over the board,
+    // and they swept through the onions' sack and the vegetables' basket behind him; turning, they're at his sides)
+    const toWork = Math.abs(Math.atan2(Math.sin(yaw - o.rotation.y), Math.cos(yaw - o.rotation.y))) < 0.35
+    o.userData.prep = (T.phase === 'prepping' && toWork) || (T.phase === 'taking' && T.store === 'ricetub' && T.shape > 0 && T.t > TAKE_S)
     const pierced = performance.now() - T.pierceAt
     o.userData.pierce = T.phase === 'prepping' && pierced < 600 ? pierced / 600 : undefined
     o.userData.fanNow = false
-    const hand = () => { o.updateMatrixWorld(); T.hand.set(...TRAY_AT).applyMatrix4(o.matrixWorld) }
+    // (what he carries where his hands hold it: before him as carried, or, lifting it out of a sack, between his hands (sackLift))
+    const hand = () => {
+      o.updateMatrixWorld()
+      if (o.userData.handsAt === SACK_HANDS) T.hand.copy(SACK_HANDS.left).add(SACK_HANDS.right).multiplyScalar(0.5)
+      else T.hand.set(...TRAY_AT).applyMatrix4(o.matrixWorld)
+    }
     if (T.phase === 'toStore' || T.phase === 'toBoard') {
       if (!trip.current) {
         let w: THREE.Vector3[]
@@ -1288,7 +1439,14 @@ function CrewWalk({ id, role, at, yaw, way, seat, round, fetcher, children }: { 
       w.gone = Math.min(w.len, w.gone + dt * CHEF_PACE * paceOfStaff(id))
       const { p, dir } = alongPath(w.way, w.gone)
       o.position.copy(p)
-      if (dir.x || dir.z) o.rotation.y = turnToward(o.rotation.y, Math.atan2(dir.x, dir.z), dt)
+      // (the last of the way turned already to what's next (item 516): to the board coming home, to the store going out to it; walking
+      // straight in, he came home from the freezer headed at the sacks beside his place, what he carried out before him in the onions' sack,
+      // and turned round on the spot)
+      const want = w.len - w.gone < ARRIVE_TURN ? (T.phase === 'toBoard' ? yaw : Math.atan2(T.face.x - T.spot.x, T.face.z - T.spot.z))
+        : dir.x || dir.z ? Math.atan2(dir.x, dir.z) : o.rotation.y
+      o.rotation.y = turnToward(o.rotation.y, want, dt)
+      // (back from the sacks with it lifted out before him till he's turned away and a step off them)
+      if (T.phase === 'toBoard' && T.store === 'sacks' && w.gone < SACK_CLEAR_WALK) sackLift(o)
       if (w.gone >= w.len) {
         trip.current = null
         T.t = 0
@@ -1305,6 +1463,19 @@ function CrewWalk({ id, role, at, yaw, way, seat, round, fetcher, children }: { 
     if (T.phase === 'taking') {
       o.position.copy(T.spot)
       o.rotation.y = turnToward(o.rotation.y, Math.atan2(T.face.x - T.spot.x, T.face.z - T.spot.z), dt)
+      // (bent over a sack's mouth (item 516): down into it as he takes hold, his hands in among the potatoes a moment, and up out of it with
+      // them, his hands coming up together to carry them (from half way: carry); he stood upright a metre off and took them from the air)
+      if (T.store === 'sacks' && o.parent) {
+        const k = Math.min(1, T.t / TAKE_S)
+        o.userData.lean = SACK_LEAN * Math.sin(k * Math.PI)
+        if (k < SACK_LIFT_AT) {
+          SACK_HANDS.left.copy(SACK_MOUTH).addScaledVector(SACK_ACROSS, SACK_HAND_GAP)
+          SACK_HANDS.right.copy(SACK_MOUTH).addScaledVector(SACK_ACROSS, -SACK_HAND_GAP)
+          o.parent.localToWorld(SACK_HANDS.left)
+          o.parent.localToWorld(SACK_HANDS.right)
+          o.userData.handsAt = SACK_HANDS
+        } else sackLift(o)
+      }
       // (rice balls: what the third cook's tray has taken off it as he comes to it, only the rest shaped there (item 129))
       if (T.store === 'ricetub' && T.shape < 0) { const f = fromTray(ONIGIRI_TRAY.n, T.keys.length); ONIGIRI_TRAY.n = f.left; T.shape = f.shape }
       T.t += dt * paceOfStaff(id)
@@ -1530,7 +1701,10 @@ const CHEF_YAW = Math.atan2(-CHEF_AT.x, -CHEF_AT.z)
 // -2.50..-1.91, its onions' sack out to the board's front) was in his left side to the hip, 19 cm, all the while he skewered; at the board's
 // middle now, his body (-0.45..+0.45 about his feet, his arms to 0.59) clear of the sack and of the skewer holder before the board's right
 // end (along -0.97..-0.74, lay to 2.37: in front of where his right hand hangs))
-const BOARD_COOK_AT = new THREE.Vector3().addScaledVector(LAY, 2.55).addScaledVector(ALONG, -1.42).setY(GRILL_OFFSET.y - KITCHEN_DROP)
+// (item 516: and 0.12 on toward the board's right end: the sacks drawn 1.4 times as big since (the owner's), the hand hanging at his side
+// toward them (StaffFigure's REST, 0.51 out from his middle) was in the onions' sack's side all the while he stood idle; his other hand
+// still 0.18 behind the skewer holder's back)
+const BOARD_COOK_AT = new THREE.Vector3().addScaledVector(LAY, 2.55).addScaledVector(ALONG, -1.30).setY(GRILL_OFFSET.y - KITCHEN_DROP)
 const BOARD_COOK_YAW = Math.atan2(-LAY.x, -LAY.z)
 /** the owner, smaller than the cooks (round and short, as Overcooked's), and how far down the cook's aisle his walk goes, in his own frame */
 const BOSS_SCALE = 1.05 * 0.8 * GRILL_SCALE
@@ -7198,7 +7372,10 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       const onBoard = pieces.current.filter((p) => p.staged && !p.fetching && !p.loose && present(p) && !p.eaten && !roast.rawDish?.items.includes(p.id)).length
       const trip = nextTrip(pieces.current.filter((p) => p.fetching && present(p)).map((p) => ({ key: p.key, id: p.id, at: p.stagedAt })), boardRoom(onBoard))
       // (busy from now: not sent off for plates in this same frame (GuestBar3D))
-      if (trip) { T.store = trip.store; T.keys = trip.keys; T.t = 0; T.phase = 'toStore'; FETCHER.busy = true }
+      if (trip) {
+        T.store = trip.store; T.keys = trip.keys; T.t = 0; T.phase = 'toStore'; FETCHER.busy = true
+        T.ids = trip.keys.map((k) => pieces.current.find((p) => p.key === k)?.id ?? '')
+      }
     }
     // the owner is the head chef and works the grill by hand; a hired chef cooks alongside (takes things off when
     // done, seasons them), the sous chef does the rest (keeps the fire up, puts what's waiting on, clears away)
