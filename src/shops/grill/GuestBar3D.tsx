@@ -8921,7 +8921,11 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       if (STATION_OBJ.liquid) STATION_OBJ.liquid.scale.y = Math.max(0.02, pouring ? (j!.was ?? SAKE.open) - pouredBy(j!.t) * (TOKKURI_ML / SAKE_BOTTLE_ML[0]) : SAKE.open)
       const sm = STATION_OBJ.stream
       if (sm) {
-        if (pouring && streaming(j!.t)) { const to = STATION_STREAM_TO(); sm.position.copy(P.mouth); sm.scale.set(1, Math.max(1e-4, P.mouth.y - to.y), 1) }
+        // (not drawn at all between pours (item 533: drawn a hair long, a draw every frame of the evening); in the scene from the start, its
+        // program's made at load all the same: scene/Prewarm compiles the hidden ones too)
+        const on = pouring && streaming(j!.t)
+        sm.visible = on
+        if (on) { const to = STATION_STREAM_TO(); sm.position.copy(P.mouth); sm.scale.set(1, Math.max(1e-4, P.mouth.y - to.y), 1) }
         else sm.scale.set(1, 1e-4, 1)
       }
       SAKE_HANDS_ON.v = !!beat && !!STATION_OBJ.group

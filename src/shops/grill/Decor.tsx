@@ -1959,8 +1959,8 @@ function SakeStand() {
   const showStream = (mouth: THREE.Vector3 | null, to: THREE.Vector3 | null) => {
     const s = stream.current
     if (!s) return
-    // (drawn only while it's poured (item 560: a draw every frame, a thread scaled to nothing); its program compiled with the page's, as
-    // a hidden one's is)
+    // (drawn only while it's poured (items 533, 560: a draw every frame, a thread scaled to nothing); its program compiled with the
+    // page's, as a hidden one's is (scene/Prewarm))
     s.visible = !!mouth && !!to
     if (!mouth || !to) { s.scale.set(1, 0.0001, 1); return }
     s.position.copy(mouth)

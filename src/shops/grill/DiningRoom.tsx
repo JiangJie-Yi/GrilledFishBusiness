@@ -5014,6 +5014,9 @@ function kamidanaOf(scene: THREE.Group) {
       } else if (src.name === 'KamiLeaf' || src.name === 'KamiDish' || src.name === 'KamiCobalt' || src.name === 'KamiFlaskGlaze') {
         // (the leaves' gloss, the porcelain's glaze: a soft sheen)
         t = new THREE.MeshPhysicalMaterial({ color: src.color.clone(), map: src.map, roughness: 0.35, clearcoat: 0.4, clearcoatRoughness: 0.25 })
+      } else if (/Cutout/.test(src.name)) {
+        // (the rope's tassels and paper streamers (item 551): cards, their shapes cut out of their pictures, seen from either side)
+        t = new THREE.MeshToonMaterial({ color: src.color.clone(), map: src.map, alphaTest: 0.5, side: THREE.DoubleSide })
       } else t = new THREE.MeshToonMaterial({ color: src.color.clone(), map: src.map })
       mats.set(src, t)
     }
