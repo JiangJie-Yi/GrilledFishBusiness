@@ -5171,6 +5171,9 @@ export function ContactShadow({ r, y = 0.0008 }: { r: number; y?: number }) {
 
 /** whether an offering of sake stands just now (Altar sets it): the shrine's doors open of themselves, the Ebisu glows */
 const BLESSING = { on: false, k: 0 }
+/** how far the shrine's doors stand open (ShrineDoors keeps it, 0 shut): the Ebisu behind them and his halo drawn only while they're open
+ * (item 567) */
+const SHRINE_OPEN = { k: 0 }
 /** a ring of light, feathered both sides, a little brighter and broken with sparkle along its band (the ripple when the sake's offered) */
 const RIPPLE = (() => {
   const c = document.createElement('canvas')
@@ -5280,6 +5283,12 @@ function ShrineDoors() {
     // (home and shut: settled at nothing, so the one drawing of them all takes over)
     if (!want && k.current < 1e-3) k.current = 0
     ;(doors.userData.home as ReturnType<typeof homeCopy>).home(k.current === 0)
+    // (item 567, the owner's 「有沒有辦法把惠比夀的石像做，在關閉時不渲染，打開的瞬間才做渲染呢？」: the Ebisu in the middle bay drawn only
+    // while its doors are open, from the frame they start to swing until they're home again: shut, nothing of him shows, and he was drawn
+    // every frame all the same (6 draws, 3,656 triangles, and his shadow), the whole evening. In edit mode he's always there, to be picked.
+    // His programs are linked as the page loads with the rest (Prewarm compiles the hidden too): nothing's made the moment they open)
+    SHRINE_OPEN.k = k.current
+    kamidanaOf(gltf.scene).ebisu.visible = k.current > 0 || getEdit().on
     for (const leaf of doors.children) {
       if (leaf.name === 'home-copy') continue
       // (each leaf swings out to the front, the left one one way and the right the other, as far as it can without meeting the railing round
@@ -6127,6 +6136,8 @@ function Altar({ omiki }: { omiki?: { pouredAt: number | null; onPour: () => voi
       const hm = halo.current.material as THREE.SpriteMaterial
       hm.opacity = 0.1 + 0.25 * BLESSING.k * pulse
       halo.current.scale.setScalar(0.14 + 0.06 * BLESSING.k * pulse)
+      // (and his halo with him: behind the shut doors it's drawn for nothing (item 567))
+      halo.current.visible = SHRINE_OPEN.k > 0
     }
     // (round him a faint rainbow aura, its colours turning slowly, breathing)
     if (aura.current) {
@@ -6311,7 +6322,7 @@ function Altar({ omiki }: { omiki?: { pouredAt: number | null; onPour: () => voi
       <sprite ref={flash} position={[CUPS_FX, 0.07, 0]} visible={false} renderOrder={5} raycast={NO_RAY}>
         <spriteMaterial map={GLOW} color="#ffe39a" transparent opacity={0} depthWrite={false} toneMapped={false} />
       </sprite>
-      {/* (the Ebisu's halo, a faint glow always (hidden behind the shut doors), bright while blessed) */}
+      {/* (the Ebisu's halo, a faint glow while the doors are open (not drawn while they're shut, item 567), bright while blessed) */}
       <sprite ref={halo} position={[EBISU_AT[0] - 0.01, EBISU_AT[1], EBISU_AT[2]]} scale={0.16} renderOrder={4} raycast={NO_RAY}>
         <spriteMaterial map={GLOW} color="#ffd27a" transparent opacity={0.18} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
       </sprite>
