@@ -1,5 +1,6 @@
 import { memo, useEffect } from 'react'
 import { useThree } from '@react-three/fiber'
+import { IDLE_RELEASED, idleRelease } from './gpuSweep'
 import type * as THREE from 'three'
 import { holdVeil, laterPending, laterSeen, sceneDrawn } from './Later'
 
@@ -75,6 +76,10 @@ export const Prewarm = memo(function Prewarm() {
   useEffect(() => {
     const release = holdVeil('prewarm')
     const unkeep = keepPrograms(gl)
+    // (item 566: what's hidden a while let go of on the GPU, put back as it's drawn again)
+    // (`?idle=0`: not, to measure against)
+    const unidle = new URLSearchParams(location.search).get('idle') === '0' ? () => {} : idleRelease(scene)
+    if (import.meta.env.DEV) (window as unknown as { __idle?: typeof IDLE_RELEASED }).__idle = IDLE_RELEASED
     let started = false
     const tick = window.setInterval(() => {
       // (everything else in: the stages mounted and the shop drawn, nothing held but this)
@@ -91,7 +96,7 @@ export const Prewarm = memo(function Prewarm() {
         })
         .finally(release)
     }, 250)
-    return () => { window.clearInterval(tick); release(); warmNow = null; unkeep() }
+    return () => { window.clearInterval(tick); release(); warmNow = null; unkeep(); unidle() }
   }, [gl, scene, camera])
   return null
 })
