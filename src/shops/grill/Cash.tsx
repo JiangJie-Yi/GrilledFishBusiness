@@ -496,8 +496,10 @@ export function CoinStack({ kind, n = 1, ...rest }: { kind: CoinKind; n?: number
   // (the top coin's face a card at the stack's top; its side a tube only when it's more than one coin)
   return (
     <group {...rest}>
-      <mesh geometry={coinGeo(kind)} material={mats[1]} position-y={h} castShadow />
-      {n > 1 && <mesh geometry={coinSide(kind)} material={mats[0]} scale={[1, h, 1]} position-y={h / 2} castShadow />}
+      {/* (casting nothing: a coin's shadow is too small to see, and cast it made a depth program of its own the first time coins showed
+          (item 565); the shop's ShadowPacer had it off anyway once it looked) */}
+      <mesh geometry={coinGeo(kind)} material={mats[1]} position-y={h} />
+      {n > 1 && <mesh geometry={coinSide(kind)} material={mats[0]} scale={[1, h, 1]} position-y={h / 2} />}
     </group>
   )
 }
@@ -538,7 +540,8 @@ export const CoinPile = memo(function CoinPile({ kind, n, w, d, seed = 1, ...res
       m.setMatrixAt(i, o.matrix)
       placed.push(o.position.clone())
     }
-    m.castShadow = true
+    // (casting nothing (item 565): see CoinStack)
+    m.castShadow = false
     return m
   }, [kind, n, w, d, seed, mats])
   // (the pile made again as the drawer's coins change: the last one's instance buffer let go)
