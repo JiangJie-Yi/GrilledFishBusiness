@@ -9038,8 +9038,10 @@ function MilkCrate() {
       m.castShadow = true
       m.receiveShadow = true
     })
-    // (an ink line round its plastic, not its lattice (the whole panel would be outlined) or its drinks)
-    inkModel(r, (m) => !/MilkCratePlastic/.test((m.material as THREE.Material).name))
+    // (an ink line round its plastic, not its lattice (the whole panel would be outlined) or its drinks; a hair wide, as it's always been
+    // seen: given none, it took the hull's own 0.012, ten times the room's lines, drawn at its batch's 0.0012 only while the batch's merge
+    // didn't read the width (item 575; at 0.012 it's a thick, broken black band round each crate))
+    inkModel(r, (m) => !/MilkCratePlastic/.test((m.material as THREE.Material).name), { width: 0.0012 })
     return r
   }, [gltf])
   return <primitive object={obj} />

@@ -6,7 +6,7 @@ import { mergeState } from './worldMerge'
 /*
  * Things that never move, drawn as a handful of meshes instead of hundreds. Its children are built as usual (each a
  * mesh with its own little material, as is easiest to write), then, once they're there, every mesh among them is
- * baked into place and those that look alike (the same kind of material, colour, texture, side and blending) are
+ * baked into place and those that look alike (the same kind of material, colour, pictures, side, blending and finish: keyOf) are
  * merged into one, and the originals are hidden. A beckoning cat of forty parts, inked, is two draws, not eighty.
  *
  * Only for what's static: the children are read once, when it mounts (a change to them later isn't picked up), and
@@ -20,10 +20,44 @@ export type BatchParts = { show: (part: string, shown: boolean) => void }
 
 const ATTRS = ['position', 'normal', 'uv'] as const
 
-/** what decides whether two meshes can be drawn as one */
+/**
+ * The rest of a material's look that two drawn as one must share (item 575): the depth's pull toward the eye (the shrine's lines lying on
+ * its faces, item 374), the cut-out's edge, the glow, its other pictures, how a lit one's surface takes the light (the register's chrome,
+ * steel and plastics: a white material each, their colours on their points, were drawn with one another's), an ink hull's width. Merged,
+ * they're all drawn with the first one's material; a setting a material hasn't reads as nothing.
+ */
+const LOOK = ['depthTest', 'depthFunc', 'colorWrite', 'polygonOffset', 'polygonOffsetFactor', 'polygonOffsetUnits', 'alphaTest', 'alphaHash',
+  'alphaToCoverage', 'premultipliedAlpha', 'dithering', 'fog', 'flatShading', 'wireframe', 'emissive', 'emissiveMap', 'normalMap', 'normalMapType',
+  'normalScale', 'bumpMap', 'bumpScale', 'displacementMap', 'alphaMap', 'aoMap', 'lightMap', 'gradientMap', 'specularMap', 'envMap',
+  'envMapIntensity', 'roughness', 'metalness', 'roughnessMap', 'metalnessMap', 'clearcoat', 'clearcoatRoughness', 'sheen', 'sheenRoughness',
+  'sheenColor', 'specularIntensity', 'specularColor', 'ior', 'iridescence', 'anisotropy', 'specular', 'shininess'] as const
+/** one setting written out: a number to four places, a colour its hex, a picture its id */
+function setting(v: unknown): string {
+  if (v === undefined || v === null) return ''
+  if (typeof v === 'number') return String(Math.round(v * 1e4) / 1e4)
+  if (typeof v !== 'object') return String(v)
+  const o = v as { isColor?: boolean; isVector2?: boolean; isTexture?: boolean; getHexString?: () => string; x?: number; y?: number; uuid?: string; toArray?: () => number[] }
+  if (o.isColor) return o.getHexString!()
+  if (o.isVector2) return `${o.x},${o.y}`
+  if (o.isTexture) return o.uuid!
+  return o.toArray ? o.toArray().join(',') : o.uuid ?? String(v)
+}
+/** what decides whether two meshes can be drawn as one (a batch's, and the room's merge, scene/WorldBatch) */
 export function keyOf(m: THREE.Material) {
-  const x = m as THREE.Material & { color?: THREE.Color; map?: THREE.Texture | null; toneMapped?: boolean; vertexColors?: boolean }
-  return [m.type, x.color?.getHexString(), x.map?.uuid, m.side, m.transparent, m.opacity, m.blending, m.depthWrite, x.toneMapped, x.vertexColors].join('|')
+  const x = m as THREE.Material & Record<string, unknown> & { color?: THREE.Color; map?: THREE.Texture | null; toneMapped?: boolean; vertexColors?: boolean
+    emissive?: THREE.Color; emissiveIntensity?: number }
+  let k = [m.type, x.color?.getHexString(), x.map?.uuid, m.side, m.transparent, m.opacity, m.blending, m.depthWrite, x.toneMapped, x.vertexColors].join('|')
+  for (const p of LOOK) k += `|${setting(x[p])}`
+  // (how bright it glows only where it glows)
+  if (x.emissive && x.emissive.getHex() !== 0) k += `|${setting(x.emissiveIntensity)}`
+  // (a reworked shader's own variant; a hand-written one's code and its uniforms' values (the ink lines': their width, their colour))
+  k += `|${m.customProgramCacheKey()}`
+  const sh = m as THREE.ShaderMaterial
+  if (sh.isShaderMaterial) {
+    k += `|${sh.vertexShader.length}:${sh.fragmentShader.length}`
+    for (const [n, u] of Object.entries(sh.uniforms ?? {})) k += `|${n}=${setting(u.value)}`
+  }
+  return k
 }
 
 /** the materials plain pieces share, their colours on their points: one for each way of drawing that isn't the colour */

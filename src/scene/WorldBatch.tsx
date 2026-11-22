@@ -29,23 +29,6 @@ const OFF = !INK_ONLY && WORLD_ASK !== '1' && WORLD_ASK !== null
 const CELL = typeof location === 'undefined' ? 0 : Number(new URLSearchParams(location.search).get('wcell')) || (WORLD_ASK === '1' ? 0 : 6)
 const CENTRE = new THREE.Vector3()
 
-/** what of a material's look keyOf doesn't say, that two merged must share */
-function lookOf(m: THREE.Material) {
-  const x = m as THREE.MeshToonMaterial & { alphaHash?: boolean }
-  let k = `${m.depthTest}|${m.polygonOffset}|${m.polygonOffsetFactor}|${m.polygonOffsetUnits}|${m.alphaTest}|${x.alphaHash ?? ''}`
-  if (x.emissive) k += `|${x.emissive.getHexString()}:${x.emissiveIntensity}`
-  // (a reworked shader's own variant; one with its own uniforms (the ink lines'), their values)
-  k += `|${m.customProgramCacheKey()}`
-  const sh = m as THREE.ShaderMaterial
-  if (sh.isShaderMaterial) {
-    k += `|${sh.vertexShader.length}:${sh.fragmentShader.length}`
-    for (const [n, u] of Object.entries(sh.uniforms ?? {})) {
-      const v = u.value as unknown
-      k += `|${n}=${typeof v === 'number' ? v.toFixed(5) : v instanceof THREE.Color ? v.getHexString() : (v as { toArray?: () => number[] })?.toArray ? (v as { toArray: () => number[] }).toArray().join(',') : (v as { uuid?: string })?.uuid ?? String(v)}`
-    }
-  }
-  return k
-}
 /** a mesh the room's merge can take: one material, opaque, drawn whole, nothing of its own done as it's drawn */
 function mergeable(o: THREE.Object3D): o is THREE.Mesh {
   const m = o as THREE.Mesh
@@ -125,8 +108,8 @@ const hexOf = (m: THREE.Material, k: 'color' | 'emissive') => ((m as THREE.MeshT
 
 /**
  * The room's meshes merged across it (item 367; scene/worldMerge): every LOOK_MS the room's meshes are looked over, and those in the same
- * place as at the last look (kept still), opaque and drawn whole, are merged, a mesh for each look they share (StaticBatch's keyOf, and what
- * keyOf doesn't say: the glow, the depth test, the polygon offset, the shader's uniforms, the shadows cast and taken, the draw order); theirs
+ * place as at the last look (kept still), opaque and drawn whole, are merged, a mesh for each look they share (StaticBatch's keyOf: the
+ * colour, pictures, finish, glow, depth's pull and shader's uniforms; and the shadows cast and taken, the draw order); theirs
  * hidden (worldMerge's mergeAway). Watched every frame after: one that moves, goes from the room, is hidden (by itself or what it's under), is
  * given another material or its colour or glow changes, or has its shape changed, is taken out of it on the spot (worldMerge's takeOut,
  * twice so and it's left out after); a quarter taken out, or the editor left, and it's made again. The editor on, it's all given back.
@@ -175,7 +158,7 @@ export const WorldBatch = memo(function WorldBatch() {
         const c = CENTRE.copy(m.geometry.boundingSphere!.center).applyMatrix4(m.matrixWorld)
         cell = `${Math.floor(c.x / CELL)},${Math.floor(c.z / CELL)}`
       }
-      const key = `${keyOf(mat)}|${lookOf(mat)}|${m.renderOrder}|${m.castShadow}|${m.receiveShadow}|${root.uuid}|${cell}|L${m.layers.mask}`
+      const key = `${keyOf(mat)}|${m.renderOrder}|${m.castShadow}|${m.receiveShadow}|${root.uuid}|${cell}|L${m.layers.mask}`
       const g = groups.get(key) ?? { mat, list: [], cast: m.castShadow, take: m.receiveShadow, order: m.renderOrder, colours: !!(mat as THREE.MeshToonMaterial).vertexColors, root, layers: m.layers.mask }
       g.list.push(m)
       groups.set(key, g)
