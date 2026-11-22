@@ -11,6 +11,9 @@ import { capTexture } from './textureCap'
  *   - pictures not on the card yet: sent a few milliseconds' worth (within the cap, as at their first draw), and the frame skipped;
  *   - else drawn as ever.
  * The frames skipped are under the loading veil; between them the page's own work (the veil's count, its fish) goes on.
+ * A frame skipped still has the scene's places worked out, as drawing it would have (item 595, the owner's 「注意竹筷子」: the bar's
+ * chopsticks are laid where their pieces stand in their first frames, and laid then with the pieces' places not yet worked out, the
+ * counters' own place and turn left out of them, they lay in a row across the cook table and the hearth: skipped().
  */
 const BUDGET_MS = 8
 
@@ -27,6 +30,13 @@ function waiting(gl: THREE.WebGLRenderer, t: THREE.Texture) {
   return (gl.properties.get(t) as { __webglTexture?: unknown }).__webglTexture === undefined
 }
 
+/** a frame not drawn: its places worked out all the same, the scene's and the camera's, as the renderer does first thing as it draws (the
+ * Optimization window's: else what's worked out from where the camera is, a sign turned to it, a sound by how far, read it as it was) */
+function skipped(scene: THREE.Object3D, camera: THREE.Camera) {
+  if (scene.matrixWorldAutoUpdate) scene.updateMatrixWorld()
+  if (camera.parent === null && camera.matrixWorldAutoUpdate) camera.updateMatrixWorld()
+}
+
 /** starts pacing the renderer's frames; returns the stop (the renderer drawing every frame as ever) */
 export function paceFirstDraws(gl: THREE.WebGLRenderer, main: THREE.Object3D): () => void {
   const render = gl.render.bind(gl)
@@ -39,7 +49,7 @@ export function paceFirstDraws(gl: THREE.WebGLRenderer, main: THREE.Object3D): (
     // (only the shop drawn on the screen: a picture drawn into a target of its own (the room's light from its studio, a sheet baked flat) is
     // drawn there and then, as it's asked for: skipped, the room's light was never made, and the shop came up cold and blue)
     if (stopped || scene !== main || gl.getRenderTarget() !== null) { render(scene, camera); return }
-    if (compiling) return
+    if (compiling) return skipped(scene, camera)
     let fresh = false
     const pics: THREE.Texture[] = []
     scene.traverseVisible((o) => {
@@ -54,7 +64,7 @@ export function paceFirstDraws(gl: THREE.WebGLRenderer, main: THREE.Object3D): (
       tries++
       compiling = true
       gl.compileAsync(scene, camera).catch(() => undefined).finally(() => { compiling = false })
-      return
+      return skipped(scene, camera)
     }
     if (!fresh) tries = 0
     const t0 = performance.now()
@@ -66,7 +76,7 @@ export function paceFirstDraws(gl: THREE.WebGLRenderer, main: THREE.Object3D): (
       capTexture(t)
       gl.initTexture(t)
     }
-    if (left) return
+    if (left) return skipped(scene, camera)
     render(scene, camera)
   }
   return () => { stopped = true; gl.render = render }
