@@ -162,7 +162,10 @@ def box(name, size, at, mat_, bev=0.0, rot=(0, 0, 0), uv=0.2):
     apply_scale(o)
     finish(o, name, mat_, smooth_shade=False)
     if bev:
-        bevel(o, bev, 2, angle=False)
+        # (its edges bevelled once (item 573): 44 triangles a box where two steps made 108, the shrine's every wall, post, beam and step, a
+        # millimetre or two across, the same from the room; it took the roof's lightening for the boards and posts merged with it to come out
+        # of optimize_glb.py's thinning (which thins only meshes of over 1,500 triangles) whole, at 108 each)
+        bevel(o, bev, 1, angle=False)
         apply_mods(o)
     if uv:
         uv_grain(o, uv)
@@ -376,6 +379,11 @@ leaf_n = image("goldleafN", to_normal((-crest).astype(np.float32), 6.0), data=Tr
 M["goldLeaf"] = pbr("KamiGoldLeaf", (1, 1, 1), tex=image("goldleaf", leaf), nrm=leaf_n, nrm_strength=1.0, rough=0.35, metal=0.75)
 
 
+# (item 573: what the bays' gables are baked from (GABLE_HI) and onto (GABLE_LO), and what's made only so all after it is made as it was,
+# then taken away (ROOF_DROP))
+GABLE_HI, GABLE_LO, ROOF_DROP = [], [], []
+
+
 def bay(tag, zc, width, body_h, ridge_h, depth=0.13):
     """one bay of the shrine: its body with a post at each corner, its pair of doors with the gold crest and corner plates, and its roof: two
     curved slopes of bark laid deep, each gable's bargeboards running up past the ridge as the crossed finials (one board each, the pair one
@@ -452,7 +460,11 @@ def bay(tag, zc, width, body_h, ridge_h, depth=0.13):
     out.append(box(f"Kami{tag}Lintel", S(0.012, 0.01, width * 0.9), P(fx - 0.004, y0 + body_h - 0.018, zc), M["woodDark"], bev=0.001))
     out.append(box(f"Kami{tag}LintelGold", S(0.002, 0.003, width * 0.9), P(fx - 0.0105, y0 + body_h - 0.022, zc), M["gold"], uv=0))
 
-    # (the roof: the top surface down each slope from the ridge, sagging a little in the middle so its eaves sweep up (照り), laid deep)
+    # (the roof: the top surface down each slope from the ridge, sagging a little in the middle so its eaves sweep up (照り), laid deep. Item 573
+    # (the owner's 「神棚的屋頂也可用Backing，不用用到太多面」): eight sections down each slope where it had twelve (the curve's chords 0.2 mm
+    # off it, turning 3 degrees at each), and the faces where the two slopes' slabs meet back to back under the gold ridge taken off. The bark's
+    # courses were tried in relief too (a normal map with the colour): in the room's toon light their painted edges came out fainter and broken
+    # where they'd been crisp lines, so the slopes keep the colour alone)
     top = y0 + body_h
     run = depth / 2 + 0.03
     rise = ridge_h - top
@@ -463,13 +475,14 @@ def bay(tag, zc, width, body_h, ridge_h, depth=0.13):
         return ridge_h + 0.012 - rise * s - sag * math.sin(math.pi * s)
 
     NS = 12
+    NL = 8
     for sx in (-1, 1):
         vs, fs = [], []
-        for i in range(NS + 1):
-            s = i / NS
+        for i in range(NL + 1):
+            s = i / NL
             for zz in (-W / 2, W / 2):
                 vs.append(P(cx0 + sx * run * s, y_top(s), zc + zz))
-        for i in range(NS):
+        for i in range(NL):
             a = i * 2
             fs.append((a, a + 1, a + 3, a + 2) if sx > 0 else (a, a + 2, a + 3, a + 1))
         o = mesh_obj(f"Kami{tag}Roof{sx}", vs, fs, M["roof"], smooth_shade=True)
@@ -479,7 +492,7 @@ def bay(tag, zc, width, body_h, ridge_h, depth=0.13):
         for poly in me_.polygons:
             for li in poly.loop_indices:
                 vi = me_.loops[li].vertex_index
-                uvl[li].uv = (((vi % 2) - 0.5) * W / 0.12, (vi // 2) / NS * L / 0.12)
+                uvl[li].uv = (((vi % 2) - 0.5) * W / 0.12, (vi // 2) / NL * L / 0.12)
         # (the up side up, then made deep: the bark's thickness downward, its cut edge a paler brown)
         if me_.polygons[0].normal.z < 0:
             for poly in me_.polygons:
@@ -491,10 +504,22 @@ def bay(tag, zc, width, body_h, ridge_h, depth=0.13):
         sol.material_offset_rim = 1
         sol.use_rim = True
         apply_mods(o)
+        # (the rim along the ridge (both its upper corners there): back to back with the other slope's, inside the roof under the ridge)
+        bm = bmesh.new()
+        bm.from_mesh(o.data)
+        bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.material_index == 1 and sum(abs(v.co.x - cx0) < 1e-6 for v in f.verts) >= 2],
+                         context="FACES")
+        bm.to_mesh(o.data)
+        bm.free()
         out.append(o)
 
-    # (the gable ends: wood up under the roof, following its curve)
+    # (the gable ends: wood up under the roof, following its curve. Item 573: all of it (the hinoki boards, the beam along its foot, the round
+    # logs laid one on another) made only to be baked from: a panel at each gable where the logs' faces were takes their relief and colour
+    # (gable_bake, once the three bays are up), and they're taken away. A side bay's inner gable has no panel: it's inside the middle bay's
+    # body and under its roof, where it can't be seen. Each made as it was, so the boards' turn of the three hinokis (wood()) and the grain's
+    # offsets (jit) after them fall as they did)
     for sz in (-1, 1):
+        inner = zc != 0 and sz * zc < 0
         zz = zc + sz * (width / 2 - 0.004)
         pts = [(cx0 - run * 0.92, top), (cx0 + run * 0.92, top)]
         for i in range(NS, -1, -1):
@@ -507,11 +532,11 @@ def bay(tag, zc, width, body_h, ridge_h, depth=0.13):
         sol = g_.modifiers.new("t", "SOLIDIFY"); sol.thickness = 0.005; sol.offset = 0
         apply_mods(g_)
         uv_grain(g_, 0.15)
-        out.append(g_)
+        ROOF_DROP.append(g_)
         # (and out under the bargeboards, the gable's face filled with round logs laid across it, a darker wood, one on another from the tie
         # beam up to the ridge, each as long as the roof's underside lets it be at its height, so the whole triangle is filled)
         zf = zc + sz * (W / 2 - 0.001)
-        out.append(box(f"Kami{tag}GableBeam{sz}", S(2 * run * 0.98, 0.007, 0.006), P(cx0, top + 0.0035, zf), M["woodDark"], bev=0.0006))
+        hi_ = [box(f"Kami{tag}GableBeam{sz}", S(2 * run * 0.98, 0.007, 0.006), P(cx0, top + 0.0035, zf), M["woodDark"], bev=0.0006)]
         under = lambda s_: y_top(s_) - RT * 0.55  # noqa: E731
 
         def reach(y):
@@ -535,26 +560,52 @@ def bay(tag, zc, width, body_h, ridge_h, depth=0.13):
                 break
             lg_ = cyl(f"Kami{tag}GableLog{sz}{i}", BH / 2, 2 * hw, P(cx0, y + BH / 2, zf), M["woodDark"], rot=(0, math.pi / 2, 0), verts=12)
             uv_grain(lg_, 0.08)
-            out.append(lg_)
+            hi_.append(lg_)
             y += BH
             i += 1
+        if inner:
+            ROOF_DROP.extend(hi_)
+            continue
+        # (the panel: its face at the logs' outer line (2.8 mm past the roof's end), its outline up to where they meet the roof's underside,
+        # in bands across it (a triangle at its peak, never a fan); and behind the logs for the bake a board of the shadowed dark, so the gaps
+        # between their cut ends and the roof bake dark as they showed)
+        lv = [0.0] + [i_ / NL for i_ in range(1, NL)] + [0.98]
+        za, zb_ = zc + sz * (W / 2 + 0.0028), zc + sz * (W / 2 - 0.0048)
+        for zp, kind in ((za, "panel"), (zb_, "back")):
+            vs_ = [P(cx0, under(0), zp)]
+            for s_ in lv[1:]:
+                vs_ += [P(cx0 - run * s_, under(s_), zp), P(cx0 + run * s_, under(s_), zp)]
+            vs_ += [P(cx0 - run * 0.98, top, zp), P(cx0 + run * 0.98, top, zp)]
+            fs_ = [(0, 1, 2)] + [(1 + 2 * j, 3 + 2 * j, 4 + 2 * j, 2 + 2 * j) for j in range(len(lv) - 1)]
+            o_ = mesh_obj(f"Kami{tag}Gable{kind}{sz}", vs_, fs_, M["inside"] if kind == "back" else M["woodDark"])
+            # (facing out from the gable)
+            if (o_.data.polygons[0].normal.y * -sz) < 0:
+                for pl in o_.data.polygons:
+                    pl.flip()
+                o_.data.update()
+            if kind == "back":
+                hi_.append(o_)
+            else:
+                GABLE_LO.append({"obj": o_, "box": (cx0 - run * 0.98, cx0 + run * 0.98, top, under(0))})
+        GABLE_HI.extend(hi_)
     # (the bargeboards and the crossed finials (千木): at each gable, each slope's board runs from the eave up along the roof's edge and on
     # past the ridge, straight, as one finial; the two cross over the ridge as one piece of wood (joined where they cross))
     tan0 = -(rise + sag * math.pi)  # (the slope's rise per unit of s at the ridge)
     CH = 0.032  # (how far each finial reaches past the ridge, along x: a short crossing, not a tall one)
     # (a side bay's inner gable tucks under the middle bay's roof: no finials there, they'd come up through it)
+    # (item 573: down the slope in its eight sections, and past the ridge in one, straight as it was (it had four there, on one line); their
+    # inside face half a millimetre off the roof's end, not on it)
     for sz in ((-1, 1) if zc == 0 else (1 if zc > 0 else -1,)):
-        zg = zc + sz * (W / 2 + 0.0025)
+        zg = zc + sz * (W / 2 + 0.003)
         boards = []
         for sx in (-1, 1):
             pts = []
-            for i in range(NS, -1, -1):
-                s = i / NS
+            for i in range(NL, -1, -1):
+                s = i / NL
                 pts.append((cx0 + sx * run * s, y_top(s) - RT * 0.35))
             # (on past the ridge, straight on along the slope's line there)
-            for j in range(1, 5):
-                e = j / 4 * CH / run
-                pts.append((cx0 - sx * run * e, y_top(0) - RT * 0.35 - tan0 * e))
+            e = CH / run
+            pts.append((cx0 - sx * run * e, y_top(0) - RT * 0.35 - tan0 * e))
             boards.append(strip(f"Kami{tag}Chigi{sz}{sx}", pts, 0.014, zg, 0.005, wood()))
         a, b = boards
         mod = a.modifiers.new("u", "BOOLEAN")
@@ -570,7 +621,11 @@ def bay(tag, zc, width, body_h, ridge_h, depth=0.13):
         else:
             out += [a, b]
     # (the gold ridge on the roof's top, the logs across it with gold caps)
-    out.append(box(f"Kami{tag}Ridge", S(0.016, 0.01, W + 0.004), P(cx0, ridge_h + 0.014, zc), M["gold"], bev=0.002, uv=0))
+    # (item 573: its edges bevelled once, not in two steps: 44 triangles, it was 108)
+    rg_ = box(f"Kami{tag}Ridge", S(0.016, 0.01, W + 0.004), P(cx0, ridge_h + 0.014, zc), M["gold"], uv=0)
+    bevel(rg_, 0.002, 1, angle=False)
+    apply_mods(rg_)
+    out.append(rg_)
     # (the ridge logs (鰹木): spaced well apart along the ridge, each a log swelling in the middle and tapering to its ends like a cigar, its
     # grain running along it, a gold cap on each end)
     n = 3 if width > 0.12 else 2
@@ -578,7 +633,8 @@ def bay(tag, zc, width, body_h, ridge_h, depth=0.13):
     LL = 0.05
     for k in range(n):
         z = zc + (k - (n - 1) / 2) * gap
-        lg = cyl(f"Kami{tag}Katsuogi{k}", 0.0068, LL, P(cx0, ridge_h + 0.025, z), M["woodDark"], rot=(0, math.pi / 2, 0), verts=12)
+        # (item 573: eight round (twelve), three cuts along it (four), its ends taken off inside the gold caps: 64 triangles, it was 140)
+        lg = cyl(f"Kami{tag}Katsuogi{k}", 0.0068, LL, P(cx0, ridge_h + 0.025, z), M["woodDark"], rot=(0, math.pi / 2, 0), verts=8)
         bpy.ops.object.select_all(action="DESELECT"); lg.select_set(True); bpy.context.view_layer.objects.active = lg
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
         bpy.ops.object.mode_set(mode="EDIT"); bpy.ops.mesh.select_all(action="DESELECT")
@@ -587,26 +643,126 @@ def bay(tag, zc, width, body_h, ridge_h, depth=0.13):
         for e in lg.data.edges:
             v0, v1 = lg.data.vertices[e.vertices[0]].co, lg.data.vertices[e.vertices[1]].co
             e.select = abs(v0.x - v1.x) > LL * 0.5
-        # (four cuts along it for its swell: eight with twenty round made each log 396 triangles)
-        bpy.ops.object.mode_set(mode="EDIT"); bpy.ops.mesh.subdivide(number_cuts=4); bpy.ops.object.mode_set(mode="OBJECT")
+        # (three cuts along it for its swell: eight with twenty round made each log 396 triangles, four with twelve 140)
+        bpy.ops.object.mode_set(mode="EDIT"); bpy.ops.mesh.subdivide(number_cuts=3); bpy.ops.object.mode_set(mode="OBJECT")
         for vt in lg.data.vertices:
             u_ = vt.co.x / (LL / 2)
             k_ = 1 - 0.2 * u_ * u_
             vt.co.y *= k_
             vt.co.z *= k_
         lg.data.update()
+        bm = bmesh.new()
+        bm.from_mesh(lg.data)
+        bmesh.ops.delete(bm, geom=[f for f in bm.faces if all(abs(v.co.x) > LL / 2 - 1e-6 for v in f.verts)], context="FACES")
+        bm.to_mesh(lg.data)
+        bm.free()
         for poly in lg.data.polygons:
             poly.use_smooth = True
         uv_grain(lg, 0.06)
         out.append(lg)
         for sx in (-1, 1):
-            out.append(cyl(f"Kami{tag}KatsuogiCap{k}{sx}", 0.0058, 0.0045, P(cx0 + sx * (LL / 2 - 0.0005), ridge_h + 0.025, z), M["gold"], rot=(0, math.pi / 2, 0), verts=12))
+            # (item 573: eight round (twelve), the face against the log taken off: 22 triangles, they were 44)
+            cp_ = cyl(f"Kami{tag}KatsuogiCap{k}{sx}", 0.0058, 0.0045, P(cx0 + sx * (LL / 2 - 0.0005), ridge_h + 0.025, z), M["gold"], rot=(0, math.pi / 2, 0), verts=8)
+            bm = bmesh.new()
+            bm.from_mesh(cp_.data)
+            bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.normal.z * sx < -0.9], context="FACES")
+            bm.to_mesh(cp_.data)
+            bm.free()
+            out.append(cp_)
     return out
 
 
 parts += bay("M", 0.0, 0.15, 0.165, 0.28)
 for sz in (-1, 1):
     parts += bay(f"S{sz}", sz * 0.112, 0.07, 0.125, 0.215, depth=0.112)
+
+
+def gable_bake():
+    """(item 573) the four gables' panels given the logs laid across them: their relief (a normal map) and their colour, darkened in the
+    grooves between the logs as the relief turns away, baked from the pieces at each gable onto one picture for the four, all at one scale
+    (2.6 pixels to a millimetre of the shrine's: a log 19 across); those pieces then taken away, and the panels made as deep as the logs were,
+    back from their faces (their rim along the top, inside the roof, taken off). Some 40 triangles a gable, where its boards, beam and logs
+    were near 700"""
+    GW, GH, K = 1024, 512, 2600.0
+    for i, g in enumerate(GABLE_LO):
+        x0, x1, ya, yb = g["box"]
+        u0 = (i % 2) * 0.5 + (0.5 - (x1 - x0) * K / GW) / 2
+        v0 = (i // 2) * 0.5 + (0.5 - (yb - ya) * K / GH) / 2
+        me_ = g["obj"].data
+        uvl = me_.uv_layers.new().data
+        for pl in me_.polygons:
+            for li in pl.loop_indices:
+                co = me_.vertices[me_.loops[li].vertex_index].co
+                uvl[li].uv = (u0 + (co.x - x0) * K / GW, v0 + (co.z - ya) * K / GH)
+    lo = join([g["obj"] for g in GABLE_LO], "KamiGablePanels")
+    img_c = bpy.data.images.new("KamiGableColor", GW, GH)
+    img_n = bpy.data.images.new("KamiGableNormal", GW, GH)
+    img_n.colorspace_settings.name = "Non-Color"
+    bm_ = bpy.data.materials.new("KamiGableBake")
+    bm_.use_nodes = True
+    tn = bm_.node_tree.nodes.new("ShaderNodeTexImage")
+    lo.data.materials.clear()
+    lo.data.materials.append(bm_)
+    sc_ = bpy.context.scene
+    sc_.render.engine = "CYCLES"
+    sc_.cycles.device = "CPU"
+    sc_.cycles.samples = 16
+    bpy.ops.object.select_all(action="DESELECT")
+    for o in GABLE_HI:
+        # (each log round about its length and its ends flat: smoothed across its ends too, its every side's shading leant along it, end to end)
+        if "GableLog" in o.name:
+            for pl in o.data.polygons:
+                pl.use_smooth = abs(pl.normal.z) < 0.9
+        o.select_set(True)
+    lo.select_set(True)
+    bpy.context.view_layer.objects.active = lo
+
+    def bake(kind, img, **kw):
+        tn.image = img
+        bm_.node_tree.nodes.active = tn
+        # (from a millimetre out from each panel's face, in as far as the dark board behind the logs (7.6 mm))
+        bpy.ops.object.bake(type=kind, use_selected_to_active=True, cage_extrusion=0.001, max_ray_distance=0.01, margin=8, **kw)
+
+    bake("NORMAL", img_n, normal_space="TANGENT")
+    sc_.render.bake.use_pass_direct = False
+    sc_.render.bake.use_pass_indirect = False
+    sc_.render.bake.use_pass_color = True
+    bake("DIFFUSE", img_c, pass_filter={"COLOR"})
+    # (each log darkening as it turns away from the face toward the next, and along its top and bottom edges a dark line, as the room's ink drew
+    # round each log when they were pieces of their own (some 0.8 mm of its 7.5 across, three pixels))
+    nrm_ = np.array(img_n.pixels[:], np.float32).reshape(GH, GW, 4)
+    col_ = np.array(img_c.pixels[:], np.float32).reshape(GH, GW, 4)
+    nz_ = np.clip(nrm_[..., 2] * 2 - 1, 0, 1)
+    edge_ = 1 - smooth(0.42, 0.62, nz_)
+    col_[..., :3] *= (0.55 + 0.45 * smooth(0.6, 0.98, nz_))[..., None]
+    col_[..., :3] = col_[..., :3] * (1 - 0.9 * edge_[..., None]) + np.array(lin("#1a120c"), np.float32) * 0.9 * edge_[..., None]
+    img_c.pixels.foreach_set(col_.ravel())
+    img_c.pack()
+    img_n.pack()
+    M["gable"] = pbr("KamiRoofGable", (1, 1, 1), tex=img_c, nrm=img_n, nrm_strength=1.0, rough=0.6)
+    lo.data.materials.clear()
+    lo.data.materials.append(M["gable"])
+    sc_.render.engine = "BLENDER_EEVEE"
+    for o in GABLE_HI + ROOF_DROP:
+        bpy.data.objects.remove(o)
+    sol = lo.modifiers.new("t", "SOLIDIFY")
+    sol.thickness = 0.0075
+    sol.offset = -1
+    apply_mods(lo)
+    tops = [ga["box"][2] for ga in GABLE_LO]
+    bm = bmesh.new()
+    bm.from_mesh(lo.data)
+    # (the rim along each one's top (none of its corners on a panel's foot): inside the roof)
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if abs(f.normal.y) < 0.5 and all(min(abs(v.co.z - t_) for t_ in tops) > 1e-5 for v in f.verts)],
+                     context="FACES")
+    bm.to_mesh(lo.data)
+    bm.free()
+    for pl in lo.data.polygons:
+        pl.use_smooth = False
+    return lo
+
+
+parts.append(gable_bake())
 
 _su2, _sv2 = grid01(256)
 straw = mix((0.9, 0.8, 0.6), (0.78, 0.66, 0.47), fbm(256, 60, 2, 3))
@@ -1778,6 +1934,9 @@ if PREVIEW:
 # by name), so it draws a handful of meshes, not hundreds
 import re as _re
 NO_INK = _re.compile(r"Gold|Cap|Plate|Crest|Seam|Bal|Katsuogi|Fold|Char|Slip|Calyx|Stem|Bow|Cord|Tail|Tassel|Fringe|Line|Inlay|Nail|Core|Pillar|Beam|Shide|Label|Knot|Edge|Jamb|Sill|Inside|Fuda|Eye|Smile|Ear|Cheek|Rod")
+# (the roof's pieces (item 573: made low and clean where they're made) in meshes of their own, apart from the rest in their material: so
+# optimize_glb.py, which thins any mesh over 1,500 triangles to a third, doesn't thin them with the boards and posts they were merged with)
+ROOF_PIECE = _re.compile(r"Chigi|Katsuogi|Ridge")
 _jn = [0]
 
 
@@ -1785,9 +1944,9 @@ def merge_kids(node):
     groups = {}
     for c in [c for c in node.children if c.type == "MESH" and not c.children]:
         keep = "Crest" if "Crest" in c.name else "DoorPlate" if "DoorPlate" in c.name else ""
-        key = (c.active_material.name if c.active_material else "", bool(NO_INK.search(c.name)), keep)
+        key = (c.active_material.name if c.active_material else "", bool(NO_INK.search(c.name)), keep, bool(ROOF_PIECE.search(c.name)))
         groups.setdefault(key, []).append(c)
-    for (mat_name, no_ink, keep), objs in groups.items():
+    for (mat_name, no_ink, keep, _roof), objs in groups.items():
         _jn[0] += 1
         name = f"KamiJ{_jn[0]}" + (keep or ("Line" if no_ink else "Part"))
         if len(objs) == 1:

@@ -5040,6 +5040,9 @@ function kamidanaOf(scene: THREE.Group) {
       } else if (/Cutout/.test(src.name)) {
         // (the rope's tassels and paper streamers (item 551): cards, their shapes cut out of their pictures, seen from either side)
         t = new THREE.MeshToonMaterial({ color: src.color.clone(), map: src.map, alphaTest: 0.5, side: THREE.DoubleSide })
+      } else if (/^KamiRoof/.test(src.name) && src.normalMap) {
+        // (the gables' logs (item 573): baked onto a flat panel each, their roundness in a normal map, kept in the toon light)
+        t = new THREE.MeshToonMaterial({ color: src.color.clone(), map: src.map, normalMap: src.normalMap })
       } else t = new THREE.MeshToonMaterial({ color: src.color.clone(), map: src.map })
       mats.set(src, t)
     }
