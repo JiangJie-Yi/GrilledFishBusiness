@@ -32,6 +32,10 @@ export const LoadingScreen = memo(function LoadingScreen({ scene = true }: { sce
   // (the getting-ready line shown (its place in data/loadingLines), and since when: each up a moment at the least, item 592)
   const [line, setLine] = useState(0)
   const lineAt = useRef({ i: 0, at: -1 })
+  // (its time counted from when it's on the screen, not from when it was asked for (the Tester's: a line asked for just before the page
+  // was held up came on only after it, and the next one, its time long past, was let through in the same frame: 0.01 to 0.03 s up, 7
+  // loads in 18); an effect's after the commit)
+  useEffect(() => { lineAt.current.at = performance.now() }, [line])
   useEffect(() => {
     const t = window.setInterval(() => {
       const st = useProgress.getState()
@@ -48,7 +52,8 @@ export const LoadingScreen = memo(function LoadingScreen({ scene = true }: { sce
       const ln = lineAt.current
       if (ln.at < 0) ln.at = now
       const next = lineStep(ln.i, st.total > 0 ? loadingPct(c.shown) : null, (now - ln.at) / 1000)
-      if (next !== ln.i) { ln.i = next; ln.at = now; setLine(next) }
+      // (and not counted at all till it's up: its effect starts it)
+      if (next !== ln.i) { ln.i = next; ln.at = Infinity; setLine(next) }
     }, 250)
     return () => window.clearInterval(t)
   }, [])
