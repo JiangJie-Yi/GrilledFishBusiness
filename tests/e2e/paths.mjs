@@ -67,6 +67,9 @@ for (let t = 0; t < WATCH; t += 300) {
     scene.traverse((o) => {
       if (!o.isMesh) return
       if (o.raycast !== THREE.Mesh.prototype.raycast && !o.isInstancedMesh && !o.isSkinnedMesh) { restore.push([o, 'raycast', o.raycast]); o.raycast = THREE.Mesh.prototype.raycast }
+      // (the room's merged meshes let go of their UVs, normals and colours once they're on the graphics card (scene/WorldBatch): a ray through
+      // one read its UVs and threw (item 587, the Tester's); a ray tests the triangles by their points alone, so those are put aside for the look)
+      for (const k of ['uv', 'normal', 'color']) { const a = o.geometry?.attributes?.[k]; if (a && !a.array) { restore.push([o.geometry.attributes, k, a]); delete o.geometry.attributes[k] } }
       const m = o.material
       if (m && !Array.isArray(m) && m.side !== THREE.DoubleSide) { restore.push([m, 'side', m.side]); m.side = THREE.DoubleSide }
     })

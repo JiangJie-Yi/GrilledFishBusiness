@@ -1,8 +1,10 @@
 // A whole day watched (the owner's, 2026-11-13: "flows and animations"): the shop opened at x2 and left to run itself from AT through closing
 // till the staff have gone home (END, the next morning), and meanwhile, every frame:
 //   - every figure's place (customers, those waiting on the benches, takeaway customers and riders, staff, the owner): one that moves
-//     further in a frame than a walk could (over JUMP, the world's units, and faster than JUMP_SPEED, world units a second of the page's own
-//     time: at x2 a slow frame's step is up to 0.2 s of the game's (item 569), a walk's up to about a metre, never past 6 a second) or
+//     further in a frame than a walk could (over JUMP, the world's units, and faster than JUMP_SPEED, world units a second of the scene's
+//     own time, the steps it was handed between two of our looks: at x2 a slow frame's step is up to 0.2 s of the game's (item 569), a
+//     walk's up to about a metre; the fastest walk measured is 5.7 a second (item 587: put against the page's time, a look 88 ms after the
+//     last over a step of the scene's 100 ms read 8 a second for a walk of 3.5)) or
 //     up or down in one (a step's more than half of it) noted with what it was doing: a customer's phase (GuestBar3D's shown), a staff
 //     member's role, every server's phase, how many frames the scene ran in it;
 //   - every notice put up (the bar along the bottom), and every line of the day's log, with the shop's clock;
@@ -56,8 +58,8 @@ await p.evaluate(([JUMP, JUMP_SPEED]) => {
   const v = new T.Vector3()
   let prevT = performance.now()
   // (the scene's own frames between two of ours: how many, the biggest step it was handed)
-  const R = { calls: 0, maxDelta: 0 }
-  window.__r3f().internal.subscribe({ current: (_st, delta) => { R.calls++; R.maxDelta = Math.max(R.maxDelta, delta) } }, 0, { getState: window.__r3f })
+  const R = { calls: 0, maxDelta: 0, sum: 0 }
+  window.__r3f().internal.subscribe({ current: (_st, delta) => { R.calls++; R.maxDelta = Math.max(R.maxDelta, delta); R.sum += delta } }, 0, { getState: window.__r3f })
   const clock = () => { const c = window.__clock?.get?.(); return c ? `${String(Math.floor(c.minute / 60) % 24).padStart(2, '0')}:${String(Math.floor(c.minute % 60)).padStart(2, '0')}` : '' }
   const plain = (u) => Object.fromEntries(Object.entries(u).filter(([, b]) => b === null || ['string', 'number', 'boolean'].includes(typeof b)).slice(0, 10))
   const phaseOf = (o, k) => {
@@ -88,13 +90,15 @@ await p.evaluate(([JUMP, JUMP_SPEED]) => {
         const d = Math.hypot(v.x - prev.x, v.z - prev.z), dy = Math.abs(v.y - prev.y)
         const kind = k.replace(/[0-9]+$/, '').replace(/:.*/, '')
         A.maxStep[kind] = Math.max(A.maxStep[kind] ?? 0, d)
-        if ((d > JUMP && d / Math.max(dt, 1) * 1000 > JUMP_SPEED) || dy > JUMP * 0.5) {
+        // (how fast, in the scene's own time since our last look; the page's if the scene ran no frame between)
+        const speed = d / Math.max(R.calls ? R.sum : dt / 1000, 1e-3)
+        if ((d > JUMP && speed > JUMP_SPEED) || dy > JUMP * 0.5) {
           let role = null
           o.traverse((m) => { if (m.userData?.staffRole && !role) role = m.userData.staffRole })
           A.jumps.push({ k, at: clock(), d: +d.toFixed(2), dy: +dy.toFixed(2), dt: Math.round(dt), role,
             from: [prev.x, prev.y, prev.z].map((n) => +n.toFixed(2)), to: [v.x, v.y, v.z].map((n) => +n.toFixed(2)),
             phase: phaseOf(o, k), prevPhase: prev.phase, waiters: (window.__waiters?.current ?? []).map((w) => `${w.phase} t${(+w.t).toFixed(2)}`).join(', '),
-            frames: `${R.calls}x${R.maxDelta.toFixed(3)}`, ud: plain(o.userData) })
+            frames: `${R.calls}x${R.maxDelta.toFixed(3)}`, speed: +speed.toFixed(2), ud: plain(o.userData) })
         }
       }
       A.seen.set(k, { x: v.x, y: v.y, z: v.z, vis, o, phase: phaseOf(o, k), n: A.frames })
@@ -113,7 +117,7 @@ await p.evaluate(([JUMP, JUMP_SPEED]) => {
       if (l && l.f === A.frames - 1 && Math.hypot(e.to[0] - l.to[0], e.to[1] - l.to[1]) > GUARD_LEAP) g.flips++
       A.lastPush[e.who] = { f: A.frames, to: e.to }
     }
-    R.calls = 0; R.maxDelta = 0
+    R.calls = 0; R.maxDelta = 0; R.sum = 0
     requestAnimationFrame(tick)
   }
   requestAnimationFrame(tick)
@@ -124,7 +128,7 @@ await p.evaluate(([JUMP, JUMP_SPEED]) => {
   setInterval(() => {
     for (const li of document.querySelectorAll('.ai-chat .ai-line')) if (!seenLines.has(li)) { seenLines.add(li); A.chat.push({ at: clock(), t: li.textContent }) }
   }, 500)
-}, [+(process.env.JUMP ?? 0.6), +(process.env.JUMP_SPEED ?? 7)])
+}, [+(process.env.JUMP ?? 0.6), +(process.env.JUMP_SPEED ?? 8)])
 // (a walk's frame at x2 is up to about 0.3: the guard's place for someone moving more than this in a frame is a leap)
 const GUARD_LEAP = 0.45
 // (the overview: view 1)
@@ -148,7 +152,7 @@ for (;;) {
 const A = await p.evaluate(() => { const a = window.__audit; return { jumps: a.jumps, notices: a.notices, chat: a.chat, maxStep: a.maxStep, frames: a.frames, guard: a.guard } })
 fs.writeFileSync(process.env.JSON ?? 'dayaudit.json', JSON.stringify(A, null, 1))
 console.log(`${A.frames} frames; the most a figure moved in one, by kind: ${JSON.stringify(Object.fromEntries(Object.entries(A.maxStep).map(([k, d]) => [k, +d.toFixed(2)])))}`)
-console.log(`${A.jumps.length} jumps (over ${process.env.JUMP ?? 0.6} across in a frame and faster than ${process.env.JUMP_SPEED ?? 7} a second, or half that up or down)`)
+console.log(`${A.jumps.length} jumps (over ${process.env.JUMP ?? 0.6} across in a frame and faster than ${process.env.JUMP_SPEED ?? 8} a second of the scene's time, or half that up or down)`)
 for (const j of A.jumps) console.log(`  ${j.at} ${j.k}${j.role ? ` (${j.role})` : ''} ${j.d} across ${j.dy} up/down: ${j.from.join(',')} -> ${j.to.join(',')} | ${j.prevPhase ?? ''} => ${j.phase ?? ''} | servers ${j.waiters} | scene ${j.frames}`)
 const guard = Object.entries(A.guard).sort((a, b) => b[1].n - a[1].n)
 console.log(`${guard.reduce((t, [, g]) => t + g.n, 0)} pushes out of the cook table (who, how many, the farthest, flips over ${GUARD_LEAP}, first and last seen):`)

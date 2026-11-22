@@ -38,7 +38,11 @@ const res = await page.evaluate(async ({ WATCH, STEP, TOL, only, who, BOX }) => 
   const figs = []
   s.traverse((o) => {
     // (the plater's figure has no id of its own on it: GuestBar3D's plater-walker)
-    const sid = o.userData?.staffId ?? (o.name === 'plater-walker' ? 'plater' : undefined), role = o.userData?.role
+    const sid = o.userData?.staffId ?? (o.name === 'plater-walker' ? 'plater' : undefined)
+    // (their job: their group's own word for it, or their figure's (StaffFigure's staffRole: chef, sous, server, cashier, stock), so WHO=cashier
+    // finds the cashier (item 587: it found no one, the group itself carrying no role))
+    let role = o.userData?.role
+    if (sid && !role) o.traverse((q) => { if (!role && q.userData?.staffRole) role = q.userData.staffRole })
     if (!sid && !role) return
     if (who && who !== sid && who !== role) return
     if (figs.some((f) => f.o === o || f.sid === sid)) return
