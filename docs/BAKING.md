@@ -91,12 +91,17 @@
 
 - **Bump**：`blender/common.py` 的 `pbr` 沒有 Bump 節點。法線貼圖一律用 `image(..., data=True)`（Non-Color）接 `ShaderNodeNormalMap`。
 - **2 的次方**：用 512、1024 或 2048。
-- **壓縮**：目前貼圖是 WebP（`export_dish`），幾何沒有壓縮。下載量與顯示卡記憶體在第 571 項量（優化視窗）。可選的做法：
-  - 幾何用已經裝好的 meshoptimizer（glTF-Transform 的 `meshopt`；drei 的 `useGLTF` 本來就會解）。
-  - 或用 Draco（three 附有解碼器，放進 `public/` 就好，不用下載；但編碼器 `draco3d` 只是間接依賴）。
-  - KTX2／BasisU 的編碼工具沒裝，要裝得先問店主（下載檔案）。
-
-  第 571 項定了格式後，各區照那個格式壓縮。
+- **壓縮（第 571 項定的格式，2026-11-23）**：
+  - Blender 腳本照舊輸出 WebP 到 `public/models`，不用改。
+  - `npm run build` 在 `dist/` 裡，把 `scripts/ktx2-models.mjs` 的 `KTX2_MODELS` 名單上的模型轉成 KTX2（Basis Universal）。`public/models` 不會被改寫。
+  - 顏色圖用 ETC1S，品質 128。法線圖也用 ETC1S，開法線模式，品質 255。UASTC 試過：凹凸只細一點點，檔案卻是 WebP 的 5 倍（石階 874 KB → 2.3 MB；ETC1S 866 KB，近拍一樣）。
+  - 顯示卡上：一張 1024 的圖連 mipmap，RGBA 是 5.3 MB，壓縮後 1.3 MB。中、低畫質再由 `scene/textureCap.ts` 拿掉最上面一層 mipmap。全場合計 high 883 → 739 MB、medium 414 → 349 MB。
+  - **能加進名單的條件**：這個模型的圖，沒有程式讀它的像素。加之前先搜尋這個模型在哪裡載入、那裡有沒有 `drawImage`、`getImageData`、`.image` 讀它的圖。不能轉的例子：`scene/atlasMerge` 合進圖集的人物與鍋子、貓的毛色、臉、器皿的釉、米袋的印字、火床的地面（`scorchEarth`）。
+  - 可以只轉一部分的圖，照圖名用 `only`、`skip`（例：`produce.glb` 跳過要染色、印字的袋子布）。
+  - 轉了以後，在遊戲裡近拍檢查（`tests/e2e/_ktx2shot.mjs`，在 git 外）。細字要特別看，例：御神酒壺的標籤。
+  - 代價：建置多約 95 秒（GitHub Actions 也是）；`public/basis/` 放 three 的轉碼器（585 KB），只有載到 KTX2 的圖時才下載。
+  - 神龕區已在名單上（兩頁圖集、惠比壽的烘焙圖）。**之後每烘好一區，確認沒有程式讀它的像素，就把模型加進名單。**
+  - 幾何目前沒有壓縮。要壓的話可用已經裝好的 meshoptimizer（glTF-Transform 的 `meshopt`；drei 的 `useGLTF` 本來就會解）。
 - **動態物件隔離**：本專案的節點不用 `interactive_`／`dynamic_`／`prop_instanced_` 前綴：遊戲靠現有的名字找節點，改名會壞（守則：不要順手改名）。改成每個區域的烘焙腳本開頭列出這區的動態節點名單，由腳本自己檢查這些節點沒有進圖集與合併。之後新做的會動零件，名字加 `dynamic_` 前綴。
 - **變換與法線**：匯出用 `export_apply`；合併後的網格套用變換；法線朝外（`normals_make_consistent`）。做完跑 `node scripts/mesh-audit.mjs` 與 `node tests/e2e/clips.mjs`。
 - **減面工具**：`blender/optimize_glb.py` 只減超過 1,500 面的網格，會把烘好的乾淨低模一起減碎。所以烘好的低模合併時要自成一組（第 573 項）。改一件以後，要量減面之後的整個 glb，不能只量改的那件：同組其他零件可能因為整組掉到 1,500 面以下而不再被減，總數反而變多。
@@ -194,3 +199,4 @@
    - **驗證**：最終的 glb（減面之後）另用 Claude 暫存資料夾的 `atlascheck.py`（讀建置記錄裡每一格的位置）再驗一次：0 個面跨格。
    - **結果**：神棚視角每格 128 → 111 次繪製、三角面 88,094 → 89,238（切開的面只多 8 個；其餘是檔案裡的合併照原本材質的組合分組，組變小，少被減面工具減到，描線跟著多）；總覽 975 → 956 次；貼圖 470 → 464 張；模型 19,754 → 20,310 面。近拍（屋頂正面、左、右、山牆、俯視、遊戲神棚視角，供桌板面、托架、燈籠、經本）與原本一樣，只有木紋的起點不同。檢查：`tests/e2e/_roof573.mjs`（`OLD=`、`FAR`、`AIMY`）、`tests/e2e/_piece574.mjs`、`tests/e2e/_shrinearea574.mjs`。
    - **其他區域照用**：`slot_atlas(名稱, 這區的靜態零件, 2048, 1024, skip=不進圖集的材質)`，在合併以前呼叫一次（回傳每一頁的材質）；合併的鍵用 `atlasFrom`（原本的材質名稱）分組，避免一組超過 1,500 面被減面工具減碎。細到一像素的花紋、會動的、金屬、透明的不要放進去。
+   - **壓縮**（2026-11-23，第 571 項）：`kamidana.glb` 在建置時轉成 KTX2（見上面「四、匯出檢查在本專案」的「壓縮」）。兩頁圖集與惠比壽的烘焙圖都沒有程式讀像素；Optimization 近拍過，御神酒壺標籤的字一樣清楚。
