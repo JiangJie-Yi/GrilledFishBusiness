@@ -80,7 +80,10 @@ for (let t = 0; t < WATCH; t += 300) {
       const m = o.material
       if (!o.visible || !m || m.visible === false || (m.transparent && m.opacity < 0.3) || m.colorWrite === false) return true
       for (let p = o; p; p = p.parent) { if (!p.visible) return true; if (p.userData?.editHandle || p.userData?.fade || /noren|curtain|edit-gizmo|look-/i.test(p.name)) return true }
-      return isPerson(o) || o.isSprite || o.isLine || o.isPoints || /outline|Shadow|shadow/.test(o.name) || m.type === 'ShadowMaterial'
+      // (the ink lines' hulls by their material too (a uWidth to push them out by): merged into the room's meshes (scene/WorldBatch) they're
+      // named world-batch, no longer *_outline, and a hull's a line's width fatter than its piece: every customer brushing past a stool or a
+      // bench ran into its line (item 588: 4 clashes before the merge, 53 to 165 after))
+      return isPerson(o) || o.isSprite || o.isLine || o.isPoints || /outline|Shadow|shadow/.test(o.name) || m.type === 'ShadowMaterial' || !!m.uniforms?.uWidth
     }
     const ray = new THREE.Raycaster()
     ray.camera = window.__cam
@@ -95,7 +98,9 @@ for (let t = 0; t < WATCH; t += 300) {
       if (!g || !g.visible) continue
       const p = g.getWorldPosition(new THREE.Vector3())
       // (their own size: the body's height and its girth, measured; the rays reach out to the body's edge)
-      const bb = new THREE.Box3().setFromObject(g), bs = bb.getSize(new THREE.Vector3())
+      // (as they stand now, every point of them posed (precise): a skinned figure's own box is worked out once and kept, and a customer's was
+      // left 14 m off where they'd come from; their reach out of that was 1.5 to 3.6 m, and every one of them ran into all round them, item 588)
+      const bb = new THREE.Box3().setFromObject(g, true), bs = bb.getSize(new THREE.Vector3())
       const reach = Math.min(bs.x, bs.z) * 0.32
       for (const h of [0.3, 0.6]) {
         const from = new THREE.Vector3(p.x, bb.min.y + bs.y * h, p.z)
@@ -110,7 +115,7 @@ for (let t = 0; t < WATCH; t += 300) {
             const b = new THREE.Box3().setFromObject(hit.object), sz = b.getSize(new THREE.Vector3())
             const col = hit.object.material?.color ? '#' + hit.object.material.color.getHexString() : ''
             const mid = b.getCenter(new THREE.Vector3())
-            out.push({ id: s.id, phase: s.phase, at: p.toArray().map((x) => +x.toFixed(2)), h, dist: +hit.distance.toFixed(3), mid: [mid.x, mid.z],
+            out.push({ id: s.id, phase: s.phase, at: p.toArray().map((x) => +x.toFixed(2)), h, dist: +hit.distance.toFixed(3), mid: [mid.x, mid.z], body: bs.toArray().map((x) => +x.toFixed(2)), reach: +reach.toFixed(2),
               what: (names.join('<') || hit.object.type) + ` ${col} ${hit.object.material?.map ? 'tex' : ''} [${sz.toArray().map((x) => x.toFixed(2))}]` })
             break
           }
@@ -135,7 +140,7 @@ const list = [...clashes.values()].filter((c) => {
 // (grouped by what was walked into)
 const by = new Map()
 for (const c of list) { const k = c.what; by.set(k, [...(by.get(k) ?? []), c]) }
-for (const [what, cs] of by) console.log(`✗ ${cs.length}× into ${what}: e.g. guest ${cs[0].id} (${cs[0].phase}) at ${cs[0].at.join(', ')}, height ${cs[0].h}, sat ${JSON.stringify(sitAt.get(cs[0].id)?.map((x) => +x.toFixed(2)))}`)
+for (const [what, cs] of by) console.log(`✗ ${cs.length}× into ${what}: e.g. guest ${cs[0].id} (${cs[0].phase}) at ${cs[0].at.join(', ')}, height ${cs[0].h}, body ${cs[0].body.join('x')}, reach ${cs[0].reach}, hit at ${cs[0].dist}, sat ${JSON.stringify(sitAt.get(cs[0].id)?.map((x) => +x.toFixed(2)))}`)
 for (const e of errors) console.log('page error: ' + e)
 // (and it says how much walking it saw: no clashes means nothing unless someone walked while it watched)
 console.log(`\n${samples} walking samples; ` + (list.length ? `${list.length} clashes` : 'no clashes'))
