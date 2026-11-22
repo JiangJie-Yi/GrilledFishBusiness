@@ -276,29 +276,32 @@ export function countedBatch(root: THREE.Object3D, pieces: THREE.Mesh[]) {
 export function homeCopy(root: THREE.Object3D, movers: THREE.Object3D[]) {
   root.updateWorldMatrix(true, true)
   const inv = new THREE.Matrix4().copy(root.matrixWorld).invert()
-  const groups = new Map<THREE.Material, { geos: THREE.BufferGeometry[]; shadow: boolean; order: number }>()
+  const groups = new Map<THREE.Material, { geos: THREE.BufferGeometry[]; shadow: boolean; take: boolean; order: number }>()
   for (const mv of movers) mv.traverse((m) => {
     // (shown as its own code has it: one the room's merge has taken reads hidden while it's drawn by the merge (worldMerge's mergeAway), and
     // a copy made again after it was taken left it out, its part then hidden by home(true) and drawn by neither (the Art window's report,
     // seen at the sake stand, item 560))
     const shown = mergeState(m)?.want ?? m.visible
     if (!(m instanceof THREE.Mesh) || m instanceof THREE.SkinnedMesh || m instanceof THREE.InstancedMesh || Array.isArray(m.material) || !shown) return
-    const g = groups.get(m.material) ?? { geos: [], shadow: false, order: m.renderOrder }
+    const g = groups.get(m.material) ?? { geos: [], shadow: false, take: false, order: m.renderOrder }
     g.geos.push(bakeable(m.geometry, new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld)))
     g.shadow ||= m.castShadow
+    // (and takes one as its parts do (item 533): it took one whatever they did, so a fridge's shut doors (none of it takes one: the owner's)
+    // were shaded as they rest and not as they swung, and the room's merge, keyed by it, left the copy apart from the still parts it matches)
+    g.take ||= m.receiveShadow
     groups.set(m.material, g)
   })
   const copy = new THREE.Group()
   copy.name = 'home-copy'
   copy.visible = false
   let whole = groups.size > 0
-  for (const [mat, { geos, shadow, order }] of groups) {
+  for (const [mat, { geos, shadow, take, order }] of groups) {
     const geo = mergeGeometries(geos)
     for (const x of geos) x.dispose()
     if (!geo) { whole = false; continue }
     const mesh = new THREE.Mesh(geo, mat)
     mesh.castShadow = shadow
-    mesh.receiveShadow = true
+    mesh.receiveShadow = take
     mesh.renderOrder = order
     mesh.raycast = () => {}
     copy.add(mesh)
