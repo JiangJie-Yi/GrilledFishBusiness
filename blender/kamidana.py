@@ -1708,14 +1708,18 @@ for k, ch in enumerate(TITLE):
     sx_.append(finish(t, f"KamiSutraChar{k}", M["ink"], smooth_shade=False))
 # (the cord round its middle, a bow on top)
 CZ = 0.07
-bpy.ops.mesh.primitive_torus_add(major_radius=1, minor_radius=0.04, major_segments=40, minor_segments=6, location=P(0, H2 / 2, CZ))
+# (item 574, batch 5: the cord, its bow, its ends and the tassel as lean as they're seen, the book some 60 pixels across in the shrine's
+# view: the cord 24 round and 4 about (was 40 by 6), the bow's loops 10 by 3 (16 by 6), the ends 4 sided (8), the tassel's knot a ball of
+# quads (a UV sphere 14 by 8, its poles fans), its band 10 sided (14), its threads three sided and open at their ends (5, closed), under a
+# millimetre and a pixel across: all of it 588 triangles, under the 600 optimize_glb.py thinned it to when it came to 1,700)
+bpy.ops.mesh.primitive_torus_add(major_radius=1, minor_radius=0.04, major_segments=24, minor_segments=4, location=P(0, H2 / 2, CZ))
 cord = active()
 cord.scale = (W2 / 2 + 0.0015, H2 / 2 + 0.0015, 0.08)
 apply_scale(cord)
 cord.rotation_euler = (math.pi / 2, 0, 0)
 sx_.append(finish(cord, "KamiSutraCord", M["cord"]))
 for sd in (-1, 1):
-    bpy.ops.mesh.primitive_torus_add(major_radius=0.008, minor_radius=0.0013, major_segments=16, minor_segments=6, location=P(sd * 0.008, H2 + 0.002, CZ))
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.008, minor_radius=0.0013, major_segments=10, minor_segments=3, location=P(sd * 0.008, H2 + 0.002, CZ))
     sx_.append(finish(active(), f"KamiSutraBow{sd}", M["cord"]))
 # (the two ends of the cord from the bow over the book's edge and down onto the table, to the tassel)
 TX, TZ = W2 / 2 + 0.05, CZ + 0.03
@@ -1725,16 +1729,21 @@ for j, off in enumerate((-0.003, 0.003)):
     for i in range(len(path) - 1):
         a, b = Vector(P(*path[i])), Vector(P(*path[i + 1]))
         mid, d = (a + b) / 2, b - a
-        bpy.ops.mesh.primitive_cylinder_add(vertices=8, radius=0.0013, depth=d.length + 0.002, location=mid)
+        bpy.ops.mesh.primitive_cylinder_add(vertices=4, radius=0.0013, depth=d.length + 0.002, location=mid)
         c = active()
         c.rotation_euler = d.to_track_quat("Z", "Y").to_euler()
         sx_.append(finish(c, f"KamiSutraTail{j}{i}", M["cord"]))
 # (the tassel, lying on the table: a knotted head, a gold band, a spray of silk threads)
 tdir = Vector(P(1, 0, 0.35)).normalized()
 head = Vector(P(TX - 0.008, 0.005, TZ - 0.003))
-bpy.ops.mesh.primitive_uv_sphere_add(radius=0.006, segments=14, ring_count=8, location=head)
-sx_.append(finish(active(), "KamiSutraTasselHead", M["cord"]))
-bpy.ops.mesh.primitive_cylinder_add(vertices=14, radius=0.0055, depth=0.005, location=head + tdir * 0.007)
+bpy.ops.mesh.primitive_cube_add(size=0.012, location=head)
+_kn = active()
+bpy.ops.object.mode_set(mode="EDIT"); bpy.ops.mesh.select_all(action="SELECT"); bpy.ops.mesh.subdivide(number_cuts=1)
+bpy.ops.object.mode_set(mode="OBJECT")
+for _v in _kn.data.vertices:
+    _v.co = _v.co.normalized() * 0.006
+sx_.append(finish(_kn, "KamiSutraTasselHead", M["cord"]))
+bpy.ops.mesh.primitive_cylinder_add(vertices=10, radius=0.0055, depth=0.005, location=head + tdir * 0.007)
 band = active()
 band.rotation_euler = tdir.to_track_quat("Z", "Y").to_euler()
 sx_.append(finish(band, "KamiSutraTasselBand", M["gold"]))
@@ -1750,7 +1759,7 @@ for i in range(22):
     p1 = head + tdir * (0.009 + ln) + side * math.cos(a_) * (r0 + 0.004) + up * math.sin(a_) * 0.001
     p1.z = max(p1.z, 0.0012)
     d = p1 - p0
-    bpy.ops.mesh.primitive_cylinder_add(vertices=5, radius=0.0007, depth=d.length, location=(p0 + p1) / 2)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=3, radius=0.0007, depth=d.length, location=(p0 + p1) / 2, end_fill_type="NOTHING")
     f_ = active()
     f_.rotation_euler = d.to_track_quat("Z", "Y").to_euler()
     sx_.append(finish(f_, f"KamiSutraFringe{i}", M["cord"]))
