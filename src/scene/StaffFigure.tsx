@@ -847,6 +847,10 @@ export const StaffWarm = memo(function StaffWarm() {
     if (!made.has(v)) made.set(v, build(gltfs[i].scene, v, fan.scene))
     const r = cloneFigure(made.get(v)!.root) as THREE.Group
     warmLater(r)
+    // (drawn into the shadows' picture too, wherever the shadows' camera looks (item 589: under the floor, out of its view, it never was,
+    // and the first of the staff to cast a shadow at the opening made the program for a figure bent by bones then, a frame stopped; from the
+    // light the floor's nearer, so it leaves no shadow anywhere)
+    r.traverse((o) => { o.frustumCulled = false })
     return r
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [])
