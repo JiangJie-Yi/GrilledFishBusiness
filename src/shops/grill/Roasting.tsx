@@ -94,7 +94,7 @@ import { tissuePull } from './paperSound'
 import { reflectStudio, useStudio } from '@/scene/studio'
 import { ColdMist } from '@/scene/ColdMist'
 import { EditBlock, Movable } from './Movable'
-import { PLATE_SPREAD, plateFor, plateSide, type PlateKind } from '@/game/plateSize'
+import { PLATE_SPREAD, plateFor, plateSide, plateSpot, type PlateKind } from '@/game/plateSize'
 import { BAMBOO_WARE, forPhone, PLUM_WARE, wareGeometry } from './ware'
 import { wareDesign } from './wareDesigns'
 import { CREW_LOAD, GAZE, SHOP, STAFF_SAY, clockIn, idleTick, paceOfStaff, LATE, LAST_CALL, RATING_FLOW, STAFF_TALK } from '@/game/shopState'
@@ -244,9 +244,15 @@ const REST_BOX = new THREE.Box3()
 const drawnUp = (o: THREE.Object3D | null) => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true }
 /** where the n-th piece on a seat's plate lies once it's set down before its customer (item 228): the plate's middle, and across it as the
  * plate's turned to lie along their counter (seatTurn), as far apart as its kind has them */
-const seatFoodAt = (seat: number, row: number, kind: PlateKind, out: THREE.Vector3) => out.copy(barSeat(seat))
-  .addScaledVector(PLATING_FRAME.across.clone().applyAxisAngle(UP_AXIS, seatTurn(seat)), plateSide(row).across * PLATE_SPREAD[kind] * GRILL_SCALE)
-  .add(new THREE.Vector3(0, BAR_TOP_SCENE + 0.04 + plateSide(row).layer * 0.06, 0))
+// (item 557: where on the plate by game/plateSize's plateSpot: on the long plate the loose ones along its front edge, clear of the fish;
+// `nth` how many of its kind (long or loose) are on it already)
+const seatFoodAt = (seat: number, nth: number, kind: PlateKind, out: THREE.Vector3, loose = false) => {
+  const s = plateSpot(kind, nth, loose), turn = seatTurn(seat)
+  return out.copy(barSeat(seat))
+    .addScaledVector(PLATING_FRAME.across.clone().applyAxisAngle(UP_AXIS, turn), s.across * GRILL_SCALE)
+    .addScaledVector(PLATING_FRAME.dir.clone().applyAxisAngle(UP_AXIS, turn), s.along * GRILL_SCALE)
+    .add(new THREE.Vector3(0, BAR_TOP_SCENE + 0.04 + s.layer * 0.06, 0))
+}
 const barSeat =(n: number) => toGrillScene(GRILL_SEATS[n].plate).sub(FIRE_SHIFT).setY(0)
 const HOVER_GLOW = new THREE.Color('#ffb347').multiplyScalar(0.35)
 /**
@@ -6643,8 +6649,8 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
     const seat = owner.seat
     p.guest = owner.id
     p.seat = seat
-    const row = pieces.current.filter((q) => q !== p && q.collected && q.container === 'bar' && q.seat === seat && present(q) && !q.eaten).length
-    seatFoodAt(seat, row, plateOfSeat(seat), p.toP)
+    const row = pieces.current.filter((q) => q !== p && q.collected && q.container === 'bar' && q.seat === seat && present(q) && !q.eaten && q.loose === p.loose).length
+    seatFoodAt(seat, row, plateOfSeat(seat), p.toP, p.loose)
     p.container = 'bar'
     p.body = null
     // (on the plate at the plating place lying back across the table, side by side, in its middle: never over the table's end; on a
@@ -9671,11 +9677,11 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
             // (its stick left on the plate once it's eaten: cleared with it, into the bin by the sink)
             if (!p.loose && p.skewerAt !== undefined && p.pullAt === undefined) SEAT_STICKS.set(p.seat, (SEAT_STICKS.get(p.seat) ?? 0) + 1)
             if (WHOLE_FISH.has(p.id)) SEAT_BONES.set(p.seat, (SEAT_BONES.get(p.seat) ?? 0) + 1)
-            const row = pieces.current.filter((q) => q !== p && q.collected && q.container === 'bar' && q.seat === p.seat && !q.via && present(q) && !q.eaten).length
+            const row = pieces.current.filter((q) => q !== p && q.collected && q.container === 'bar' && q.seat === p.seat && !q.via && present(q) && !q.eaten && q.loose === p.loose).length
             p.fromP.copy(p.node.position)
             p.fromQ.copy(p.node.quaternion)
             // (on the seat's plate as it lies before its customer, turned along their counter (item 228))
-            seatFoodAt(p.seat, row, plateOfSeat(p.seat), p.toP)
+            seatFoodAt(p.seat, row, plateOfSeat(p.seat), p.toP, p.loose)
             if (!p.passQ) p.passQ = p.toQ.clone()
             p.toQ.copy(p.passQ).premultiply(TURN_Q.setFromAxisAngle(UP_AXIS, seatTurn(p.seat)))
             SERVICE.turn.delete(p.key)
