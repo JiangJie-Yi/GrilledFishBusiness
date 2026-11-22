@@ -1822,25 +1822,33 @@ function SakeStand() {
   const showStream = (mouth: THREE.Vector3 | null, to: THREE.Vector3 | null) => {
     const s = stream.current
     if (!s) return
+    // (not drawn at all when nothing's poured (item 533: drawn a hair long, it was a draw every frame); in the scene from the start, its
+    // program's made at load all the same: scene/Prewarm compiles the hidden ones too)
+    s.visible = !!mouth && !!to
     if (!mouth || !to) { s.scale.set(1, 0.0001, 1); return }
     s.position.copy(mouth)
     s.scale.set(1, Math.max(0.0001, mouth.y - to.y), 1)
   }
   // (the twelve sake bottles drawn as one while none of them is moving (item 135: the stand was 73 draws, each bottle its glass, its sake,
   // its label and its line): a copy of them made as they come to rest, with their levels as they are then; let go as one's taken up)
-  const homeAt = useRef<ReturnType<typeof homeCopy> | null>(null)
+  // (item 533: and the shochu's bottle and its three glasses with the drink in them, as one beside them: they were ten draws more; let go as
+  // well when a glass is drunk empty, made again as it is then)
+  const homeAt = useRef<ReturnType<typeof homeCopy>[] | null>(null)
   const sakeNodes = useMemo(() => bottles.filter((b) => !b.shochu).map((b) => b.node), [bottles])
+  const shochuNodes = useMemo(() => ['ShochuBottle', 'ShochuCup0', 'ShochuCup1', 'ShochuCup2'].map((n) => shochu.getObjectByName(n)).filter((o): o is THREE.Object3D => !!o), [shochu])
   const dropHome = () => {
-    homeAt.current?.home(false)
+    for (const h of homeAt.current ?? []) h.home(false)
     homeAt.current = null
-    const old = obj.children.find((c) => c.name === 'home-copy')
-    if (old) { old.removeFromParent(); old.traverse((m) => { if ((m as THREE.Mesh).isMesh) (m as THREE.Mesh).geometry.dispose() }) }
+    for (const root of [obj, shochu]) {
+      const old = root.children.find((c) => c.name === 'home-copy')
+      if (old) { old.removeFromParent(); old.traverse((m) => { if ((m as THREE.Mesh).isMesh) (m as THREE.Mesh).geometry.dispose() }) }
+    }
   }
-  useEffect(() => dropHome, [obj])
+  useEffect(() => dropHome, [obj, shochu])
   useFrame((_, dt) => {
     const still = !drag.current
     if (!still && homeAt.current) dropHome()
-    else if (still && !homeAt.current) { homeAt.current = homeCopy(obj, sakeNodes); homeAt.current.home(true) }
+    else if (still && !homeAt.current) { homeAt.current = [homeCopy(obj, sakeNodes), homeCopy(shochu, shochuNodes)]; for (const h of homeAt.current) h.home(true) }
     const d = drag.current
     if (d) {
       const b = bottles[d.b]
@@ -1989,6 +1997,8 @@ function SakeStand() {
     full.current[i] = false
     const l = targets[i].liquid
     if (l) l.scale.y = 0.001
+    // (the glasses' copy drawn with it full let go: made again next frame, empty)
+    dropHome()
     drunk(i)
   }
   /** what was poured into target `i` drunk (item 363): the first of its make a tasting, its notes written down and said, the staff to speak
