@@ -24,7 +24,7 @@ const { browser, page: p } = await boot({ width: 1600, height: 900 })
 await openShop(p, { x2: true, at: +(process.env.AT ?? 16 * 60 + 35) })
 // (RUSH=1: a busy evening, the benches filled and takeaways coming (shop.mjs's rush))
 if (process.env.RUSH) await rush(p)
-await p.evaluate(([JUMP, JUMP_SPEED]) => {
+await p.evaluate(([JUMP, JUMP_SPEED, JUMP_SPEED_Y]) => {
   const T = window.__THREE
   const GUARD_LEAP = 0.45
   // (a member of the staff pushed, named by their id alone (a server, the stock keeper): their job, from their figure's staffRole)
@@ -84,6 +84,9 @@ await p.evaluate(([JUMP, JUMP_SPEED]) => {
       for (let q = o; q; q = q.parent) if (!q.visible) { vis = false; break }
       // (where it was drawn: its world matrix as the last render left it, nothing updated from here)
       v.setFromMatrixPosition(o.matrixWorld)
+      // (nor one put in place but not drawn yet: its world matrix still the identity, read at the origin (the Tester's, item 586/587: a
+      // customer read as leaping from 0,0,0 to the door on their first look))
+      if (v.x === 0 && v.y === 0 && v.z === 0) { A.seen.delete(k); continue }
       const prev = A.seen.get(k)
       // (and only against the look before this one: one missed in it isn't put against an older place)
       if (prev && prev.vis && vis && dt < 250 && prev.o === o && prev.n === A.frames - 1) {
@@ -92,13 +95,16 @@ await p.evaluate(([JUMP, JUMP_SPEED]) => {
         A.maxStep[kind] = Math.max(A.maxStep[kind] ?? 0, d)
         // (how fast, in the scene's own time since our last look; the page's if the scene ran no frame between)
         const speed = d / Math.max(R.calls ? R.sum : dt / 1000, 1e-3)
-        if ((d > JUMP && speed > JUMP_SPEED) || dy > JUMP * 0.5) {
+        // (up or down: over half of JUMP in a look and faster than JUMP_SPEED_Y in the scene's time: the genkan's steps climbed at their rate
+        // (GuestBar3D's STEP_Y_RATE) in a slow look at x2 came to 0.32 to 0.48, read as leaps (the Tester's, item 587))
+        const climb = dy / Math.max(R.calls ? R.sum : dt / 1000, 1e-3)
+        if ((d > JUMP && speed > JUMP_SPEED) || (dy > JUMP * 0.5 && climb > JUMP_SPEED_Y)) {
           let role = null
           o.traverse((m) => { if (m.userData?.staffRole && !role) role = m.userData.staffRole })
           A.jumps.push({ k, at: clock(), d: +d.toFixed(2), dy: +dy.toFixed(2), dt: Math.round(dt), role,
             from: [prev.x, prev.y, prev.z].map((n) => +n.toFixed(2)), to: [v.x, v.y, v.z].map((n) => +n.toFixed(2)),
             phase: phaseOf(o, k), prevPhase: prev.phase, waiters: (window.__waiters?.current ?? []).map((w) => `${w.phase} t${(+w.t).toFixed(2)}`).join(', '),
-            frames: `${R.calls}x${R.maxDelta.toFixed(3)}`, speed: +speed.toFixed(2), ud: plain(o.userData) })
+            frames: `${R.calls}x${R.maxDelta.toFixed(3)}`, speed: +speed.toFixed(2), climb: +climb.toFixed(2), ud: plain(o.userData) })
         }
       }
       A.seen.set(k, { x: v.x, y: v.y, z: v.z, vis, o, phase: phaseOf(o, k), n: A.frames })
@@ -128,7 +134,7 @@ await p.evaluate(([JUMP, JUMP_SPEED]) => {
   setInterval(() => {
     for (const li of document.querySelectorAll('.ai-chat .ai-line')) if (!seenLines.has(li)) { seenLines.add(li); A.chat.push({ at: clock(), t: li.textContent }) }
   }, 500)
-}, [+(process.env.JUMP ?? 0.6), +(process.env.JUMP_SPEED ?? 8)])
+}, [+(process.env.JUMP ?? 0.6), +(process.env.JUMP_SPEED ?? 8), +(process.env.JUMP_SPEED_Y ?? 3)])
 // (a walk's frame at x2 is up to about 0.3: the guard's place for someone moving more than this in a frame is a leap)
 const GUARD_LEAP = 0.45
 // (the overview: view 1)
@@ -152,7 +158,7 @@ for (;;) {
 const A = await p.evaluate(() => { const a = window.__audit; return { jumps: a.jumps, notices: a.notices, chat: a.chat, maxStep: a.maxStep, frames: a.frames, guard: a.guard } })
 fs.writeFileSync(process.env.JSON ?? 'dayaudit.json', JSON.stringify(A, null, 1))
 console.log(`${A.frames} frames; the most a figure moved in one, by kind: ${JSON.stringify(Object.fromEntries(Object.entries(A.maxStep).map(([k, d]) => [k, +d.toFixed(2)])))}`)
-console.log(`${A.jumps.length} jumps (over ${process.env.JUMP ?? 0.6} across in a frame and faster than ${process.env.JUMP_SPEED ?? 8} a second of the scene's time, or half that up or down)`)
+console.log(`${A.jumps.length} jumps (over ${process.env.JUMP ?? 0.6} across in a frame and faster than ${process.env.JUMP_SPEED ?? 8} a second of the scene's time, or half that up or down faster than ${process.env.JUMP_SPEED_Y ?? 3} a second)`)
 for (const j of A.jumps) console.log(`  ${j.at} ${j.k}${j.role ? ` (${j.role})` : ''} ${j.d} across ${j.dy} up/down: ${j.from.join(',')} -> ${j.to.join(',')} | ${j.prevPhase ?? ''} => ${j.phase ?? ''} | servers ${j.waiters} | scene ${j.frames}`)
 const guard = Object.entries(A.guard).sort((a, b) => b[1].n - a[1].n)
 console.log(`${guard.reduce((t, [, g]) => t + g.n, 0)} pushes out of the cook table (who, how many, the farthest, flips over ${GUARD_LEAP}, first and last seen):`)
