@@ -5246,6 +5246,8 @@ const SHRINE_DEEP = 0.72
 /** how far the doors swing open (radians): wide, square to the front and a little past (the owner's: the railing round the outside, nothing
  * across the front; it ran before the side bays' doors and beside the steps, and stopped them at 57° and 70°) */
 const DOOR_SWING = { middle: 1.62, side: 1.7 }
+/** the doors' leaves' stand-ins for the pointer (item 578): drawn as nothing (no draw), a ray still meets them */
+const DOOR_HIT_MAT = new THREE.MeshBasicMaterial({ visible: false })
 function ShrineDoors() {
   const gltf = useGLTF(KAMIDANA_URL) as unknown as { scene: THREE.Group }
   const doors = useMemo(() => {
@@ -5280,6 +5282,29 @@ function ShrineDoors() {
       d.userData.wide = true
       // (all six shut, drawn as one: a copy of them shut, a draw a material, not four a leaf)
       d.userData.home = homeCopy(d, [...d.children])
+      // (item 578, the Tester's: a click on the doors, and every move of the pointer over them, had three test its ray against each of the
+      // leaves' triangles, their crests', and the shut copy's, one by one (12 ms of the click's frame, against 4 for a bare wall). Now none of
+      // those take a ray: each leaf carries a plain box as big as it, drawn as nothing, that swings with it (open, the doorway's clear to the
+      // Ebisu inside, and the swung leaves still take their clicks to shut))
+      d.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.raycast = NO_RAY })
+      const lb = new THREE.Box3(), inv = new THREE.Matrix4(), size = new THREE.Vector3(), mid = new THREE.Vector3(), rel = new THREE.Matrix4()
+      for (const leaf of d.children) {
+        if (leaf.name === 'home-copy') continue
+        leaf.updateMatrixWorld(true)
+        inv.copy(leaf.matrixWorld).invert()
+        lb.makeEmpty()
+        leaf.traverse((o) => {
+          const m = o as THREE.Mesh
+          if (!m.isMesh || (m.material as THREE.Material).side === THREE.BackSide) return
+          m.geometry.computeBoundingBox()
+          lb.union(m.geometry.boundingBox!.clone().applyMatrix4(rel.multiplyMatrices(inv, m.matrixWorld)))
+        })
+        if (lb.isEmpty()) continue
+        const hit = new THREE.Mesh(new THREE.BoxGeometry(...lb.getSize(size).toArray()), DOOR_HIT_MAT)
+        hit.position.copy(lb.getCenter(mid))
+        hit.name = 'shrine-door-hit'
+        leaf.add(hit)
+      }
     }
     return d
   }, [gltf])
