@@ -87,7 +87,7 @@ import { Boss, BOSS_TASTE } from './Boss'
 import { AxisGizmo, focusCamera, useEditBox } from './Movable'
 import { ashMaterial, MODEL_LEN, MODEL_R, useBinchotan } from './binchotanModel'
 import { coalLayer, coalLook, type CoalLook } from './coalLayer'
-import { beginChange, commitOffsets, getEdit, moveTo, offsetOf, positionOf, registerMovable, settleOffset, useEditSel, type V3 } from './edit'
+import { beginChange, commitOffsets, getEdit, moveTo, offsetOf, positionOf, registerMovable, scaleOf, settleOffset, useEditSel, type V3 } from './edit'
 import { setTip } from '@/scene/hoverTip'
 import { slide as drawerSound } from './TillDesk'
 import { tissuePull } from './paperSound'
@@ -4374,10 +4374,14 @@ function PinchHand() {
 /** the little side dishes for onigiri and mochi from the grill net */
 const DISH_R = 0.25
 const DISH_STEP = 0.6
-/** the bamboo basket the foil-roasted potatoes are served in */
+/** the bamboo basket the foil-roasted potatoes are served in (its radius as made, blender/zaru.py) */
 const BASKET_R = 0.48
-/** the basket's inner floor as y = BOWL_CURVE * r², fitted to its lathe profile */
+/** the basket's inner floor as y = BOWL_CURVE * r², fitted to its lathe profile (as made) */
 const BOWL_CURVE = 0.45
+/** the basket's size as it's set down, of its size as made (item 553, the owner's 「縮小一些」), and as much again as it's sized in the editor
+ * (it wasn't: its unseen edit box grew and shrank, the basket didn't, the owner's 「竹簍不能縮放」): what it holds, its rim and its floor by it */
+const BASKET_SIZE = 0.8
+const basketScale = () => BASKET_SIZE * scaleOf('basket')[0]
 const BASKET_STEP = 0.85
 /** grains and drops falling from a seasoning while it's held over food */
 const GRAINS = 360
@@ -4845,6 +4849,8 @@ let zaruBase: THREE.Object3D | null = null
 const Basket = memo(BasketImpl, sameProps)
 function BasketImpl({ position, container }: { position: [number, number, number]; container: string }) {
   const gltf = useGLTF(ZARU_URL) as unknown as { scene: THREE.Group }
+  // (its size: BASKET_SIZE, and as it's sized in the editor (item 553))
+  const size = Number(useEditSel(() => String(basketScale())))
   const obj = useMemo(() => {
     if (!zaruBase) {
       const r = gltf.scene.clone(true)
@@ -4862,7 +4868,7 @@ function BasketImpl({ position, container }: { position: [number, number, number
     return zaruBase.clone(true)
   }, [gltf])
   return (
-    <group position={position} userData={{ container }}>
+    <group position={position} scale={size} userData={{ container }}>
       <primitive object={obj} />
     </group>
   )
@@ -6220,10 +6226,12 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
   }
   const bowlAt = () => { const v = new THREE.Vector3(...BOWL_TOP).add(nudge('bowl-0')); clearOfHearth(v, BOWL_R); return v }
   const basketAt = (n: number) => {
-    // (the first stands at the table's left end; more, as they're needed, stand on the table's top in a row)
+    // (the first stands at the table's left end; more, as they're needed, stand on the table's top in a row, as far apart as they're big)
     const [x, y, z] = n === 0 ? roast.basket!.at : BASKET_TOP
-    return new THREE.Vector3(x, y, z).addScaledVector(LAY_DIR, -Math.max(0, n - 1) * BASKET_STEP).add(nudge(`basket-${n}`))
+    return new THREE.Vector3(x, y, z).addScaledVector(LAY_DIR, -Math.max(0, n - 1) * BASKET_STEP * basketScale()).add(nudge(`basket-${n}`))
   }
+  /** how many one basket holds at its size (its floor's area: the menu's capacity at its size as made); more go in another set down beside it */
+  const basketHolds = () => Math.max(4, Math.round((roast.basket?.capacity ?? 10) * basketScale() ** 2))
   /** where a container (plate-n, dish-n, basket-n, the seasoning box, the bin) is now */
   const containerAt = (key: string): THREE.Vector3 => {
     const [kind, n] = key.split('-')
@@ -6244,7 +6252,7 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
   const fanAt = () => containerAt('box').addScaledVector(ALONG, FAN_PEG.along).add(new THREE.Vector3(0, FAN_PEG.up - FAN_DROP, 0))
   const footprint = (key: string) => {
     const kind = key.split('-')[0]
-    return { plate: PLATE_R, dish: DISH_R, basket: BASKET_R, box: BOX_R, bin: BIN_R, tray: 0.6, trash: TRASH_R, rawdish: DISH_R, bowl: BOWL_PUSH, lantern: DECOR.lantern.r }[kind] ?? 0.3
+    return { plate: PLATE_R, dish: DISH_R, basket: BASKET_R * basketScale(), box: BOX_R, bin: BIN_R, tray: 0.6, trash: TRASH_R, rawdish: DISH_R, bowl: BOWL_PUSH, lantern: DECOR.lantern.r }[kind] ?? 0.3
   }
   /** a container's footprint as circles: one for most, three in a row along the long tray */
   const circlesOf = (key: string, at: THREE.Vector3) => key === 'tray'
@@ -6341,8 +6349,12 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
   const coalAsked = useRef(0)
   // (with the shop open nothing goes in the basket or on the side dishes: it's all served at the bar, unwrapped)
   /** while the shop's closed and the cook's at it by hand, everything that comes off the fire goes into the tasting bowl */
-  const inBowl = (p: Piece) => (p.collected ? !!p.container?.startsWith('bowl') : (space !== 'open' && byHandRef.current) || (space === 'open' && !!p.keepWarm))
-  const inBasket = (p: Piece) => !inBowl(p) && space !== 'open' && !!roast.basket && !!roast.basketItems?.includes(p.id)
+  /** a potato or a sweet potato in its foil: the basket's (roast.basketItems) */
+  const isTuber = (p: Piece) => !!roast.basket && !!roast.basketItems?.includes(p.id)
+  const inBowl = (p: Piece) => (p.collected ? !!p.container?.startsWith('bowl') : (space !== 'open' && byHandRef.current) || (space === 'open' && !!p.keepWarm && !isTuber(p)))
+  // (the shop open, a potato or a sweet potato cooked for nobody is kept warm in the bamboo basket by the fire, not on the tray, for the
+  // next customer who orders one (item 553, the owner's 「並看它能有甚麼公用，加入進去」: open, it stood there with nothing to do))
+  const inBasket = (p: Piece) => !inBowl(p) && isTuber(p) && (space !== 'open' || (p.collected ? !!p.container?.startsWith('basket') : !!p.keepWarm))
   // onigiri and mochi off the grill net go on little side dishes of their own
   const onDish = (p: Piece) => !inBowl(p) && space !== 'open' && !!roast.dish && !!roast.net?.includes(p.id)
   const dishAt = (n: number) => {
@@ -6659,7 +6671,7 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
     if (p.collected || !present(p)) return
     // (the shop open and cooked for nobody (its customer gone): into the big bowl to keep, for the next customer who orders one (the owner's:
     // food's never thrown out but burnt; the bin is for the sticks and the burnt))
-    if (space === 'open' && !ownerOf(p) && !roast.basketItems?.includes(p.id)) p.keepWarm = true
+    if (space === 'open' && !ownerOf(p)) p.keepWarm = true
     const bowl = inBowl(p)
     const basket = inBasket(p)
     const dish = onDish(p)
@@ -6714,7 +6726,7 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
     } else if (basket) {
       // tossed in from just above the basket; from there the physics drops it in and lets it settle
       const a = Math.random() * Math.PI * 2
-      const r = Math.random() * 0.1
+      const r = Math.random() * 0.1 * basketScale()
       p.toP.copy(basketAt(0)).add(new THREE.Vector3(Math.cos(a) * r, 0.42, Math.sin(a) * r))
       p.body = null
       // lying on its side, broken-open top up, turned any which way
@@ -6980,7 +6992,7 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
     q.trash < 0 && !q.carried && !q.via && !taken.has(q) && !SERVICE.waiting.has(q.key) && !SERVICE.carried.has(q.key) && !SERVICE.claimed.has(q.key))
   /** one kept warm in the bowl, cooked for someone who'd gone and nobody's yet (not `taken` already for this order): a new order of it has
    * that one, not one more cooked (the owner's: the bowl never emptied, every order cooking one more for it) */
-  const warmFor = (id: string, taken: Set<Piece>) => pieces.current.find((q) => q.id === id && q.keepWarm && q.container?.startsWith('bowl') &&
+  const warmFor = (id: string, taken: Set<Piece>) => pieces.current.find((q) => q.id === id && q.keepWarm && (q.container?.startsWith('bowl') || q.container?.startsWith('basket')) &&
     q.guest < 0 && present(q) && !q.eaten && q.trash < 0 && !taken.has(q) && !SERVICE.claimed.has(q.key) && !SERVICE.carried.has(q.key))
   /** made again: back as it was before it was ever cooked, to be brought out raw on the tray as the order's (next frame: present, not yet seen) */
   const revive = (p: Piece) => {
@@ -7127,7 +7139,7 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
   // App's refund), eaten up by the staff as their supper, not left there into the night (the owner's, 2026-11-12))
   useEffect(() => {
     if (space === 'open') return
-    const left = pieces.current.filter((p) => p.keepWarm && !p.eaten && p.container?.startsWith('bowl'))
+    const left = pieces.current.filter((p) => p.keepWarm && !p.eaten && (p.container?.startsWith('bowl') || p.container?.startsWith('basket')))
     if (!left.length) return
     for (const p of left) { p.eaten = true; p.keepWarm = false; p.slot = null }
     onSay?.('chef', L().staffMeal(left.length))
@@ -7278,11 +7290,14 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       // (the bowl keeps no more than BOWL_WARM_MAX warm: the oldest over it the staff eat up (the owner's: a mountain of fish piled in it))
       const warmKept = live.filter((p) => p.keepWarm && !p.eaten && p.container?.startsWith('bowl'))
       for (const p of warmKept.slice(0, warmToEat(warmKept.length))) { p.eaten = true; p.keepWarm = false; p.slot = null }
+      // (...and the basket no more than it holds (item 553): the oldest over it the staff eat up)
+      const warmBasket = live.filter((p) => p.keepWarm && !p.eaten && p.container?.startsWith('basket'))
+      for (const p of warmBasket.slice(0, Math.max(0, warmBasket.length - basketHolds()))) { p.eaten = true; p.keepWarm = false; p.slot = null }
       const here = (id: number) => guests.current.some((g) => g.id === id && (g.state === 'waiting' || g.state === 'eating'))
       const stray = live.find((p) => p.collected && (p.flight >= 1 || (p.via === 'plated' && p.readyAt === undefined)) && !p.stickOnly &&
         !SERVICE.claimed.has(p.key) && !SERVICE.carried.has(p.key) && p.container !== 'takeout' && (p.container !== 'bar' || (p.via === 'plated' && !here(p.guest))) &&
         // (one kept warm in the bowl waits there till someone orders it: it's not to be picked up again and again ahead of the rest)
-        !(p.keepWarm && p.container?.startsWith('bowl') && !ownerOf(p)))
+        !(p.keepWarm && (p.container?.startsWith('bowl') || p.container?.startsWith('basket')) && !ownerOf(p)))
       if (stray) {
         const was = stray.guest
         stray.guest = -1
@@ -7315,8 +7330,8 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
           say(L().orphanMeal(nameOfP(stray)))
           return
         }
-        // (nobody's: kept warm in the big bowl (out of the plating place, which the next seat needs), never binned)
-        if (!stray.container?.startsWith('bowl')) {
+        // (nobody's: kept warm in the big bowl (out of the plating place, which the next seat needs), never binned; a potato, in the basket)
+        if (!stray.container?.startsWith('bowl') && !stray.container?.startsWith('basket')) {
           SERVICE.waiting.delete(stray.key)
           stray.via = undefined
           stray.readyAt = undefined
@@ -8821,6 +8836,8 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
     const live = pieces.current.filter((p) => p.body?.live && present(p) && !p.eaten)
     if (!live.length) return
     const c = basketAt(0)
+    // (its floor and rim at its size: a uniformly sized bowl's floor y = (BOWL_CURVE / k) r²)
+    const k = basketScale(), curve = BOWL_CURVE / k
     const steps = 4
     const h = dt / steps
     const n = new THREE.Vector3()
@@ -8835,8 +8852,8 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
         const dx = pos.x - c.x
         const dz = pos.z - c.z
         const dist = Math.hypot(dx, dz) || 1e-6
-        const slope = 2 * BOWL_CURVE * dist
-        const floor = c.y + 0.03 + BOWL_CURVE * dist * dist
+        const slope = 2 * curve * dist
+        const floor = c.y + 0.03 * k + curve * dist * dist
         n.set((-slope * dx) / dist, 1, (-slope * dz) / dist).normalize()
         const depth = floor + b.r / n.y - pos.y
         if (depth > 0) {
@@ -8852,7 +8869,7 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
           }
         }
         // the rim keeps them in
-        const wall = BASKET_R * 0.9 - b.r * 0.6
+        const wall = BASKET_R * k * 0.9 - b.r * 0.6
         if (dist > wall) {
           pos.x = c.x + (dx / dist) * wall
           pos.z = c.z + (dz / dist) * wall
@@ -10134,7 +10151,7 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
     let need = 1
     let needBaskets = 1
     let needDishes = 1
-    const cap = roast.basket?.capacity ?? 10
+    const cap = basketHolds()
     for (const p of pieces.current) {
       // (what's served at the bar has a slot too, but it's the customers' and needs no plate out by the fire)
       if (p.slot === null || p.eaten || !present(p) || p.container === 'bar' || p.container?.startsWith('bowl')) continue
@@ -10237,7 +10254,7 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       {roast.tray && <EditProxy id="cutboard" label="大砧板" at={containerAt('tray')} size={[TRAY_W, 0.12, TRAY_D]} yaw={-Math.atan2(STACK_DIR.z, STACK_DIR.x)} />}
       {carriers.box && <EditProxy id="seasoning" label="調味架" at={containerAt('box').add(new THREE.Vector3(0, -0.12, 0))} size={[LEDGE_L, 0.42, 0.22]} yaw={-Math.atan2(STACK_DIR.z, STACK_DIR.x)} />}
       {carriers.bin && <EditProxy id="bucket" label="水桶" at={containerAt('bin')} size={[BIN_R * 2, 0.45, BIN_R * 2]} yaw={0} />}
-      {roast.basket && <EditProxy id="basket" label="竹簍" at={containerAt('basket-0')} size={[BASKET_R * 2, 0.14, BASKET_R * 2]} yaw={0} />}
+      {roast.basket && <EditProxy id="basket" label="竹簍" at={containerAt('basket-0')} size={[BASKET_R * 2 * BASKET_SIZE, 0.14 * BASKET_SIZE, BASKET_R * 2 * BASKET_SIZE]} yaw={0} />}
       <EditProxy id="tastebowl" label="試吃碗" at={containerAt('bowl-0')} size={[BOWL_R * 2, BOWL_RIM, BOWL_R * 2]} yaw={0} />
       {roast.trash && <EditProxy id="trash" label="廚餘桶" at={containerAt('trash')} size={[TRASH_R * 2, 0.4, TRASH_R * 2]} yaw={0} />}
       {roast.rawDish && <EditProxy id="ricedish" label="飯糰小碟" at={containerAt('rawdish')} size={[DISH_R * 2, 0.06, DISH_R * 2]} yaw={0} />}

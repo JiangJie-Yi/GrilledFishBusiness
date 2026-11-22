@@ -385,6 +385,8 @@ const RELAIDS: [string, string[]][] = [
   // (the vegetables' crates and basket and the omamori where the owner set them, made their defaults (items 524, 525): what was held for
   // them by hand let go, place, turn and size, as Reset would)
   ['jgs-edit-relaid-43', ['vegcrate', 'vegcrate2', 'vegbasket', 'till-omamori']],
+  // (the bamboo basket by the hearth moved and made smaller, its new default (item 553): what was held for it by hand let go)
+  ['jgs-edit-relaid-44', ['basket']],
 ]
 const relaidDue = RELAIDS.filter(([k]) => { try { return !localStorage.getItem(k) } catch { return false } })
 const relaid = !relaidDue.length
@@ -478,6 +480,9 @@ export const BASES: Record<string, V3> = {
   // both their parents count two to one)
   kabutostand: [0, 0, 1.413],
   kabuto: [0, 0, 1.413],
+  // (the bamboo basket by the hearth moved where the owner asked (item 553, the owner's 「幫我把它位移至 Z: 0.777，然後縮小一些」): the panel's
+  // Z 0.777 in the room's axes (fromRoom), off the fire's frame where its rim stood against it; its size Roasting's BASKET_SIZE)
+  basket: [0.4575, 0, 0.6281],
   // (the shrine's oranges and its cups' stand set by hand at X 0.027 and X 0.050 in the room's frame)
   // (the sutra moved Z -0.030 and both vases X 0.07 along their own axes (the shelf's: X back toward the wall, Z along it), as the owner set them)
   // (and then, the owner's, 2026-11-13, each as the panel reads it (its own axes: X along the shelf, Z out from the wall), then all reset:
