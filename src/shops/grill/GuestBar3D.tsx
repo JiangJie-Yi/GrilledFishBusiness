@@ -2005,9 +2005,17 @@ function FishLantern() {
       holder.add(fish)
       for (const o of [body, fins]) { fish.add(o); o.position.y -= head }
     }
+    // (item 533: what doesn't swing on its own (the round lantern's paper, its caps) with their ink lines as one; the fish kept as it is)
+    mergeByMaterial(r, (o) => o === fish)
     return { model: r, fish, papers }
   }, [gltf])
   useEffect(() => () => { for (const m of papers) m.dispose() }, [papers])
+  // (the merged shapes are its own: let go with it; the loaded model's are shared)
+  useEffect(() => () => {
+    const shared = new Set<THREE.BufferGeometry>()
+    gltf.scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) shared.add((o as THREE.Mesh).geometry) })
+    model.traverse((o) => { const g = (o as THREE.Mesh).geometry; if ((o as THREE.Mesh).isMesh && !shared.has(g)) g.dispose() })
+  }, [gltf, model])
   useFrame(({ clock }, dt) => {
     const t = clock.elapsedTime
     lit.current += ((getLights().door ? 1 : 0) - lit.current) * Math.min(1, Math.min(dt, 0.1) * 7)
