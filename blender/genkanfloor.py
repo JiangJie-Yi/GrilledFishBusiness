@@ -132,15 +132,16 @@ WOOD_NRM = image("genkan_keyaki_nrm", to_normal(grain * 0.6 + fbm(M3, 6, 30, 3) 
 # indigo, cream and vermilion, Mt Fuji its ground: an indigo mountain, its right flank lit, its snowcap running down in fingers with dark
 # gullies, a vermilion sun over it with a wisp of cloud across it, bands of mist (kasumi) across its slopes, seigaiha waves at its foot; a
 # thin vermilion frame round the field; an indigo border with a cream line in it and a plum crest in each corner. Its loops 3 px across,
-# a groove where one colour's loops meet another's. Upright as the shop's cameras see it (the genkan's view, the hearth's, the owner's: the
-# shoe cupboard at the top of the picture): the design's up runs along the rug's x (u), its right toward the door (+z; v runs from the door
-# back). 1024 x 768 over 0.946 x 0.72 m, about a pixel a millimetre.)
+# a groove where one colour's loops meet another's. Upright as one coming in at the door sees it, standing on it to step up into the shop
+# (the owner's, 2026-11-22, item 581: 「富士山可保留記得要翻轉90度」; it had been laid upright for the shop's own cameras, the shoe cupboard
+# its top, and from the door the mountain lay on its side): the design's up toward the step (-z, v up to it), its right toward the shoe
+# cupboard (+x, u). A landscape now, as the rug is seen so: 1024 x 768 over 0.946 x 0.72 m, about a pixel a millimetre.)
 TW, TH = 1024, 768
 RW, RL = RUG["x"][1] - RUG["x"][0], RUG["z"][1] - RUG["z"][0]
 _U, _V = np.meshgrid((np.arange(TW) + 0.5) / TW, (np.arange(TH) + 0.5) / TH)
-DW, DH = RL, RW                           # the design's width and height
-DX, DY = (1.0 - _V) * DW, _U * DH         # its frame: x from the room's beam toward the door, y from the till's beam up to the cupboard
-PXM = DH / TW                             # a pixel, in metres
+DW, DH = RW, RL                           # the design's width and height
+DX, DY = _U * DW, _V * DH                 # its frame: x from the till's beam across to the shoe cupboard, y from the door up to the step
+PXM = DW / TW                             # a pixel, in metres
 AA = PXM * 0.7                            # an edge softened over about a pixel
 rrng = np.random.default_rng(563)         # (its own: nothing else drawn from it)
 
@@ -171,12 +172,13 @@ edge = np.minimum(np.minimum(DX, DW - DX), np.minimum(DY, DH - DY))
 rug = np.zeros((TH, TW, 3), np.float32) + np.array(CREAM, np.float32)
 
 # (the sun: upper right, the light on the mountain's right flank)
-SUN = (0.468, 0.770, 0.088)
+SUN = (0.735, 0.556, 0.072)
 sun = inside(np.hypot(DX - SUN[0], DY - SUN[1]) - SUN[2])
 rug = mix(rug, SHU, sun)
 
 # (the mountain: concave flanks out past the field's sides, a flat top with its crater's three low peaks)
-XM, YB, YP, HW, SW = DW / 2, 0.318, 0.700, 0.42, 0.034
+# (as wide as the field, its slopes the gentler for it, Fuji's own: the old upright one's 0.38 high over 0.77 had been steep)
+XM, YB, YP, HW, SW = DW / 2, 0.235, 0.545, 0.40, 0.034
 ddx = np.abs(DX - XM)
 t = np.clip((ddx - SW) / (HW - SW), 0, 1)
 prof = YB + (YP - YB) * (1 - t) ** 1.6
@@ -192,8 +194,8 @@ k = (DX - XM) / 0.031
 fid = np.floor(k).astype(int)
 lens = rrng.uniform(0.35, 1.0, 64).astype(np.float32)
 fing = (1 - np.abs(2 * (k - fid) - 1)) ** 1.4
-reach = 0.030 + 0.055 * lens[(fid + 32) % 64] * np.clip(1 - np.abs(DX - XM) / 0.2, 0.25, 1)
-snowline = YP - 0.095 - reach * fing
+reach = 0.026 + 0.048 * lens[(fid + 32) % 64] * np.clip(1 - np.abs(DX - XM) / 0.2, 0.25, 1)
+snowline = YP - 0.082 - reach * fing
 snow = inside(snowline - DY) * mtn
 # (its gullies: dark lines down from under the summit, fanning out, stopping short of the snow's edge)
 gul = np.zeros_like(snow)
@@ -205,8 +207,8 @@ rug = mix(rug, SNOW, snow * (1 - gul))
 
 # (the mist (霞): bands across the mountain's slopes, a wisp across the sun; each broad one stepped, a shorter band laid over it to one side,
 # as they're drawn; cream, an indigo line round each, a second inside the broad ones)
-for x0, x1, yc, r, inner, step in ((0.060, 0.330, 0.430, 0.017, True, (0.035, 0.12)), (0.335, 0.660, 0.500, 0.015, True, (0.13, 0.03)),
-                                   (0.405, 0.610, 0.752, 0.0085, False, None)):
+for x0, x1, yc, r, inner, step in ((0.110, 0.430, 0.322, 0.017, True, (0.035, 0.13)), (0.500, 0.840, 0.388, 0.015, True, (0.14, 0.03)),
+                                   (0.655, 0.835, 0.540, 0.0085, False, None)):
     sd = stadium(x0, x1, yc, r)
     if step:
         sd = np.minimum(sd, stadium(x0 + step[0], x1 - step[1], yc + r * 1.45, r * 0.72))
