@@ -1,7 +1,8 @@
 // A whole day watched (the owner's, 2026-11-13: "flows and animations"): the shop opened at x2 and left to run itself from AT through closing
 // till the staff have gone home (END, the next morning), and meanwhile, every frame:
 //   - every figure's place (customers, those waiting on the benches, takeaway customers and riders, staff, the owner): one that moves
-//     further in a frame than a walk could (JUMP, the world's units) or
+//     further in a frame than a walk could (over JUMP, the world's units, and faster than JUMP_SPEED, world units a second of the page's own
+//     time: at x2 a slow frame's step is up to 0.2 s of the game's (item 569), a walk's up to about a metre, never past 6 a second) or
 //     up or down in one (a step's more than half of it) noted with what it was doing: a customer's phase (GuestBar3D's shown), a staff
 //     member's role, every server's phase, how many frames the scene ran in it;
 //   - every notice put up (the bar along the bottom), and every line of the day's log, with the shop's clock;
@@ -21,7 +22,7 @@ const { browser, page: p } = await boot({ width: 1600, height: 900 })
 await openShop(p, { x2: true, at: +(process.env.AT ?? 16 * 60 + 35) })
 // (RUSH=1: a busy evening, the benches filled and takeaways coming (shop.mjs's rush))
 if (process.env.RUSH) await rush(p)
-await p.evaluate((JUMP) => {
+await p.evaluate(([JUMP, JUMP_SPEED]) => {
   const T = window.__THREE
   const GUARD_LEAP = 0.45
   // (a member of the staff pushed, named by their id alone (a server, the stock keeper): their job, from their figure's staffRole)
@@ -87,7 +88,7 @@ await p.evaluate((JUMP) => {
         const d = Math.hypot(v.x - prev.x, v.z - prev.z), dy = Math.abs(v.y - prev.y)
         const kind = k.replace(/[0-9]+$/, '').replace(/:.*/, '')
         A.maxStep[kind] = Math.max(A.maxStep[kind] ?? 0, d)
-        if (d > JUMP || dy > JUMP * 0.5) {
+        if ((d > JUMP && d / Math.max(dt, 1) * 1000 > JUMP_SPEED) || dy > JUMP * 0.5) {
           let role = null
           o.traverse((m) => { if (m.userData?.staffRole && !role) role = m.userData.staffRole })
           A.jumps.push({ k, at: clock(), d: +d.toFixed(2), dy: +dy.toFixed(2), dt: Math.round(dt), role,
@@ -123,7 +124,7 @@ await p.evaluate((JUMP) => {
   setInterval(() => {
     for (const li of document.querySelectorAll('.ai-chat .ai-line')) if (!seenLines.has(li)) { seenLines.add(li); A.chat.push({ at: clock(), t: li.textContent }) }
   }, 500)
-}, +(process.env.JUMP ?? 0.6))
+}, [+(process.env.JUMP ?? 0.6), +(process.env.JUMP_SPEED ?? 7)])
 // (a walk's frame at x2 is up to about 0.3: the guard's place for someone moving more than this in a frame is a leap)
 const GUARD_LEAP = 0.45
 // (the overview: view 1)
@@ -147,7 +148,7 @@ for (;;) {
 const A = await p.evaluate(() => { const a = window.__audit; return { jumps: a.jumps, notices: a.notices, chat: a.chat, maxStep: a.maxStep, frames: a.frames, guard: a.guard } })
 fs.writeFileSync(process.env.JSON ?? 'dayaudit.json', JSON.stringify(A, null, 1))
 console.log(`${A.frames} frames; the most a figure moved in one, by kind: ${JSON.stringify(Object.fromEntries(Object.entries(A.maxStep).map(([k, d]) => [k, +d.toFixed(2)])))}`)
-console.log(`${A.jumps.length} jumps (over ${process.env.JUMP ?? 0.6} across, or half that up or down, in a frame)`)
+console.log(`${A.jumps.length} jumps (over ${process.env.JUMP ?? 0.6} across in a frame and faster than ${process.env.JUMP_SPEED ?? 7} a second, or half that up or down)`)
 for (const j of A.jumps) console.log(`  ${j.at} ${j.k}${j.role ? ` (${j.role})` : ''} ${j.d} across ${j.dy} up/down: ${j.from.join(',')} -> ${j.to.join(',')} | ${j.prevPhase ?? ''} => ${j.phase ?? ''} | servers ${j.waiters} | scene ${j.frames}`)
 const guard = Object.entries(A.guard).sort((a, b) => b[1].n - a[1].n)
 console.log(`${guard.reduce((t, [, g]) => t + g.n, 0)} pushes out of the cook table (who, how many, the farthest, flips over ${GUARD_LEAP}, first and last seen):`)
