@@ -1329,8 +1329,14 @@ for k, t in enumerate((0.25, 0.5, 0.75)):
     c, r = rope_at(t)
     top = c.y - r * 0.85
     L = 0.024 if k != 1 else 0.028
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.0028, segments=8, ring_count=5, location=P(c.x, top, c.z))
-    sn.append(finish(active(), f"KamiShimenawaKnob{k}", M["straw"]))
+    # (the knot a ball of quads, a cube's faces cut in four (item 574: a UV sphere 8 by 5 fanned its triangles into its poles), 48 triangles)
+    bpy.ops.mesh.primitive_cube_add(size=0.0056, location=P(c.x, top, c.z))
+    kn_ = active()
+    bpy.ops.object.mode_set(mode="EDIT"); bpy.ops.mesh.select_all(action="SELECT"); bpy.ops.mesh.subdivide(number_cuts=1)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    for v_ in kn_.data.vertices:
+        v_.co = v_.co.normalized() * 0.0028
+    sn.append(finish(kn_, f"KamiShimenawaKnob{k}", M["straw"]))
     sn.append(cyl(f"KamiShimenawaBand{k}", 0.0031, 0.0026, P(c.x, top - 0.0028, c.z), M["gold"], verts=8))
     mid = (c.x, top - 0.004 - L / 2, c.z)
     sn.append(card(f"KamiShimenawaTasselA{k}", mid, 0.0105, L, "x", M["tassel"]))
