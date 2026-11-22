@@ -64,6 +64,42 @@ export function gpuSweep(scene: THREE.Object3D): { textures: number; geometries:
   return { textures, geometries }
 }
 
+/**
+ * What's in the scene but hidden a while, let go of on the GPU (item 566, the owner's 「Geo一直很高，有什麼方法可以下降嗎」: of the 1,694
+ * geometries on the GPU with the shop shut, 817 weren't drawn: the pieces the room's merge took (drawn in its cells now, hidden), the parts a
+ * piece's own merge hid, their ink lines, the poses and things not out just now; each had been drawn once before it was hidden, so it stayed
+ * on the GPU). Every `every` ms the scene is walked: a geometry no shown mesh draws, found so twice running (hidden `every` to twice that),
+ * is disposed: its buffers on the GPU let go, its points kept, so three puts it on the GPU again by itself the next time it's drawn (an
+ * upload, no shader made). Not one whose points were let go after their upload (the room's merge's cells: WorldBatch), which couldn't be put
+ * back. Returns its stop.
+ */
+const released = new WeakSet<THREE.BufferGeometry>()
+export const IDLE_RELEASED = { count: 0, last: 0, ms: 0 }
+const whole = (g: THREE.BufferGeometry) =>
+  (!g.index || !!g.index.array?.length) && Object.values(g.attributes).every((a) => !!(a as THREE.BufferAttribute).array?.length)
+export function idleRelease(scene: THREE.Object3D, every = 10000): () => void {
+  let idle = new Set<THREE.BufferGeometry>()
+  const tick = () => {
+    const t0 = performance.now()
+    const shown = new Set<THREE.BufferGeometry>()
+    scene.traverseVisible((o) => { const g = (o as THREE.Mesh).geometry; if (g) shown.add(g) })
+    for (const g of shown) released.delete(g)
+    const next = new Set<THREE.BufferGeometry>()
+    let n = 0
+    scene.traverse((o) => {
+      const g = (o as THREE.Mesh).geometry
+      if (!g || shown.has(g) || released.has(g) || next.has(g)) return
+      if (idle.has(g) && whole(g)) { g.dispose(); released.add(g); n++ } else next.add(g)
+    })
+    idle = next
+    IDLE_RELEASED.count += n
+    IDLE_RELEASED.last = n
+    IDLE_RELEASED.ms = performance.now() - t0
+  }
+  const t = window.setInterval(tick, every)
+  return () => window.clearInterval(t)
+}
+
 if (import.meta.env.DEV && import.meta.hot) {
   let wait = 0
   import.meta.hot.on('vite:afterUpdate', (payload: { updates?: { type: string }[] }) => {
