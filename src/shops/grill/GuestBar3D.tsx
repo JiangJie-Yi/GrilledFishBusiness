@@ -4002,6 +4002,13 @@ function frontOf(at: THREE.Vector3, stand: THREE.Vector3, thing: THREE.Vector3) 
 const KITCHEN_BLOCKS = new Set(['warmer', 'prepcounter', 'ricetub', 'misopot', 'denkinabe', 'fryer', 'freezer', 'platerack', 'platerack2', 'lowrack', 'sink', 'sink-bin', 'produce', 'vegcrate', 'vegcrate2', 'vegbasket', 'coalsack', 'servecounter'])
 /** how much room is left round each of them for a server to pass (the bar's units) */
 const PASS_ROOM = 0.13
+/** what stands up off one of them as high as a head (by its name), and how much room is left round it (item 591): PASS_ROOM is room for a
+ * body at a counter's top; a head is rounder (0.25 out to the side of one's feet, 0.30 ahead), so going by the sake station's open bottle
+ * at the serving counter's end, kept PASS_ROOM off the counter, the second cook's feet came 0.32 off its middle (it's 0.046 round): his
+ * head and glasses 2 to 9 cm into it, coming round the counter's end with the fish (tests/e2e/sinkin.mjs, _route591.mjs). As much as
+ * leaves the way between the counter's back and the freezer open (0.33 closed it: the fish fetched the long way round, a quarter slower) */
+const HEAD_HIGH = ['sake-station-bottle']
+const HEAD_ROOM = 0.27
 /** and the more a server's own place is kept off it, their hands hanging at their sides (the bar's units: 0.1, 20 cm in the world) */
 const HOME_ROOM = 0.1
 /** how far before a server what they hold is (their tray and hands: StaffFigure's, 0.6 out in the world; the bar's units) */
@@ -5325,13 +5332,11 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     const toBar = new THREE.Matrix4().copy(f.matrixWorld).invert()
     const out: Rect[] = []
     const ids: string[] = []
-    const grown = (fl: [number, number][], id = '') => ids.push(id) && out.push({ x0: Math.min(...fl.map((q) => q[0])) - PASS_ROOM, z0: Math.min(...fl.map((q) => q[1])) - PASS_ROOM,
-      x1: Math.max(...fl.map((q) => q[0])) + PASS_ROOM, z1: Math.max(...fl.map((q) => q[1])) + PASS_ROOM })
+    const grown = (fl: [number, number][], id = '', room = PASS_ROOM) => ids.push(id) && out.push({ x0: Math.min(...fl.map((q) => q[0])) - room, z0: Math.min(...fl.map((q) => q[1])) - room,
+      x1: Math.max(...fl.map((q) => q[0])) + room, z1: Math.max(...fl.map((q) => q[1])) + room })
     const v = new THREE.Vector3(), m4 = new THREE.Matrix4()
-    scene.traverse((o) => {
-      // (and the keep-clear patches put down in edit mode (item 168))
-      const id = o.userData?.editId
-      if (!KITCHEN_BLOCKS.has(id) && !(typeof id === 'string' && id.startsWith('pathzone-'))) return
+    /** a thing's footprint on the kitchen's floor, from its meshes' points (every third) */
+    const footOf = (o: THREE.Object3D): [number, number][] | null => {
       let a0 = Infinity, a1 = -Infinity, l0 = Infinity, l1 = -Infinity
       o.updateWorldMatrix(true, true)
       o.traverse((q) => {
@@ -5343,8 +5348,19 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           a0 = Math.min(a0, a); a1 = Math.max(a1, a); l0 = Math.min(l0, l); l1 = Math.max(l1, l)
         }
       })
-      if (a0 < a1) grown([[a0, l0], [a1, l1]], o.userData.editId as string)
+      return a0 < a1 ? [[a0, l0], [a1, l1]] : null
+    }
+    scene.traverse((o) => {
+      // (and the keep-clear patches put down in edit mode (item 168))
+      const id = o.userData?.editId
+      if (!KITCHEN_BLOCKS.has(id) && !(typeof id === 'string' && id.startsWith('pathzone-'))) return
+      const fl = footOf(o)
+      if (fl) grown(fl, o.userData.editId as string)
     })
+    for (const name of HEAD_HIGH) {
+      const o = scene.getObjectByName(name), fl = o ? footOf(o) : null
+      if (fl) grown(fl, name, HEAD_ROOM)
+    }
     const t0 = markOf('cook-table-c0'), t1 = markOf('cook-table-c1')
     if (t0 && t1) grown([flat(f.worldToLocal(t0.getWorldPosition(new THREE.Vector3()))), flat(f.worldToLocal(t1.getWorldPosition(new THREE.Vector3())))], 'cooktable')
     blocksMade.current = out
