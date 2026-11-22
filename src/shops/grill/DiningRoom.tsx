@@ -5034,7 +5034,11 @@ function kamidanaOf(scene: THREE.Group) {
       } else if (src.name === 'KamiPeel') {
         // (the ponkan's peel: a little gloss on its oily skin, not a polish; its pebbles and the calyx's sepals baked in relief (item 574))
         t = new THREE.MeshPhysicalMaterial({ color: src.color.clone(), map: src.map, normalMap: src.normalMap, roughness: 0.48, clearcoat: 0.22, clearcoatRoughness: 0.35, specularIntensity: 0.55 })
-      } else if (src.name === 'KamiLeaf' || src.name === 'KamiDish' || src.name === 'KamiCobalt' || src.name === 'KamiFlaskGlaze') {
+      } else if (src.name === 'KamiFlaskGlaze') {
+        // (the flask (item 574): its glaze, label, name and cord baked onto it, each as glossy as it is (a roughness picture: the glaze's soft
+        // sheen as it had, the paper and the cord matte), their relief in a normal map)
+        t = new THREE.MeshPhysicalMaterial({ color: src.color.clone(), map: src.map, normalMap: src.normalMap, roughnessMap: src.roughnessMap, roughness: 1, clearcoat: 0.4, clearcoatRoughness: 0.25 })
+      } else if (src.name === 'KamiLeaf' || src.name === 'KamiDish' || src.name === 'KamiCobalt') {
         // (the leaves' gloss, the porcelain's glaze: a soft sheen)
         t = new THREE.MeshPhysicalMaterial({ color: src.color.clone(), map: src.map, roughness: 0.35, clearcoat: 0.4, clearcoatRoughness: 0.25 })
       } else if (/Cutout/.test(src.name)) {

@@ -1579,7 +1579,7 @@ _lo.data.materials.clear()
 _lo.data.materials.append(M["peel"])
 ox.append(_lo)
 # (the two leaves on the top one (item 574): each a leaf's outline, pointed at both ends, folded a little along its midrib and curling up
-# toward its tip, 20 triangles (they were flattened balls, 224 each))
+# toward its tip, made as thin as it was with both its faces, 56 triangles (they were flattened balls, 224 each))
 for j, (rz, lean) in enumerate(((0.4, 0.5), (2.6, 0.4))):
     L_, W_ = 0.022, 0.009
     us_ = [-1.0, -0.6, -0.2, 0.2, 0.6, 1.0]
@@ -1924,7 +1924,9 @@ for _poly in _me.polygons:
         _co = _me.vertices[_me.loops[_li].vertex_index].co
         _uvl[_li].uv = (math.atan2(_co.y, _co.x) / (2 * math.pi) + 0.5, _co.z / 0.15)
 fx_.append(fb_)
-bpy.ops.mesh.primitive_torus_add(major_radius=0.0122, minor_radius=0.0021, major_segments=24, minor_segments=6, location=P(0, 0.112, 0))
+# (14 round, 4 about (item 574: it was 24 by 6, 288 triangles of a cord a few millimetres thick); it stands out of the neck's outline, so it
+# stays a ring of its own, in the knot's red)
+bpy.ops.mesh.primitive_torus_add(major_radius=0.0122, minor_radius=0.0021, major_segments=14, minor_segments=4, location=P(0, 0.112, 0))
 fx_.append(finish(active(), "KamiFlaskCord", M["redCord"]))
 bpy.ops.mesh.primitive_uv_sphere_add(radius=0.0042, segments=10, ring_count=6, location=P(-0.0128, 0.112, 0))
 fx_.append(finish(active(), "KamiFlaskKnot", M["redCord"]))
@@ -1998,6 +2000,98 @@ def wrap(o, cuts=0):
 for o in fx_:
     if o.name.startswith(("KamiFlaskLabel", "KamiFlaskChar")):
         wrap(o, cuts=10 if o.name.startswith("KamiFlaskLabel") else 0)
+# (item 574, the shrine area's third batch: the flask's body a clean low lathe, 16 round, its profile in 11 points, its foot closed by a ladder
+# (the lathe was 48 round, 1,632 triangles fanned into its foot's middle, and the decimator made 600 slivers of it); onto it are baked the
+# glaze's painting and the label with its red border and its name (they were pieces of their own, the name's three characters 739
+# triangles): their colour, their relief, and how glossy each is (the glaze glossy, the paper matte). The red cord round its neck (baked flat,
+# its ring was gone from the neck's outline), its knot, its tails and the paper streamer, which stand off it, kept as they were. It's picked up
+# and poured from: stage A only, a picture of its own)
+_fl_src = [o for o in fx_ if o.name == "KamiFlaskBody" or o.name.startswith(("KamiFlaskLabel", "KamiFlaskChar"))]
+FLOW = [(0.022, 0.0), (0.033, 0.005), (0.04, 0.026), (0.0385, 0.05), (0.028, 0.072), (0.016, 0.092), (0.011, 0.114), (0.0112, 0.13), (0.015, 0.145),
+        (0.012, 0.15), (0.0085, 0.136)]
+FSEG = 16
+_arc = [0.0]
+for (r0, y0), (r1, y1) in zip(FLOW, FLOW[1:]):
+    _arc.append(_arc[-1] + math.hypot(r1 - r0, y1 - y0))
+bm = bmesh.new()
+_rings = [[bm.verts.new(P(r * math.cos(j / FSEG * 2 * math.pi), y, r * math.sin(j / FSEG * 2 * math.pi))) for j in range(FSEG)] for r, y in FLOW]
+_uv = bm.loops.layers.uv.new()
+for i in range(len(FLOW) - 1):
+    for j in range(FSEG):
+        j2 = (j + 1) % FSEG
+        f = bm.faces.new((_rings[i][j], _rings[i][j2], _rings[i + 1][j2], _rings[i + 1][j]))
+        # (round it (u) and up its profile as far as along it (v): the outside and the lip's inside each their own rows of the picture)
+        for lp, (jj, ii) in zip(f.loops, ((j, i), (j + 1, i), (j + 1, i + 1), (j, i + 1))):
+            lp[_uv].uv = (jj / FSEG, 0.01 + _arc[ii] / _arc[-1] * 0.78)
+# (its foot, closed (a ladder on export), a disc of its own in the picture's corner)
+_foot = bm.faces.new(list(reversed(_rings[0])))
+for lp in _foot.loops:
+    co = lp.vert.co
+    lp[_uv].uv = (0.1 + co.x / 0.022 * 0.085, 0.895 + co.y / 0.022 * 0.085)
+bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+_fme = bpy.data.meshes.new("KamiFlaskBodyLow")
+bm.to_mesh(_fme)
+bm.free()
+_flo = bpy.data.objects.new("KamiFlaskBodyLow", _fme)
+bpy.context.collection.objects.link(_flo)
+for pl in _fme.polygons:
+    pl.use_smooth = pl.index != len(_fme.polygons) - 1
+FB = 512
+# (its colour twice as fine: the name's strokes at 512 came out thin and broken, and it's a thing that's picked up and looked at)
+img_fc = bpy.data.images.new("KamiFlaskColor", 2 * FB, 2 * FB)
+img_fn = bpy.data.images.new("KamiFlaskNormal", FB, FB)
+img_fn.colorspace_settings.name = "Non-Color"
+img_fr = bpy.data.images.new("KamiFlaskRough", FB, FB)
+img_fr.colorspace_settings.name = "Non-Color"
+_fbm = bpy.data.materials.new("KamiFlaskBake")
+_fbm.use_nodes = True
+_ftn = _fbm.node_tree.nodes.new("ShaderNodeTexImage")
+_flo.data.materials.append(_fbm)
+_sc = bpy.context.scene
+_sc.render.engine = "CYCLES"
+_sc.cycles.device = "CPU"
+_sc.cycles.samples = 16
+bpy.ops.object.select_all(action="DESELECT")
+for _o in _fl_src:
+    _o.select_set(True)
+_flo.select_set(True)
+bpy.context.view_layer.objects.active = _flo
+
+
+def _fbake(kind, img, **kw):
+    _ftn.image = img
+    _fbm.node_tree.nodes.active = _ftn
+    # (from 4 mm out (the label's name stands 2 mm off the glaze) in as far again)
+    bpy.ops.object.bake(type=kind, use_selected_to_active=True, cage_extrusion=0.004, max_ray_distance=0.008, margin=6, **kw)
+
+
+_fbake("NORMAL", img_fn, normal_space="TANGENT")
+# (the glaze as glossy as the room drew it (0.35: its own 0.22 was never shown, the room's material set its own))
+M["flaskGlaze"].node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.35
+_fbake("ROUGHNESS", img_fr)
+_sc.render.bake.use_pass_direct = False
+_sc.render.bake.use_pass_indirect = False
+_sc.render.bake.use_pass_color = True
+_fbake("DIFFUSE", img_fc, pass_filter={"COLOR"})
+for _im in (img_fc, img_fn, img_fr):
+    _im.pack()
+_sc.render.engine = "BLENDER_EEVEE"
+M["flaskGlaze"].name = "KamiFlaskGlazeHiBake"
+M["flaskGlaze"] = pbr("KamiFlaskGlaze", (1, 1, 1), tex=img_fc, nrm=img_fn, nrm_strength=1.0, rough=0.22)
+# (how glossy, from the picture: its green, as glTF packs a roughness picture (and three reads it))
+_fnt = M["flaskGlaze"].node_tree
+_frn = _fnt.nodes.new("ShaderNodeTexImage")
+_frn.image = img_fr
+_fsep = _fnt.nodes.new("ShaderNodeSeparateColor")
+_fnt.links.new(_frn.outputs["Color"], _fsep.inputs["Color"])
+_fnt.links.new(_fsep.outputs["Green"], _fnt.nodes["Principled BSDF"].inputs["Roughness"])
+_flo.data.materials.clear()
+_flo.data.materials.append(M["flaskGlaze"])
+fx_ = [o for o in fx_ if o not in _fl_src]
+for _o in _fl_src:
+    bpy.data.objects.remove(_o)
+_flo.name = "KamiFlaskBody"
+fx_.append(_flo)
 flask = bpy.data.objects.new("KamiFlask", None)
 bpy.context.collection.objects.link(flask)
 for o in fx_:
