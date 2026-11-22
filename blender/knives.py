@@ -155,14 +155,18 @@ def blade(k):
     the edge's and the spine's narrow faces, the heel's end; closing to one point at the tip"""
     bm = bmesh.new()
     uvl = bm.loops.layers.uv.new()
-    # (item 533: 20 steps along it, not 30 (at 16 the deba's belly showed a kink close to))
-    NX = 20
+    # (item 549, the owner's 「這面數很高」: eight steps along it, close where its edge and spine bend toward the tip, far apart down its
+    # straight heel and middle (twenty even steps before, 30 before item 533: a blade 238 triangles, the wire's dense strip of them); the
+    # flat back of a single-bevel blade one strip from the edge to the spine (its bevel line's row only on the front, where the bevel
+    # shows); its hazing, its temper line, its Damascus all in its picture as before)
+    STEPS = (0.0, 0.34, 0.58, 0.74, 0.85, 0.92, 0.965, 0.99, 1.0)
+    NX = len(STEPS) - 1
     rows = (0.0, k.bevel, 1.0)
     rows_v = (0.0, 0.1 if k.double else SH, 1.0)
     front, back = [], []
     tip = None
     for i in range(NX + 1):
-        x = k.length * i / NX
+        x = k.length * STEPS[i]
         if i == NX:
             tip = tip or bm.verts.new(place(k, x, interp(k.edge, x), 0.0))
             front.append([tip] * 3)
@@ -198,11 +202,14 @@ def blade(k):
         for loop, (_, uv) in zip(fc.loops, keep):
             loop[uvl].uv = uv
     for i in range(NX):
-        u0, u1 = i / NX, (i + 1) / NX
+        u0, u1 = STEPS[i], STEPS[i + 1]
         for j in range(2):
             v0, v1 = rows_v[j], rows_v[j + 1]
             face((front[i][j], front[i + 1][j], front[i + 1][j + 1], front[i][j + 1]), ((u0, v0), (u1, v0), (u1, v1), (u0, v1)))
-            face((back[i][j + 1], back[i + 1][j + 1], back[i + 1][j], back[i][j]), ((u0, v1), (u1, v1), (u1, v0), (u0, v0)))
+            if k.double:
+                face((back[i][j + 1], back[i + 1][j + 1], back[i + 1][j], back[i][j]), ((u0, v1), (u1, v1), (u1, v0), (u0, v0)))
+        if not k.double:
+            face((back[i][2], back[i + 1][2], back[i + 1][0], back[i][0]), ((u0, 1.0), (u1, 1.0), (u1, 0.0), (u0, 0.0)))
         # (the edge's hairline face and the spine's narrow one)
         face((front[i][0], back[i][0], back[i + 1][0], front[i + 1][0]), ((u0, 0.0), (u0, 0.0), (u1, 0.0), (u1, 0.0)))
         face((front[i + 1][2], back[i + 1][2], back[i][2], front[i][2]), ((u1, 1.0), (u1, 1.0), (u0, 1.0), (u0, 1.0)))
@@ -211,7 +218,7 @@ def blade(k):
     return from_bm(k.name, bm, k.steel)
 
 
-def octagon(name, cx, cy, z0, z1, r0, r1, mat, squash=0.86, grain=True):
+def octagon(name, cx, cy, z0, z1, r0, r1, mat, squash=0.86, grain=True, ease=True):
     """an octagonal piece standing from z0 to z1 about (cx, cy), r0 across at its foot and r1 at its top, a little narrower front to back
     (squash), its edges eased; its picture's grain running up it"""
     bm = bmesh.new()
@@ -230,6 +237,9 @@ def octagon(name, cx, cy, z0, z1, r0, r1, mat, squash=0.86, grain=True):
         for loop in fc.loops:
             loop[uvl].uv = (0.5, 0.5)
     o = from_bm(name, bm, mat)
+    # (item 549: the ferrules and the spacer left square-edged (`ease`): 92 triangles to 28, a ring 2 cm and 2 mm tall)
+    if not ease:
+        return o
     # (item 533: its eased edges one step, not two: 2 cm pieces at 220 triangles each, the bevels' rounds unseen at the rack's distance)
     bev = bevel(o, min(0.0009, r0 * 0.08), 1, angle=False)
     bpy.context.view_layer.objects.active = o
@@ -242,10 +252,10 @@ def handle(k):
     w0 = interp(k.spine, 0.0)
     cx, cy = k.x0 + w0 * 0.6, BLADE_Y - k.thick / 2
     fl = 0.024
-    octagon(k.name + "Ferrule", cx, cy, RAIL_TOP, RAIL_TOP + fl, k.r * 0.9, k.r * 0.92, k.ferrule_mat, grain=False)
+    octagon(k.name + "Ferrule", cx, cy, RAIL_TOP, RAIL_TOP + fl, k.r * 0.9, k.r * 0.92, k.ferrule_mat, grain=False, ease=False)
     z = RAIL_TOP + fl
     if k.spacer:
-        octagon(k.name + "Spacer", cx, cy, z, z + 0.0022, k.r * 0.925, k.r * 0.93, M["silver"], grain=False)
+        octagon(k.name + "Spacer", cx, cy, z, z + 0.0022, k.r * 0.925, k.r * 0.93, M["silver"], grain=False, ease=False)
         z += 0.0022
     octagon(k.name + "Handle", cx, cy, z, RAIL_TOP + fl + k.handle_len, k.r * 0.93, k.r, k.handle_mat)
     # (the tang's neck, between the blade's heel and the ferrule: a short square of steel, mostly behind the rail)
@@ -345,7 +355,7 @@ for sx in (-1, 1):
 # (brass screws: two through the rail's ends, two at the board's foot)
 for x, y, z in ((-(BW / 2 - 0.012), -BD - GAP - RAIL_D, RAIL_TOP - RAIL_H / 2), ((BW / 2 - 0.012), -BD - GAP - RAIL_D, RAIL_TOP - RAIL_H / 2),
                 (-(BW / 2 - 0.016), -BD, B_BOT + 0.016), ((BW / 2 - 0.016), -BD, B_BOT + 0.016)):
-    bpy.ops.mesh.primitive_cylinder_add(vertices=10, radius=0.0042, depth=0.003, location=(x, y - 0.0012, z), rotation=(math.pi / 2, 0, 0))
+    bpy.ops.mesh.primitive_cylinder_add(vertices=8, radius=0.0042, depth=0.003, location=(x, y - 0.0012, z), rotation=(math.pi / 2, 0, 0))
     o = bpy.context.view_layer.objects.active
     fin(o, "KnifeScrew", M["screw"], smooth_shade=False)
     bpy.ops.mesh.primitive_cube_add(size=1, location=(x, y - 0.0029, z))
