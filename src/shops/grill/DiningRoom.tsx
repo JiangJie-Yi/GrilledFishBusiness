@@ -12,6 +12,7 @@ import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { SWITCH_SPOT } from '@/game/shopState'
 import * as THREE from 'three'
 import { NO_RAY } from '@/scene/pickable'
+import { shopPicture } from '@/scene/flatGate'
 import { warmLater } from '@/scene/Prewarm'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { homeCopy, plainColours, StaticBatch, mergeByMaterial, type BatchParts } from '@/scene/StaticBatch'
@@ -2747,7 +2748,8 @@ function Scroll({ art }: { art: ArtKey }) {
 /** a picture from public/textures, laid to repeat (its tiling set where it's used) */
 function fileTex(file: string) {
   if (typeof document === 'undefined') return null
-  const t = new THREE.TextureLoader().load(import.meta.env.BASE_URL + 'textures/' + file)
+  // (not fetched on a phone, which draws no 3D (scene/flatGate))
+  const t = shopPicture(file)
   t.colorSpace = THREE.SRGBColorSpace
   t.wrapS = t.wrapT = THREE.RepeatWrapping
   t.anisotropy = 8

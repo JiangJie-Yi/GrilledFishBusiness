@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { replaces } from './hot'
+import { whenDrawn } from './flatGate'
 
 /**
  * The shop's lettering: Zen Antique, a retro Mincho with the pen's swell in every stroke (index.html asks for it in a
@@ -50,14 +51,21 @@ export function signTexture(w: number, h: number, draw: Painted['draw'], repeat 
   const c = document.createElement('canvas')
   c.width = w
   c.height = h
-  draw(c.getContext('2d')!, w, h)
   const tex = new THREE.CanvasTexture(c)
   tex.colorSpace = THREE.SRGBColorSpace
   if (repeat) tex.wrapS = tex.wrapT = THREE.RepeatWrapping
-  // (drawn above with the font already in if it is; otherwise repainted once it arrives, until the texture is let go)
+  // (drawn now with the font already in if it is; otherwise repainted once it arrives, until the texture is let go; on a phone at the start,
+  // with no 3D, only once it's drawn (scene/flatGate): the signs' letters asked for the whole of the shop's lettering, 2.2 MB of it, item 516)
   const entry = { c, draw, tex }
-  painted.push(entry)
+  let gone = false
+  whenDrawn(() => {
+    if (gone) return
+    draw(c.getContext('2d')!, w, h)
+    tex.needsUpdate = true
+    painted.push(entry)
+  })
   tex.addEventListener('dispose', () => {
+    gone = true
     const i = painted.indexOf(entry)
     if (i >= 0) painted.splice(i, 1)
   })

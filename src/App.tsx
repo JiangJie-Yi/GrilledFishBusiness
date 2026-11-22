@@ -117,7 +117,7 @@ import { Office, type OfficeTab } from '@/ui/Office'
 import { Welcome } from '@/ui/Welcome'
 import { QUALITY, stepDown, webglReport } from '@/scene/quality'
 import { showsFlat } from '@/game/device'
-import { MOBILE } from '@/scene/flatGate'
+import { MOBILE, markDrawn } from '@/scene/flatGate'
 import { platerOf } from '@/game/kitchenCrew'
 import { HOUSE_CHEF, PIT_LIFT, Roasting, type CrewMember } from '@/shops/grill/Roasting'
 import { PhoneClosed } from '@/ui/PhoneClosed'
@@ -2918,7 +2918,8 @@ export default function App() {
     ro.observe(app)
     ro.observe(stage)
     return () => ro.disconnect()
-  }, [])
+    // (again as a phone's window grows to a computer's: on a phone there's no stage, only its card)
+  }, [phone])
   // charcoal grill: burns down by itself at about the pace of real binchotan on a grill (a full bed lasts about an
   // hour and a half; a handful of fresh charcoal, 添炭, about a quarter of an hour more)
   // the charcoal isn't lit to begin with: add charcoal to start the fire
@@ -3868,6 +3869,9 @@ export default function App() {
     const e = Object.values(menuByRef.current).flat().find((x) => x.key === key)
     return !!e && orderEntryRef.current(e, guest, reuse, atTill, warm)
   }, [])
+  // (a phone: its card alone (PhoneClosed), the game going on unseen as it did; the shop's panels, buttons and boards laid out under the card
+  // asked for every subset of the shop's lettering in both its weights, 2.3 MB of fonts, item 516)
+  if (flatGrill) return <PhoneClosed lang={lang} />
   return (
     <div className={`app${menuFolded || (owner !== null && !opened[dish.id]) ? ' menu-folded' : ''}${toolsOpen ? ' tools-open' : ''}${ai ? ' is-open-shop' : ''}${owner !== null && !opened[dish.id] ? ' is-unopened' : ''}${!opened[dish.id] ? ' is-hushed' : ''}${spotOn && !opened[dish.id] ? ' is-spotlit' : ''}${flatGrill ? ' is-flatgrill' : ''}${editOn ? ' is-editing' : ''}${!!dish.roast && !editOn ? ' has-fridge' : ''}${office || fridgeOpen ? ' is-docked' : ''} hud-rows-${hudRows}`} ref={appRef}>
       {/* the 3D view fills the whole window behind the stage and the menu, so nothing is cut off at the menu's
@@ -3907,6 +3911,8 @@ export default function App() {
           dpr={pacedDpr ?? (typeof window === 'undefined' ? 1 : onBattery ? Math.min(window.devicePixelRatio || 1, 1) : Math.min(QUALITY.dpr, DPR_MAX, window.devicePixelRatio || 1))}
           onPointerMissed={() => window.dispatchEvent(new Event('scene-blank-click'))}
           onCreated={({ gl, camera, scene, get }) => {
+            // (the pictures held back on a phone at the start fetched now: the window's grown to a computer's (scene/flatGate's shopPicture))
+            markDrawn()
             // (in development, the renderer's counts are to hand for checking how heavy a view is; and the canvas's state (its frame
             // callbacks), for timing them)
             if (import.meta.env.DEV) Object.assign(window, { __gl: gl, __cam: camera, __scene: scene, __THREE: THREE, __r3f: get })
@@ -3961,7 +3967,6 @@ export default function App() {
         </Crash>
       </div>
       <div className="stage" ref={stageRef}>
-        {flatGrill && <PhoneClosed lang={lang} />}
         <Brand night={theme === 'dark'} late={lateNow} lang={lang} shop={dish.id} dark={!opened[dish.id]} ignite={ignite}
           onClick={editOn ? undefined : toggleRating} />
         {/* (the shop's rating, from its sign (the owner's): every customer's satisfaction made into its stars; a drawer out from the left, kept

@@ -19,6 +19,7 @@ import { BASE_MATERIAL } from '@/scene/baseMaterial'
 import { SOFT_DOT } from '@/scene/softDot'
 import { useGLTF } from '@react-three/drei'
 import { Html } from '@/scene/Html'
+import { shopPicture, whenDrawn } from '@/scene/flatGate'
 import { useFrame, useThree } from '@react-three/fiber'
 import { keepOut, nearTable, type HearthRole, type HearthZones } from '@/game/hearthGuard'
 import * as THREE from 'three'
@@ -1567,7 +1568,8 @@ const BOSS_WALK = bossFrame(ALONG.clone().multiplyScalar(1.7).addScaledVector(LA
 /** a wood texture of blender/woodtex.py's, tiled every `w` x `h` of the table's units */
 function woodTex(file: string, w: number, h: number) {
   if (typeof document === 'undefined') return null
-  const t = new THREE.TextureLoader().load(import.meta.env.BASE_URL + 'textures/' + file)
+  // (not fetched on a phone, which draws no 3D (scene/flatGate))
+  const t = shopPicture(file)
   t.colorSpace = THREE.SRGBColorSpace
   t.wrapS = t.wrapT = THREE.RepeatWrapping
   t.repeat.set(1 / w, 1 / h)
@@ -3471,12 +3473,13 @@ const SHIKI_GEO = new THREE.PlaneGeometry(SHIKI_W, SHIKI_D).rotateX(-Math.PI / 2
 const SHIKI_TEX = signTexture(SHIKI_SIZE[0], SHIKI_SIZE[1], (g) => paintShikigami(g))
 if (SHIKI_TEX) SHIKI_TEX.anisotropy = 8
 const SHIKI_MAT = new THREE.MeshToonMaterial({ color: '#ffffff', map: SHIKI_TEX })
-if (typeof document !== 'undefined') void document.fonts?.load('700 40px "LXGW WenKai TC"', '聞野炭火焼魚炭の香や串の雫に秋の声').then(() => {
+// (on a phone at the start only once the 3D's drawn (scene/flatGate): it fetched the lettering for a page with no 3D)
+if (typeof document !== 'undefined') whenDrawn(() => void document.fonts?.load('700 40px "LXGW WenKai TC"', '聞野炭火焼魚炭の香や串の雫に秋の声').then(() => {
   const c = SHIKI_TEX?.image as HTMLCanvasElement | undefined
   if (!c) return
   paintShikigami(c.getContext('2d')!)
   SHIKI_TEX!.needsUpdate = true
-}).catch(() => {})
+}).catch(() => {}))
 /**
  * The bar's tableware, each piece its own (the owner's, 2026-11-10: they were part of the bar's one batch, nothing when pointed at and not
  * to be moved in edit mode): at each place its chopsticks on their rest (one piece: they go together) and its little soy dish; each two

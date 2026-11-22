@@ -6998,6 +6998,9 @@ body.be-tool .char-dock { right: calc(var(--bt-right) + 12px); top: calc(var(--b
   overflow: hidden;
   box-shadow: 0 18px 50px rgb(0 0 0 / 0.45);
   border: 1px solid rgb(255 255 255 / 0.12);
+  /* (the phone's own letters, as the loading screen's line under its title: the shop's lettering is 2.3 MB on a phone for these two lines,
+     item 516; the name over them stays in the title's face) */
+  font-family: system-ui, sans-serif;
 }
 .phone-closed-card > header {
   display: flex;
