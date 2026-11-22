@@ -294,15 +294,22 @@ def crest_half(name, at, rad, sd):
     x, y, z = at
     f = rad / 0.0105
     objs = []
-    bpy.ops.mesh.primitive_cylinder_add(vertices=40, radius=rad, depth=0.0016, location=P(x, y, z), rotation=(0, math.pi / 2, 0))
+    # (item 574: low, as it's seen: some 25 pixels across in the shrine's view; a disc of 24, its ring 32 round (its outline the first to
+    # show corners, close to) and 4 about, the leaves balls of quads (a UV sphere's poles fan their triangles into a point): 802 triangles a
+    # half before, the ring 48 by 6, the leaves 16 by 8)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=rad, depth=0.0016, location=P(x, y, z), rotation=(0, math.pi / 2, 0))
     objs.append((active(), M["plaque"]))
-    bpy.ops.mesh.primitive_torus_add(major_radius=rad * 0.86, minor_radius=0.0006 * f, major_segments=48, minor_segments=6, location=P(x - 0.0009, y, z),
+    bpy.ops.mesh.primitive_torus_add(major_radius=rad * 0.86, minor_radius=0.0006 * f, major_segments=32, minor_segments=4, location=P(x - 0.0009, y, z),
                                      rotation=(0, math.pi / 2, 0))
     objs.append((active(), M["gold"]))
     for j in range(3):
         a_ = math.pi / 2 + j * 2 * math.pi / 3
-        bpy.ops.mesh.primitive_uv_sphere_add(radius=1, segments=16, ring_count=8, location=P(x - 0.0009, y + math.sin(a_) * 0.0046 * f, z + math.cos(a_) * 0.0046 * f))
+        bpy.ops.mesh.primitive_cube_add(size=2, location=P(x - 0.0009, y + math.sin(a_) * 0.0046 * f, z + math.cos(a_) * 0.0046 * f))
         lf = active()
+        bpy.ops.object.mode_set(mode="EDIT"); bpy.ops.mesh.select_all(action="SELECT"); bpy.ops.mesh.subdivide(number_cuts=2)
+        bpy.ops.object.mode_set(mode="OBJECT")
+        for vv in lf.data.vertices:
+            vv.co = vv.co.normalized()
         lf.scale = (0.0004, 0.0028 * f, 0.005 * f)
         lf.rotation_euler = (a_ - math.pi / 2, 0, 0)
         objs.append((lf, M["gold"]))
@@ -319,6 +326,23 @@ def crest_half(name, at, rad, sd):
         bpy.ops.object.mode_set(mode="EDIT"); bpy.ops.mesh.select_all(action="SELECT")
         bpy.ops.mesh.bisect(plane_co=P(x, y, z), plane_no=(0, -sd, 0), clear_inner=True, use_fill=True)
         bpy.ops.object.mode_set(mode="OBJECT")
+        # (the cut closed with a ladder here, not left as the fill's one face (a leaf's cut is a 12-gon) for the export to cut as it may: its
+        # test for a convex face reads a few millimetres' turns at the edge of what it can tell)
+        bm_ = bmesh.new()
+        bm_.from_mesh(o.data)
+        pc, pn = Vector(P(x, y, z)), Vector((0, -sd, 0))
+        uvl_ = bm_.loops.layers.uv.active
+        for fc in [fc for fc in bm_.faces if len(fc.verts) > 4 and all(abs((v.co - pc).dot(pn)) < 1e-6 for v in fc.verts)]:
+            ring, mat_ = [lp.vert for lp in fc.loops], fc.material_index
+            uvs_ = {lp.vert: lp[uvl_].uv.copy() for lp in fc.loops} if uvl_ else None
+            bm_.faces.remove(fc)
+            for nf in ladder_fill(bm_, ring):
+                nf.material_index = mat_
+                if uvl_:
+                    for lp in nf.loops:
+                        lp[uvl_].uv = uvs_[lp.vert]
+        bm_.to_mesh(o.data)
+        bm_.free()
         out_.append(finish(o, f"{name}{k_}", m_))
     return out_
 
