@@ -369,6 +369,19 @@ const coinFace = (kind: CoinKind) => {
     sheen.addColorStop(0, 'rgba(255,255,255,0.28)'); sheen.addColorStop(0.45, 'rgba(255,255,255,0)'); sheen.addColorStop(1, 'rgba(0,0,0,0.12)')
     g.fillStyle = sheen
     g.fillRect(0, 0, S, S)
+    // (item 550: its edge's dark line round it, where the cylinder's side showed between coins lying over each other)
+    g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 3
+    g.beginPath(); g.arc(C, C, 124.5, 0, Math.PI * 2); g.stroke()
+    if (c.hole) { g.lineWidth = 2; g.beginPath(); g.arc(C, C, 26, 0, Math.PI * 2); g.stroke() }
+    // (item 550: the coin a card now, its picture its shape: clear outside its edge and through the 5's and 50's hole)
+    g.fillStyle = '#000000'   // (opaque: the cut keeps what's under it as it is, not at the sheen's faint alpha)
+    g.globalCompositeOperation = 'destination-in'
+    g.beginPath(); g.arc(C, C, 126, 0, Math.PI * 2); g.fill()
+    if (c.hole) {
+      g.globalCompositeOperation = 'destination-out'
+      g.beginPath(); g.arc(C, C, 25, 0, Math.PI * 2); g.fill()
+    }
+    g.globalCompositeOperation = 'source-over'
   })
 }
 
@@ -393,7 +406,7 @@ const coinMats = (kind: CoinKind) => {
   // (struck metal: a satin sheen that catches the lamps, the aluminium 1 duller; the edge the metal's own darker tone)
   const metal = kind === 1 ? 0.55 : 0.85, rough = kind === 1 ? 0.5 : 0.32
   const side = new THREE.MeshStandardMaterial({ color: COINS[kind].edge, metalness: metal, roughness: rough + 0.1 })
-  const out = [side, new THREE.MeshStandardMaterial({ color: '#ffffff', map: coinTex.get(kind), metalness: metal, roughness: rough, envMapIntensity: 1.2 }), side]
+  const out = [side, new THREE.MeshStandardMaterial({ color: '#ffffff', map: coinTex.get(kind), metalness: metal, roughness: rough, envMapIntensity: 1.2, alphaTest: 0.5 }), side]
   coinMatsMade.set(kind, out)
   return out
 }
@@ -459,8 +472,16 @@ export const coinRollMats = (kind: CoinKind) => {
   return out
 }
 const NOTE_GEO = new THREE.BoxGeometry(NOTE_W, 1, NOTE_D)
-const COIN_GEO: Partial<Record<CoinKind, THREE.CylinderGeometry>> = {}
-const coinGeo = (kind: CoinKind) => (COIN_GEO[kind] ??= new THREE.CylinderGeometry(COINS[kind].r, COINS[kind].r, 1, 28))
+/**
+ * A coin as a card lying flat, its face up (item 550, the owner's 「錢可以做成一片一片」「用貼圖」): a square of two triangles, its picture
+ * the coin, clear round it and through its hole (alphaTest); a coin is 1.6 mm thick, its edge never seen from the till. It was a cylinder
+ * 28 round, both its faces fans of 28 into the middle (the low-poly rule's worst), 112 triangles a coin, a full drawer some 4,500.
+ */
+const COIN_GEO: Partial<Record<CoinKind, THREE.BufferGeometry>> = {}
+const coinGeo = (kind: CoinKind) => (COIN_GEO[kind] ??= new THREE.PlaneGeometry(COINS[kind].r * 2, COINS[kind].r * 2).rotateX(-Math.PI / 2))
+/** a stack of coins' side, as it's seen: a short open tube, twelve round (only a stack of two or more) */
+const COIN_SIDE: Partial<Record<CoinKind, THREE.BufferGeometry>> = {}
+const coinSide = (kind: CoinKind) => (COIN_SIDE[kind] ??= new THREE.CylinderGeometry(COINS[kind].r, COINS[kind].r, 1, 12, 1, true))
 
 /** a stack of `n` notes lying flat (its long side along x), its base at the group's y = 0 */
 export function NoteStack({ kind, n = 1, ...rest }: { kind: Note; n?: number } & Record<string, unknown>) {
@@ -472,7 +493,13 @@ export function NoteStack({ kind, n = 1, ...rest }: { kind: Note; n?: number } &
 export function CoinStack({ kind, n = 1, ...rest }: { kind: CoinKind; n?: number } & Record<string, unknown>) {
   const mats = useMemo(() => coinMats(kind), [kind])
   const h = 0.0016 * n
-  return <group {...rest}><mesh geometry={coinGeo(kind)} material={mats} scale={[1, h, 1]} position-y={h / 2} castShadow /></group>
+  // (the top coin's face a card at the stack's top; its side a tube only when it's more than one coin)
+  return (
+    <group {...rest}>
+      <mesh geometry={coinGeo(kind)} material={mats[1]} position-y={h} castShadow />
+      {n > 1 && <mesh geometry={coinSide(kind)} material={mats[0]} scale={[1, h, 1]} position-y={h / 2} castShadow />}
+    </group>
+  )
 }
 
 /** a sum made up from the fewest notes and coins, biggest first */
@@ -493,7 +520,7 @@ export const isNote = (v: number): v is Note => v >= 1000
 export const CoinPile = memo(function CoinPile({ kind, n, w, d, seed = 1, ...rest }: { kind: CoinKind; n: number; w: number; d: number; seed?: number } & Record<string, unknown>) {
   const mats = useMemo(() => instancedCoinMats(kind), [kind])
   const mesh = useMemo(() => {
-    const m = new THREE.InstancedMesh(coinGeo(kind), mats, n)
+    const m = new THREE.InstancedMesh(coinGeo(kind), mats[1], n)
     let r = seed * 9301 + kind * 49297
     const rnd = () => ((r = (r * 16807) % 2147483647) / 2147483647)
     const o = new THREE.Object3D()
@@ -505,9 +532,8 @@ export const CoinPile = memo(function CoinPile({ kind, n, w, d, seed = 1, ...res
       const x = (rnd() + rnd() - 1) * (w / 2 - rad)
       const z = (rnd() + rnd() - 1) * (d / 2 - rad)
       const under = placed.filter((p) => Math.hypot(p.x - x, p.z - z) < rad * 1.6).reduce((a, p) => Math.max(a, p.y + t), 0)
-      o.position.set(x, under + t / 2, z)
+      o.position.set(x, under + t, z)
       o.rotation.set((rnd() - 0.5) * 0.24, rnd() * Math.PI * 2, (rnd() - 0.5) * 0.24)
-      o.scale.set(1, t, 1)
       o.updateMatrix()
       m.setMatrixAt(i, o.matrix)
       placed.push(o.position.clone())
