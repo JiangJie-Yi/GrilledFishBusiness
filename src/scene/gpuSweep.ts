@@ -77,6 +77,13 @@ const released = new WeakSet<THREE.BufferGeometry>()
 export const IDLE_RELEASED = { count: 0, last: 0, ms: 0 }
 const whole = (g: THREE.BufferGeometry) =>
   (!g.index || !!g.index.array?.length) && Object.values(g.attributes).every((a) => !!(a as THREE.BufferAttribute).array?.length)
+/** each attribute (and the index) a geometry draws with, its morph targets' too; stops at the first `fn` that says so */
+function anyPart(g: THREE.BufferGeometry, fn: (p: object) => boolean): boolean {
+  for (const k in g.attributes) if (fn(g.attributes[k])) return true
+  if (g.index && fn(g.index)) return true
+  for (const list of Object.values(g.morphAttributes)) for (const a of list ?? []) if (fn(a)) return true
+  return false
+}
 export function idleRelease(scene: THREE.Object3D, every = 10000): () => void {
   let idle = new Set<THREE.BufferGeometry>()
   const tick = () => {
@@ -84,19 +91,29 @@ export function idleRelease(scene: THREE.Object3D, every = 10000): () => void {
     const shown = new Set<THREE.BufferGeometry>()
     scene.traverseVisible((o) => { const g = (o as THREE.Mesh).geometry; if (g) shown.add(g) })
     for (const g of shown) released.delete(g)
+    const all = new Set<THREE.BufferGeometry>()
+    scene.traverse((o) => { const g = (o as THREE.Mesh).geometry; if (g) all.add(g) })
+    // (and none sharing an attribute or its index with another geometry (the boss's and the staff's skinned figures and their other poses, the
+    // bottles, the rice cooker, the switches: 25 shared with a shown one, the Tester window's find, item 586): disposing it deletes the shared
+    // buffer on the GPU while the other's still drawn from it (or, hidden too, will be: its vertex array still pointing at the deleted one))
+    const owner = new Map<object, THREE.BufferGeometry>()
+    const shared = new Set<object>()
+    for (const g of all) anyPart(g, (p) => { const u = owner.get(p); if (u === undefined) owner.set(p, g); else if (u !== g) shared.add(p); return false })
     const next = new Set<THREE.BufferGeometry>()
     let n = 0
-    scene.traverse((o) => {
-      const g = (o as THREE.Mesh).geometry
-      if (!g || shown.has(g) || released.has(g) || next.has(g)) return
+    for (const g of all) {
+      if (shown.has(g) || released.has(g)) continue
+      if (shared.size && anyPart(g, (p) => shared.has(p))) continue
       if (idle.has(g) && whole(g)) { g.dispose(); released.add(g); n++ } else next.add(g)
-    })
+    }
     idle = next
     IDLE_RELEASED.count += n
     IDLE_RELEASED.last = n
     IDLE_RELEASED.ms = performance.now() - t0
   }
-  const t = window.setInterval(tick, every)
+  // (run while the browser's idle, not in the middle of a frame's time)
+  const soon = () => { if ('requestIdleCallback' in window) window.requestIdleCallback(tick, { timeout: 3000 }); else tick() }
+  const t = window.setInterval(soon, every)
   return () => window.clearInterval(t)
 }
 
