@@ -45,3 +45,22 @@ export const PLATE_SPREAD: Record<PlateKind, number> = { long: 0.034, round: 0.0
 /** where the n-th thing put on a plate lies, across it, in units of PLATE_SPREAD (the first in the middle, the next to one side, the third
  * to the other), and which layer it's in */
 export const plateSide = (row: number) => ({ across: [0, -1, 1][row % 3], layer: Math.floor(row / 3) })
+
+/** (item 557) on the long plate, the long ones' row toward its back edge, and where the loose ones lie: across from its middle and along it
+ * (the bar's units) */
+export const LONG_BACK = -0.018, LOOSE_FRONT = 0.036
+/** the loose ones' places along the long plate's front edge, from its middle out to either end (and a second row over the first) */
+const LOOSE_ALONG = [0, -0.075, 0.075, -0.0375, 0.0375]
+/**
+ * Where a thing lies on its plate (item 557, the owner's 「模型發現都沒擺好」): across it, along it (the bar's units) and in which layer. On
+ * the long plate (a whole fish, a squid or a skewer, and what came with it) the long ones lie side by side toward its back edge, as before
+ * but a little back from its middle, and the loose ones (a rice cake, a mushroom, a potato, a rice ball) in a row along its front edge, from
+ * its middle out toward its ends, as a grilled fish is served with what goes with it before it: they were all side by side across its width,
+ * 3.4 cm apart, on a plate 11.5 cm wide, a fish over the mushrooms beside it, lifted onto them and tipped. On a round or a little plate as
+ * before (plateSide). `nth`: how many of its kind (long, or loose) are on it already.
+ */
+export const plateSpot = (kind: PlateKind, nth: number, loose: boolean) => {
+  if (kind !== 'long') { const s = plateSide(nth); return { across: s.across * PLATE_SPREAD[kind], along: 0, layer: s.layer } }
+  if (!loose) { const s = plateSide(nth); return { across: LONG_BACK + s.across * PLATE_SPREAD.long, along: 0, layer: s.layer } }
+  return { across: LOOSE_FRONT, along: LOOSE_ALONG[nth % LOOSE_ALONG.length], layer: Math.floor(nth / LOOSE_ALONG.length) }
+}
