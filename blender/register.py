@@ -435,18 +435,83 @@ drawer_parts.append(box("RegTrayBack", S(0.35, 0.04, 0.007), P(0, 0.03, 0.1385),
 INS_Y = 0.017                      # the tray's floor
 INS_W, INS_Z0, INS_Z1 = 0.334, -0.152, 0.134
 BILL_Z0, COIN_Z1 = 0.004, -0.006   # where the note compartments begin, the coin cups end
-# (its edges and its wells' corners rounded in two steps, not three and five: the insert was 2,736 triangles, seen only with the drawer out)
-ins = box("RegInsert", S(INS_W, 0.022, INS_Z1 - INS_Z0), P(0, INS_Y + 0.011, (INS_Z0 + INS_Z1) / 2), M["tray"], bev=0.003, segs=2)
-# (the note compartments: wide shallow wells, a low divider between each)
-for i in range(4):
-    cx = INS_W / 2 - (i + 0.5) * INS_W / 4
-    cut(ins, box("bc", S(INS_W / 4 - 0.006, 0.03, INS_Z1 - BILL_Z0 - 0.008), P(cx, INS_Y + 0.004 + 0.015, (BILL_Z0 + INS_Z1) / 2 - 0.002), M["tray"], bev=0.004, segs=2))
-# (the coin cups: deep, round-cornered, their floors sweeping up to the front)
-for i in range(6):
-    cx = INS_W / 2 - (i + 0.5) * INS_W / 6
-    cutter = box("cc", S(INS_W / 6 - 0.008, 0.03, COIN_Z1 - INS_Z0 - 0.01), P(cx, INS_Y + 0.003 + 0.015, (INS_Z0 + COIN_Z1) / 2), M["tray"], bev=0.009, segs=3)
-    cutter.rotation_euler = (-0.12, 0, 0)
-    cut(ins, cutter)
+# (item 550, the owner's 「收銀櫃面數高的誇張，且佈線很怪會影響到收銀抽屜得形狀」: the insert built of its own walls, dividers and floors,
+# each face a quad where it's seen, none where it's against another; it was a bevelled block with ten bevelled boxes cut out of it, 1,528
+# triangles in long slivers fanned across it, its wells' shading streaked by them. The wells where they were (the cutters' sizes: the notes'
+# floors 4 mm up, 3 mm walls and 6 mm dividers; the coin cups' 4 mm walls and 8 mm dividers, their floors the cutters' slope (0.12 across,
+# rising toward the notes), down to the tray's floor at the front, a hair over it, where the cutters went through), so the game's money
+# (GuestBar3D's NOTE_*, COIN_*) lies as it did. Square corners where the cutters' were rounded.
+def _insert():
+    bm = bmesh.new()
+    Y0, TOP, FN = INS_Y, INS_Y + 0.022, INS_Y + 0.004
+    XO = INS_W / 2
+    ZF, ZB = INS_Z0, INS_Z1                     # the insert's front and back
+    ZCF, ZCB = INS_Z0 + 0.005, -0.011            # the coin cups' front and back
+    ZNF, ZNB = 0.006, INS_Z1 - 0.006             # the note wells' front and back
+
+    def v(x, y, z):
+        return bm.verts.new(P(x, y, z))
+
+    def quad(a, b_, c, d):
+        bm.faces.new((a, b_, c, d))
+
+    def block(x0, x1, y0, y1, z0, z1, faces=("top", "x0", "x1", "z0", "z1")):
+        """a box from (x0, y0, z0) to (x1, y1, z1), with only the faces asked for (never its bottom)"""
+        c = {(i, j, k): v((x0, x1)[i], (y0, y1)[j], (z0, z1)[k]) for i in (0, 1) for j in (0, 1) for k in (0, 1)}
+        if "top" in faces:
+            quad(c[0, 1, 0], c[0, 1, 1], c[1, 1, 1], c[1, 1, 0])
+        if "x0" in faces:
+            quad(c[0, 0, 0], c[0, 0, 1], c[0, 1, 1], c[0, 1, 0])
+        if "x1" in faces:
+            quad(c[1, 0, 0], c[1, 1, 0], c[1, 1, 1], c[1, 0, 1])
+        if "z0" in faces:
+            quad(c[0, 0, 0], c[0, 1, 0], c[1, 1, 0], c[1, 0, 0])
+        if "z1" in faces:
+            quad(c[0, 0, 1], c[1, 0, 1], c[1, 1, 1], c[0, 1, 1])
+
+    # (the walls round it and across it: front, the one between the coins and the notes, back; their ends the insert's sides)
+    block(-XO, XO, Y0, TOP, ZF, ZCF, ("top", "x0", "x1", "z0", "z1"))
+    block(-XO, XO, Y0, TOP, ZCB, ZNF, ("top", "x0", "x1", "z0", "z1"))
+    block(-XO, XO, Y0, TOP, ZNB, ZB, ("top", "x0", "x1", "z0", "z1"))
+    # (the sides: 3 mm along the notes, 4 mm along the coins)
+    for sd in (-1, 1):
+        lo, hi = sorted((sd * XO, sd * (XO - 0.003)))
+        block(lo, hi, Y0, TOP, ZNF, ZNB, ("top", "x0", "x1"))
+        lo, hi = sorted((sd * XO, sd * (XO - 0.004)))
+        block(lo, hi, Y0, TOP, ZCF, ZCB, ("top", "x0", "x1"))
+    # (the notes' floor, and the three dividers standing on it)
+    block(-XO + 0.003, XO - 0.003, Y0, FN, ZNF, ZNB, ("top",))
+    for i in (1, 2, 3):
+        cx = XO - i * INS_W / 4
+        block(cx - 0.003, cx + 0.003, FN, TOP, ZNF, ZNB, ("top", "x0", "x1"))
+    # (the coin cups' five dividers, and each cup's floor: the cutter's slope, down to a hair over the tray's floor)
+    pitch = INS_W / 6
+    for i in (1, 2, 3, 4, 5):
+        cx = XO - i * pitch
+        block(cx - 0.004, cx + 0.004, Y0, TOP, ZCF, ZCB, ("top", "x0", "x1"))
+    floor_y = lambda z: max(INS_Y + 0.003 + 0.12 * (z - (INS_Z0 + COIN_Z1) / 2), Y0 + 0.0003)
+    z_bend = (INS_Z0 + COIN_Z1) / 2 + (Y0 + 0.0003 - INS_Y - 0.003) / 0.12
+    for i in range(6):
+        x1 = XO - 0.004 - i * pitch
+        x0 = x1 - pitch + 0.008
+        zs = (ZCF, z_bend, ZCB) if ZCF < z_bend < ZCB else (ZCF, ZCB)
+        row = [(v(x0, floor_y(z), z), v(x1, floor_y(z), z)) for z in zs]
+        for (a0, a1), (b0, b1) in zip(row, row[1:]):
+            quad(a0, b0, b1, a1)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-7)
+    # (each face wound outward as it's made: an open shell's normals aren't recalculated)
+    me = bpy.data.meshes.new("RegInsert")
+    bm.to_mesh(me)
+    bm.free()
+    o = bpy.data.objects.new("RegInsert", me)
+    bpy.context.collection.objects.link(o)
+    o.data.materials.append(M["tray"])
+    for f in o.data.polygons:
+        f.use_smooth = False
+    return o
+
+
+ins = _insert()
 uv_box(ins)
 drawer_parts.append(ins)
 # (in the 2000 compartment, as most shops do: rolls of coins (棒金), fifty coins each in clear film, the bank's paper band round the middle.
