@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, type MutableRefObject, type ReactNode } from 'react'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import { mergeState } from './worldMerge'
 
 /*
  * Things that never move, drawn as a handful of meshes instead of hundreds. Its children are built as usual (each a
@@ -277,7 +278,11 @@ export function homeCopy(root: THREE.Object3D, movers: THREE.Object3D[]) {
   const inv = new THREE.Matrix4().copy(root.matrixWorld).invert()
   const groups = new Map<THREE.Material, { geos: THREE.BufferGeometry[]; shadow: boolean; order: number }>()
   for (const mv of movers) mv.traverse((m) => {
-    if (!(m instanceof THREE.Mesh) || m instanceof THREE.SkinnedMesh || m instanceof THREE.InstancedMesh || Array.isArray(m.material) || !m.visible) return
+    // (shown as its own code has it: one the room's merge has taken reads hidden while it's drawn by the merge (worldMerge's mergeAway), and
+    // a copy made again after it was taken left it out, its part then hidden by home(true) and drawn by neither (the Art window's report,
+    // seen at the sake stand, item 560))
+    const shown = mergeState(m)?.want ?? m.visible
+    if (!(m instanceof THREE.Mesh) || m instanceof THREE.SkinnedMesh || m instanceof THREE.InstancedMesh || Array.isArray(m.material) || !shown) return
     const g = groups.get(m.material) ?? { geos: [], shadow: false, order: m.renderOrder }
     g.geos.push(bakeable(m.geometry, new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld)))
     g.shadow ||= m.castShadow
