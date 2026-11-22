@@ -356,7 +356,7 @@ def open_sack(name, cx, cz, h, r, mat, lean=(0.0, 0.0), seg=24, front=math.pi / 
             f = bm.faces.new((r0[j], r1[j], r1[j2], r0[j2]))
             for loop, (jj, vv) in zip(f.loops, ((j, v0[j]), (j, v1[j]), (j + 1, v1[j2]), (j + 1, v0[j2]))):
                 loop[uv].uv = (jj / seg * 2, vv)
-    ladder_fill(bm, rows[0][0])
+    # (its foot not closed across (item 555): it stands on the floor, never seen from under)
     o = mesh_object(name, bm, mat)
     # ---- the lining (item 401, the owner's 「裡面都空空的怎就一種顏色，應該會有內襯皺褶」: it was a flat disc of one dark brown just inside the
     # mouth): the cloth's inside going down into the sack from just in from the mouth's edge, drawn in and gathered into a few big soft folds
@@ -634,6 +634,11 @@ def crate_wood(n=512, tones=("#b98f5c", "#e2c595"), salt=0):
     col = mix(col, lin("#5a3e22"), smooth(0.22, 0.06, kn) * 0.8)
     edge = np.minimum(np.minimum(u, 1 - u) * 6.0, np.minimum(v, 1 - v) * 10.0)
     col *= (0.72 + 0.28 * smooth(0.0, 1.0, edge))[..., None]
+    # (item 555: the boards' eased edges painted, now they're plain boxes: a worn, lighter band along each long edge, a dark line at its very
+    # edge where the next board's gap begins, as the bevel caught the light)
+    ev = np.minimum(v, 1 - v)
+    col *= (1 + 0.55 * smooth(0.075, 0.03, ev) * smooth(0.008, 0.016, ev))[..., None]
+    col *= (0.45 + 0.55 * smooth(0.004, 0.012, ev))[..., None]
     for cu in (0.06, 0.94):
         nail = np.hypot((u - cu) * 40.0, (v - 0.5) * 22.0)
         col = mix(col, lin("#2e2a26"), smooth(1.0, 0.7, nail))
@@ -668,7 +673,8 @@ def onion(name, x, y, z, size, rot=(0.0, 0.0, 0.0)):
     sq = 0.82 + 0.1 * rnd.random()
     # (item 532: its base flatter and its shoulders drawn up into a longer neck, so it reads an onion and not a ball from any side)
     prof = [(0.3, -0.84), (0.7, -0.74), (0.96, -0.46), (1.0, -0.12), (0.9, 0.26), (0.62, 0.6), (0.3, 0.88), (0.12, 1.14), (0.05, 1.42)]
-    o = lathe_veg(name, [(r * size, h * size * sq) for r, h in prof], 12, "onion")
+    # (10 round (item 555: 12; an onion's outline as round, its veins in its picture))
+    o = lathe_veg(name, [(r * size, h * size * sq) for r, h in prof], 10, "onion")
     o.location = P(x, y, z)
     o.rotation_euler = rot
     root = lathe_veg(name + "Root", [(0.22 * size, -0.95 * size * sq), (0.26 * size, -0.86 * size * sq)], 8, "onion_root")
@@ -707,17 +713,14 @@ def gobo(name, x, y, z, length, rot):
 
 
 def board(name, cx, cy, cz, w, h, d):
-    """one plank of the crate, its middle at (cx, cy, cz) in the game's frame, w along x, h up, d along z: its edges eased, the wood's
-    picture laid along its longest side once (its grain along it, a nail near each end)"""
+    """one plank of the crate, its middle at (cx, cy, cz) in the game's frame, w along x, h up, d along z: a plain box (item 555: its edges
+    were eased by a bevel, 44 triangles a board, 1,000 a crate, the eased edge never seen in the toon light with the ink line round it; 12 a
+    board now); the wood's picture laid along its longest side once (its grain along it, a nail near each end)"""
     bpy.ops.mesh.primitive_cube_add(size=1, location=P(cx, cy, cz))
     o = active()
     o.scale = (w, d, h)
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     o.name = name
-    m = o.modifiers.new("ease", "BEVEL")
-    m.width = min(0.003, min(w, h, d) * 0.3)
-    m.segments = 1
-    bpy.ops.object.modifier_apply(modifier=m.name)
     o.data.materials.append(M["crate"])
     dims = sorted([(w, 0), (d, 1), (h, 2)], reverse=True)
     la, sa = dims[0][1], dims[1][1]
@@ -898,6 +901,20 @@ def heap_of(kind, tx, tz, h, top, A0, cloth=None):
     heap = bpy.context.view_layer.objects.active
     heap.name = HEAP_NAMES[kind]
     heap.data.name = HEAP_NAMES[kind]
+    # (item 555: what of the heap can't be seen dropped: a face wholly down in the sack, 2.5 cm under the mouth's edge (behind the cuff,
+    # under the tubers over it), or facing down onto the ones under it and under the mouth's edge. Not nearer the mouth than that: a tuber's
+    # ink line is drawn from its far side too, and cut there its outline went missing against the lining)
+    bm = bmesh.new()
+    bm.from_mesh(heap.data)
+    mw = heap.matrix_world
+    rot = mw.to_3x3()
+    before = len(bm.faces)
+    deep = lambda f, d: all((mw @ v.co).z < h - d for v in f.verts)
+    gone = [f for f in bm.faces if deep(f, 0.025) or ((rot @ f.normal).normalized().z < -0.55 and deep(f, 0.01))]
+    bmesh.ops.delete(bm, geom=gone, context="FACES")
+    bm.to_mesh(heap.data)
+    bm.free()
+    print("HEAP_CULL", HEAP_NAMES[kind], before, "->", before - len(gone))
     parts.append(heap)
     print("HEAP", HEAP_NAMES[kind], len(made), "tubers, tris", sum(len(f.vertices) - 2 for f in heap.data.polygons))
     return heap
@@ -1207,6 +1224,32 @@ def wicker(n=1024):
 
 M["wicker"] = pbr("VegWicker", (1, 1, 1), tex=image("veg_wicker", wicker()), rough=0.8)
 M["wicker_cane"] = pbr("VegWickerCane", tuple(lin("#c9a36a")), rough=0.7)
+
+
+def lattice_picture(W=1024, H=128, n=24):
+    """the basket's lattice band (item 555): two sets of flat cane bars slanting across it, each running one of the band's `n` steps round
+    from its foot (v 0) to its top (v 1), the one set over the other (the bars going up to the right over); each bar rounded across, its edges
+    dark as the ink line round the canes is; clear between (its alpha). No draw from the shared random numbers (sines only)"""
+    v, u = np.meshgrid((np.arange(H) + 0.5) / H, (np.arange(W) + 0.5) / W, indexing="ij")
+    half = 0.19                        # (a bar's half width, of a step round: as wide as the bars stood with their ink line round them)
+    srgb = lambda h: np.array([int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)], np.float32)
+    cane = srgb("#c9a36a")
+    out = np.zeros((H, W, 3), np.float32)
+    alpha = np.zeros((H, W), np.float32)
+    for k, sgn in ((1, 1.0), (0, -1.0)):           # (the under set first, the over set laid on it)
+        d = np.abs(((u * n - sgn * v) % 1.0) - 0.5)
+        d = 0.5 - d                                  # (distance from the bar's middle line, in steps)
+        on = d < half
+        x = np.clip(d / half, 0, 1)
+        shade = (0.86 + 0.14 * np.cos(x * np.pi / 2)) * np.where(x > 0.8, 0.12, 1.0) * (1.0 if k else 0.92)
+        col = cane[None, None, :] * shade[..., None]
+        out = np.where(on[..., None], col, out)
+        alpha = np.where(on, 1.0, alpha)
+    return out, alpha
+
+
+_lat_rgb, _lat_a = lattice_picture()
+M["lattice"] = pbr("VegLatticeCutout", (1, 1, 1), tex=image("veg_lattice", _lat_rgb, alpha=_lat_a), rough=0.7, blend=True)
 def cabbage_picture(name, base, deep, n=256):
     """a cabbage's leaf (item 153: the old one's dark wavy lines read as a watermelon's): a pale green, deeper in soft patches, and its veins
     pale, near white, running from its root up and out (along v), a few branching off"""
@@ -1691,33 +1734,25 @@ def ring_pts(y, n=24):
 
 tube_obj("VegBasketCaneLow", ring_pts(LAT0 + 0.002), 0.0065, "wicker_cane", cyclic=True).parent = frame_b
 tube_obj("VegBasketCaneRim", ring_pts(LAT1), 0.0075, "wicker_cane", cyclic=True).parent = frame_b
-# (the lattice: two sets of slanted flat bars, one set over the other (a hair apart), each running up one segment round from the lower cane
-# to the upper; the bars' ends buried in the canes)
-for sset, (dirn, off) in enumerate(((1, 0.0048), (-1, -0.0048))):
-    for j in range(seg):
-        a0 = 2 * math.pi * j / seg
-        a1 = a0 + dirn * 2 * math.pi / seg
-        p0 = Vector((lat_r(LAT0 + 0.002) * math.cos(a0), LAT0 + 0.002, lat_r(LAT0 + 0.002) * math.sin(a0)))
-        p1 = Vector((lat_r(LAT1) * math.cos(a1), LAT1, lat_r(LAT1) * math.sin(a1)))
-        am = (a0 + a1) / 2
-        nrm = Vector((math.cos(am), 0.0, math.sin(am)))
-        dd = (p1 - p0).normalized()
-        sd_ = dd.cross(nrm).normalized()
-        W_, T_b = 0.0065, 0.0045
-        bm = bmesh.new()
-        vv_ = []
-        for pp in (p0, p1):
-            c_ = pp + nrm * off
-            vv_.append([bm.verts.new(P(*(c_ + sd_ * sx * W_ / 2 + nrm * sy * T_b / 2))) for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))])
-        for i in range(4):
-            bm.faces.new((vv_[0][i], vv_[0][(i + 1) % 4], vv_[1][(i + 1) % 4], vv_[1][i]))
-        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-        mesh_object(f"VegBasketLattice{sset}{j}", bm, "wicker_cane").parent = frame_b
+# (the lattice (item 555, the owner's 「很多都可以像花、草，做成一片一片的」): one band from the lower cane to the upper, a step round each
+# of its 24 quads, its two sets of slanting bars in its picture, clear between (both its sides drawn); it was 48 bars of 8 triangles each, with
+# an ink line round each. A bar runs from a quad's foot corner to the next one's top corner, as each bar did from cane to cane)
+bm = bmesh.new()
+luv_ = bm.loops.layers.uv.new()
+y0_ = LAT0 + 0.002
+lo_ = [bm.verts.new(P(lat_r(y0_) * math.cos(2 * math.pi * j / seg), y0_, lat_r(y0_) * math.sin(2 * math.pi * j / seg))) for j in range(seg)]
+hi_ = [bm.verts.new(P(lat_r(LAT1) * math.cos(2 * math.pi * j / seg), LAT1, lat_r(LAT1) * math.sin(2 * math.pi * j / seg))) for j in range(seg)]
+for j in range(seg):
+    j2 = (j + 1) % seg
+    f = bm.faces.new((lo_[j], lo_[j2], hi_[j2], hi_[j]))
+    for l, uv_ in zip(f.loops, ((j / seg, 0.0), ((j + 1) / seg, 0.0), ((j + 1) / seg, 1.0), (j / seg, 1.0))):
+        l[luv_].uv = uv_
+mesh_object("VegBasketLattice", bm, "lattice").parent = frame_b
 # (the handle: two canes side by side arched from one side of the lattice to the other, standing up a hand and more above the rim)
 HANDLE_UP = 0.15
 for s_, dz in enumerate((-0.0085, 0.0085)):
-    tube_obj(f"VegBasketHandle{s_}", [(-lat_r(LAT1) * 0.985 * math.cos(math.pi * t / 16), 0.17 + (LAT1 - 0.17 + HANDLE_UP) * math.sin(math.pi * t / 16) ** 0.85, dz)
-                                      for t in range(17)], 0.0085, "wicker_cane", res=1).parent = frame_b
+    tube_obj(f"VegBasketHandle{s_}", [(-lat_r(LAT1) * 0.985 * math.cos(math.pi * t / 10), 0.17 + (LAT1 - 0.17 + HANDLE_UP) * math.sin(math.pi * t / 10) ** 0.85, dz)
+                                      for t in range(11)], 0.0085, "wicker_cane", res=1).parent = frame_b
 RIM_TOP = LAT1 + 0.0075
 B_ = 0.012                        # (its floor's top)
 # (the leaves: a napa cabbage at the back left, a green cabbage at the front left, two heads of broccoli at the right, radishes with their

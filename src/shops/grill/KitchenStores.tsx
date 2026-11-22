@@ -137,7 +137,9 @@ function printSack(map: THREE.Texture, p: (typeof SACK_PRINT)[string]) {
   return t
 }
 /** too small or too fine for an ink line (the skewers, their ties, the labels and the marks on things) */
-const UNINKED = /Skewer|Label|Mark|Spice\d|SpiceCap|FoilRoll|Lemon\d|ProduceSack\dInside/
+const UNINKED = /Skewer|Label|Mark|Spice\d|SpiceCap|FoilRoll|Lemon\d|ProduceSack\dInside|Lattice/
+/** a card whose picture is its shape (the basket's lattice band, item 555): cut by its alpha, both its sides drawn */
+const CUTOUT = /Cutout/
 
 /** a loaded model's part (its node by name), in the room's toon light, inked once and folded together by material (it never moves; but what
  * `keep` names, left as it is to be shown or hidden) */
@@ -159,7 +161,8 @@ function partOf(scene: THREE.Group, node: string, width: number, keep?: (o: THRE
           reflectStudio(g)
           t = g
         } else {
-          const toon = new THREE.MeshToonMaterial({ color: sm.color.clone(), map: sm.map ?? null, side: OPEN.test(sm.name) ? THREE.DoubleSide : THREE.FrontSide })
+          const cut = CUTOUT.test(sm.name)
+          const toon = new THREE.MeshToonMaterial({ color: sm.color.clone(), map: sm.map ?? null, side: OPEN.test(sm.name) || cut ? THREE.DoubleSide : THREE.FrontSide, alphaTest: cut ? 0.5 : 0 })
           // (the sacks' burlap a little brighter than it's woven (the owner's): the potatoes' and sweet potatoes' paler, the charcoal's printed
           // one less so)
           const lift = BURLAP_LIFT[sm.name]
