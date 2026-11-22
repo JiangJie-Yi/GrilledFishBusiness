@@ -71,6 +71,34 @@ function keepPrograms(gl: THREE.WebGLRenderer) {
   return () => window.clearInterval(t)
 }
 
+/**
+ * The shadows' programs for a figure bent by bones and for a mesh drawn as instances made now, with the room's lights all in (item 589,
+ * fixed rule 7): each is made only as the first such thing is drawn into the shadows' picture, and three makes a program apart for every
+ * count of lights, so one made in the first frames (StaffWarm, the lights not all in yet) wasn't the one needed: the Tester's count found a
+ * shadow program made two to three minutes into business, once a skinned body, once an instanced mesh (a customer, the seats' bowls…).
+ * Every one of them in view made to cast a shadow, wherever the shadows' camera looks, for a few frames under the loading veil (three
+ * shadow pictures: ShadowPacer draws one every third frame; the first with three's own depth material, then each kind's own,
+ * materialNormalize's OWN_DEPTH), then as they were.
+ */
+function warmShadows(scene: THREE.Object3D): Promise<void> {
+  const was: [THREE.Object3D, boolean, boolean][] = []
+  scene.traverseVisible((o) => {
+    if (!(o as THREE.SkinnedMesh).isSkinnedMesh && !(o as THREE.InstancedMesh).isInstancedMesh) return
+    was.push([o, o.castShadow, o.frustumCulled])
+    o.castShadow = true
+    o.frustumCulled = false
+  })
+  return new Promise((done) => {
+    let n = 0
+    const f = () => {
+      if (++n < 12) { requestAnimationFrame(f); return }
+      for (const [o, cast, culled] of was) { o.castShadow = cast; o.frustumCulled = culled }
+      done()
+    }
+    requestAnimationFrame(f)
+  })
+}
+
 // (item 374: drawn again only as its own props change: it does its work in its frames and effects, and was drawn again with every redraw
 // of the page or the scene, about three times a second, for nothing)
 export const Prewarm = memo(function Prewarm() {
@@ -100,6 +128,8 @@ export const Prewarm = memo(function Prewarm() {
           later.clear()
           warmNow = (o) => { void compileSafe(gl, o, camera, scene) }
         })
+        // (and the shadows' programs for the skinned and the instanced, the lights all in)
+        .then(() => warmShadows(scene))
         .finally(release)
     }, 250)
     return () => { window.clearInterval(tick); release(); warmNow = null; unkeep(); unidle(); unupload() }

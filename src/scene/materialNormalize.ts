@@ -159,7 +159,16 @@ export function normalizeRenderer(r: THREE.WebGLRenderer) {
   // (each of a mesh's materials taken as they are, one or a list: a list made of every one, every 20 frames for the whole scene, was some
   // 16 MB of garbage every 30 s (item 374))
   const one = (m: THREE.Material) => { normalizeMaterial(m); single(m) }
-  const each = (c: THREE.Object3D) => { const m = (c as THREE.Mesh).material; if (!m) return; if (Array.isArray(m)) m.forEach(one); else one(m) }
+  // (a skinned or instanced mesh given its kind's own shadow materials as soon as it's met, not after its first shadow (item 589): drawn the
+  // first time with three's shared one, each kind made a shadow program besides its own, kept for good)
+  const ownShadow = (c: THREE.Object3D) => {
+    const kind = (c as THREE.SkinnedMesh).isSkinnedMesh ? 0 : (c as THREE.InstancedMesh).isInstancedMesh ? 1 : -1
+    if (kind < 0) return
+    const o = c as THREE.Object3D & { customDepthMaterial?: THREE.Material; customDistanceMaterial?: THREE.Material }
+    o.customDepthMaterial ??= OWN_DEPTH[kind]
+    o.customDistanceMaterial ??= OWN_DISTANCE[kind]
+  }
+  const each = (c: THREE.Object3D) => { const m = (c as THREE.Mesh).material; if (!m) return; ownShadow(c); if (Array.isArray(m)) m.forEach(one); else one(m) }
   const visit = (o: THREE.Object3D) => o.traverse(each)
   // (and the scene gone through before it's drawn, now and then: the shadows are drawn first, and the depth material three makes for a
   // shadow follows the material's features as they are then: one met first there was made a shadow program of its own, kept for good)
