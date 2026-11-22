@@ -6,6 +6,8 @@ export const LOADING_LINES: readonly [number, string][] = [
   [0, '炭火點起來了'],
   [15, '今天的魚剛送到'],
   [35, '擦亮吧台，擺好醬油碟'],
+  // (item 592: the long stretch after the first files, the models made ready, split between two)
+  [50, '魚一尾尾穿上鐵串'],
   [55, '掛上暖簾，點亮燈籠'],
   [75, '大廚磨好了刀'],
   [92, '等第一位客人上門'],

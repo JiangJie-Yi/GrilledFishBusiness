@@ -3,6 +3,7 @@ import { useProgress } from '@react-three/drei'
 import { GrillingFish } from './GrillingFish'
 import { laterPending, laterSeen, sceneDrawn } from '@/scene/Later'
 import { loadingLine } from '@/data/loadingLines'
+import { loadingPct, loadingStep } from '@/game/loadingCreep'
 
 /** how long the loading may sit without any file coming in before it's called stuck (ms) */
 const STALL_MS = 20000
@@ -24,6 +25,10 @@ export const LoadingScreen = memo(function LoadingScreen({ scene = true }: { sce
   // (scene/Later's three stages: the decor, the fixtures, the customers), and the bar fell from 100% to half and to nought and back, the
   // getting-ready lines with it; the shop's own first files are the first STAGE_FROM of it, the staged parts and their files the rest)
   const [shown, setShown] = useState(0)
+  // (and while it's not ahead (item 592: the first files in, the shop's models being read and made ready, it sat at 45% for 8.6 s and looked
+  // stuck), going on by itself toward a little past it, slower the nearer it gets (game/loadingCreep): how far, as a fraction, the most the
+  // estimate's been, and when it was last stepped on; not before anything's been counted)
+  const creep = useRef({ shown: 0, real: 0, at: -1 })
   useEffect(() => {
     const t = window.setInterval(() => {
       const st = useProgress.getState()
@@ -31,7 +36,12 @@ export const LoadingScreen = memo(function LoadingScreen({ scene = true }: { sce
       const files = st.total > 0 ? Math.min(1, st.loaded / st.total) : 0
       const staged = laterSeen() ? Math.min(1, Math.max(0, 1 - laterPending() / STAGES)) : 0
       const est = laterSeen() ? STAGE_FROM + (1 - STAGE_FROM) * (0.65 * staged + 0.35 * files) : STAGE_FROM * files
-      setShown((v) => Math.max(v, Math.min(99, Math.round(est * 100))))
+      // (from the most the estimate's been: the count's own share falls back as more files are asked for, and with it how far it went on)
+      const now = performance.now(), c = creep.current
+      c.real = Math.max(c.real, est)
+      c.shown = loadingStep(c.shown, c.real, c.at < 0 || st.total === 0 ? 0 : (now - c.at) / 1000)
+      c.at = now
+      setShown((v) => Math.max(v, loadingPct(c.shown)))
     }, 250)
     return () => window.clearInterval(t)
   }, [])
