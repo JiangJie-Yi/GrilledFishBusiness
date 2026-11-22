@@ -33,7 +33,7 @@ import { FLOWS, flowOf, hourGap, wantOf, type FlowKind } from '@/game/flow'
 import { bedStick, COAL_MAX, COAL_PER_ADD, crumble, glowingFor, roomFor, surfaceY, type Lay, throwForce } from '@/game/coalPile'
 import { inkModel, isInk } from '@/scene/inkHull'
 import { BlobShadow } from '@/scene/BlobShadow'
-import { GAME_SPEED } from '@/scene/speed'
+import { GAME_SPEED, tick } from '@/scene/speed'
 import { brushText, signTexture } from '@/scene/signFont'
 import { paintShikigami, SHIKI_SIZE } from './shikigami'
 import { FloorPiece } from '@/scene/FloorPiece'
@@ -1368,11 +1368,11 @@ function CrewWalk({ id, role, at, yaw, way, seat, round, fetcher, children }: { 
    * for them as they near it; whether it's done */
   const stepCommute = (o: THREE.Group, dt: number) => {
     const tr = commute.current!
-    const pose = tripStep(tr, Math.min(dt, 0.1), 1.6, (v) => (o.parent ? o.parent.localToWorld(v.clone()) : v.clone()))
+    const pose = tripStep(tr, tick(dt), 1.6, (v) => (o.parent ? o.parent.localToWorld(v.clone()) : v.clone()))
     o.position.copy(pose.p)
     // (down on the genkan's stone as they cross it, in or out by the front door (item 203: a step's height over it, in their shoes))
     o.position.y += genkanY(GRILL_COUNTERS, toBar(o.position)) * GRILL_SCALE
-    if (pose.yaw !== null) o.rotation.y = turnToward(o.rotation.y, pose.yaw, Math.min(dt, 0.1))
+    if (pose.yaw !== null) o.rotation.y = turnToward(o.rotation.y, pose.yaw, tick(dt))
     o.visible = pose.shown
     o.userData.fade = pose.vis
     o.userData.nod = pose.nod
@@ -1407,7 +1407,7 @@ function CrewWalk({ id, role, at, yaw, way, seat, round, fetcher, children }: { 
       }
       // (off plating or at the fire's charcoal, with no third cook to: the orders wait in their stores for him, not out onto the board by themselves)
       if (fetcher && !o.visible) { CHEF_TRIP.seenAt = performance.now(); FETCHER.id = id; FETCHER.busy = CHEF_TRIP.phase !== 'idle' }
-      if (fetcher && o.visible && walkTrip(o, Math.min(dt, 0.1))) return
+      if (fetcher && o.visible && walkTrip(o, tick(dt))) return
       if (seat && o.parent) {
         if (!mark.current?.parent) mark.current = scene.getObjectByName(seat) ?? null
         const m = mark.current
@@ -1421,7 +1421,7 @@ function CrewWalk({ id, role, at, yaw, way, seat, round, fetcher, children }: { 
           seatAt.current = { p: new THREE.Vector3().setFromMatrixPosition(m.matrixWorld).applyMatrix4(inv), yaw: Math.atan2(dir.x, dir.z) }
           // (sat down from their place beside it over a moment, up and onto it (the owner's item 37: from the floor onto the seat, half a metre
           // up, in a frame), as the customers get onto their stools)
-          sat.current = Math.min(1, sat.current + Math.min(dt, 0.1) / SIT_S)
+          sat.current = Math.min(1, sat.current + tick(dt) / SIT_S)
           sitBetween(o, sat.current)
           // (the cashier at the till: turned round in the chair to the takeaway stand behind them, hands out with a bag (bar.ts's TAKEOUT_STAND))
           if (seat === 'cashier-seat') {
@@ -1434,7 +1434,7 @@ function CrewWalk({ id, role, at, yaw, way, seat, round, fetcher, children }: { 
       }
       o.position.copy(placeOf())
       // (turned back to their work a frame at a time: home from the stores, they snapped round to it)
-      o.rotation.y = turnToward(o.rotation.y, yaw, Math.min(dt, 0.1))
+      o.rotation.y = turnToward(o.rotation.y, yaw, tick(dt))
       return
     }
     // (still out with plates, the coal or the rice (GuestBar3D walks them): home first, what's in hand put down, and only then out; set off
@@ -1443,7 +1443,7 @@ function CrewWalk({ id, role, at, yaw, way, seat, round, fetcher, children }: { 
     // (sat (the cashier): up off the seat and down onto the floor by their place first, over a moment, as they sat down: they dropped from
     // the seat to the floor in a frame and set off)
     if (seat && sat.current > 0 && seatAt.current && !commute.current) {
-      sat.current = Math.max(0, sat.current - Math.min(dt, 0.1) / SIT_S)
+      sat.current = Math.max(0, sat.current - tick(dt) / SIT_S)
       sitBetween(o, sat.current)
       // (still on their way out, for the shop's shutting: everyone out of the door first)
       SHOP.walking.add(id)
@@ -2167,7 +2167,7 @@ function CubbyDoors({ along: [a0, a1], hinge, front = COOK_TABLE.lay[1] - 0.11, 
     }
     // (the chef reaching in: part way open a moment, whoever's before them (he is))
     const want = performance.now() - CUBBY_KICK[side] < 1500 ? 0.6 : !s.blocked && s.kept ? 1 : 0
-    s.k += (want - s.k) * Math.min(1, Math.min(dt, 0.1) * (s.blocked ? 16 : 5))
+    s.k += (want - s.k) * Math.min(1, tick(dt) * (s.blocked ? 16 : 5))
     // (heard as its doors come open and as they meet again: a fridge's seal, quieter than the drinks fridges' (under the table, smaller doors))
     const opened = s.k > 0.05
     if (opened !== CUBBY_OPEN[side] && frame.current) coolerDoorSound(opened, heard(frame.current.getWorldPosition(SIZZLE_AT)).near * 0.55)
@@ -4824,7 +4824,7 @@ function TasteBowlImpl({ position, container, open = false }: { position: [numbe
   const bowl = useRef<THREE.Group>(null), tray = useRef<THREE.Group>(null)
   const swap = useRef(open ? 1 : 0)
   useFrame((_, dt) => {
-    const want = open ? 1 : 0, step = Math.min(dt, 0.1) / TRAY_SWAP_S
+    const want = open ? 1 : 0, step = tick(dt) / TRAY_SWAP_S
     if (swap.current !== want) swap.current = want > swap.current ? Math.min(1, swap.current + step) : Math.max(0, swap.current - step)
     const s = swap.current, bs = popIn(1 - s), ts = popIn(s)
     TRAY_SWAP.k = s
@@ -9112,7 +9112,7 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       const over = pieces.current.filter((p) => present(p) && !p.collected && !p.staged && !p.carried).length
       const snd = fireSound(Math.min(1, target), over)
       const camD = frameCam.position.distanceTo(root.getWorldPosition(new THREE.Vector3()))
-      fireAmbience(snd.crackle, snd.sizzle, THREE.MathUtils.clamp(1.4 - camD / 12, 0.15, 1), Math.min(delta, 0.1))
+      fireAmbience(snd.crackle, snd.sizzle, THREE.MathUtils.clamp(1.4 - camD / 12, 0.15, 1), tick(delta))
     }
     // (the coals' own state eases toward the fire: charcoal added swells up and kindles over a moment, the pile shrinks back slowly as it burns)
     const ease = target > fuel.current ? 0.05 : 0.35
@@ -9139,7 +9139,7 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       e.mat.color.copy(e.color).lerp(ASH_TINT, ash).multiplyScalar(gain)
     })
     if (scannedCount.current !== root.children.length) scan()
-    const dt = Math.min(delta, 0.1)
+    const dt = tick(delta)
     // fanned-up heat burns the coals faster while it lasts (more the hotter it's been fanned), and dies back once the
     // fanning stops
     const fan = fanned.current

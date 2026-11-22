@@ -122,3 +122,10 @@ export function paceFrame(p: Pace, dt: number): 'down' | 'up' | null {
   p.fast = 0
   return null
 }
+
+/** the most of the game's time one frame may move a figure or a timer on (s): a stall (a hidden tab come back, a hitch) isn't a leap */
+export const MAX_FRAME_S = 0.1
+/** a frame's step of the game's time, held to MAX_FRAME_S of real time: at x2 a frame carries twice the real time, so the hold is twice as
+ * long (item 569: held to 0.1 whatever the speed, under 20 frames a second at x2 the customers, the staff and the cooking fell behind the
+ * shop's clock, its timers going by the wall clock; a weak machine at x2 served fewer in an hour) */
+export const frameStep = (dt: number, speed: number) => Math.min(dt, MAX_FRAME_S * Math.max(1, speed))
