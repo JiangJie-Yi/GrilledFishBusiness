@@ -31,7 +31,7 @@ import { glowOnly } from '@/scene/hoverGlow'
 import { canCookByHand, modeOf, showsProgress } from '@/game/mode'
 import { FLOWS, flowOf, hourGap, wantOf, type FlowKind } from '@/game/flow'
 import { bedStick, COAL_MAX, COAL_PER_ADD, crumble, glowingFor, roomFor, surfaceY, type Lay, throwForce } from '@/game/coalPile'
-import { inkModel } from '@/scene/inkHull'
+import { inkModel, isInk } from '@/scene/inkHull'
 import { BlobShadow } from '@/scene/BlobShadow'
 import { GAME_SPEED } from '@/scene/speed'
 import { brushText, signTexture } from '@/scene/signFont'
@@ -4091,8 +4091,11 @@ function floorMap(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vector3, fl
       const y0 = Math.min(P[a + 1], P[b + 1], P[d + 1]), y1 = Math.max(P[a + 1], P[b + 1], P[d + 1])
       if (y1 < lo || y0 > hi) continue
       fill(ia); fill(ib); fill(ic)
-      // (a flat face low down is a floor's, the kitchen's or the room's, or a mat or a shadow on one: not in the way)
-      if (y1 < floorY + 0.25) {
+      // (a flat face low down is a floor's, the kitchen's or the room's, or a mat or a shadow on one: not in the way. Up to 20 cm over the
+      // floor it's on: the kitchen's is 16 over the room's, a mat on it 2 or 3 (item 545: it was 25, and a board 9 cm high on the kitchen's
+      // floor had its top at exactly that, the room's merged copy of it (its points kept to float32) on one side of it and the board itself
+      // on the other: its top's diagonal across the map one way and not the other)
+      if (y1 < floorY + 0.2) {
         E1.set(P[b] - P[a], P[b + 1] - P[a + 1], P[b + 2] - P[a + 2])
         E2.set(P[d] - P[a], P[d + 1] - P[a + 1], P[d + 2] - P[a + 2])
         if (Math.abs(E1.cross(E2).normalize().y) > 0.9) continue
@@ -4129,7 +4132,7 @@ function floorMap(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vector3, fl
     return al > rm.along[0] + 0.02 && al < rm.along[1] - 0.02 && ly > rm.lay[0] + 0.02 && ly < rm.lay[1] - 0.02
   }
   const level = (w: THREE.Vector3) => inKitchen(GRILL_COUNTERS, bar(w))
-  if (import.meta.env.DEV) (window as unknown as { __futonMap?: unknown }).__futonMap = { N, occ, c0: c0.toArray() }
+  if (import.meta.env.DEV) (window as unknown as { __futonMap?: unknown }).__futonMap = { N, occ, c0: c0.toArray(), U: U.toArray(), V: V.toArray(), R, CELL }
   return { U, V, R, taken, at, inRoom, level }
 }
 type FloorMap = ReturnType<typeof floorMap>
@@ -4167,6 +4170,10 @@ function bedFinds(scene: THREE.Object3D): BedFinds {
     if (!m.isMesh || (m as THREE.SkinnedMesh).isSkinnedMesh || (m as THREE.InstancedMesh).isInstancedMesh || !m.visible || /^Futon/.test(m.name)) return
     if (!m.geometry?.attributes.position) return
     if (([] as THREE.Material[]).concat(m.material).every((x) => x.transparent && x.opacity < 0.05)) return
+    // (nor the ink lines' hulls: a hair bigger than the piece they're drawn round, which marks its own place; and merged with the room, as in
+    // service, pushed out by their width as they're kept (scene/WorldBatch's pushedOut), as they're not drawn alone: the room's map a few
+    // squares fuller merged than not round the women's toilet (item 545), and their triangles as many again as the pieces')
+    if (([] as THREE.Material[]).concat(m.material).every(isInk)) return
     f.meshes.push(m)
   })
   return f
