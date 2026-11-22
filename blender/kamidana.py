@@ -1364,7 +1364,9 @@ peel = mix(peel, (0.74, 0.28, 0.02), smooth(0.62, 0.8, pores) * 0.45)          #
 peel = mix(peel, (1.0, 0.6, 0.16), smooth(0.25, 0.08, pores) * 0.4)           # (the skin between them catching the light)
 peel_tex = image("peel", peel)
 M["peel"] = pbr("KamiPeel", (1, 1, 1), tex=peel_tex, rough=0.45)
-M["calyx"] = pbr("KamiCalyx", lin("#4c6a22"), rough=0.6)
+# (the sepals and the stem: only baked into the peel now (item 574), drawn in its glossier light, where they came out darker than they
+# were as pieces of their own in the room's toon light: a fresher green, so they read as they did)
+M["calyx"] = pbr("KamiCalyx", lin("#6f9b30"), rough=0.6)
 M["leaf"] = pbr("KamiLeaf", lin("#2f6a24"), rough=0.3)
 glz = mix((0.96, 0.95, 0.92), (0.9, 0.9, 0.88), fbm(256, 8, 8, 3) * 0.6)
 M["dish"] = pbr("KamiDish", (1, 1, 1), tex=image("glaze", glz), rough=0.25)
@@ -1405,44 +1407,205 @@ for x, y, z, r in rest:
         ty = max(ty, y + math.sqrt(reach * reach - dd * dd) * FLAT)
 rest.append((tx, ty, tz, tr))
 TOP_Y = ty
+
+
+def ponkan(co, r, ph_, rnd=None):
+    """a ponkan's shape where a point of a ball of radius r round its middle goes (its own frame: z up): a little flattened, a few soft
+    lobes round it, the knob (its neck) pushed up round the stem; with `rnd`, its loose, pebbly peel besides"""
+    n_ = co.normalized()
+    co.z *= FLAT
+    a_ = math.atan2(n_.y, n_.x)
+    lobe = 0.03 * math.sin(5 * a_ + ph_[0]) * (1 - abs(n_.z))
+    knob = 0.22 * max(0.0, n_.z - 0.82) / 0.18
+    co += n_ * r * (lobe + (float(rnd.normal(0, 0.016)) if rnd is not None else 0.0))
+    co.z += r * knob * 0.35
+
+
+# (item 574, the shrine area's second batch: each orange a ball of quads, three by three on each of a cube's faces, its top cut to the knob's
+# peak (110 triangles, no point where a fan of them meets: the decimator had made them heaps of slivers, 615 triangles for the four, their
+# outlines lumpy), its stem a little five-sided stub of the same mesh; what made them look ripe, the pebbly peel, the calyx's five sepals and
+# the stem, made fine only to be baked onto them, their relief and colour, and taken away; the four on one 512 picture)
+_or_hi, _or_lo = [], []
+
+
+def ball_of_quads(r, cuts, at):
+    """a cube's faces cut into (cuts + 1) by (cuts + 1) quads, pushed out to a ball of radius r round `at` (no poles: a ball's own fans its
+    triangles into one point at each pole)"""
+    bpy.ops.mesh.primitive_cube_add(size=2 * r, location=at)
+    o_ = active()
+    bpy.ops.object.mode_set(mode="EDIT"); bpy.ops.mesh.select_all(action="SELECT"); bpy.ops.mesh.subdivide(number_cuts=cuts)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    return o_
+
+
 for k, (x, y, z, r) in enumerate(rest):
-    # (20 round, 12 up: 32 by 20 was 1,200 triangles an orange a few centimetres across)
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=r, segments=20, ring_count=12, location=P(x, y, z))
-    o = active()
     rng_ = np.random.default_rng(k + 3)
     ph_ = rng_.uniform(0, 6.28, 3)
+    # (turned about the vertical only, so it sits on its flattened underside; the turn drawn before the peel's, so it's the fine one's too)
+    turn_ = float(rng_.uniform(0, 6.28))
+    # (the fine one, to bake from: a ball of quads 24 by 24 a face (a ball's poles had baked into a star of streaks), its shape smooth, the
+    # peel's oil glands dimpled into it, faint (the pebbles each point of it was jittered by at this fineness baked into a wrinkled, darkened
+    # skin, a dried mandarin's); so the light one's shading is a smooth ball's and its peel's pores show close to)
+    o = ball_of_quads(r, 23, P(x, y, z))
     for vv in o.data.vertices:
-        n_ = vv.co.normalized()
-        vv.co.z *= FLAT
-        # (a ponkan's peel: loose and pebbly, a few soft lobes round it, and the knob (its neck) pushed up round the stem)
-        a_ = math.atan2(n_.y, n_.x)
-        lobe = 0.03 * math.sin(5 * a_ + ph_[0]) * (1 - abs(n_.z))
-        knob = 0.22 * max(0.0, n_.z - 0.82) / 0.18
-        vv.co += n_ * r * (lobe + float(rng_.normal(0, 0.016)))
-        vv.co.z += r * knob * 0.35
-    # (turned about the vertical only, so it sits on its flattened underside)
-    o.rotation_euler = (0, 0, float(rng_.uniform(0, 6.28)))
-    finish(o, f"KamiOrange{k}", M["peel"])
+        vv.co = vv.co.normalized() * r
+        ponkan(vv.co, r, ph_)
+    tx_ = bpy.data.textures.get("KamiPeelPores") or bpy.data.textures.new("KamiPeelPores", "VORONOI")
+    tx_.noise_scale = 0.0011
+    dsp = o.modifiers.new("pores", "DISPLACE")
+    dsp.texture = tx_
+    dsp.texture_coords = "LOCAL"
+    dsp.strength = 0.00022
+    dsp.mid_level = 0.0
+    apply_mods(o)
+    o.rotation_euler = (0, 0, turn_)
+    finish(o, f"KamiOrangeHi{k}", M["peel"])
     bpy.ops.object.select_all(action="DESELECT"); o.select_set(True); bpy.context.view_layer.objects.active = o
     bpy.ops.object.mode_set(mode="EDIT"); bpy.ops.mesh.select_all(action="SELECT"); bpy.ops.uv.sphere_project(); bpy.ops.object.mode_set(mode="OBJECT")
-    ox.append(o)
-    topv = Vector(P(x, y + r * (0.82 + 0.077), z))   # (on the knob round the stem)
+    hi_ = [o]
+    # (on the knob round the stem; to be baked from, its sepals thin (0.6 mm: at 1.5 their steep sides baked in as dark creases round a grey
+    # blot) and lifted onto the peel, sunk into it only at the middle)
+    topv = Vector(P(x, y + r * (0.82 + 0.077), z))
     for j in range(5):
         a_ = j * 2 * math.pi / 5
-        sp = box(f"KamiCalyx{k}{j}", S(0.007, 0.0015, 0.004), tuple(topv + Vector(P(math.cos(a_) * 0.0035, 0.0, math.sin(a_) * 0.0035))), M["calyx"], uv=0)
+        sp = box(f"KamiCalyx{k}{j}", S(0.007, 0.0006, 0.004), tuple(topv + Vector(P(math.cos(a_) * 0.0035, 0.0002, math.sin(a_) * 0.0035))), M["calyx"], uv=0)
         sp.rotation_euler = (0, 0, -a_)
-        ox.append(sp)
-    ox.append(cyl(f"KamiStem{k}", 0.0012, 0.006, tuple(topv + Vector((0, 0, 0.003))), M["calyx"], verts=8))
+        hi_.append(sp)
+    # (the stem as the light one's: five-sided, a little narrower at its top, its sides smooth round and its top flat (smoothed across its
+    # ends, every side's shading leant along it))
+    stl = cyl(f"KamiStem{k}", 0.0012, 0.006, tuple(topv + Vector((0, 0, 0.0018))), M["calyx"], verts=5)
+    for pl in stl.data.polygons:
+        pl.use_smooth = abs(pl.normal.z) < 0.9
+    hi_.append(stl)
+    _or_hi.append(hi_)
+    # (the light one: three by three a face, the quad on its top cut to a point at its middle (the knob's peak: no point of the three-by-three
+    # is there), then given the same shape without the pebbles)
+    lo_ = ball_of_quads(r, 2, P(x, y, z))
+    bm = bmesh.new()
+    bm.from_mesh(lo_.data)
+    bmesh.ops.poke(bm, faces=[max(bm.faces, key=lambda f: f.calc_center_median().z)])
+    # (each face unwrapped as the cube's face it's on, laid flat as it was before the cube was pushed out to the ball (the islands the unwrapper
+    # made of it were dozens of scraps, a seam along each): six squares to an orange, each in a cell of a 5 by 5 grid, the four oranges' 24
+    # and their stems in the last, 5 pixels clear all round each)
+    uvl_ = bm.loops.layers.uv.verify()
+    for f in bm.faces:
+        c_ = f.calc_center_median()
+        ax = max(range(3), key=lambda i: abs(c_[i]))
+        a_, b_ = [i for i in range(3) if i != ax]
+        sg = 1 if c_[ax] > 0 else -1
+        cell = k * 6 + ax * 2 + (sg > 0)
+        cu, cv = (cell % 5) * 0.2 + 0.01, (cell // 5) * 0.2 + 0.01
+        for lp in f.loops:
+            u_, v_ = lp.vert.co[a_] / r * sg, lp.vert.co[b_] / r
+            lp[uvl_].uv = (cu + (u_ * 0.5 + 0.5) * 0.18, cv + (v_ * 0.5 + 0.5) * 0.18)
+    for v in bm.verts:
+        v.co = v.co.normalized() * r
+        ponkan(v.co, r, ph_)
+    # (its stem: a five-sided stub up from the knob's top, its top closed (a ladder on export), a strip of its own in the picture)
+    top_ = max(v.co.z for v in bm.verts)
+    ring0 = [bm.verts.new((math.cos(a) * 0.0013, math.sin(a) * 0.0013, top_ - 0.0012)) for a in [i * 2 * math.pi / 5 for i in range(5)]]
+    ring1 = [bm.verts.new((math.cos(a) * 0.0011, math.sin(a) * 0.0011, top_ + 0.0048)) for a in [i * 2 * math.pi / 5 for i in range(5)]]
+    st_ = []
+    for i in range(5):
+        st_.append(bm.faces.new((ring0[i], ring0[(i + 1) % 5], ring1[(i + 1) % 5], ring1[i])))
+    st_.append(bm.faces.new(ring1))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    for i, f in enumerate(st_[:5]):
+        for lp, (du, dv) in zip(f.loops, ((0, 0), (1, 0), (1, 1), (0, 1))):
+            lp[uvl_].uv = (0.81 + (i + du) * 0.025, 0.812 + k * 0.045 + dv * 0.025)
+    for lp in st_[5].loops:
+        lp[uvl_].uv = (0.955 + (lp.vert.co.x / 0.0011) * 0.012, 0.8245 + k * 0.045 + (lp.vert.co.y / 0.0011) * 0.012)
+    bm.to_mesh(lo_.data)
+    bm.free()
+    lo_.rotation_euler = (0, 0, turn_)
+    finish(lo_, f"KamiOrange{k}", M["peel"])
+    _or_lo.append(lo_)
+OB = 512
+img_oc = bpy.data.images.new("KamiOrangeColor", OB, OB)
+img_on = bpy.data.images.new("KamiOrangeNormal", OB, OB)
+img_on.colorspace_settings.name = "Non-Color"
+_obm = bpy.data.materials.new("KamiOrangeBake")
+_obm.use_nodes = True
+_otn = _obm.node_tree.nodes.new("ShaderNodeTexImage")
+for _o in _or_lo:
+    _o.data.materials.clear()
+    _o.data.materials.append(_obm)
+    for pl in _o.data.polygons:
+        pl.use_smooth = True
+_sc = bpy.context.scene
+_sc.render.engine = "CYCLES"
+_sc.cycles.device = "CPU"
+_sc.cycles.samples = 16
+# (each orange baked into the same pictures in turn: what the ones before wrote kept)
+_sc.render.bake.use_clear = False
+
+
+def _obake(lo_, hi_, kind, img, **kw):
+    """one orange's light one baked from its own fine one, sepals and stem only (baked with all four at once, where they touch each took
+    rings of the next one's relief)"""
+    bpy.ops.object.select_all(action="DESELECT")
+    for _o in hi_:
+        _o.select_set(True)
+    lo_.select_set(True)
+    bpy.context.view_layer.objects.active = lo_
+    _otn.image = img
+    _obm.node_tree.nodes.active = _otn
+    # (from 4 mm out in as far again: the peel's pebbles stand up to 2 mm off the light one in places (from 2 mm out, those were missed, black
+    # spots), the sepals 1.5 mm; with each orange baked from its own, nothing of the next one's is in reach)
+    bpy.ops.object.bake(type=kind, use_selected_to_active=True, cage_extrusion=0.004, max_ray_distance=0.008, margin=6, **kw)
+
+
+for _k in range(len(_or_lo)):
+    _obake(_or_lo[_k], _or_hi[_k], "NORMAL", img_on, normal_space="TANGENT")
+_sc.render.bake.use_pass_direct = False
+_sc.render.bake.use_pass_indirect = False
+_sc.render.bake.use_pass_color = True
+for _k in range(len(_or_lo)):
+    _obake(_or_lo[_k], _or_hi[_k], "DIFFUSE", img_oc, pass_filter={"COLOR"})
+img_oc.pack()
+img_on.pack()
+_sc.render.bake.use_clear = True
+_sc.render.engine = "BLENDER_EEVEE"
+M["peel"].name = "KamiPeelHiBake"
+M["peel"] = pbr("KamiPeel", (1, 1, 1), tex=img_oc, nrm=img_on, nrm_strength=1.0, rough=0.45)
+for _hs in _or_hi:
+    for _o in _hs:
+        bpy.data.objects.remove(_o)
+# (the four light ones as one)
+_lo = join(_or_lo, "KamiOrangesLow")
+bpy.ops.object.select_all(action="DESELECT"); _lo.select_set(True); bpy.context.view_layer.objects.active = _lo
+bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+_lo.data.materials.clear()
+_lo.data.materials.append(M["peel"])
+ox.append(_lo)
+# (the two leaves on the top one (item 574): each a leaf's outline, pointed at both ends, folded a little along its midrib and curling up
+# toward its tip, 20 triangles (they were flattened balls, 224 each))
 for j, (rz, lean) in enumerate(((0.4, 0.5), (2.6, 0.4))):
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=1, segments=16, ring_count=8)
-    lf = active()
-    lf.scale = (0.022, 0.009, 0.0012)
-    apply_scale(lf)
-    for vv in lf.data.vertices:
-        vv.co.z += (vv.co.x / 0.022) ** 2 * 0.003
+    L_, W_ = 0.022, 0.009
+    us_ = [-1.0, -0.6, -0.2, 0.2, 0.6, 1.0]
+    vs_, fs_ = [], []
+    for u_ in us_:
+        hw_ = W_ * math.sqrt(max(0.0, 1 - u_ * u_)) * (1 - 0.15 * u_)
+        lift = (u_ * L_ / L_) ** 2 * 0.003
+        for sgn in (-1, 0, 1):
+            vs_.append((u_ * L_, sgn * hw_, lift + (0.0 if sgn else 0.0006)))
+    for i_ in range(len(us_) - 1):
+        a, b = i_ * 3, (i_ + 1) * 3
+        fs_ += [(a, b, b + 1, a + 1), (a + 1, b + 1, b + 2, a + 2)]
+    lf = mesh_obj(f"KamiOrangeLeaf{j}", vs_, fs_, M["leaf"], smooth_shade=True)
+    bm = bmesh.new()
+    bm.from_mesh(lf.data)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-7)
+    bm.to_mesh(lf.data)
+    bm.free()
+    # (a leaf's own thickness: as thin as it was, both its faces drawn)
+    sol = lf.modifiers.new("t", "SOLIDIFY")
+    sol.thickness = 0.0008
+    sol.offset = 0
+    apply_mods(lf)
     lf.location = Vector(P(0, TOP_Y + 0.027 * (FLAT + 0.077) + 0.002, 0.0)) + Vector((math.cos(rz) * 0.014, math.sin(rz) * 0.014, 0.001))
     lf.rotation_euler = (lean * 0.3, -lean * 0.4, rz)
-    ox.append(finish(lf, f"KamiOrangeLeaf{j}", M["leaf"]))
+    ox.append(lf)
 oranges = bpy.data.objects.new("KamiOranges", None)
 bpy.context.collection.objects.link(oranges)
 for o in ox:

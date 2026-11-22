@@ -5032,8 +5032,8 @@ function kamidanaOf(scene: THREE.Group) {
         // (the little lanterns' paper, lit from inside: drawn as it glows, its lattice dark across it, by day and by night)
         t = new THREE.MeshBasicMaterial({ color: '#ffe3b8', map: src.map })
       } else if (src.name === 'KamiPeel') {
-        // (the ponkan's peel: a little gloss on its oily skin, not a polish)
-        t = new THREE.MeshPhysicalMaterial({ color: src.color.clone(), map: src.map, roughness: 0.48, clearcoat: 0.22, clearcoatRoughness: 0.35, specularIntensity: 0.55 })
+        // (the ponkan's peel: a little gloss on its oily skin, not a polish; its pebbles and the calyx's sepals baked in relief (item 574))
+        t = new THREE.MeshPhysicalMaterial({ color: src.color.clone(), map: src.map, normalMap: src.normalMap, roughness: 0.48, clearcoat: 0.22, clearcoatRoughness: 0.35, specularIntensity: 0.55 })
       } else if (src.name === 'KamiLeaf' || src.name === 'KamiDish' || src.name === 'KamiCobalt' || src.name === 'KamiFlaskGlaze') {
         // (the leaves' gloss, the porcelain's glaze: a soft sheen)
         t = new THREE.MeshPhysicalMaterial({ color: src.color.clone(), map: src.map, roughness: 0.35, clearcoat: 0.4, clearcoatRoughness: 0.25 })
