@@ -205,6 +205,8 @@ function measureWall(scene: THREE.Object3D, frame: THREE.Object3D, c: { at: THRE
 }
 /** a server's half width (their round body; their hands hanging out past it as they walk): the bar's measure */
 const SERVER_HALF = 0.22
+/** how far along the counter from a customer's middle a server stands beside them, at the least and the most (item 591: besideAlong) */
+const BESIDE_LEAST = 0.24, BESIDE_MOST = 0.45
 /** how far along the aisle one comes in toward the counter before what stands out from its wall, and goes back out after it */
 const SQUEEZE_RAMP = 0.35
 type Squeeze = { a0: number; a1: number; lay: number }
@@ -4606,25 +4608,47 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     const h = homeOf(wi), way = takeoutWay!
     return [...h.way.map((v) => v.clone()), ...(h.counter ? [aisleCorner(counters[h.counter])] : []), ...way.out.map((v) => v.clone())]
   }
-  /** beside a customer, where a server stands to set their plate down */
+  /** how far along the counter from a customer's middle a server stands beside them (item 591): half way to the next stool along, between
+   * the two customers; at 0.24 (their body 0.22 round) they stood against the customer's own stool, 5 to 6 cm into it, their tray over its
+   * seat as they turned to the plate (tests/e2e/sinkin.mjs). At least where it was, at most BESIDE_MOST (the counter's last seat: no stool
+   * past it) */
+  const besideAlong = useMemo(() => seats.map((st) => {
+    let gap = Infinity
+    for (const o of seats) {
+      if (o === st || o.counter !== st.counter) continue
+      const d = o.stool.clone().sub(st.stool).dot(st.along)
+      if (d > 0.05 && d < gap) gap = d
+    }
+    return gap === Infinity ? BESIDE_MOST : THREE.MathUtils.clamp(gap / 2, BESIDE_LEAST, BESIDE_MOST)
+  }), [seats])
+  /** beside a customer, where a server stands to set their plate down: between them and the next one along, in toward the bar */
   const besideSeat = (n: number) => {
     const st = seats[n]
-    return st.aisle.clone().lerp(st.stool, 0.45).addScaledVector(st.along, 0.24)
+    return st.aisle.clone().lerp(st.stool, 0.45).addScaledVector(st.along, besideAlong[n] ?? BESIDE_LEAST)
+  }
+  /** the place on the aisle square behind where a server stands beside a customer: in from there, straight (from the customer's own place
+   * on the aisle, the way in went past the side of their stool) */
+  const aisleBeside = (n: number) => seats[n].aisle.clone().addScaledVector(seats[n].along, besideAlong[n] ?? BESIDE_LEAST)
+  /** a server beside a customer facing the bar square (setting a plate down, taking one up): turned to the plate itself, their tray in front
+   * went over the customer's stool (item 591); the plate's reached for */
+  const faceBar = (w: { pos: THREE.Vector3; yaw: number }, n: number) => {
+    const into = seats[n].stool.clone().sub(seats[n].aisle).setY(0)
+    if (into.lengthSq() > 1e-8) w.yaw = Math.atan2(into.x, into.z)
   }
   /** from the chef to a seat, the plate in their hands: back across the kitchen to their place, out through their gate, along the aisle
    * (round the corner, for the other counter) and in beside the customer */
   const routeTo = (n: number, wi: number) => {
     const h = homeOf(wi)
-    const out = h.way.length < 2 ? [seats[n].aisle.clone(), besideSeat(n)] : backPath(wi, n).slice(1)
+    const out = h.way.length < 2 ? [aisleBeside(n), besideSeat(n)] : backPath(wi, n).slice(1)
     const path = [...kitchenRoute(pickupSpot, h.at), ...out]
     return { path, len: pathLength(path) }
   }
   /** from a server's place to a seat the shortest way (out through their gate): walked backwards, it's their way back */
   const backPath = (wi: number, n: number) => {
     const h = homeOf(wi), st = seats[n]
-    if (h.way.length < 2) return [h.at.clone(), st.aisle.clone(), besideSeat(n)]
+    if (h.way.length < 2) return [h.at.clone(), aisleBeside(n), besideSeat(n)]
     const turn = st.counter === h.counter ? [] : [aisleCorner(counters[st.counter === 0 ? h.counter : st.counter])]
-    return [...h.way.map((v) => v.clone()), ...turn, st.aisle.clone(), besideSeat(n)]
+    return [...h.way.map((v) => v.clone()), ...turn, aisleBeside(n), besideSeat(n)]
   }
   /**
    * From a server's place to glass broken on the floor (bar.ts's SPILLS, in the scene's frame): out through their gate, along the aisle to the
@@ -8559,7 +8583,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           if (w.t >= SAKE_UP_S) {
             // (on the tray: back across the kitchen to their place, out through their gate, along the aisle and in beside the customer)
             const h = homeOf(wi)
-            const out = h.way.length < 2 ? [seats[j.seat].aisle.clone(), besideSeat(j.seat)] : backPath(wi, j.seat).slice(1)
+            const out = h.way.length < 2 ? [aisleBeside(j.seat), besideSeat(j.seat)] : backPath(wi, j.seat).slice(1)
             go([...kitchenRoute(w.pos, h.at), ...out], 'sakeGo')
           }
         }
@@ -8630,7 +8654,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           if (w.t >= BOWL_UP_S) {
             // (on the tray: back across the kitchen to their place, out through their gate, along the aisle and in beside the first customer)
             const h = homeOf(wi), seat = mine[0].seat
-            const out = h.way.length < 2 ? [seats[seat].aisle.clone(), besideSeat(seat)] : backPath(wi, seat).slice(1)
+            const out = h.way.length < 2 ? [aisleBeside(seat), besideSeat(seat)] : backPath(wi, seat).slice(1)
             go([...kitchenRoute(w.pos, h.at), ...out], 'bowlGo')
           }
         }
@@ -8639,7 +8663,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         const b = passQ.current.find((x) => x.server === wi)
         if (!b) { go(kitchenRoute(homeOf(wi).at, w.pos), 'back'); return }
         w.phase = 'bowlSet'
-        face(seats[b.seat].plate)
+        faceBar(w, b.seat)
         const id = ownerServes ? 'owner' : servers[wi]?.id
         if (id) STAFF_TALK.push({ key: performance.now() + wi, id, text: LINES[lang].sideServe(b.guest, b.rice, b.soup), until: performance.now() + 2600 })
       })
@@ -8654,7 +8678,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           // (the next set on the tray: along the aisle to its place, at the same counter (item 207)); their customer gone, put by
           const next = passQ.current.find((x) => x.server === wi && guestSits(x.guest, x.seat))
           passQ.current = passQ.current.filter((x) => x.server !== wi || x === next)
-          if (next) go([w.pos.clone(), seats[seat].aisle.clone(), seats[next.seat].aisle.clone(), besideSeat(next.seat)], 'bowlGo')
+          if (next) go([w.pos.clone(), aisleBeside(seat), aisleBeside(next.seat), besideSeat(next.seat)], 'bowlGo')
           else go(backPath(wi, seat).slice(0, -1).concat(w.pos.clone()), 'back')
         }
       }
@@ -8702,11 +8726,11 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         if (!b || w.t >= BOWL_UP_S) {
           // (on the tray with the food: out through their gate, along the aisle, in beside the customer)
           const h = homeOf(wi)
-          const out = h.way.length < 2 ? [seats[w.seat].aisle.clone(), besideSeat(w.seat)] : backPath(wi, w.seat).slice(1)
+          const out = h.way.length < 2 ? [aisleBeside(w.seat), besideSeat(w.seat)] : backPath(wi, w.seat).slice(1)
           go([...kitchenRoute(w.pos, h.at), ...out], 'go')
         }
       } else if (w.phase === 'go') walk(() => {
-        w.phase = 'set'; face(plateAt(w.seat))
+        w.phase = 'set'; faceBar(w, w.seat)
         const id = servers[wi]?.id
         if (id) STAFF_TALK.push({ key: performance.now() + wi, id, text: LINES[lang].serveSay(Math.floor(Math.random() * 3)), until: performance.now() + 2600 })
       })
@@ -8729,13 +8753,13 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         // they go by, to the sink with them (item 53: only the floor's server cleared, and only with nothing to carry, and on an ordinary
         // evening nearly three of the eight seats stood with a dirty plate on them at any time, not to be sat at till it's cleared))
         const spoken = new Set(waiters.current.flatMap((x) => x.carry ?? []))
-        const here = seats[w.seat]
+        const hereN = w.seat, here = seats[hereN]
         const by = SHOP.leaving ? [] : onTheWay(here.counter, runs.current.filter((x) => x.phase === 'dirty' && !spoken.has(x.key))
           .map((x) => ({ run: x, counter: seats[x.seat].counter, far: seats[x.seat].mid.distanceTo(here.mid) })))
         if (by.length) {
           w.carry = by.map((x) => x.run.key)
           w.seat = by[0].run.seat
-          go([w.pos.clone(), here.aisle.clone(), seats[by[0].run.seat].aisle.clone(), besideSeat(by[0].run.seat)], 'clearGo')
+          go([w.pos.clone(), aisleBeside(hereN), aisleBeside(by[0].run.seat), besideSeat(by[0].run.seat)], 'clearGo')
         }
         // (back the shortest way to their place, in through their gate)
         else go(backPath(wi, w.seat).slice(0, -1).concat(w.pos.clone()), 'back')
@@ -8757,7 +8781,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         if (w.phase === 'clearGo') {
           // (at the seat: the plate up off the bar onto the tray)
           const r = runs.current.find((x) => x.key === (w.carry ?? []).find((k) => runs.current.find((y) => y.key === k)?.phase === 'dirty'))
-          if (r) { r.phase = 'taken'; r.from = plateAt(r.seat); face(plateAt(r.seat)) }
+          if (r) { r.phase = 'taken'; r.from = plateAt(r.seat); faceBar(w, r.seat) }
           w.phase = 'clearTake'
         } else {
           face(inBar('SinkBasinFloor', endOf(1)))
@@ -8767,11 +8791,10 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       else if (w.phase === 'clearTake' && w.t > CLEAR_WIPE_AT + WIPE_S) {
         // (another dirty plate at this counter still to take: on along the aisle to it; or back in through their gate, across to the sink)
         const next = runs.current.find((x) => (w.carry ?? []).includes(x.key) && x.phase === 'dirty')
-        const st = seats[w.seat]
         if (next) {
-          const nt = seats[next.seat]
+          const from = w.seat
           w.seat = next.seat
-          go([w.pos.clone(), st.aisle.clone(), nt.aisle.clone(), besideSeat(next.seat)], 'clearGo')
+          go([w.pos.clone(), aisleBeside(from), aisleBeside(next.seat), besideSeat(next.seat)], 'clearGo')
         } else {
           const back = backPath(wi, w.seat).reverse()
           back[0] = w.pos.clone()
