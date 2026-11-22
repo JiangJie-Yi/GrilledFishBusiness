@@ -41,10 +41,13 @@ const TIP_IN = 0.95
 const TIP_POUR = 1.55
 /** how far over the tokkuri's lip its mouth is held */
 const MOUTH_OVER = 0.035
-/** where it's held: one hand at its foot and the other at its neck (fractions of its height); how far out from its middle the hand at its
- * body is, and the one at its neck: on the side toward the one pouring as it stands, and as it's tipped over, under its body (holding it up)
- * and on top of its neck (steadying it), so the hands show from every side (behind it, from across the counter, they were hidden) */
-const HOLD_FOOT = 0.12, HOLD_NECK = 0.72, HOLD_BODY = 0.052, HOLD_TOP = 0.03
+/** where it's held: one hand at its foot and the other at its neck (fractions of its height); how far out from its axis the middle of the
+ * hand at its body is, and of the one at its neck: on the side toward the one pouring as it stands, and as it's tipped over, under its body
+ * (holding it up) and on top of its neck (steadying it), so the hands show from every side (behind it, from across the counter, they were
+ * hidden). Out from the axis by the bottle's own round there (blender/sakestand.py's 1.8-litre bottle: 0.052 at its body, 0.017 up its
+ * neck; 0.04 at 0.72, its shoulder) and a mitten's thickness, a little into it for a grip (item 591: at 0.052 and 0.03 the hands' middles
+ * were on its glass and inside its shoulder, half the mitten through it, 5 to 7.5 cm in the world) */
+const HOLD_FOOT = 0.12, HOLD_NECK = 0.84, HOLD_BODY = 0.082, HOLD_TOP = 0.047
 
 /** the live station, for GuestBar3D to move: its group (the counter's frame), the bottle (its foot at its origin, `q0` its own turn, `h` how
  * tall it is), its sake, the stream */
@@ -84,15 +87,24 @@ export const newStationPose = (): StationPose => ({ foot: new THREE.Vector3(), q
   right: new THREE.Vector3(), jug: new THREE.Vector3(), cup: new THREE.Vector3() })
 /** where the hands hold the bottle as it's posed: at its foot and at its neck; standing, on its side toward the one pouring; tipped over, the
  * one under its body and the other on top of its neck */
-const DOWN = new THREE.Vector3()
+const DOWN = new THREE.Vector3(), SIDE = new THREE.Vector3()
+/** the way out from the axis for a hand: toward the one pouring as it stands, under it (`sign` 1) or over it (-1) as it's tipped over;
+ * square to the axis and whole (blended as they were, part of it ran along the axis and part cancelled: tipping, the hand at its foot came
+ * in to 0.031 off the axis, inside its glass, item 591) */
+function outFrom(axis: THREE.Vector3, toward: THREE.Vector3, over: number, sign: number) {
+  SIDE.copy(toward).multiplyScalar(1 - over).addScaledVector(DOWN, sign * over)
+  SIDE.addScaledVector(axis, -SIDE.dot(axis))
+  const l = SIDE.length()
+  return l > 1e-6 ? SIDE.divideScalar(l) : SIDE.copy(toward)
+}
 function holds(p: StationPose, axis: THREE.Vector3) {
   const toward = STATION.front.clone().sub(p.foot).setY(0).normalize()
   // (straight down, less what of it runs along the bottle: how far it's tipped over, and which way is its underside)
   DOWN.set(0, -1, 0).addScaledVector(axis, axis.y)
   const over = DOWN.length()
   if (over > 1e-3) DOWN.divideScalar(over)
-  p.right!.copy(p.foot).addScaledVector(axis, STATION_OBJ.h * HOLD_FOOT).addScaledVector(toward, HOLD_BODY * (1 - over)).addScaledVector(DOWN, HOLD_BODY * over)
-  p.left!.copy(p.foot).addScaledVector(axis, STATION_OBJ.h * HOLD_NECK).addScaledVector(toward, HOLD_TOP * (1 - over)).addScaledVector(DOWN, -HOLD_TOP * over)
+  p.right!.copy(p.foot).addScaledVector(axis, STATION_OBJ.h * HOLD_FOOT).addScaledVector(outFrom(axis, toward, over, 1), HOLD_BODY)
+  p.left!.copy(p.foot).addScaledVector(axis, STATION_OBJ.h * HOLD_NECK).addScaledVector(outFrom(axis, toward, over, -1), HOLD_TOP)
 }
 /**
  * The station at a beat of the pour (game/sakePour's): `beat` and how far through it `k`. jug: a tokkuri brought up from the shelf under the
