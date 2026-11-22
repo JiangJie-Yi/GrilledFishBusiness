@@ -10,7 +10,7 @@
 // public/models (the Blender scripts' output) is never written: the build converts its copies in dist/. Only the models listed: a model
 // whose pictures the game reads back (scene/atlasMerge for the figures and a dish's pots, the cats' coats, faces, the ware's glazes, the
 // rice sacks' print…) can't have them compressed. Before adding one, search the code for where it's loaded and whether anything there
-// draws its pictures (drawImage, getImageData, .image), and look at it close up in the game (tests/e2e/_ktx2shot.mjs, outside git).
+// draws its pictures (drawImage, getImageData, .image) or copies them (texture.clone(): a compressed picture's levels are let go of once it's on the card, scene/ktx2, so a copy made after would be empty), and look at it close up in the game (tests/e2e/_ktx2shot.mjs, outside git).
 import { writeFile, mkdir, stat } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
