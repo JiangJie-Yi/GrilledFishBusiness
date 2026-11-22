@@ -275,6 +275,8 @@ export const Dish = memo(function Dish({ url, itemIds, quantities, hidden, layou
         // (or at its own spot, where the layout puts the first portion: the model has it somewhere else)
         const first = copy === 0 ? layout?.first?.[id] : undefined
         if (first) obj.position.set(first[0], obj.position.y, first[1])
+        // (and up off where the model has it, as the layout asks (the tubers onto the ash's bed, item 582))
+        if (copy === 0) obj.position.y += layout?.lift?.[id] ?? 0
         jitter(obj, isSkewer(id), placed(id))
         obj.userData.home = { p: obj.position.clone(), q: obj.quaternion.clone(), s: obj.scale.clone() }
       }

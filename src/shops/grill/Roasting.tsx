@@ -6810,6 +6810,8 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       p.ringSlot = k
     }
     p.staged = false
+    // (out of the basket it waited in, if it's a potato (item 583): the basket's settling lets go of it)
+    p.body = null
     p.homeFlight = instant ? 1 : 0
     p.fromP.copy(p.node.position)
     p.fromQ.copy(p.node.quaternion)
@@ -8840,7 +8842,8 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
    * up. Rolling turns them; friction and damping let them come to rest.
    */
   const settleBasket = (dt: number) => {
-    const live = pieces.current.filter((p) => p.body?.live && present(p) && !p.eaten)
+    // (not what's being carried off it by the pointer: the settling pulled it back in under the hand)
+    const live = pieces.current.filter((p) => p.body?.live && present(p) && !p.eaten && !p.carried)
     if (!live.length) return
     const c = basketAt(0)
     // (its floor and rim at its size: a uniformly sized bowl's floor y = (BOWL_CURVE / k) r²)
@@ -9362,8 +9365,8 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
     if (!fetchLive) for (const p of pieces.current) if (p.fetching) { p.fetching = false; p.fresh = true; p.node.userData.shrink = undefined; FRIDGE_KICK.at = performance.now() }
     const onTray = pieces.current.filter((p) => p.staged && !p.fetching && present(p) && !p.carried && p.trash < 0)
       .sort((a, b) => a.stagedAt - b.stagedAt)
-    // (those on the raw dish don't take a place on the tray)
-    const onBoard = onTray.filter((p) => !roast.rawDish?.items.includes(p.id))
+    // (those on the raw dish don't take a place on the tray; nor the potatoes in their foil, which wait in the basket (item 583))
+    const onBoard = onTray.filter((p) => !roast.rawDish?.items.includes(p.id) && !isTuber(p))
     // (the tray takes so many: the rest wait in the fridge, unseen, until there's room)
     const boardSticks = onBoard.filter((q) => !q.loose), boardLoose = onBoard.filter((q) => q.loose)
     // (and the rice balls' little dish takes three, round it: the rest wait in the fridge too (the fourth and after stood in a column over
@@ -9600,6 +9603,18 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       } else if (p.staged && inFridge.has(p)) {
         // (still in the fridge: set straight down in its spot when it's brought out)
         p.fresh = true
+      } else if (p.staged && isTuber(p)) {
+        // (item 583, the owner's 「然後這類根莖塊類食物，不應該在生食沾坂上」: a potato or a sweet potato in its foil waits in the bamboo basket by
+        // the board, not on the board, where raw fish and meat wait: let go over the basket as it's set out, it drops in and comes to rest
+        // there by the basket's own settling (settleBasket), with any roasted ones come back to it; taken from there onto the fire)
+        if (!p.body?.live) {
+          const s = [p.node.scale.x, p.node.scale.y, p.node.scale.z].sort((x, y) => x - y)
+          const k = onTray.indexOf(p)
+          p.node.position.copy(basketAt(0)).add(new THREE.Vector3(Math.cos(k * 2.4) * 0.12, 0.3 + (k % 4) * 0.06, Math.sin(k * 2.4) * 0.12))
+          flatQ(p, p.node.quaternion, STACK_DIR)
+          p.body = { v: new THREE.Vector3(0, -0.4, 0), r: (s[0] + s[1]) / 2 * 1.05, live: true }
+          p.fresh = false
+        }
       } else if (p.staged) {
         // waiting raw on the tray, laid flat in its spot
         const at = p.loose ? trayLooseSpot(Math.max(0, boardLoose.indexOf(p))) : traySpot(Math.max(0, boardSticks.indexOf(p)))

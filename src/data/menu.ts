@@ -40,6 +40,8 @@ export type CopyLayout = {
   fixed?: string[]
   /** per-item swing per extra portion, in radians: shuffles it along beside the original instead */
   spread?: Record<string, number>
+  /** per-item lift (up, in the dish) from where the model has it, set once as its place is first taken (every portion with it) */
+  lift?: Record<string, number>
   /** per-item spots (x, z in the dish) for the 2nd, 3rd… portion, e.g. side by side on the grill net */
   slots?: Record<string, [number, number][]>
   /** per-item spot (x, z in the dish) for the first portion, where the model has it somewhere else */
@@ -288,6 +290,10 @@ export const DISHES: Dish[] = [
       // potatoes and sweet potatoes sit in the ash at the front: extra ones line up beside the first,
       // potatoes toward the right, sweet potatoes toward the left
       spread: { Potato: 0.3, SweetPotato: -0.3 },
+      // (item 582, the owner's 「地瓜跟馬鈴薯直接不見」: set into the ash as the model has them, the hearth's bed (FirePit) had come up past
+      // them since (its top 0.160 and 0.168 over where they lie): a potato wholly under it, a sweet potato its top 1.6 cm out, gone from
+      // sight with their tags still over the fire. Lifted onto the bed, the lower four tenths of each in the ash, its foil plain to see)
+      lift: { Potato: 0.068, SweetPotato: 0.083 },
     },
     smoke: { y: 0.85, width: 1.5, height: 1.5 },
     focusY: 0.5,
