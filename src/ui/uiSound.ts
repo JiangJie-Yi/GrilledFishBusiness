@@ -131,6 +131,16 @@ export function coinSound() {
   bell(a, t, 2349, 0.022, 0.18)
   bell(a, t + 0.055, 3136, 0.02, 0.25)
 }
+/** today's target for the takings passed (item 175, ui/DayGoal): four bells running up an octave, quick and bright, once a day */
+let goalAt = -1
+export function goalSound() {
+  const a = ctx()
+  if (!a) return
+  const t = a.currentTime
+  if (t - goalAt < 1) return
+  goalAt = t
+  ;[1046.5, 1318.5, 1568, 2093].forEach((f, i) => bell(a, t + i * 0.085, f, 0.045, i === 3 ? 0.9 : 0.35))
+}
 /** on to the next business day (item 327): three soft bells rising, a morning's chime */
 export function dayTurnSound() {
   const a = ctx()

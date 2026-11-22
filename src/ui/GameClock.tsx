@@ -2,7 +2,7 @@
 // game's, the day's light coming round with it): the part of the day (the sun coming up, the sun, the sun going down, the moon), 第 3 天,
 // 14:25. Only it redraws as the minutes go by. The part of the day is a button (the owner's: to look at the shop's lights in each without
 // waiting): it moves the clock on to where the next part starts, and the room dissolves into that light.
-import { memo, useEffect, useRef } from 'react'
+import { memo, useEffect, useLayoutEffect, useRef } from 'react'
 import { hhmm, nextSky, skyAt, type Sky } from '@/game/clock'
 import { isLate } from '@/game/hours'
 import { tl, type Lang } from '@/data/i18n'
@@ -45,9 +45,15 @@ function GameClockImpl({ lang }: { lang: Lang }) {
   const tip = () => setTip({ title: nameOf(lang, sky), hint: tl(lang, `點一下換到${nameOf(lang, AFTER[sky])}`, `クリックで${nameOf(lang, AFTER[sky])}へ`, `Click for ${nameOf(lang, AFTER[sky]).toLowerCase()}`) })
   // (pressed with the pointer still on it: its label says what it is now)
   useEffect(() => { if (hovered.current) tip() })
+  // (how wide it's drawn, on the page for what stands beside it in its row (ui/DayGoal, item 175: the day's target left of it))
+  const pill = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const w = pill.current?.offsetWidth
+    if (w) document.documentElement.style.setProperty('--clock-w', `${w}px`)
+  })
   useEffect(() => () => { if (hovered.current) setTip(null) }, [])
   return (
-    <div className={`game-clock${sky === 'night' ? ' is-night' : ''}`} role="timer"
+    <div ref={pill} className={`game-clock${sky === 'night' ? ' is-night' : ''}`} role="timer"
       aria-label={tl(lang, `第 ${day} 天 ${hhmm(minute)}`, `${day} 日目 ${hhmm(minute)}`, `Day ${day}, ${hhmm(minute)}`)}>
       <button type="button" className={`game-clock-sky is-${sky}`} onClick={() => setClock(nextSky(getClock()))}
         aria-label={tl(lang, `${nameOf(lang, sky)}，換到${nameOf(lang, AFTER[sky])}`, `${nameOf(lang, sky)}、${nameOf(lang, AFTER[sky])}へ`, `${nameOf(lang, sky)}: go on to ${nameOf(lang, AFTER[sky]).toLowerCase()}`)}

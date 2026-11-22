@@ -16,7 +16,9 @@ export const AUTO_S = 10
 const AUTO_TIPS_S = 16
 const nt = (n: number) => `NT$${Math.round(n).toLocaleString('en-US')}`
 
-export function DaySummary({ s, day, hours, lang, nameOf, onClose }: { s: Summary; day: number; hours?: [string, string]; lang: Lang; nameOf: (key: string) => string; onClose: () => void }) {
+export function DaySummary({ s, day, hours, goal, goalMade, lang, nameOf, onClose }: { s: Summary; day: number; hours?: [string, string]; goal?: number
+  /** the day's target passed while it was open (refunds after don't take it back) */
+  goalMade?: boolean; lang: Lang; nameOf: (key: string) => string; onClose: () => void }) {
   /** how far off its hour a time was, as a small note after it (none if on the minute) */
   const offBy = (hour: number, hhmm: string) => {
     const at = minutesOf(hhmm)
@@ -97,6 +99,14 @@ export function DaySummary({ s, day, hours, lang, nameOf, onClose }: { s: Summar
               {/* (and the wages over the takings (人件費率, item 210)) */}
               {s.labour !== null && t(`・人事費率 ${Math.round(s.labour * 100)}%`, `・人件費率 ${Math.round(s.labour * 100)}%`, ` · Labour ${Math.round(s.labour * 100)}%`)}</small>}
           </p>
+          {/* (the day's target for the takings (game/dayGoal, item 175): made, or how far short) */}
+          {goal !== undefined && (
+            <p className={`day-sum-goal${goalMade || s.revenue >= goal ? ' is-made' : ''}`}>
+              <Glyph id={goalMade || s.revenue >= goal ? 'check' : 'coin'} size="13px" />
+              <FitLine>{goalMade || s.revenue >= goal ? t(`今日目標 ${nt(goal)} 達成`, `今日の目標 ${nt(goal)} 達成`, `Today's target ${nt(goal)} made`)
+                : t(`今日目標 ${nt(goal)}，還差 ${nt(goal - s.revenue)}`, `今日の目標 ${nt(goal)}、あと ${nt(goal - s.revenue)}`, `Today's target ${nt(goal)}: ${nt(goal - s.revenue)} short`)}</FitLine>
+            </p>
+          )}
           <dl className="day-sum-books">
             {rows.map(([label, n, plus, sub]) => (
               <div key={label} className={sub ? 'is-sub' : undefined}><dt>{label}</dt><dd className={plus ? 'is-in' : 'is-out'}>{plus || sub ? '' : '−'}{nt(Math.abs(n))}</dd></div>

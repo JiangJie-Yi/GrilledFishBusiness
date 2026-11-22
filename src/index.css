@@ -774,6 +774,52 @@ body.be-tool .app > :not(.canvas-layer):not(.axis-widget) { display: none; }
 .game-clock-next:active { transform: translateY(1px) scale(0.98); }
 .game-clock-next:focus-visible { outline: 2px solid #ffd696; outline-offset: 2px; }
 .game-clock-next .game-clock-next-go { transition: transform 120ms ease; }
+/* today's target for the takings (ui/DayGoal, item 175): while the shop's open, left of the clock in its row (under the clock is the menu
+   board's title then), the clock's own smoked glass; the takings against the target, a thin bar filling along its foot; passed, a warm gold
+   edge and text, a little hop as it's passed */
+.day-goal {
+  position: fixed;
+  z-index: 10;
+  top: 72px;
+  right: calc(28px + var(--clock-w, 163px));
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 11px 0 9px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgb(46 38 30 / 0.46), rgb(22 18 14 / 0.34));
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  backdrop-filter: blur(12px) saturate(1.4);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 6px 18px -8px rgb(0 0 0 / 0.5);
+  color: #f6ecda;
+  font: 700 13px/1 var(--brush);
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+  pointer-events: none;
+  user-select: none;
+  transition: border-color 300ms ease, color 300ms ease;
+  /* (its hop grows it leftward, away from the clock beside it: from its middle it came 1 px over the clock) */
+  transform-origin: 100% 50%;
+}
+.day-goal-icon { flex: none; opacity: 0.9; }
+.day-goal-label { font-size: 12px; opacity: 0.82; letter-spacing: 0.04em; }
+.day-goal-sum { font-variant-numeric: tabular-nums; }
+.day-goal-bar { position: absolute; left: 10px; right: 10px; bottom: 3px; height: 2px; border-radius: 1px; background: rgb(255 255 255 / 0.16); }
+.day-goal-bar b { display: block; height: 100%; border-radius: 1px; background: linear-gradient(90deg, #f3c77a, #ffe2a8); transform-origin: left center;
+  transition: transform 500ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.day-goal.is-reached { border-color: rgb(255 214 150 / 0.7); color: #ffe2a8; }
+.day-goal.is-reached .day-goal-bar { opacity: 0; }
+.day-goal.is-hop { animation: day-goal-hop 700ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both; }
+@keyframes day-goal-hop {
+  0% { transform: scale(1); }
+  30% { transform: translateY(-5px) scale(1.12); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), 0 0 22px 2px rgb(255 214 150 / 0.55); }
+  60% { transform: translateY(1px) scale(0.98); }
+  100% { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .day-goal.is-hop { animation: none; } }
 @keyframes game-clock-next-in {
   from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: none; }
@@ -7313,6 +7359,21 @@ body.be-tool .char-dock { right: calc(var(--bt-right) + 12px); top: calc(var(--b
 .day-sum-profit.is-loss strong { color: #c0392b; }
 :root[data-theme='dark'] .day-sum-profit strong { color: #4fff85; }
 :root[data-theme='dark'] .day-sum-profit.is-loss strong { color: #ff7a6b; }
+/* (the day's target for the takings under the profit (item 175): made, a warm gold and a tick; short, how much, quietly) */
+.day-sum-goal {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--ds-rule);
+  color: var(--ds-soft);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.day-sum-goal.is-made { color: #b07a1c; font-weight: 700; }
+:root[data-theme='dark'] .day-sum-goal.is-made { color: #ffd98a; }
 .day-sum-books,
 .day-sum-guests {
   display: grid;
