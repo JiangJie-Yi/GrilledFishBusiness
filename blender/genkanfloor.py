@@ -7,9 +7,9 @@ plain": one flat picture of stones on a plane, a regular grid of grey slabs in t
   up to a centimetre toward its middle and a hair tilted, shaded smooth; laid in the joints' pebble-wash. One mesh.
 - node "GenkanMortar": the pebble-wash (洗い出し) between them: small black, grey and white pebbles packed in dark cement, seen in the joints.
 - node "GenkanRug": ONE large rug (the owner's, 2026-11-17, in place of the little lettered doormat and the shoe-off stone, both gone):
-  a 0.70 x 0.72 slab 1.8 cm thick laid on the stones just inside, a way in from the door, clear of the shoe cupboard's doors: a woven
-  igusa (rush) field, its strands run the other way where a quiet 菱 (diamond) pattern is dyed into it, in a border of indigo cotton with two
-  cream pin-stripes and a row of stitches. Four rim quads and a top (26 triangles); everything else is in its picture and normal map.
+  a 0.946 x 0.72 slab 1.8 cm thick laid on the stones from the step's beam to the shoe cupboard's doors: a hooked cotton rug dyed with
+  Mt Fuji (item 563: the sun, mist bands, seigaiha waves, an indigo border with plum crests in its corners). Four rim quads and a top
+  (26 triangles); everything else is in its picture and normal map.
 - node "GenkanSill": the door's threshold (敷居石): a long slab of dark granite across the doorway, a little proud of the floor.
 - node "GenkanKamachi": the step's edge (上框): a polished keyaki beam along both of the genkan's open sides, its top a hair proud of the
   room's boards, its front the step's face down to the stones, its top front edge rounded; mitred at the corner.
@@ -58,7 +58,9 @@ DOME, ROUND, RINGS = 0.006, 0.011, (0.0, 0.003, 0.006, 0.011, 0.035)
 # off the beam's face (Z0 + K_FRONT), as long as it was)
 # (and filled out side to side (item 312, the owner's, 2026-11-18: 「玄關地毯可以左右補滿」): from the step's beam on the left (X0 + K_FRONT) to
 # 6 mm short of the shoe cupboard's front on the right (at x 1.3866 as it stands now, measured; its doors swing over it, clear of its 1.4 cm))
-RUG = {"x": (X0 + K_FRONT + 0.001, 1.38), "z": (Z0 + K_FRONT + 0.001, Z0 + K_FRONT + 0.001 + 0.72), "top": FLOOR + 0.014, "foot": FLOOR - 0.004, "rim": 0.0055, "round": 0.012}
+# (and on to the shoe cupboard (item 563, the owner's, 2026-11-22: 「補滿貼整齊」, a red box round the stones and joint seen between it and
+# the cupboard): a millimetre short of its doors' faces (x 1.392, measured in the game: tests/e2e/_rugside563.mjs); they swing 7.7 cm over it)
+RUG = {"x": (X0 + K_FRONT + 0.001, 1.391), "z": (Z0 + K_FRONT + 0.001, Z0 + K_FRONT + 0.001 + 0.72), "top": FLOOR + 0.014, "foot": FLOOR - 0.004, "rim": 0.0055, "round": 0.012}
 # (the threshold across the doorway, against the door's end)
 SILL = {"x": (X0 + K_FRONT + 0.004, X1), "z": (Z1 - 0.075, Z1), "top": FLOOR + 0.004}
 
@@ -125,73 +127,148 @@ wood = wood * (0.92 + 0.1 * fbm(M3, 4, 24, 3))[..., None]
 WOOD_TEX = image("genkan_keyaki", np.clip(wood, 0, 1).astype(np.float32))
 WOOD_NRM = image("genkan_keyaki_nrm", to_normal(grain * 0.6 + fbm(M3, 6, 30, 3) * 0.4, 1.2).astype(np.float32), data=True)
 
-# (the rug, 1024 square over 0.70 x 0.72 m, about 1,450 px a metre: a border of indigo cotton, 5 cm, with two cream pin-stripes and a row of
-# stitches; inside it an igusa field, its strands (2 mm) running up the rug, each its own shade, in lengths a shade lighter or darker, bound
-# by pale weft threads; a 菱 pattern dyed into it: a moss-green diamond band, a straw-coloured diamond inside it with a dyed middle, and a
-# quarter-diamond in each corner, the strands in those turned across)
-RN = 1024
+# (the rug (item 563, the owner's, 2026-11-22: 「門口的地毯要補滿貼整齊，可以參考這些花紋來Design，用富士山做為基底」, with a sheet of Japanese
+# motifs beside it: plum, crane, tomoe, seigaiha, pine, bamboo, chrysanthemum, Fuji, waves, asanoha): a hooked cotton rug dyed in the shop's
+# indigo, cream and vermilion, Mt Fuji its ground: an indigo mountain, its right flank lit, its snowcap running down in fingers with dark
+# gullies, a vermilion sun over it with a wisp of cloud across it, bands of mist (kasumi) across its slopes, seigaiha waves at its foot; a
+# thin vermilion frame round the field; an indigo border with a cream line in it and a plum crest in each corner. Its loops 3 px across,
+# a groove where one colour's loops meet another's. Upright as the shop's cameras see it (the genkan's view, the hearth's, the owner's: the
+# shoe cupboard at the top of the picture): the design's up runs along the rug's x (u), its right toward the door (+z; v runs from the door
+# back). 1024 x 768 over 0.946 x 0.72 m, about a pixel a millimetre.)
+TW, TH = 1024, 768
 RW, RL = RUG["x"][1] - RUG["x"][0], RUG["z"][1] - RUG["z"][0]
-ru, rv = grid01(RN)
-RX, RY = ru * RW, rv * RL
-edge = np.minimum(np.minimum(RX, RW - RX), np.minimum(RY, RL - RY))
-B_W = 0.05
-col_i = (ru * RN / 3.0).astype(int)
-row_i = (rv * RN / 3.0).astype(int)
-rrng = np.random.default_rng(2117)      # (its own: the stones' layout, from the module's rng, stays as it was)
-g_col, g_row = rrng.random(RN // 3 + 2).astype(np.float32), rrng.random(RN // 3 + 2).astype(np.float32)
-seg_v, seg_h = vnoise(RN, 5, 30), vnoise(RN, 30, 5)
-tone_v = np.clip(0.35 + 0.55 * g_col[col_i] + 0.4 * (seg_v - 0.5), 0, 1)
-tone_h = np.clip(0.35 + 0.55 * g_row[row_i] + 0.4 * (seg_h - 0.5), 0, 1)
-prof_v = 0.5 + 0.5 * np.cos(2 * math.pi * ru * RN / 3.0)
-prof_h = 0.5 + 0.5 * np.cos(2 * math.pi * rv * RN / 3.0)
-cx0, cy0 = RW / 2, RL / 2
+_U, _V = np.meshgrid((np.arange(TW) + 0.5) / TW, (np.arange(TH) + 0.5) / TH)
+DW, DH = RL, RW                           # the design's width and height
+DX, DY = (1.0 - _V) * DW, _U * DH         # its frame: x from the room's beam toward the door, y from the till's beam up to the cupboard
+PXM = DH / TW                             # a pixel, in metres
+AA = PXM * 0.7                            # an edge softened over about a pixel
+rrng = np.random.default_rng(563)         # (its own: nothing else drawn from it)
 
 
-def dia(cx, cy, a):
-    return np.abs(RX - cx) / a + np.abs(RY - cy) / a
+def inside(sd):
+    """a shape's mask from its signed distance (negative inside)"""
+    return smooth(AA, -AA, sd)
 
 
-d_big = dia(cx0, cy0, 0.27)
-d_in = dia(cx0, cy0, 0.145)
-d_cor = np.minimum(np.minimum(dia(B_W, B_W, 0.10), dia(RW - B_W, B_W, 0.10)), np.minimum(dia(B_W, RL - B_W, 0.10), dia(RW - B_W, RL - B_W, 0.10)))
-band = smooth(0.0, 0.03, d_big - 0.88) * smooth(0.0, 0.03, 1.0 - d_big)             # the moss diamond band
-straw = smooth(0.0, 0.03, 1.0 - d_in) * (1 - smooth(0.0, 0.03, 0.30 - d_in))      # the straw diamond, its middle left out
-core = smooth(0.0, 0.03, 0.30 - d_in)                                              # ...which is dyed
-corner = smooth(0.0, 0.03, 1.0 - d_cor)
-dyed = np.clip(band + core + corner, 0, 1)
-pale = np.clip(straw, 0, 1) * (1 - dyed)
-turned = np.clip(dyed + pale, 0, 1)                                               # strands run across where the pattern is
-tone = tone_v * (1 - turned) + tone_h * turned
-prof = prof_v * (1 - turned) + prof_h * turned
-igusa = mix((0.44, 0.47, 0.27), (0.64, 0.64, 0.40), tone)
-igusa = mix(igusa, igusa * np.array([0.66, 0.72, 0.74], np.float32), dyed)
-igusa = mix(igusa, (0.78, 0.73, 0.54) * (0.92 + 0.12 * tone)[..., None], pale)
-igusa = igusa * (0.86 + 0.14 * prof)[..., None]
-# (the weft: pale cotton binding threads across the strands (along them in the turned parts), a thin line every 14 px, a shade lighter)
-fr_v = (rv * RN / 14.0) % 1.0
-fr_h = (ru * RN / 14.0) % 1.0
-weft = np.maximum(smooth(0.80, 1.0, fr_v) * (1 - turned), smooth(0.80, 1.0, fr_h) * turned)
-igusa = mix(igusa, (0.76, 0.72, 0.56), weft * 0.16)
-igusa = igusa * (0.93 + 0.12 * fbm(RN, 3, 3, 4))[..., None]
-# (the border: indigo cotton, a fine weave, two cream pin-stripes and a row of stitches, a thin dark seam where it meets the field)
-weave = np.cos(2 * math.pi * ru * RN / 3.0) * np.cos(2 * math.pi * rv * RN / 3.0)
-cloth = mix((0.085, 0.115, 0.225), (0.125, 0.165, 0.30), fbm(RN, 6, 6, 3)) * (0.94 + 0.06 * weave)[..., None]
-stripe = smooth(0.0, 0.0006, edge - 0.0105) * smooth(0.0, 0.0006, 0.0128 - edge) + smooth(0.0, 0.0006, edge - 0.0165) * smooth(0.0, 0.0006, 0.0182 - edge)
-cloth = mix(cloth, (0.80, 0.77, 0.66), stripe * 0.85)
-along = np.where(np.minimum(RX, RW - RX) < np.minimum(RY, RL - RY), RY, RX)
-stitch = smooth(0.0, 0.0005, edge - 0.0365) * smooth(0.0, 0.0005, 0.0385 - edge) * smooth(0.0, 0.0008, 0.0068 - ((along / 0.012) % 1.0) * 0.012)
-cloth = mix(cloth, (0.74, 0.72, 0.62), stitch * 0.8)
-in_border = smooth(0.0, 0.0012, B_W - edge)
-seam = smooth(0.0, 0.0008, edge - (B_W - 0.0025)) * smooth(0.0, 0.0008, B_W + 0.0005 - edge)
-rug_rgb = mix(igusa, cloth, in_border)
-rug_rgb = mix(rug_rgb, rug_rgb * 0.45, seam)
-rug_rgb = rug_rgb * (0.95 + 0.07 * fbm(RN, 8, 8, 3))[..., None]
-RUG_TEX = image("genkan_rug", np.clip(rug_rgb, 0, 1).astype(np.float32))
-# (its relief: strands as rounded ridges with the weft pressed across, the border a hair raised, finely woven)
-rh = 0.5 * prof + 0.18 * weft + 0.1 * g_col[col_i] * (1 - turned)
-rh = rh * (1 - in_border) + (0.62 + 0.18 * weave) * in_border
-rh = rh - 0.3 * stitch
-RUG_NRM = image("genkan_rug_nrm", to_normal(rh, 2.2).astype(np.float32), data=True)
+def line_at(sd, w):
+    """a line `w` wide along a shape's edge (its signed distance's zero)"""
+    return inside(np.abs(sd) - w / 2)
+
+
+def stadium(x0, x1, yc, r):
+    """a band with round ends (a mist band), its signed distance"""
+    px = np.clip(DX, x0, x1)
+    return np.hypot(DX - px, DY - yc) - r
+
+
+INDIGO = (0.100, 0.145, 0.290)
+INDIGO_LIT = (0.170, 0.230, 0.400)
+CREAM = (0.900, 0.860, 0.745)
+SNOW = (0.965, 0.955, 0.915)
+SHU = (0.800, 0.235, 0.145)
+B = 0.048                                 # the border
+edge = np.minimum(np.minimum(DX, DW - DX), np.minimum(DY, DH - DY))
+rug = np.zeros((TH, TW, 3), np.float32) + np.array(CREAM, np.float32)
+
+# (the sun: upper right, the light on the mountain's right flank)
+SUN = (0.468, 0.770, 0.088)
+sun = inside(np.hypot(DX - SUN[0], DY - SUN[1]) - SUN[2])
+rug = mix(rug, SHU, sun)
+
+# (the mountain: concave flanks out past the field's sides, a flat top with its crater's three low peaks)
+XM, YB, YP, HW, SW = DW / 2, 0.318, 0.700, 0.42, 0.034
+ddx = np.abs(DX - XM)
+t = np.clip((ddx - SW) / (HW - SW), 0, 1)
+prof = YB + (YP - YB) * (1 - t) ** 1.6
+prof = prof + np.where(ddx < SW, 0.004 * (0.5 + 0.5 * np.cos(2.5 * math.pi * (DX - XM) / SW)), 0.0)
+slope = (YP - YB) * 1.6 * (1 - t) ** 0.6 / (HW - SW)
+mtn = inside((DY - prof) / np.sqrt(1 + slope ** 2))
+# (its lit side: right of a ridge running down from the summit, a little out to the right as it comes down)
+ridge = XM + 0.012 + 0.05 * np.clip((YP - DY) / (YP - YB), 0, 1)
+lit = smooth(-0.003, 0.003, DX - ridge)
+rug = mix(rug, mix(np.broadcast_to(np.array(INDIGO, np.float32), lit.shape + (3,)), INDIGO_LIT, lit), mtn)
+# (the snowcap: down from the summit, its edge in fingers of its own lengths, longer toward the middle)
+k = (DX - XM) / 0.031
+fid = np.floor(k).astype(int)
+lens = rrng.uniform(0.35, 1.0, 64).astype(np.float32)
+fing = (1 - np.abs(2 * (k - fid) - 1)) ** 1.4
+reach = 0.030 + 0.055 * lens[(fid + 32) % 64] * np.clip(1 - np.abs(DX - XM) / 0.2, 0.25, 1)
+snowline = YP - 0.095 - reach * fing
+snow = inside(snowline - DY) * mtn
+# (its gullies: dark lines down from under the summit, fanning out, stopping short of the snow's edge)
+gul = np.zeros_like(snow)
+for off in (-0.052, -0.020, 0.016, 0.048):
+    xl = XM + off * (1 + 1.4 * np.clip((YP - 0.012 - DY) / 0.12, 0, 1))
+    seg = inside(np.abs(DX - xl) - 0.0011) * smooth(YP - 0.010, YP - 0.020, DY) * smooth(0.0, 0.012, DY - snowline)
+    gul = np.maximum(gul, seg)
+rug = mix(rug, SNOW, snow * (1 - gul))
+
+# (the mist (霞): bands across the mountain's slopes, a wisp across the sun; each broad one stepped, a shorter band laid over it to one side,
+# as they're drawn; cream, an indigo line round each, a second inside the broad ones)
+for x0, x1, yc, r, inner, step in ((0.060, 0.330, 0.430, 0.017, True, (0.035, 0.12)), (0.335, 0.660, 0.500, 0.015, True, (0.13, 0.03)),
+                                   (0.405, 0.610, 0.752, 0.0085, False, None)):
+    sd = stadium(x0, x1, yc, r)
+    if step:
+        sd = np.minimum(sd, stadium(x0 + step[0], x1 - step[1], yc + r * 1.45, r * 0.72))
+    band = inside(sd)
+    rug = mix(rug, CREAM, band)
+    ink = line_at(sd + 0.0016, 0.0022)
+    if inner:
+        ink = np.maximum(ink, line_at(stadium(x0 + 0.012, x1 - 0.012, yc, r - 0.0085) + 0.0, 0.0016) * band)
+    rug = mix(rug, INDIGO, ink)
+
+# (the waves at its foot: seigaiha, rows of fanned scales, the lower rows in front, each three rings and a filled heart)
+R = 0.046
+top = YB + 0.007                          # (its top row's scallops over the mountain's foot, up to its flanks where they leave the field)
+dist = np.full(DX.shape, 9.0, np.float32)
+rows = int((top + 0.06) / (R / 2)) + 3
+for kk in range(rows - 1, -1, -1):
+    yc = top - kk * (R / 2)
+    off = (kk % 2) * R
+    xc = np.round((DX - off) / (2 * R)) * 2 * R + off
+    d = np.hypot(DX - xc, DY - yc)
+    take = (d < R) & (dist > 8.0)
+    dist = np.where(take, d, dist)
+wave = inside(dist - R)
+wl = np.zeros_like(wave)
+for rr in (0.935, 0.690, 0.445):
+    wl = np.maximum(wl, line_at(dist - rr * R, 0.095 * R))
+wl = np.maximum(wl, inside(dist - 0.20 * R))
+rug = mix(rug, CREAM, wave)
+rug = mix(rug, INDIGO, wl * wave)
+
+# (the vermilion frame round the field, a hair in from the border)
+frame = inside(np.abs(edge - (B + 0.007)) - 0.0011)
+rug = mix(rug, SHU, frame)
+# (the border: indigo, a cream line near its edge and one along its inside, a cream plum crest with a vermilion heart in each corner)
+bord = inside(edge - B)
+cl = np.maximum(inside(np.abs(edge - 0.0095) - 0.0011), inside(np.abs(edge - (B - 0.0045)) - 0.0008))
+rug = mix(rug, INDIGO, bord)
+rug = mix(rug, CREAM, cl * bord)
+plum = np.zeros_like(bord)
+heart = np.zeros_like(bord)
+for cx, cy in ((B / 2, B / 2), (DW - B / 2, B / 2), (B / 2, DH - B / 2), (DW - B / 2, DH - B / 2)):
+    for i in range(5):
+        a = math.pi / 2 + i * 2 * math.pi / 5
+        plum = np.maximum(plum, inside(np.hypot(DX - cx - 0.0088 * math.cos(a), DY - cy - 0.0088 * math.sin(a)) - 0.0071))
+    heart = np.maximum(heart, inside(np.hypot(DX - cx, DY - cy) - 0.0034))
+rug = mix(rug, CREAM, plum * bord)
+rug = mix(rug, SHU, heart * bord)
+
+# (hooked: a groove where one colour's pile meets another's; the dye a little uneven, the indigo more; the pile itself soft and a little
+# uneven, its loops (3 mm) too fine to see from where the shop's looked at, and left out: drawn, they made its pictures three times the size)
+# (the grooves from the picture itself: where its colour changes, so nothing under the border shows through as a groove)
+groove = np.sum(np.abs(rug - np.roll(rug, 1, 0)) + np.abs(rug - np.roll(rug, 1, 1)), axis=-1)
+groove = np.clip(groove * 2.5, 0, 1)
+groove = np.clip((groove + np.roll(groove, 1, 0) + np.roll(groove, -1, 0) + np.roll(groove, 1, 1) + np.roll(groove, -1, 1)) / 2.2, 0, 1)
+mott = fbm(TW, 6, 6, 3)[:TH, :TW]
+dark = 1.0 - 0.6 * (np.mean(rug, axis=-1) < 0.35)
+rug = rug * (0.955 + 0.075 * mott * (2 - dark))[..., None]
+rug = rug * (1 - 0.16 * groove)[..., None]
+RUG_TEX = image("genkan_rug", np.clip(rug, 0, 1).astype(np.float32))
+pile = fbm(TW, 24, 24, 3)[:TH, :TW]
+rh = 0.5 + 0.10 * pile - 0.45 * groove + 0.10 * bord
+RUG_NRM = image("genkan_rug_nrm", to_normal(rh, 2.0).astype(np.float32), data=True)
 
 M = {
     "rug": pbr("GenkanRug", (1, 1, 1), tex=RUG_TEX, nrm=RUG_NRM, nrm_strength=0.8, rough=0.95),
@@ -410,6 +487,9 @@ for i, s in enumerate(seeds):
     if len(merged) < 3:
         continue
     tint = TINTS[int(rng.integers(0, len(TINTS) - 1))] if rng.random() > 0.2 else TINTS[-1]
+    # (item 563: drawn untinted, as the owner has seen them since 11-18: the export put each stone's tint where the game doesn't read it
+    # (item 443 fixed that), so made again they'd all change colour; the draws above kept, so the stones lie where they did)
+    tint = (1.0, 1.0, 1.0)
     pillow(bm, merged, FLOOR + 0.004 + rng.uniform(-0.001, 0.001), MORTAR_Y, L, tint, 0.65, (rng.random(), rng.random()),
            dome=DOME, tilt=(rng.uniform(-0.004, 0.004), rng.uniform(-0.004, 0.004)))
     n_st += 1
@@ -470,7 +550,7 @@ rug = new_obj("GenkanRug", bm, "rug", smooth_shade=False)
 bm = bmesh.new()
 L = layers(bm)
 slab(bm, [(SILL["x"][0], SILL["z"][0]), (SILL["x"][1], SILL["z"][0]), (SILL["x"][1], SILL["z"][1]), (SILL["x"][0], SILL["z"][1])], SILL["top"],
-     MORTAR_Y, 0.005, L, (0.46, 0.46, 0.49), 0.65, (0.12, 0.4))
+     MORTAR_Y, 0.005, L, (1.0, 1.0, 1.0), 0.65, (0.12, 0.4))      # (untinted, as the stones: item 563)
 sill = new_obj("GenkanSill", bm, "stone")
 
 # ------------------------------------------------------------------------------------------------ the step's beam (上框)

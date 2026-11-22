@@ -1323,7 +1323,8 @@ export const GENKAN = { depth: 0.1, along: [0.15, 1.45] as [number, number], lay
  * and how high its top stands over the genkan's stone (1.4 cm: who stands on it stands on it, not in it) */
 // (pushed up against the step's beam (item 294, the owner's 「貼緊」): along 0.6 to 1.32 before)
 // (and filled out side to side (item 312): lay -1.25 to -0.55 before)
-export const GENKAN_RUG = { along: [0.175, 0.895] as [number, number], lay: [-1.38, -0.445] as [number, number], top: 0.014 }
+// (and on to the shoe cupboard's doors, a millimetre short of their faces (item 563, the owner's 「補滿貼整齊」): from -1.38 before)
+export const GENKAN_RUG = { along: [0.175, 0.895] as [number, number], lay: [-1.391, -0.445] as [number, number], top: 0.014 }
 /** the stone steps down out of the sliding door (item 410, blender/stonesteps.py's StoneStep1, StoneStep2): how far out past the genkan's
  * front each reaches (along), its top's height; past them the street's */
 const DOOR_STEPS: readonly (readonly [number, number])[] = [[0.17, -0.228], [0.34, -0.341], [0.9, -0.45]]
