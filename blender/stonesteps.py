@@ -473,6 +473,30 @@ def stone(bm, L, poly, face, crown, tint, moss, rnd=S_ROUND, rings=S_RINGS, dome
         for k in range(len(rs_) - 1):
             tops.append(bm.faces.new((ring_v[k][i], ring_v[k][j], ring_v[k + 1][j], ring_v[k + 1][i])))
     tops += ladder_fill(bm, ring_v[-1])
+    # (each point's place on its picture: the crown's middle laid flat from the face as it was; out from its innermost ring, over its
+    # rounded edge and down its side to its foot, the picture carried on by the length of stone it goes over (item 548, the owner's 「這邊
+    # 側面有點怪，需照著紋理」: laid flat from the face, the edge's steep rounding and the side took a sliver of the picture each, and its
+    # grains were drawn out into streaks along every joint)
+    K = len(rs_)
+    flat = {}
+    for i in range(n):
+        ia, ib = rs_[K - 1][i]
+        da, db = poly[i][0] - ia, poly[i][1] - ib
+        ln = math.hypot(da, db)
+        if ln < 1e-9:
+            da, db = poly[i][0] - ca, poly[i][1] - cb
+            ln = math.hypot(da, db) or 1.0
+        da, db = da / ln, db / ln
+        flat[ring_v[K - 1][i]] = (ia, ib)
+        acc, prev = 0.0, ring_v[K - 1][i]
+        for k in range(K - 2, -1, -1):
+            v = ring_v[k][i]
+            (pa, pb, ph), (qa, qb, qh) = info[v][:3], info[prev][:3]
+            acc += math.sqrt((pa - qa) ** 2 + (pb - qb) ** 2 + (ph - qh) ** 2)
+            flat[v] = (ia + da * acc, ib + db * acc)
+            prev = v
+        acc += abs(info[prev][2] - info[foot_v[i]][2])
+        flat[foot_v[i]] = (ia + da * acc, ib + db * acc)
     cen = Vector(gv(fr(ca, cb, crown - thick / 2)))
     tile, off = 0.65, (RS.random(), RS.random())
     for f in sides + tops:
@@ -489,10 +513,8 @@ def stone(bm, L, poly, face, crown, tint, moss, rnd=S_ROUND, rings=S_RINGS, dome
         f.smooth = True
         for lp in f.loops:
             a, b, h, g, ring = info[lp.vert]
-            if f in tops:
-                lp[L["uv"]].uv = (a / tile + off[0], b / tile + off[1])
-            else:
-                lp[L["uv"]].uv = ((a + b) / tile + off[0], h / tile * 3 + off[1])
+            ua, ub = flat[lp.vert]
+            lp[L["uv"]].uv = (ua / tile + off[0], ub / tile + off[1])
             m = moss.at(*g) * (1.0, 0.85, 0.55, 0.3, 0.15)[min(ring, 4)]
             k = shade(*g) if shade else 1.0
             lp[L["col"]] = (*(tint[i_] * (1 - m * (1 - GREEN[i_])) * k for i_ in range(3)), 1.0)
