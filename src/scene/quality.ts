@@ -8,6 +8,8 @@
 // Every level loads only the dish on screen (the next is loaded when switched to), except high, which keeps all
 // three ready. `?q=low|medium|high` forces a level; a dropped WebGL context remembers to start one level lower.
 
+import { gpuTier } from '@/game/gpuTier'
+
 export type Tier = 'low' | 'medium' | 'high'
 
 export type Quality = {
@@ -42,31 +44,21 @@ function gpuName(): string {
   }
 }
 
-function detect(): Tier {
-  const nav = navigator as Navigator & { deviceMemory?: number }
-  const touch = window.matchMedia('(hover: none)').matches
-  const mem = nav.deviceMemory ?? (touch ? 4 : 8)
-  const cores = nav.hardwareConcurrency ?? 4
-  const gpu = gpuName()
-  // old mobile GPUs and software renderers
-  if (/SwiftShader|llvmpipe|Mali-[4T]|Mali-G(31|51|52|57)|Adreno \(TM\) [3-5]\d\d|PowerVR|Adreno \(TM\) 6[0-1]\d/i.test(gpu)) {
-    return 'low'
-  }
-  if (mem <= 3 || cores <= 4) return 'low'
-  if (touch) return mem >= 8 && /Adreno \(TM\) (7[3-9]\d|8\d\d)|Apple GPU|Immortalis/i.test(gpu) ? 'high' : 'medium'
-  return mem >= 8 ? 'high' : 'medium'
-}
+/** the graphics chip's name, read once (also for the "can't open 3D" notice and the developer's console) */
+let GPU = ''
 
 function choose(): Tier {
   if (typeof window === 'undefined') return 'high'
   const forced = new URLSearchParams(window.location.search).get('q')
   if (forced === 'low' || forced === 'medium' || forced === 'high') return forced
-  // (a desktop or laptop gets the best: its full models, sharp shadows and the canvas at full density; a Mac one level less (the owner's: a
-  // MacBook with 8 GB, its graphics sharing that memory, lost the 3D view with everything at its finest); only touch devices are judged.
-  // Any of them that lost its 3D view is stepped down for next time (it used to be skipped on a desktop: it crashed the same way again))
+  // (every device judged by its graphics chip now, a desktop or laptop too (item 568, game/gpuTier): a laptop's built-in graphics start a
+  // level lower; a Mac one level less as before. Any of them that lost its 3D view is stepped down for next time (it used to be skipped on a
+  // desktop: it crashed the same way again))
+  const nav = navigator as Navigator & { deviceMemory?: number }
   const mac = /Mac/i.test(navigator.platform) || /Macintosh/i.test(navigator.userAgent)
   const touch = window.matchMedia('(hover: none)').matches
-  let tier: Tier = !touch ? (mac ? 'medium' : 'high') : detect()
+  GPU = gpuName()
+  let tier: Tier = gpuTier({ gpu: GPU, touch, mac, mem: nav.deviceMemory, cores: nav.hardwareConcurrency })
   try {
     // a level that lost its context before is stepped down from (for three days; the old bare-word record only on a touch device, as it was)
     const raw = localStorage.getItem(KEY)
@@ -83,6 +75,7 @@ function choose(): Tier {
 }
 
 const TIER = choose()
+if (import.meta.env.DEV && typeof window !== 'undefined') console.info(`[quality] ${TIER}${GPU ? ` (${GPU})` : ''}`)
 
 export const QUALITY: Quality = {
   // (the full model at once, on every level: a light one first and the full one swapped in after built the whole shop twice over at the
