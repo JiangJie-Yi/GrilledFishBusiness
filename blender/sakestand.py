@@ -48,10 +48,12 @@ NECK_FOOT = 7         # (where the shoulder meets the neck)
 # cap's top at 1)
 # =====================================================================
 NB = 13               # (twelve bottles and the hang tag's picture)
-# (448 wide a column, 1024 high: thirteen in a row would be 5,824 across, past the 4,096 every GPU takes; so two rows of seven (item 285),
-# 3,136 by 2,048, the last cell empty)
-NCOL, NROW = 7, 2
-CWID, CH = 448, 1024
+# (item 538: a 2,048 square, four by four cells of 512: it had been two rows of seven, 3,472 by 2,048, not a power of two (some 38 MB
+# on the GPU, the shop's largest) and the game drew it at 2,048 across anyway, a bottle's round 290 pixels. Each column painted 464 wide
+# (its margins making 512) and 1,024 high as before, then halved up it: 464 round, 512 up)
+NCOL, NROW = 4, 4
+CWID, CH = 464, 1024
+CROW = CH // 2        # (a cell's height in the picture)
 # (each column with a margin either side that carries its own picture on round the bottle (item 398, the owner's 「酒瓶背後都有一條縫線?」
 # 「幾乎每個都有」): a bottle's back is where its column's two edges meet, and they met the next columns' pictures; kept 0.6 % in from them
 # (item 197) was a pixel at full size, under one as the game draws the picture smaller (scene/textureCap), and the next bottle's colour
@@ -598,6 +600,7 @@ cols.append(tag)
 cells = [np.clip(k.col, 0, 1) for k in cols] + [np.full((CH, CWID, 3), 0.5, np.float32)] * (NCOL * NROW - len(cols))
 # (each column's margins: its right edge's picture on the left of it, its left edge's on the right, as round the bottle they're one)
 cells = [np.concatenate([c[:, -GUT:], c, c[:, :GUT]], 1) for c in cells]
+cells = [(c[0::2] + c[1::2]) * 0.5 for c in cells]
 atlas = np.concatenate([np.concatenate(cells[r * NCOL:(r + 1) * NCOL], 1) for r in range(NROW)], 0).astype(np.float32)
 # (the roughness in the picture's alpha is no use to the game's toon; the shine kept in a second small picture would be one more texture:
 # instead the label's matte and the glass's gloss come from the material's own roughness, the label's own look painted)
@@ -661,6 +664,64 @@ def shoji_pic(w=128, h=128):
     return img.astype(np.float32)
 
 
+LBW, LBH = 1024, 256
+
+
+def lightbox_pic():
+    """the light box's paper (item 538), 1,024 by 256: its lower half the long faces' (u along the box, v up it), warm paper lit from
+    within, the kumiko's upright bars dark across it every 64 pixels, a bar along its top and its foot, and behind the paper, soft as
+    shadows on it, ink stems of bamboo with their joints and sprays of leaves and low grass; its upper half the riser's and the ends' (the
+    same bars, the paper plain)"""
+    r_ = np.random.default_rng(538)
+    W, H2 = LBW, LBH // 2
+    yy, xx = np.mgrid[0:H2, 0:W].astype(np.float32)
+    v = (yy + 0.5) / H2
+    paper = np.array([0.98, 0.93, 0.8], np.float32)[None, None, :] * (0.95 + 0.05 * r_.random((H2, W, 1)).astype(np.float32))
+    # (brighter in the middle of each cell, a little shade toward its bars: the lamp behind)
+    cellx = (xx % 64) / 64.0
+    paper = paper * (0.9 + 0.1 * np.sin(cellx * math.pi))[..., None]
+    paper = paper * (0.88 + 0.12 * np.sin(np.clip(v, 0, 1) * math.pi))[..., None]
+
+    def bars(img):
+        d = np.minimum.reduce([np.abs(((xx + 32) % 64) - 32) - 3.0, yy - 9.0, (H2 - 1 - yy) - 9.0])
+        img = img * (0.86 + 0.14 * smooth(0.0, 4.0, np.maximum(d, 0)))[..., None]
+        return np.where((d < 0)[..., None], np.array([0.36, 0.21, 0.1], np.float32)[None, None, :], img)
+    plain = bars(paper.copy())
+    # (the ink behind the paper: a mask drawn, then softened)
+    ink = np.zeros((H2, W), np.float32)
+    for x0, lean, w in ((70, 6, 7), (96, -4, 5), (128, 3, 6), (690, -5, 7), (720, 4, 5), (905, 2, 6), (940, -3, 5)):
+        cx = x0 + lean * (yy / H2)
+        stem = np.abs(xx - cx) < w * 0.5
+        joint = (np.abs(((yy + x0) % 44) - 22) < 1.2) & (np.abs(xx - cx) < w * 0.8)
+        ink = np.maximum(ink, (stem & ~((np.abs(((yy + x0) % 44) - 22) < 2.4) & ~joint)) * 1.0)
+        ink = np.maximum(ink, joint * 1.0)
+    # (leaves: long narrow blades off the stems, in sprays near the top, each a pointed ellipse leaning out)
+    for _ in range(46):
+        side = r_.random() < 0.5
+        x0 = r_.choice([70, 96, 128, 690, 720, 905, 940]) + r_.uniform(-6, 6)
+        y0 = r_.uniform(H2 * 0.45, H2 * 0.92)
+        ang = (r_.uniform(0.15, 0.6) if side else math.pi - r_.uniform(0.15, 0.6)) - 0.1
+        L_, Wd = r_.uniform(24, 40), r_.uniform(2.5, 4.0)
+        dx, dy = xx - x0, yy - y0
+        a = dx * math.cos(ang) + dy * math.sin(ang)
+        b = -dx * math.sin(ang) + dy * math.cos(ang)
+        t = np.clip(a / L_, 0, 1)
+        ink = np.maximum(ink, ((a > 0) & (a < L_) & (np.abs(b) < Wd * np.sin(t * math.pi) ** 0.7 + 0.3)) * 1.0)
+    # (low grass along the foot, the middle's run)
+    for _ in range(70):
+        x0 = r_.uniform(180, 640)
+        hgt = r_.uniform(14, 40)
+        lean = r_.uniform(-0.6, 0.6)
+        cx = x0 + lean * (yy - 10)
+        ink = np.maximum(ink, ((yy > 9) & (yy < 9 + hgt) & (np.abs(xx - cx) < 1.4 * (1 - (yy - 9) / hgt) + 0.4)) * 1.0)
+    # (softened: a few passes of a box blur, the shadow through paper)
+    for _ in range(3):
+        ink = (ink + np.roll(ink, 1, 0) + np.roll(ink, -1, 0) + np.roll(ink, 1, 1) + np.roll(ink, -1, 1)) / 5.0
+    face = paper * (1.0 - 0.62 * np.clip(ink, 0, 1))[..., None]
+    face = bars(face)
+    return np.concatenate([face, plain], 0).astype(np.float32)
+
+
 M = {
     "glass": pbr("SakeBottles", (1, 1, 1), tex=image("sake_bottles", atlas), rough=0.18),
     # (the same picture: the game draws this one see-through, the light through it (item 88))
@@ -668,12 +729,9 @@ M = {
     "liquid": pbr("SakeLiquid", (0.96, 0.92, 0.74), rough=0.05),
     # (the cloudy sake (にごり, item 285): white, near opaque, the game its own see-through for it)
     "nigori": pbr("SakeLiquidNigori", (0.95, 0.94, 0.9), rough=0.25),
-    # (the stand's woods (item 383): its hinoki, its keyaki, the burl of the plinth's faces, the risers' shoji (the game lights its paper
-    # softly, the frame's transom with them))
-    "wood": pbr("SakeStandWood", (1, 1, 1), tex=image("sake_stand_wood", stand_col), rough=0.6),
+    # (item 538: two of them for the stand: its keyaki, and the light box's paper (the game lights it from within))
     "keyaki": pbr("SakeWoodKeyaki", (1, 1, 1), tex=image("sake_keyaki", keyaki_col), rough=0.5),
-    "burl": pbr("SakeWoodBurl", (1, 1, 1), tex=image("sake_burl", burl()), rough=0.45),
-    "shoji": pbr("SakeShoji", (1, 1, 1), tex=image("sake_shoji", shoji_pic()), rough=0.7),
+    "shoji": pbr("SakeShoji", (1, 1, 1), tex=image("sake_shoji", lightbox_pic()), rough=0.7),
 }
 parts = []
 
@@ -802,7 +860,7 @@ def bottle(k, prof, at, turn):
     # the picture was drawn smaller (item 197: a line of another bottle's colour down each one's back, the kitchen's side); in two rows
     # now (item 285), its foot and its cap's top kept in from the row above and below the same way)
     u0, uw = ((k % NCOL) + GUT / (CWID + 2 * GUT)) / NCOL, CWID / (CWID + 2 * GUT) / NCOL
-    vrow = lambda z: ((k // NCOL) + 0.004 + 0.992 * z / H_) / NROW
+    vrow = lambda z: ((k // NCOL) + 0.012 + 0.976 * z / H_) / NROW
     for j in range(len(prof) - 1):
         for i in range(NA):
             i2 = (i + 1) % NA
@@ -869,30 +927,29 @@ def bottle(k, prof, at, turn):
 
 
 # =====================================================================
-# The stand (item 383, the owner's, 2026-11-20: 「酒台的風格不行，要日式，木造」, after a woodblock print's 衝立: a wooden screen, its frame
-# on two feet, a lattice in its upper half, a panel of figured wood under it, a top rail over its posts run on past them. Item 380's black
-# lacquer, gold and vermilion didn't go with the shop's Edo wood (the bar's lip, item 313, after a 衝立 too)). All of it wood now, joined
-# as a joiner joins it: a keyaki plinth up on two bracket feet (脚), its long faces figured burl (玉杢) as the screen's lower panel; two
-# steps on it, their tops pale hinoki, their risers a shoji lattice (格子) of keyaki bars over paper, lit softly from within; each bottle
-# on a hinoki coaster, the best one up on a white-wood dais; behind them the screen's frame, square (item 399: it had been a gate, a
-# torii's top rail run on past the posts, its tie beam through them and a plaque between): two keyaki posts at the back corners standing
-# on the feet, a top rail on them ending flush with them, a middle rail under it, a shoji transom between the two. Bold rounded shapes (item
-# 379's 造型感: bevels with their normals hardened). The steps' heights and the bottles' places as they were (the pour, the tasting)
+# The stand (item 538, the owner's, 2026-11-22: 「有沒有客人看的到，內場也看得到的辦法」「酒類要保留下來」「可以更優化」, after his
+# picture of bottles in rows before a lit shoji): a low light box (行灯箱) of keyaki and paper, lit from within, no screen behind the
+# bottles (item 383's screen and its transom hid them from the kitchen), so they're seen from both sides. On two bracket feet; a keyaki
+# rail along its foot, a keyaki top board, a post at each corner; between them the paper, the kumiko's bars and ink bamboo and grass
+# behind it in its picture, glowing. Along its middle a second, narrower box, the same, raised a step: the six 一升瓶 along it (over the
+# bar's lip, seen from the seats), the middle two up on a keyaki dais. The 四合瓶 a step lower either side: three and the tokkuri's
+# coaster on the customers' side (-y), three turned to the kitchen on the cook's side (+y), the stoneware one (the best) in the middle of
+# them. Every bottle on a keyaki coaster. Its heights the old steps' (the front step's top 0.098, the back's 0.158): the pour and the
+# tokkuri raised with them (Decor's JUG_AT, CARRY_Y). Two materials for the stand, the bottles' two as before
 # =====================================================================
-L, D = 0.93, 0.25
-FRONT_D = 0.11
-PL = 0.056           # (the plinth's top)
-T1 = PL + 0.042      # (the front step's top)
-T2 = T1 + 0.06       # (the back step's top)
+# (higher than the old steps (0.098, 0.158): the cook table's rim on the kitchen's side and the bar's lip on the customers' hid the
+# paper under 0.065; the raised box's paper, the bamboo on it, seen over the rim and through the lip's bamboo)
+LT = 0.12            # (the low box's top: the short bottles' coasters on it)
+MT = 0.21            # (the raised box's top: the tall bottles' coasters on it)
 CO = 0.006           # (a coaster's height)
-DAI = 0.045          # (the best bottle's dais)
-PX = L / 2 + 0.046   # (the plinth's half length)
-PY0, PY1 = -D / 2 - 0.02, D / 2 + 0.035     # (its depth: deeper behind, the frame's posts on it behind the steps)
-FOOT_H = 0.022       # (the feet: the plinth stands up on them, the table seen under it between them)
-POST_X, POST_Y, POST_W = L / 2 + 0.018, D / 2 + 0.017, 0.032
-TOP_Z, TOP_H = 0.6, 0.026        # (the frame's top rail: its foot, its height)
-MID_Z, MID_H = 0.5, 0.012        # (its middle rail: its top, its height; the shoji transom between the two rails)
-CELL = 0.05          # (the risers' lattice: a cell across)
+DAI = 0.03           # (the middle two's dais)
+FOOT_H = 0.022       # (the feet: the box up on them, the table seen under it between them)
+BX, BY0, BY1 = 0.5, -0.15, 0.15          # (the low box's paper: its half length, its depth (front, back))
+RX, RY0, RY1 = 0.4, -0.058, 0.058         # (the raised box's paper)
+FR_ = 0.012          # (the keyaki's thickness round the paper: rails, boards, posts)
+Y_CUST, Y_MID, Y_KIT = -0.106, 0.0, 0.106  # (the three rows: the customers', the tall bottles', the kitchen's)
+SPAN = 0.13
+JUG_X = 0.44         # (the tokkuri's coaster: the customers' row's end, clear of the raised box's corner post)
 
 
 def rounded_box(name, x0, x1, y0, y1, z0, z1, bw, segs, top_mat, side_mat, bottom=False):
@@ -932,12 +989,20 @@ def upright_uv(scale):
     return f
 
 
-def shoji_uv(z0, z1):
-    """the risers' lattice: a cell every CELL along the face, the riser's height (z0 to z1) up it; the tops their hinoki's grain"""
+def paper_uv(x0, x1, y0, y1, z0, z1, face_row):
+    """the light box's paper: its long faces the picture's lower half across their length (the back's mirrored, so it reads the same from
+    the kitchen), or its upper half (`face_row` False: the low box's, mostly hidden, the bamboo kept to the raised one); its ends the upper half, the
+    bars spaced as along the faces"""
     def f(n, c, mi):
-        if mi == 0:
-            return (c.x / 0.16, c.y / 0.16)
-        return ((c.x if abs(n.y) >= abs(n.x) else c.y) / CELL, min(1.0, max(0.0, (c.z - z0) / (z1 - z0))))
+        h = min(1.0, max(0.0, (c.z - z0) / (z1 - z0)))
+        if abs(n.y) >= abs(n.x) and abs(n.z) < 0.7:
+            u = (c.x - x0) / (x1 - x0)
+            if n.y > 0:
+                u = 1.0 - u
+            return (u if face_row else u * (x1 - x0) / (2 * BX), (h if face_row else 1.0 + h) * 0.5)
+        if abs(n.x) > abs(n.y) and abs(n.z) < 0.7:
+            return ((c.y - y0) / (2 * BX), (1.0 + h) * 0.5)
+        return (0.5, 0.75)
     return f
 
 
@@ -967,96 +1032,79 @@ def profile(name, pts, axis, a0, a1, mat, bev, segs=2, uv=None):
     return o
 
 
-def lathe(name, prof, at, segs, mats, mat_of=None, smooth_=True, top_mat=None, foot=True):
-    """a turned piece round z at `at`: `prof` (radius, height) up from its foot, its ends capped (the caps laddered at export, no fan);
-    each band's material `mat_of(i)` (an index into `mats`), the caps the first band's and the last's"""
+def lathe(name, prof, at, segs, mats, top_mat=None):
+    """a turned piece round z at `at`: `prof` (radius, height) up from its foot, open underneath, its top capped (laddered at export)"""
     bm_ = bmesh.new()
     uv_ = bm_.loops.layers.uv.new()
     rings_ = [[bm_.verts.new((at.x + r * math.cos(2 * math.pi * a / segs), at.y + r * math.sin(2 * math.pi * a / segs), at.z + z)) for a in range(segs)]
               for r, z in prof]
-    for b_, (ra, rb) in enumerate(zip(rings_, rings_[1:])):
+    for ra, rb in zip(rings_, rings_[1:]):
         for a in range(segs):
             f = bm_.faces.new((ra[a], ra[(a + 1) % segs], rb[(a + 1) % segs], rb[a]))
-            f.material_index = mat_of(b_) if mat_of else 0
             for l in f.loops:
-                l[uv_].uv = (0.5, 0.5)
-    if foot and prof[0][0] > 1e-5:
-        f = bm_.faces.new(rings_[0][::-1])
-        f.material_index = mat_of(0) if mat_of else 0
-    if prof[-1][0] > 1e-5:
-        f = bm_.faces.new(rings_[-1])
-        f.material_index = top_mat if top_mat is not None else (mat_of(len(prof) - 2) if mat_of else 0)
+                l[uv_].uv = (0.3, 0.3)
+    f = bm_.faces.new(rings_[-1])
+    for l in f.loops:
+        l[uv_].uv = (0.6, 0.4)
     bmesh.ops.recalc_face_normals(bm_, faces=bm_.faces)
-    return mesh_obj(name, bm_, mats, smooth_=smooth_)
+    return mesh_obj(name, bm_, mats)
 
 
-# ---- the feet: two keyaki bracket feet under the plinth's ends, front to back, each its two toes and the arch cut up between them, the
-# tops of its ends rounded off (the screen's feet)
-FY0, FY1 = PY0 - 0.018, PY1 + 0.018
-TOE, ARCH, FR = 0.036, 0.007, 0.011
-foot_pts = [(FY0, 0.0), (FY0 + TOE, 0.0), (FY0 + TOE + 0.01, ARCH), (FY1 - TOE - 0.01, ARCH), (FY1 - TOE, 0.0), (FY1, 0.0), (FY1, FOOT_H - FR)]
-foot_pts += [(FY1 - FR + FR * math.cos(a), FOOT_H - FR + FR * math.sin(a)) for a in (math.pi / 6, math.pi / 3)] + [(FY1 - FR, FOOT_H), (FY0 + FR, FOOT_H)]
-foot_pts += [(FY0 + FR - FR * math.cos(a), FOOT_H - FR + FR * math.sin(a)) for a in (math.pi / 3, math.pi / 6)] + [(FY0, FOOT_H - FR)]
+def light_box(name, x0, x1, y0, y1, z0, z1, face_row, foot_rail=True):
+    """a box of paper (x0..x1, y0..y1, z0..z1) framed in keyaki: a rail along its foot (if `foot_rail`), a board over its top, a post at
+    each corner; the paper sunk a hair inside them (no face shared)"""
+    pz0, pz1 = z0 + (FR_ - 0.002 if foot_rail else 0.0), z1 - FR_ + 0.002
+    pane = rounded_box(f"{name}Paper", x0, x1, y0, y1, pz0, pz1, 0.001, 1, M["shoji"], M["shoji"])
+    relay_uv(pane, paper_uv(x0, x1, y0, y1, pz0, pz1, face_row))
+    e = 0.004        # (the keyaki proud of the paper)
+    if foot_rail:
+        rail = rounded_box(f"{name}Rail", x0 - e, x1 + e, y0 - e, y1 + e, z0, z0 + FR_, 0.003, 2, M["keyaki"], M["keyaki"], bottom=True)
+        relay_uv(rail, along_uv(0.16))
+    top = rounded_box(f"{name}Top", x0 - e - 0.003, x1 + e + 0.003, y0 - e - 0.003, y1 + e + 0.003, z1 - FR_, z1, 0.004, 2, M["keyaki"],
+                      M["keyaki"], bottom=True)
+    relay_uv(top, along_uv(0.16))
+    for x in (x0, x1):
+        for y in (y0, y1):
+            post = rounded_box(f"{name}Post", x - 0.009, x + 0.009, y - 0.009, y + 0.009, z0 + 0.001, z1 - FR_ + 0.001, 0.003, 1, M["keyaki"],
+                               M["keyaki"])
+            relay_uv(post, upright_uv(0.16))
+
+
+# ---- the feet: two keyaki bracket feet under the box's ends, front to back, each its two toes and the arch cut up between them, the
+# tops of its ends rounded off
+FY0, FY1 = BY0 - 0.02, BY1 + 0.02
+TOE, ARCH, FRD = 0.036, 0.007, 0.011
+foot_pts = [(FY0, 0.0), (FY0 + TOE, 0.0), (FY0 + TOE + 0.01, ARCH), (FY1 - TOE - 0.01, ARCH), (FY1 - TOE, 0.0), (FY1, 0.0), (FY1, FOOT_H - FRD)]
+foot_pts += [(FY1 - FRD + FRD * math.cos(a), FOOT_H - FRD + FRD * math.sin(a)) for a in (math.pi / 6, math.pi / 3)] + [(FY1 - FRD, FOOT_H), (FY0 + FRD, FOOT_H)]
+foot_pts += [(FY0 + FRD - FRD * math.cos(a), FOOT_H - FRD + FRD * math.sin(a)) for a in (math.pi / 3, math.pi / 6)] + [(FY0, FOOT_H - FRD)]
 for sx in (-1, 1):
-    profile(f"SakeStandFoot{sx}", foot_pts, "x", sx * POST_X - 0.021, sx * POST_X + 0.021, M["keyaki"], 0.003)
+    profile(f"SakeStandFoot{sx}", foot_pts, "x", sx * (BX - 0.03) - 0.021, sx * (BX - 0.03) + 0.021, M["keyaki"], 0.003)
 
-# ---- the plinth up on them: keyaki, its long faces figured burl (the screen's lower panel), its edges rounded over, under too
-plinth = rounded_box("SakeStandPlinth", -PX, PX, PY0, PY1, FOOT_H - 0.001, PL, 0.009, 3, M["keyaki"], M["burl"], bottom=True)
-relay_uv(plinth, lambda n, c, mi: (c.x / 0.16, c.y / 0.16) if mi == 0 else (((c.x if abs(n.y) >= abs(n.x) else c.y) / 0.12), (c.z - FOOT_H) / 0.12))
-
-# ---- the two steps: the front one the whole depth, the back one on it behind (sunk a hair into it: no face shared); their tops pale
-# hinoki, their risers and their backs the shoji lattice
-s0_ = rounded_box("SakeStandStep0", -L / 2, L / 2, -D / 2, D / 2, PL - 0.001, T1, 0.007, 3, M["wood"], M["shoji"])
-relay_uv(s0_, shoji_uv(PL, T1))
-s1_ = rounded_box("SakeStandStep1", -L / 2, L / 2, -D / 2 + FRONT_D, D / 2, T1 - 0.002, T2, 0.007, 3, M["wood"], M["shoji"])
-relay_uv(s1_, shoji_uv(T1, T2))
-
-# ---- the bottles, each on its coaster: six tall up the back and the best one between them up on its dais; five along the front, each
-# between two at the back so every label shows, the front's right-hand end kept for the tokkuri (on a coaster of its own)
-ys_back = -D / 2 + FRONT_D + (D - FRONT_D) / 2
-ys_front = -D / 2 + FRONT_D / 2
-SPAN = 0.131
+# ---- the two boxes: the low one on the feet (its rail down into them a hair), the raised one on its top board
+light_box("SakeBoxLow", -BX, BX, BY0, BY1, FOOT_H - 0.001, LT, False)
+light_box("SakeBoxHigh", -RX, RX, RY0, RY1, LT - 0.001, MT, True, foot_rail=False)
+dai = rounded_box("SakeStandDai", -SPAN + 0.002, SPAN - 0.002, Y_MID - 0.054, Y_MID + 0.054, MT - 0.001, MT + DAI, 0.006, 2, M["keyaki"], M["keyaki"])
+relay_uv(dai, along_uv(0.16))
 
 
 def coaster(name, x, y, z, r):
-    """a bottle's coaster: a disc of hinoki, its rim keyaki, its top's edge eased"""
-    prof = ((r, 0.0), (r, CO - 0.0015), (r - 0.0015, CO))
-    lathe(name, prof, Vector((x, y, z)), 16, [M["keyaki"], M["wood"]], top_mat=1, foot=False)
+    """a bottle's coaster: a keyaki disc, its top's edge eased"""
+    lathe(name, ((r, 0.0), (r, CO - 0.0015), (r - 0.0015, CO)), Vector((x, y, z)), 16, M["keyaki"])
 
 
-for k_, j_ in ((8, -3), (1, -2), (0, -1), (9, 1), (2, 2), (5, 3)):
-    coaster(f"SakeStandCoaster{k_}", j_ * SPAN, ys_back, T2, 0.056)
-    bottle(k_, ISSHO, Vector((j_ * SPAN, ys_back, T2 + CO + 0.0003)), 0.0)
-dai = rounded_box("SakeStandDai", -0.05, 0.05, ys_back - 0.05, ys_back + 0.05, T2 - 0.001, T2 + DAI, 0.007, 3, M["wood"], M["wood"])
-relay_uv(dai, along_uv(0.16))
-coaster("SakeStandCoaster10", 0.0, ys_back, T2 + DAI, 0.043)
-bottle(10, YONGO, Vector((0.0, ys_back, T2 + DAI + CO + 0.0003)), 0.0)
-for k_, j_ in ((3, -2.5), (6, -1.5), (7, -0.5), (4, 0.5), (11, 1.5)):
-    coaster(f"SakeStandCoaster{k_}", j_ * SPAN, ys_front, T1, 0.045)
-    bottle(k_, YONGO, Vector((j_ * SPAN, ys_front, T1 + CO + 0.0003)), 0.0)
-coaster("SakeStandCoasterJug", 2.5 * SPAN, ys_front, T1, 0.045)
-
-# ---- the frame behind them (item 399, the owner's 「你設計的風格很像鳥居，不OK」: a top rail run on past the posts and cut slanting, a tie
-# beam through them, a plaque between, were a torii's): a screen's (衝立) frame, square, as the woodblock print's (item 383): two keyaki
-# posts at the back corners standing on the feet through the plinth; a top rail on them, its ends flush with their outer faces (the posts
-# up a millimetre into it, below its eased edge: no two faces in one plane); a middle rail between them under it; between the two rails a
-# shoji transom (欄間), the risers' lattice and paper (lit softly as they are), its edges in the posts and the rails; open under it, the
-# bottles seen through. Nothing written on it (the owner's 「別甚麼都聞野」)
-for sx in (-1, 1):
-    x = sx * POST_X
-    post = rounded_box(f"SakeStandPost{sx}", x - POST_W / 2, x + POST_W / 2, POST_Y - POST_W / 2, POST_Y + POST_W / 2, FOOT_H - 0.001, TOP_Z + 0.001,
-                       0.005, 2, M["keyaki"], M["keyaki"])
-    relay_uv(post, upright_uv(0.16))
-XO, XI = POST_X + POST_W / 2, POST_X - POST_W / 2     # (the posts' outer faces, their inner)
-top = rounded_box("SakeStandTopRail", -XO, XO, POST_Y - POST_W / 2, POST_Y + POST_W / 2, TOP_Z, TOP_Z + TOP_H, 0.005, 2, M["keyaki"], M["keyaki"],
-                  bottom=True)
-relay_uv(top, along_uv(0.16))
-mid = rounded_box("SakeStandMidRail", -XI - 0.002, XI + 0.002, POST_Y - 0.01, POST_Y + 0.01, MID_Z - MID_H, MID_Z, 0.003, 2, M["keyaki"], M["keyaki"],
-                  bottom=True)
-relay_uv(mid, along_uv(0.16))
-pane = rounded_box("SakeStandTransom", -XI - 0.002, XI + 0.002, POST_Y - 0.004, POST_Y + 0.004, MID_Z - 0.002, TOP_Z + 0.002, 0.001, 1,
-                   M["shoji"], M["shoji"])
-relay_uv(pane, shoji_uv(MID_Z, TOP_Z))
+# ---- the bottles: the six tall along the raised box, the middle two up on the dais; the short ones a step lower either side, between
+# the tall ones so their labels show; the kitchen's turned to it
+for k_, j_ in ((8, -2.5), (1, -1.5), (0, -0.5), (9, 0.5), (2, 1.5), (5, 2.5)):
+    z_ = MT + (DAI if abs(j_) < 1 else 0.0)
+    coaster(f"SakeStandCoaster{k_}", j_ * SPAN, Y_MID, z_, 0.054)
+    bottle(k_, ISSHO, Vector((j_ * SPAN, Y_MID, z_ + CO + 0.0003)), 0.0)
+for k_, j_ in ((3, -2), (6, 0), (11, 2)):
+    coaster(f"SakeStandCoaster{k_}", j_ * SPAN, Y_CUST, LT, 0.042)
+    bottle(k_, YONGO, Vector((j_ * SPAN, Y_CUST, LT + CO + 0.0003)), 0.0)
+coaster("SakeStandCoasterJug", JUG_X, Y_CUST, LT, 0.042)
+for k_, j_ in ((4, -2), (10, 0), (7, 2)):
+    coaster(f"SakeStandCoaster{k_}", j_ * SPAN, Y_KIT, LT, 0.042)
+    bottle(k_, YONGO, Vector((j_ * SPAN, Y_KIT, LT + CO + 0.0003)), math.pi)
 
 # (joined by material)
 by = {}
