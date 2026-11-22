@@ -43,6 +43,7 @@ import { SHOP } from '@/game/shopState'
 import { Tokkuri, TOKKURI_H } from './Tokkuri'
 import { AnchoredLight } from '@/scene/AnchoredLight'
 import { UCHIWA_URL, uchiwaModel } from '@/scene/uchiwa'
+import { tick } from '@/scene/speed'
 
 type Spot = { at: [number, number]; r: number }
 /** where each one stands (x, z) and how much room it takes */
@@ -539,7 +540,7 @@ export function RiceTub() {
   const lid = useRef<THREE.Group>(null)
   const lidT = useRef(0)
   useFrame((_, dt) => {
-    lidT.current = THREE.MathUtils.clamp(lidT.current + (open ? 1 : -1) * Math.min(dt, 0.1) * 2.2, 0, 1)
+    lidT.current = THREE.MathUtils.clamp(lidT.current + (open ? 1 : -1) * tick(dt) * 2.2, 0, 1)
     const k = lidT.current * lidT.current * (3 - 2 * lidT.current)
     if (!lid.current) return
     lid.current.position.set(-0.32 * k, 0.42 - 0.1585 * k + Math.sin(k * Math.PI) * 0.22, 0)
@@ -668,7 +669,7 @@ function IngredientFridge() {
       if (lid.current.rotation.x < -0.3) heard.down = false
       else if (!heard.down && !open && lid.current.rotation.x > -0.04) { heard.down = true; coolerDoorSound(false, near(), true) }
     }
-    FREEZER_TEMP.now = driftTemp(FREEZER_TEMP.now, FREEZER_TEMP.set, open > 0, Math.min(dt, 0.1))
+    FREEZER_TEMP.now = driftTemp(FREEZER_TEMP.now, FREEZER_TEMP.set, open > 0, tick(dt))
     const setting = performance.now() - FREEZER_TEMP.shownAt < 2000
     const shows = setting ? FREEZER_TEMP.set : Math.round(FREEZER_TEMP.now)
     const key = `${shows}${setting}`
@@ -1574,7 +1575,7 @@ function PrepCounter() {
         L.at.copy(hand)
         L.q.setFromUnitVectors(GRATE_UP, cut.sub(hand).normalize())
       }
-      L.k = THREE.MathUtils.clamp(L.k + (GRATING.on ? 1 : -1) * Math.min(dt, 0.1) / 0.25, 0, 1)
+      L.k = THREE.MathUtils.clamp(L.k + (GRATING.on ? 1 : -1) * tick(dt) / 0.25, 0, 1)
       const e = L.k * L.k * (3 - 2 * L.k)
       o.position.lerpVectors(daikon.at, L.at, e)
       o.quaternion.slerpQuaternions(daikon.q, L.q, e)

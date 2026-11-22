@@ -25,6 +25,7 @@ import { HOVER } from '@/scene/hoverGlow'
 import { getEdit } from './edit'
 import { coolerDoorSound, plipSound, pumpSound, tapRunning, tapTurnSound, washerBeep, washerChime } from './restroomSound'
 import { drip } from '@/scene/Drips'
+import { tick } from '@/scene/speed'
 
 const URL = import.meta.env.BASE_URL + 'models/sink.glb'
 /** the brass, the copper and the dryer's stainless: real metal, reflecting the studio (it only reads as metal by what it reflects) */
@@ -315,13 +316,13 @@ export function SinkModel() {
     const on = SINK.washing || SINK.tap
     // (the basin's water: filled by the tap with the plug in, let out by the drain without it, never over the overflow (game/sinkWater))
     const waterWas = SINK.water
-    SINK.water = waterTick(SINK.water, on, SINK.plug, Math.min(dt, 0.1))
+    SINK.water = waterTick(SINK.water, on, SINK.plug, tick(dt))
     // (the washing-up liquid goes with the water: the basin let out, none left in it (squeezed onto the sponge, with none standing, it stays))
     SINK.soap = soapWith(SINK.soap, waterWas, SINK.water)
     pool.position.y = poolY + rise * SINK.water
     POOL.opacity = SINK.water > 0.002 ? 0.38 : 0
     // (the plug lifted out and laid by the drain, or back in: up out of the hole first, then over)
-    plugK.current += ((SINK.plug ? 0 : 1) - plugK.current) * Math.min(1, Math.min(dt, 0.1) * 6)
+    plugK.current += ((SINK.plug ? 0 : 1) - plugK.current) * Math.min(1, tick(dt) * 6)
     const k = plugK.current
     // (up out of the hole and over the basin's back wall in an arc, down on the counter by the tap; a little tipped on the way)
     plug.position.set(plugAt.x + plugOut.x * k, plugAt.y + plugOut.y * k + Math.sin(Math.PI * k) * 0.12, plugAt.z + plugOut.z * k)
@@ -355,7 +356,7 @@ export function SinkModel() {
     const near = Math.max(0, Math.min(1, 1 - (root.getWorldPosition(SINK_AT_V).distanceTo(camera.position) - 1.5) / 7))
     tapRunning('sink', on ? near : 0)
     if (SINK.tap !== wasOn.current) { wasOn.current = SINK.tap; tapTurnSound(SINK.tap, Math.max(0.35, near)) }
-    turn.current += ((SINK.tap ? 1 : 0) - turn.current) * Math.min(1, Math.min(dt, 0.1) * 8)
+    turn.current += ((SINK.tap ? 1 : 0) - turn.current) * Math.min(1, tick(dt) * 8)
     handle.rotation.y = turn.current * (Math.PI / 2)
     // (the washer: done just now, a chime and a breath of steam; its door down while someone's at it or the player's let it down, ajar
     // once it's done; its basket out once the door's right down; its lamp, its ring, its spray)
@@ -363,7 +364,7 @@ export function SinkModel() {
     if (ph === 'clean' && was.current === 'washing') { doneAt.current = performance.now(); washerChime(root.localToWorld(SOUND_V.copy(ringAt))) }
     was.current = ph
     const want = Math.max(DRYER.open, DRYER.manual ? 1 : 0, ph === 'clean' ? 0.15 : 0)
-    opened.current += (want - opened.current) * Math.min(1, Math.min(dt, 0.1) * 5)
+    opened.current += (want - opened.current) * Math.min(1, tick(dt) * 5)
     door.rotation.x = opened.current * (Math.PI / 2)
     rack.position.z = rackZ + RACK_OUT * Math.min(1, Math.max(0, (opened.current - 0.55) / 0.45))
     DRYER_LAMP.color.copy(ph === 'washing' ? LAMP_RUN : ph === 'clean' ? LAMP_DONE : LAMP_OFF)

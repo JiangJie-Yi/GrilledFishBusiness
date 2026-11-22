@@ -19,6 +19,7 @@ import { inkTogether } from '@/scene/inkHull'
 import { basinStep, draining, overflowing, DRAIN_S, FILM } from '@/game/basin'
 import { reflectStudio } from '@/scene/studio'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import { tick } from '@/scene/speed'
 
 /**
  * The toilet rooms' live parts (blender/wc.py): the washlet that lifts its lid as someone comes in and flushes as they go (the water
@@ -1150,7 +1151,7 @@ export function WashstandLive({ who }: { who: Who }) {
     const on = t.tap || now() - t.handAt < HAND_MS
     // (the handle heard as it's turned, by a click or a guest washing their hands, as loud as the room's near)
     if (on !== s.was) { s.was = on; tapTurnSound(on, nearOf(parts.root, camera)) }
-    s.turn += ((on ? 1 : 0) - s.turn) * Math.min(1, Math.min(dt, 0.1) * 8)
+    s.turn += ((on ? 1 : 0) - s.turn) * Math.min(1, tick(dt) * 8)
     parts.handle.rotation.y = s.turn * (Math.PI / 2)
     // (a guest's hand wash, metered once)
     if (t.handAt > s.lastHand) {
@@ -1175,7 +1176,7 @@ export function WashstandLive({ who }: { who: Who }) {
     // (the bowl's water (the owner's: it was always empty, the stream straight down the drain): risen or let go a moment on (game/basin),
     // as wide as the bowl is at its height, shimmering)
     const B = t.basin, look = BASIN_LOOK[who], f = bfx.current
-    B.level = basinStep(B, on, Math.min(dt, 0.1))
+    B.level = basinStep(B, on, tick(dt))
     const y = waterY(B.level), wet = B.level > 0.004, surf = parts.floor.y + y, r = bowlR(y)
     const near = nearOf(parts.root, camera)
     if (water.current) {
@@ -1213,7 +1214,7 @@ export function WashstandLive({ who }: { who: Who }) {
       look.rings[i].opacity = 0.42 * (1 - p)
     })
     // (let go: a swirl over the drain, turning, as the water goes down it)
-    f.swirl += ((draining(B, on) ? 1 : 0) - f.swirl) * Math.min(1, Math.min(dt, 0.1) * 5)
+    f.swirl += ((draining(B, on) ? 1 : 0) - f.swirl) * Math.min(1, tick(dt) * 5)
     if (swirl.current) {
       swirl.current.visible = wet && f.swirl > 0.02
       swirl.current.position.set(parts.floor.x, surf + 0.0006, parts.floor.z)
@@ -1225,7 +1226,7 @@ export function WashstandLive({ who }: { who: Who }) {
     // (full, its stopper down and the tap running: what more runs in goes away into the overflow in the wall under the tap, little ripples
     // drawn in to it at the water's edge there, a thin trickle heard)
     const ov = overflowing(B, on)
-    f.over += ((ov ? 1 : 0) - f.over) * Math.min(1, Math.min(dt, 0.1) * 4)
+    f.over += ((ov ? 1 : 0) - f.over) * Math.min(1, tick(dt) * 4)
     overRings.current.forEach((m, i) => {
       if (!m) return
       m.visible = wet && f.over > 0.02
@@ -1252,7 +1253,7 @@ export function WashstandLive({ who }: { who: Who }) {
     basinPour(`wc-${who}`, on && B.level > 0.03 ? near : 0, B.level)
     // (the cabinet's doors swinging, eased in and out over CAB_S; the left one out round its left edge, the right round its right)
     const c = cab.current
-    c.k = Math.min(1, Math.max(0, c.k + (c.open ? 1 : -1) * Math.min(dt, 0.1) / CAB_S))
+    c.k = Math.min(1, Math.max(0, c.k + (c.open ? 1 : -1) * tick(dt) / CAB_S))
     const e = c.k * c.k * (3 - 2 * c.k)
     parts.doors[0].rotation.y = -e * CAB_SWING
     parts.doors[1].rotation.y = e * CAB_SWING

@@ -22,6 +22,7 @@ import { activityOf } from '@/data/staff'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { FigureHit } from './FigureHit'
 import { UCHIWA_URL, uchiwaInHand } from './uchiwa'
+import { tick } from './speed'
 
 /*
  * The staff, made as the boss is (blender/boss.py with CREW=<variant>): an Overcooked cook's big round head on a short plump body rounding
@@ -514,7 +515,7 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
   const pan = useMemo(() => makeDustpan(), [])
   useEffect(() => { fig.root.add(broom, pan); return () => { fig.root.remove(broom, pan) } }, [fig, broom, pan])
   useFrame((_, delta) => {
-    const dt = Math.min(0.1, delta)
+    const dt = tick(delta)
     const t = (clock.current += dt)
     const o = outer.current
     if (!o) return

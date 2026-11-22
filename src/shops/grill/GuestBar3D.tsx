@@ -113,6 +113,7 @@ import { BONES_GEO, HEAD_GEO } from './fishBones'
 import { arrivals, buyCase, caseCost, emptyFillable, emptyGaps, orderCase, restockRun } from '@/game/drinkStock'
 import { tl } from '@/data/i18n'
 import { NO_POINTER, zr } from '@/scene/htmlProps'
+import { tick } from '@/scene/speed'
 /** where a sound's heard from, worked out in place */
 const SOUND_AT = new THREE.Vector3()
 
@@ -355,7 +356,7 @@ function OwnerWalkerImpl() {
   useFrame(({ clock }, delta) => {
     const o = g.current
     if (!o) return
-    const t = clock.elapsedTime, dt = Math.min(0.1, delta)
+    const t = clock.elapsedTime, dt = tick(delta)
     // (how fast he's going, 0 to 1 at a walk (as the staff's figures have it); from nothing while he's out of sight, not from where he was
     // put away)
     if (o.parent && !o.parent.visible) { last.current = null; pace.current = 0 }
@@ -1052,7 +1053,7 @@ function ShopFrontImpl() {
     // (the band's lanterns lit with the door lanterns, their switch's way over some 0.4 s; their light breathing a little as theirs does)
     // (item 385, the owner's 「燈籠要有些黃光」: lit, their paper a warm candle yellow (it was white, '#fff3dc': red and white, nothing of a
     // flame in it), and their halos on the board behind them as bright as they're lit)
-    lit.current += ((getLights().door ? 1 : 0) - lit.current) * Math.min(1, Math.min(dt, 0.1) * 7)
+    lit.current += ((getLights().door ? 1 : 0) - lit.current) * Math.min(1, tick(dt) * 7)
     const flame = 0.95 + 0.03 * Math.sin(clock.elapsedTime * 1.9)
     paperColour(LANTERN_PAPER, lit.current, flame, '#ffd88a')
     LANTERN_GLOW.opacity = 0.95 * lit.current * flame
@@ -1949,7 +1950,7 @@ function Chochin({ mark, style = 'red', big = false }: { mark: string; style?: '
     const t = clock.elapsedTime
     // (lit, its glow breathing like the flame; out (the door lanterns' switch by the way in: thrown by the shop at its opening and its last
     // order, App), the paper as daylight or the dark finds it)
-    lit.current += ((getLights().door ? 1 : 0) - lit.current) * Math.min(1, Math.min(dt, 0.1) * 7)
+    lit.current += ((getLights().door ? 1 : 0) - lit.current) * Math.min(1, tick(dt) * 7)
     const k = lit.current, flame = 0.9 + 0.06 * Math.sin(t * 2.1) + 0.04 * Math.sin(t * 7.3 + 1.1)
     // (the big one, heavy, barely (item 440: swinging as the small ones do, its top's rim rose 1.6 cm into the eave at each end))
     if (hang.current) hang.current.rotation.z = Math.sin(t * 0.9) * (big ? 0.012 : 0.04)
@@ -2201,7 +2202,7 @@ function FishLantern() {
   }, [gltf, model])
   useFrame(({ clock }, dt) => {
     const t = clock.elapsedTime
-    lit.current += ((getLights().door ? 1 : 0) - lit.current) * Math.min(1, Math.min(dt, 0.1) * 7)
+    lit.current += ((getLights().door ? 1 : 0) - lit.current) * Math.min(1, tick(dt) * 7)
     const k = lit.current, flame = 0.92 + 0.05 * Math.sin(t * 2.3) + 0.03 * Math.sin(t * 6.1 + 0.7)
     for (const m of papers) paperColour(m, k, flame, '#fff4dc')
     if (fishGlow.current) fishGlow.current.material.opacity = 0.55 * k
@@ -2856,7 +2857,7 @@ function ShoeCupboard() {
     // (each cubby's door by a click on it; and as a customer puts their shoes in or takes them out, open a moment)
     model.doors.forEach((d) => {
       const want = s.cells.has(d.cell) || now - (SHOE_CELLS.kick.get(d.cell) ?? -1e9) < 1400 ? 1 : 0
-      d.k += Math.sign(want - d.k) * Math.min(Math.abs(want - d.k), Math.min(dt, 0.1) * 3.2)
+      d.k += Math.sign(want - d.k) * Math.min(Math.abs(want - d.k), tick(dt) * 3.2)
       const e = d.k * d.k * (3 - 2 * d.k)
       d.o.rotation.y = d.s * e * (75 * Math.PI / 180)
     })
@@ -3699,7 +3700,7 @@ function PayFloat({ text, follow, done }: { text: string; follow: () => THREE.Ob
   const at = useMemo(() => new THREE.Vector3(), [])
   useFrame((_, dt) => {
     const o = g.current, who = follow()
-    t.current += Math.min(dt, 0.1)
+    t.current += tick(dt)
     if (t.current > 1.6) { done(); return }
     if (!o || !who || !o.parent) return
     o.position.copy(o.parent.worldToLocal(who.getWorldPosition(at))).add(new THREE.Vector3(0, 0.62 + t.current * 0.12, 0))
@@ -6298,20 +6299,20 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     groups.current.get(d.id)?.position.set(d.at.x, d.at.y + 0.18, d.at.z)
   })
   useFrame(({ camera: cam }, dt) => {
-    clock.current += Math.min(dt, 0.1)
+    clock.current += tick(dt)
     // (the room's murmur: by how many are sat at the bar; louder with the camera among them)
     if (people) {
       const sat = shown.filter((x) => x.phase === 'sit').length
       const mid = groups.current.values().next().value as THREE.Object3D | undefined
       const d = mid ? cam.position.distanceTo(mid.getWorldPosition(new THREE.Vector3())) : 8
-      crowdAmbience(murmur(sat), THREE.MathUtils.clamp(1.4 - d / 12, 0.2, 1), Math.min(dt, 0.1))
+      crowdAmbience(murmur(sat), THREE.MathUtils.clamp(1.4 - d / 12, 0.2, 1), tick(dt))
     }
     let done: number[] = []
     stepFrame(STEP_TURN)
     let paying: { s: Shown; k: number } | null = null
     let queue = 0
     for (const s of shown) {
-      s.t += Math.min(dt, 0.1)
+      s.t += tick(dt)
       // (they come and go whether or not they're drawn: on a phone they aren't, but their plates still follow them)
       const g = groups.current.get(s.id)
       const st = seats[s.seat]
@@ -6337,7 +6338,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         // (the genkan's step one at a time (item 414): someone else on it changing their shoes, they wait a body's length back, that time
         // out of their walk)
         const stepD = stepAt(path)
-        if (!s.from && waitsForStep(STEP_TURN, s.id, raw, stepD, stepD + SHOES_S * v, QUEUE_GAP)) s.stepHold = (s.stepHold ?? 0) + Math.min(dt, 0.1)
+        if (!s.from && waitsForStep(STEP_TURN, s.id, raw, stepD, stepD + SHOES_S * v, QUEUE_GAP)) s.stepHold = (s.stepHold ?? 0) + tick(dt)
         const d = Math.min(stand, withPause(raw, stepD, SHOES_S * v))
         const { p, dir } = alongPath(path, d)
         if (d >= stand) {
@@ -6413,7 +6414,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         // (their first soon after they've sat down, waiting or eating; another once that's drunk, up to three, not after last orders (item 210))
         const thirsty = !s.drink ? drinkRate() : (s.drunk ?? 0) >= 1 && (s.drinks ?? 1) < DRINKS_MAX && !s.wipeAt && !LAST_CALL.on ? REFILL_RATE : 0
         if (fridges && !SHOP.closing && (guest?.state === 'waiting' || guest?.state === 'eating') && thirsty > 0
-          && Math.random() < thirsty * flowerBuffs(SHRINE_FLOWERS).drinks * Math.min(dt, 0.1)) {
+          && Math.random() < thirsty * flowerBuffs(SHRINE_FLOWERS).drinks * tick(dt)) {
           // (they choose what they want, and go to the fridge it's in)
           const pick = drinkFor(kindOf(s.id).kind, s.id)
           const fr = fridges[fridgeUnitOf(pick)]
@@ -6422,7 +6423,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           s.wc = { who: 'drink', path, len: pathLength(path), unit: fr.n, pick }
           s.phase = 'wcGo'
           s.t = 0
-        } else if (wcs && (SICK.has(s.id) || guest?.state === 'waiting' && Math.random() < wcRate() * Math.min(dt, 0.1))
+        } else if (wcs && (SICK.has(s.id) || guest?.state === 'waiting' && Math.random() < wcRate() * tick(dt))
           // (one at a time: a toilet someone's on their way to, in, or coming out of is left till they're done)
           && !shown.some((x) => x !== s && x.wc?.who === (HER.has(kindOf(s.id).kind) ? 'f' : 'm') && x.phase.startsWith('wc'))
           // (nor one the stock keeper's gone to change the roll in)
@@ -6485,14 +6486,14 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         if (s.wc && s.wc.who !== 'drink' && wcs) {
           const who = s.wc.who as 'm' | 'f'
           const w = wcs[who]
-          if (s.t - Math.min(dt, 0.1) <= 0 && !getLights().wc[who]) { setLightSwitch(who === 'm' ? 'wcM' : 'wcF', true); lightSwitchSound(true); s.wcLit = true }
+          if (s.t - tick(dt) <= 0 && !getLights().wc[who]) { setLightSwitch(who === 'm' ? 'wcM' : 'wcF', true); lightSwitchSound(true); s.wcLit = true }
           const seat = inBar(`wc-seat-${who}`, w.stall), face = inBar(`wc-seatface-${who}`, w.stall)
           s.fade = undefined
           toiletDone = false
           if (s.wcOut) {
             // (on the way out to the washstand: there, washing their hands)
             const o = s.wcOut
-            o.t += Math.min(dt, 0.1)
+            o.t += tick(dt)
             const d = Math.min(o.len, o.t * SPEED * walkSpeedOf(kindOf(s.id).kind))
             const { p: at, dir } = alongPath(o.path, d)
             g?.position.copy(at)
@@ -6623,7 +6624,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         // (or the cashier handing a takeaway's bag over it, item 203)
         if (lp.payD && ((TILL_STATE.k >= 0 && TILL_STATE.payer !== s.id) || TAKEOUT_STAND.handing) && raw >= payRaw - QUEUE_GAP && raw < payRaw) s.hold = (s.hold ?? 0) + dt
         // (and for the genkan's step, one at a time (item 414): someone else on it changing their shoes, they wait a body's length back)
-        else if (waitsForStep(STEP_TURN, s.id, payFirst ? withPause(raw, payAt, payHold) : raw, shoeAt, shoeAt + shoeHold, QUEUE_GAP)) s.hold = (s.hold ?? 0) + Math.min(dt, 0.1)
+        else if (waitsForStep(STEP_TURN, s.id, payFirst ? withPause(raw, payAt, payHold) : raw, shoeAt, shoeAt + shoeHold, QUEUE_GAP)) s.hold = (s.hold ?? 0) + tick(dt)
         // (a word getting up, if they ate; at the till, the cashier's thanks and the bill; the money handed over, theirs)
         const said = s.said ?? 0
         if (said < 1 && s.t > 0.3) {
@@ -6725,8 +6726,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       if (g && given) {
         // (from the height they were shown at last: their walk puts them back on the floor's each frame)
         const ty = s.wcSit ? WC_SIT_LIFT : genkanY(counters, g.position)
-        const most = STEP_Y_RATE * Math.min(dt, 0.1), was = s.shownY
-        s.shownY = was === undefined || s.t <= Math.min(dt, 0.1) * 1.5 ? ty : was + Math.max(-most, Math.min(most, ty - was))
+        const most = STEP_Y_RATE * tick(dt), was = s.shownY
+        s.shownY = was === undefined || s.t <= tick(dt) * 1.5 ? ty : was + Math.max(-most, Math.min(most, ty - was))
         g.position.y = s.shownY
       }
     }
@@ -6792,7 +6793,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     // that needs is taken as they come up, the more the nearer they are to passing, and each one's step aside is eased to that, and back
     // onto their way once they're by, no quicker than ASIDE_V)
     {
-      const step = Math.min(dt, 0.1)
+      const step = tick(dt)
       const stamp = ++asideTick.current
       const walkers: { p: THREE.Vector3; give: boolean; id: number; vx: number; vz: number; ax: number; az: number; s?: Shown }[] = []
       const add = (p: THREE.Vector3, give: boolean, id: number, s?: Shown) => {
@@ -6975,7 +6976,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     }
 
     // the plates on the move: lifted off the stack in an arc to the seat, and cleared away to the dirty stack
-    const step = Math.min(dt, 0.1)
+    const step = tick(dt)
     sweep.current += step
     if (sweep.current > 1) {
       sweep.current = 0
@@ -7645,7 +7646,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         o.visible = pl.phase !== 'idle'
         o.position.copy(pl.pos)
         // (down on the genkan's stone where their way crosses it, item 203)
-        o.position.y += genkanY(counters, pl.pos) + stoolLift(o, pl.pos, Math.min(dt, 0.1))
+        o.position.y += genkanY(counters, pl.pos) + stoolLift(o, pl.pos, tick(dt))
         o.rotation.y = pl.yaw
         // (at the bowls, the grater and the board the work counter's front came to within 2 cm of his head's widest, which is just at its
         // top's slab (item 509): drawn a little back off it while he's at them, eased there and back, his hands where the work has them)
@@ -7842,12 +7843,12 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     const nServers = waiters.current.length
     /** a server's walk in or out a step on: their place and facing, how much of them shows, their stretch and nod */
     const walkCommute = (o: THREE.Group, tr: Trip, w: { pos: THREE.Vector3; yaw: number }) => {
-      const pose = tripStep(tr, Math.min(dt, 0.1), 1.1, (v) => (o.parent ? o.parent.localToWorld(v.clone()) : v.clone()))
+      const pose = tripStep(tr, tick(dt), 1.1, (v) => (o.parent ? o.parent.localToWorld(v.clone()) : v.clone()))
       w.pos.copy(pose.p)
-      if (pose.yaw !== null) w.yaw = turnToward(w.yaw, pose.yaw, Math.min(dt, 0.1))
+      if (pose.yaw !== null) w.yaw = turnToward(w.yaw, pose.yaw, tick(dt))
       o.position.copy(w.pos)
       // (down on the genkan's stone crossing it, item 203; up on the sink's step stool over it, item 221)
-      o.position.y += genkanY(counters, w.pos) + stoolLift(o, w.pos, Math.min(dt, 0.1))
+      o.position.y += genkanY(counters, w.pos) + stoolLift(o, w.pos, tick(dt))
       o.rotation.y = w.yaw
       ;(w as { look?: number }).look = w.yaw
       o.visible = pose.shown
@@ -8985,7 +8986,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         // this one was shown whenever he was out for anything, a second owner standing by the pass while he washed at the sink))
         o.visible = !ownerServes || OWNER_OUT.by === 'serve'
         o.position.copy(w.pos)
-        o.position.y += genkanY(counters, w.pos) + stoolLift(o, w.pos, Math.min(dt, 0.1))
+        o.position.y += genkanY(counters, w.pos) + stoolLift(o, w.pos, tick(dt))
         // (the facing shown eased to the way they're going, never more than a little a frame (turnSmooth, item 183))
         w.look = turnSmooth(w.look ?? w.yaw, w.yaw, step)
         o.rotation.y = w.look
@@ -10266,7 +10267,7 @@ const WarmTub = memo(function WarmTub() {
     return `外型像盛白飯的木飯桶（おひつ），裡面保溫著打包好的外帶（${n} 份）｜點一下${open ? '蓋上' : '打開'}`
   }
   useFrame((_, dt) => {
-    lidT.current = THREE.MathUtils.clamp(lidT.current + (open ? 1 : -1) * Math.min(dt, 0.1) * 2.2, 0, 1)
+    lidT.current = THREE.MathUtils.clamp(lidT.current + (open ? 1 : -1) * tick(dt) * 2.2, 0, 1)
     const k = lidT.current * lidT.current * (3 - 2 * lidT.current)
     if (lid.current) {
       lid.current.position.set(-0.32 * k, 0.42 - 0.1585 * k + Math.sin(k * Math.PI) * 0.22, 0)
