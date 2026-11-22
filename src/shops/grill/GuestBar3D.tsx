@@ -1711,6 +1711,17 @@ const CHOCHIN_URL = import.meta.env.BASE_URL + 'models/chochin.glb'
 const NOREN_URL = import.meta.env.BASE_URL + 'models/noren.glb'
 useGLTF.preload(CHOCHIN_URL)
 useGLTF.preload(NOREN_URL)
+/** the lanterns' caps (lacquer, by their colour) and their bands' and bail's gold: one material each for all of them (item 533) */
+const CHOCHIN_PARTS = new Map<string, THREE.Material>()
+const chochinPart = (src: THREE.MeshStandardMaterial) => {
+  const key = src.name === 'ChochinGold' ? 'gold' : src.color.getHexString()
+  let m = CHOCHIN_PARTS.get(key)
+  if (!m) {
+    m = key === 'gold' ? new THREE.MeshStandardMaterial({ color: '#d6a84a', metalness: 1, roughness: 0.3 }) : new THREE.MeshToonMaterial({ color: src.color.clone() })
+    CHOCHIN_PARTS.set(key, m)
+  }
+  return m
+}
 
 /**
  * A red paper lantern (赤提灯) hung at the door on a little arm off a post, the shop's name on it, lit from inside:
@@ -1735,12 +1746,19 @@ function Chochin({ mark, style = 'red', big = false }: { mark: string; style?: '
       if (src.name === 'ChochinPaper') {
         paper = paperMat(tex)
         m.material = paper
-      } else m.material = src.name === 'ChochinGold' ? new THREE.MeshStandardMaterial({ color: '#d6a84a', metalness: 1, roughness: 0.3 })
-        : new THREE.MeshToonMaterial({ color: src.color.clone() })
+      } else m.material = chochinPart(src)
     })
     inkModel(r, (m) => /Band|Bail|Tassel/.test(m.name), { width: 0.0015, weld: true })
+    // (item 533: its caps, its gold and its ink lines each drawn as one (its parts each had a material of their own: ten draws a lantern, six now))
+    mergeByMaterial(r)
     return { model: r, skin: paper as THREE.MeshBasicMaterial | null }
   }, [gltf, tex])
+  // (the merged shapes are its own: let go with it; the loaded model's are shared)
+  useEffect(() => () => {
+    const shared = new Set<THREE.BufferGeometry>()
+    gltf.scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) shared.add((o as THREE.Mesh).geometry) })
+    model.traverse((o) => { const g = (o as THREE.Mesh).geometry; if ((o as THREE.Mesh).isMesh && !shared.has(g)) g.dispose() })
+  }, [gltf, model])
   const halo = useRef<THREE.Sprite>(null)
   /** how lit it is (0 out .. 1 lit), going to its switch's way over some 0.4 s, as a flame's lit or put out */
   const lit = useRef(getLights().door ? 1 : 0)
