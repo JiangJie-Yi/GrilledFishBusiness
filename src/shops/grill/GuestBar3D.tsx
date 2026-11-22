@@ -2242,8 +2242,10 @@ function FishLantern() {
  * customers' display), a card reader, a receipt printer with its paper curling out, a tray for the change, a cup of
  * pens, a little bell to ring, the お会計 sign facing the customers, and a beckoning cat (招き猫) for luck.
  */
-/** where the cashier's chair stands behind the till (its frame: x along the bar, +z behind it), and its seat's height (the model's) */
-const TILL_CHAIR: [number, number, number] = [0.05, 0, 0.64]
+/** where the cashier's chair stands behind the till (its frame: x along the bar, +z behind it), and its seat's height (the model's) (item 516:
+ * 6 cm further back than it was, its front had touched the counter's back and the cashier's knees went 4.6 cm into it all the time they sat;
+ * the takeaway stand behind it still 10 cm clear of its back) */
+const TILL_CHAIR: [number, number, number] = [0.05, 0, 0.70]
 const TILL_SEAT = 0.452
 // (the till and all on and about it, some thirty pieces: likewise drawn again only for its own changes)
 export const Register = memo(RegisterImpl, (a, b) => a.yaw === b.yaw && a.top === b.top && a.lang === b.lang && a.at.equals(b.at))
