@@ -10,7 +10,7 @@ let ac: AudioContext | null = null
 let out: GainNode | null = null
 let hiss: GainNode | null = null
 let sizzle: GainNode | null = null
-/** its two loops, stopped when a hot update swaps this module for a new copy */
+/** its loops (the fire's two, the room's murmur's six), stopped when a hot update swaps this module for a new copy */
 const loops: AudioBufferSourceNode[] = []
 let popAt = 0
 let spitAt = 0
@@ -61,11 +61,13 @@ if (typeof window !== 'undefined') {
   window.addEventListener('pointerdown', go)
   window.addEventListener('keydown', go)
   // (let go of when a hot update swaps this module for a new copy, and its sound with it: the old copy's fire went on hissing at its last
-  // loudness under the new one's. Its loops stopped and its output let go, not the context: every sound's)
+  // loudness under the new one's. Its loops stopped and its outputs (the fire's, the murmur's) let go, not the context: every sound's (item
+  // 576; the Tester's: at first only the fire's were, and the murmur's six voices went on under the new copy's, doubled))
   replaces(import.meta.hot, () => {
     window.removeEventListener('pointerdown', go); window.removeEventListener('keydown', go)
     for (const s of loops) { try { s.stop() } catch { /* (already stopped) */ } }
     out?.disconnect()
+    crowd?.disconnect()
   })
 }
 
@@ -145,6 +147,7 @@ function startCrowd() {
     src.connect(f2).connect(mix)
     mix.connect(g).connect(pan).connect(crowd)
     src.start()
+    loops.push(src)
     voices.push({ g, f1, f2, phase: Math.random() * 10, rate: 4 + Math.random() * 2.5, pause: 0, pitch: k % 2 ? 1.25 : 0.9 })
   }
 }

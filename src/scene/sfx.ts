@@ -52,9 +52,10 @@ let undoWake = () => {}
 if (typeof window !== 'undefined' && typeof AudioContext !== 'undefined') {
   try { sharedAudio() } catch { /* (no sound to be had) */ }
   const wake = () => { if (shared?.state === 'suspended') shared.resume().catch(() => { /* (still not allowed) */ }) }
-  window.addEventListener('pointerdown', wake, true)
-  window.addEventListener('keydown', wake, true)
-  undoWake = () => { window.removeEventListener('pointerdown', wake, true); window.removeEventListener('keydown', wake, true); void shared?.close(); shared = null }
+  // (a finger's press lets sound start only as it's lifted (pointerup), a mouse's as it's pressed, a key's as it's struck)
+  const on = ['pointerdown', 'pointerup', 'keydown'] as const
+  for (const e of on) window.addEventListener(e, wake, true)
+  undoWake = () => { for (const e of on) window.removeEventListener(e, wake, true); void shared?.close(); shared = null }
 }
 // (put back when a hot update runs a fresh copy of this module: it turns `connect` again, and makes its own context)
 replaces(import.meta.hot, () => { if (typeof AudioNode !== 'undefined') AudioNode.prototype.connect = plainConnect; undoWake() })
