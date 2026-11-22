@@ -11,7 +11,8 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { setEar } from '@/scene/sfx'
 import { IndoorHDRI } from '@/scene/IndoorHDRI'
 import { FpsMeter } from '@/scene/FpsMeter'
-import { Html, OrbitControls, useGLTF } from '@react-three/drei'
+import { OrbitControls, useGLTF } from '@react-three/drei'
+import { Html } from '@/scene/Html'
 import { sayOver, unsayOver } from '@/ui/speechStore'
 import { LoadingScreen } from '@/ui/LoadingScreen'
 import * as THREE from 'three'
@@ -3912,6 +3913,10 @@ export default function App() {
             // if the phone runs out of GPU memory the browser drops the 3D view and it would stay blank:
             // reload once to bring it back
             gl.domElement.addEventListener('webglcontextlost', (e) => {
+              // (a canvas no longer in the page was let go on purpose, not lost: the window narrowed to a phone's width takes the 3D down, and
+              // the renderer's teardown drops its context (item 580: taken for the GPU giving up, each time the next start a level lower, and
+              // the page brought back 4 s on))
+              if (!gl.domElement.isConnected) return
               e.preventDefault()
               stepDown()                 // (and start lighter next time)
               setGlLost(true)
@@ -3924,6 +3929,7 @@ export default function App() {
             // (given back: the page brought back all the same, the game going on from where it was (the owner's Mac: carried on, three uploaded
             // its pictures again from canvases the GPU's reset had emptied, and the floor, the lamps and the window came up black))
             gl.domElement.addEventListener('webglcontextrestored', () => {
+              if (!gl.domElement.isConnected) return
               window.clearTimeout(lostTimer.current)
               window.location.replace(window.location.pathname + '?v=' + Date.now())
             })

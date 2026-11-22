@@ -3,7 +3,7 @@
 // page root, so none are kept about between times).
 import { memo, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { Html } from '@react-three/drei'
+import { Html } from '@/scene/Html'
 import * as THREE from 'three'
 import { SPEAKERS, STAFF_IDLE, STAFF_TALK, STAFF_TIRED, type StaffWord } from '@/game/shopState'
 import { activityOf } from '@/data/staff'

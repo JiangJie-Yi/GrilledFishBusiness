@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useFrame, useLoader, useThree } from '@react-three/fiber'
-import { Html, useGLTF } from '@react-three/drei'
+import { useGLTF } from '@react-three/drei'
+import { Html } from '@/scene/Html'
 import * as THREE from 'three'
 import { bakeable } from '@/scene/StaticBatch'
 import { OUTFIT_DEFAULT, colourOf, getOutfit, outfitKey, recolourPixels, subscribeOutfit, type Dye, type Outfit } from '@/game/bossOutfit'

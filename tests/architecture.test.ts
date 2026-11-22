@@ -42,4 +42,10 @@ describe('architecture', () => {
       }
     }
   })
+  it("takes drei's <Html> only through scene/Html (item 580: put up a frame on, once the events are connected)", () => {
+    for (const f of all) {
+      if (f.path === 'scene/Html.tsx') continue
+      for (const imp of f.text.match(/import\s*\{[^}]*\}\s*from\s*'@react-three\/drei'/g) ?? []) expect(/\bHtml\b/.test(imp), `${f.path}: ${imp}`).toBe(false)
+    }
+  })
 })

@@ -9,7 +9,7 @@
 // the places and the people named on the floor; the way or the person the editor's list points at (PATH_MAP.hot) bright, the rest faint.
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Html } from '@react-three/drei'
+import { Html } from '@/scene/Html'
 import * as THREE from 'three'
 import { PATH_MAP, type PathRoute } from './bar'
 import { editWords, useEditSel } from './edit'
