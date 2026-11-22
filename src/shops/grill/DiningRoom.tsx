@@ -5034,11 +5034,7 @@ function kamidanaOf(scene: THREE.Group) {
       } else if (src.name === 'KamiPeel') {
         // (the ponkan's peel: a little gloss on its oily skin, not a polish; its pebbles and the calyx's sepals baked in relief (item 574))
         t = new THREE.MeshPhysicalMaterial({ color: src.color.clone(), map: src.map, normalMap: src.normalMap, roughness: 0.48, clearcoat: 0.22, clearcoatRoughness: 0.35, specularIntensity: 0.55 })
-      } else if (src.name === 'KamiFlaskGlaze') {
-        // (the flask (item 574): its glaze, label, name and cord baked onto it, each as glossy as it is (a roughness picture: the glaze's soft
-        // sheen as it had, the paper and the cord matte), their relief in a normal map)
-        t = new THREE.MeshPhysicalMaterial({ color: src.color.clone(), map: src.map, normalMap: src.normalMap, roughnessMap: src.roughnessMap, roughness: 1, clearcoat: 0.4, clearcoatRoughness: 0.25 })
-      } else if (src.name === 'KamiLeaf' || src.name === 'KamiDish' || src.name === 'KamiCobalt') {
+      } else if (src.name === 'KamiLeaf' || src.name === 'KamiDish' || src.name === 'KamiCobalt' || src.name === 'KamiFlaskGlaze') {
         // (the leaves' gloss, the porcelain's glaze: a soft sheen)
         t = new THREE.MeshPhysicalMaterial({ color: src.color.clone(), map: src.map, roughness: 0.35, clearcoat: 0.4, clearcoatRoughness: 0.25 })
       } else if (/Cutout/.test(src.name)) {
@@ -5047,7 +5043,11 @@ function kamidanaOf(scene: THREE.Group) {
       } else if (/^KamiRoof/.test(src.name) && src.normalMap) {
         // (the gables' logs (item 573): baked onto a flat panel each, their roundness in a normal map, kept in the toon light)
         t = new THREE.MeshToonMaterial({ color: src.color.clone(), map: src.map, normalMap: src.normalMap })
-      } else t = new THREE.MeshToonMaterial({ color: src.color.clone(), map: src.map })
+      } else {
+        t = new THREE.MeshToonMaterial({ color: src.color.clone(), map: src.map })
+        // (the flask's label (item 574): its name a picture now, seen at a slant round the belly: sharper so, not smeared across)
+        if (src.name === 'KamiFlaskPaper' && src.map) src.map.anisotropy = 8
+      }
       mats.set(src, t)
     }
     m.material = t
