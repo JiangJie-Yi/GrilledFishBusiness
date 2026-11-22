@@ -743,6 +743,8 @@ bpy.ops.object.voxel_remesh()
 sm = fig.modifiers.new("s", "SMOOTH"); sm.factor = 0.6; sm.iterations = 8
 apply_mods(fig)
 FX = -0.0163
+# (the light one's triangles (item 552): enough to keep his outline round, his hat's fold and the fish's shape; the rest is in the pictures)
+EBISU_TRIS = 2800
 
 
 def arcpts(cz, cy, w, h, n=9, up=True, x=FX):
@@ -807,20 +809,28 @@ me_.vertices.foreach_set("co", co_.ravel())
 me_.update()
 hi = fig
 hi.name = "KamiEbisuHigh"
-# (the light one: the same carving thinned to a few thousand triangles, unwrapped flat for its own pictures)
+# (the light one: the same carving thinned, whole round, unwrapped flat for its own pictures. Item 552, the owner's, 2026-11-22: 「惠比壽石像可
+# 能有減過面，不過優化的不好，反而影響到美術品質；然後後面變成這樣」: it had been the fine one itself thinned by the decimator, its cuts'
+# folded faces and all (a spike off the rock, a split at his side where they collapsed), and his back taken off (item 59: "the back can't
+# be seen"), but seen from a side, through the doors or in edit mode, the ink's shell round him showed through where his back wasn't, in
+# black shards. Now thinned from a copy remade by voxels first (closed, none of its faces folded: the cuts are too fine to matter in it,
+# they're baked in after), his back whole, its triangles evened out and paired into quads where they lie flat enough together; fewer than
+# the front alone took (2,844 then). QuadriFlow's quads were tried (item 552): at this count they lost his round head into his hat in a
+# cone and lumped his body, the thinned one keeps his shape)
 lo = hi.copy(); lo.data = hi.data.copy(); bpy.context.collection.objects.link(lo)
-dc = lo.modifiers.new("d", "DECIMATE"); dc.ratio = 1800 / max(1, len(hi.data.polygons))
+bpy.ops.object.select_all(action="DESELECT"); lo.select_set(True); bpy.context.view_layer.objects.active = lo
+lo.data.remesh_voxel_size = 0.0006
+bpy.ops.object.voxel_remesh()
+_t0 = sum(len(p.vertices) - 2 for p in lo.data.polygons)
+dc = lo.modifiers.new("d", "DECIMATE"); dc.ratio = EBISU_TRIS / max(1, _t0)
 apply_mods(lo)
-# (his back never seen (the owner's, 2026-11-13, item 59: "the back can't be seen"): he sits in the shrine's middle bay, its back wall behind
-# him, its sides and roof round him, seen only through its doors. The faces turned away from the doors taken off, the front as fine as it
-# was; unwrapped after, the picture's all for what's seen)
-FRONT = Vector(P(-1, 0, 0))
-_bk = bmesh.new(); _bk.from_mesh(lo.data)
-# (only those turned well away (past 127 degrees from the doors): those nearer edge-on are kept, the ink's shell round him closes over them
-# and his outline stays whole (at -0.25 it broke up into slivers round his sides))
-bmesh.ops.delete(_bk, geom=[f for f in _bk.faces if f.normal.dot(FRONT) < -0.6], context="FACES")
-_bk.to_mesh(lo.data); _bk.free()
-lo.data.update()
+bpy.ops.object.select_all(action="DESELECT"); lo.select_set(True); bpy.context.view_layer.objects.active = lo
+bpy.ops.object.mode_set(mode="EDIT"); bpy.ops.mesh.select_all(action="SELECT")
+bpy.ops.mesh.beautify_fill()
+bpy.ops.mesh.tris_convert_to_quads(face_threshold=math.radians(40), shape_threshold=math.radians(40))
+bpy.ops.object.mode_set(mode="OBJECT")
+print("EBISU_LOW", len(lo.data.polygons), "faces", sum(1 for p in lo.data.polygons if len(p.vertices) == 4), "quads",
+      sum(len(p.vertices) - 2 for p in lo.data.polygons), "tris")
 bpy.ops.object.select_all(action="DESELECT"); lo.select_set(True); bpy.context.view_layer.objects.active = lo
 bpy.ops.object.mode_set(mode="EDIT"); bpy.ops.mesh.select_all(action="SELECT")
 bpy.ops.uv.smart_project(angle_limit=math.radians(55), island_margin=0.012)
@@ -920,10 +930,7 @@ bpy.ops.object.mode_set(mode="EDIT"); bpy.ops.mesh.select_all(action="SELECT")
 bpy.ops.uv.cylinder_project(direction="ALIGN_TO_OBJECT", scale_to_bounds=True)
 bpy.ops.object.mode_set(mode="OBJECT")
 _ped.name = "KamiEbisuPedestal"
-# (its back half against the bay's back wall, unseen, taken off as his back is (item 59))
-_bk = bmesh.new(); _bk.from_mesh(_ped.data)
-bmesh.ops.delete(_bk, geom=[f for f in _bk.faces if f.normal.dot(Vector(P(-1, 0, 0))) < -0.6], context="FACES")
-_bk.to_mesh(_ped.data); _bk.free()
+# (whole round, as he is now (item 552): its back half had been taken off as his back was (item 59))
 _ped.data.materials.append(M["stone"])
 for _p in _ped.data.polygons:
     _p.use_smooth = True
