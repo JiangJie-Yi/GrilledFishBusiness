@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { LOADING_LINES, loadingLine } from '@/data/loadingLines'
+import { LINE_MIN_S, LOADING_LINES, lineStep, loadingLine } from '@/data/loadingLines'
 import { CREEP_SPAN, loadingPct, loadingStep } from '@/game/loadingCreep'
 
 // (item 175, the first look: while it loads, what the shop's doing to get ready, in the order a shop's opened)
@@ -11,8 +11,15 @@ feature('載入時的開店準備', () => {
   scenario('照進度一句一句往下', ({ then, and }) => {
     then('20% 是魚送到', () => { expect(loadingLine(20)).toBe('今天的魚剛送到') })
     and('50% 是穿鐵串（模型準備最久的那段，第 592 項）', () => { expect(loadingLine(50)).toBe('魚一尾尾穿上鐵串') })
+    and('46% 就換成穿鐵串（正式版停頓前只走到 47～48%）', () => { expect(loadingLine(46)).toBe('魚一尾尾穿上鐵串') })
     and('60% 是掛暖簾', () => { expect(loadingLine(60)).toBe('掛上暖簾，點亮燈籠') })
     and('100% 是等第一位客人', () => { expect(loadingLine(100)).toBe('等第一位客人上門') })
+  })
+  scenario('每一句至少停一下，一句一句換（第一批檔案一下子湧進來，一句只閃 0.4 秒）', ({ then, and }) => {
+    then('才 0.5 秒，進度已經到 50% 也先不換', () => { expect(lineStep(0, 50, 0.5)).toBe(0) })
+    and(`停滿 ${LINE_MIN_S} 秒，只往下換一句，不跳到 50% 那句`, () => { expect(lineStep(0, 50, LINE_MIN_S)).toBe(1) })
+    and('進度追上了就照進度', () => { expect(lineStep(2, 50, 5)).toBe(3) })
+    and('不倒退', () => { expect(lineStep(3, 20, 5)).toBe(3) })
   })
   scenario('每一句的起點照順序往上，不會倒回去', ({ then }) => {
     then('起點一個比一個大', () => {

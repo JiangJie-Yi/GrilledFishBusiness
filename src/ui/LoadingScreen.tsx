@@ -2,7 +2,7 @@ import { memo, useEffect, useRef, useState } from 'react'
 import { useProgress } from '@react-three/drei'
 import { GrillingFish } from './GrillingFish'
 import { laterPending, laterSeen, sceneDrawn } from '@/scene/Later'
-import { loadingLine } from '@/data/loadingLines'
+import { LOADING_LINES, lineStep } from '@/data/loadingLines'
 import { loadingPct, loadingStep } from '@/game/loadingCreep'
 
 /** how long the loading may sit without any file coming in before it's called stuck (ms) */
@@ -29,6 +29,9 @@ export const LoadingScreen = memo(function LoadingScreen({ scene = true }: { sce
   // stuck), going on by itself toward a little past it, slower the nearer it gets (game/loadingCreep): how far, as a fraction, the most the
   // estimate's been, and when it was last stepped on; not before anything's been counted)
   const creep = useRef({ shown: 0, real: 0, at: -1 })
+  // (the getting-ready line shown (its place in data/loadingLines), and since when: each up a moment at the least, item 592)
+  const [line, setLine] = useState(0)
+  const lineAt = useRef({ i: 0, at: -1 })
   useEffect(() => {
     const t = window.setInterval(() => {
       const st = useProgress.getState()
@@ -42,6 +45,10 @@ export const LoadingScreen = memo(function LoadingScreen({ scene = true }: { sce
       c.shown = loadingStep(c.shown, c.real, c.at < 0 || st.total === 0 ? 0 : (now - c.at) / 1000)
       c.at = now
       setShown((v) => Math.max(v, loadingPct(c.shown)))
+      const ln = lineAt.current
+      if (ln.at < 0) ln.at = now
+      const next = lineStep(ln.i, st.total > 0 ? loadingPct(c.shown) : null, (now - ln.at) / 1000)
+      if (next !== ln.i) { ln.i = next; ln.at = now; setLine(next) }
     }, 250)
     return () => window.clearInterval(t)
   }, [])
@@ -88,7 +95,7 @@ export const LoadingScreen = memo(function LoadingScreen({ scene = true }: { sce
         <small>日式烤魚</small>
         <div className="loading-bar"><i style={{ width: `${pct ?? 0}%`, '--done': (pct ?? 0) / 100 } as React.CSSProperties} /></div>
         {/* (what the shop's doing to get ready, by how far it's come (data/loadingLines, item 175): a wait with something happening in it) */}
-        <p>{pct === null ? `${loadingLine(null)}…` : `${loadingLine(pct)} ${pct.toFixed(0)}%`}</p>
+        <p>{pct === null ? `${LOADING_LINES[line][1]}…` : `${LOADING_LINES[line][1]} ${pct.toFixed(0)}%`}</p>
       </div>
       {stuck && (
         <div className="loading-stuck">

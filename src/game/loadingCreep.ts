@@ -5,9 +5,10 @@
 // Followed step by step, not timed from when the estimate last moved: files trickling in moved it a hair at a time, and each hair started
 // the wait over (it went 45% to 50% and stood there 5.4 s).
 
-/** of what's left to load, how much it may go on by itself, and how quickly (s: most of the way there in this long) */
+/** of what's left to load, how much it may go on by itself, and how quickly (s: most of the way there in this long; 4, not 5: the built
+ * game has only a second and a half before the page is held up, and went only 45% to 47%) */
 export const CREEP_SPAN = 0.2
-export const CREEP_S = 5
+export const CREEP_S = 4
 
 /**
  * The shown progress (0..1) `dt` seconds on: up to the real estimate (`real`, 0..1) at once if that's ahead; and from there on toward
