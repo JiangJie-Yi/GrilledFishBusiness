@@ -4154,18 +4154,14 @@ function futonFits(f: FloorMap, u: number, v: number, du: number, dv: number, ke
   return { foot: f.at(u + du * half, v + dv * half), head: f.at(u - du * half, v - dv * half), before }
 }
 /** what the boss's way to bed goes by, found in one walk round the scene (item 543: a walk round it for each, eight thousand things a walk) */
-type BedFinds = { door: THREE.Object3D | null; fridge: THREE.Object3D | null; floor: THREE.Object3D | null; barrel: THREE.Object3D | null; sacks: THREE.Object3D | null
+type BedFinds = { door: THREE.Object3D | null; fridge: THREE.Object3D | null
   /** the meshes a floor map looks at: drawn, not people (skinned) or many at once (instanced), not the futon, not unseen */
   meshes: THREE.Mesh[] }
 function bedFinds(scene: THREE.Object3D): BedFinds {
-  const f: BedFinds = { door: null, fridge: null, floor: null, barrel: null, sacks: null, meshes: [] }
+  const f: BedFinds = { door: null, fridge: null, meshes: [] }
   scene.traverse((q) => {
     if (q.name === 'staff-door') f.door ??= q
     else if (q.name === 'look-fridge') f.fridge ??= q
-    else if (q.name === 'room-floor') f.floor ??= q
-    const id = q.userData?.editId
-    if (id === 'takeoutstand') f.barrel ??= q
-    else if (id === 'ricesacks') f.sacks ??= q
     const m = q as THREE.Mesh
     if (!m.isMesh || (m as THREE.SkinnedMesh).isSkinnedMesh || (m as THREE.InstancedMesh).isInstancedMesh || !m.visible || /^Futon/.test(m.name)) return
     if (!m.geometry?.attributes.position) return
@@ -4177,28 +4173,6 @@ function bedFinds(scene: THREE.Object3D): BedFinds {
     f.meshes.push(m)
   })
   return f
-}
-/** the boss's futon's place (item 480), in the world: its foot, its head and before its foot, from where the barrel and the rice sacks stand
- * (their middles; across the line between them, its head toward the floor's edge, away from the room's middle), if it's clear there as it
- * is (item 537: it wasn't, the stretch was full); null otherwise, or without them */
-function futonSpot(frame: THREE.Object3D, { barrel, sacks, floor, meshes }: BedFinds) {
-  if (!barrel || !sacks || !floor) return null
-  const ba = new THREE.Box3().setFromObject(barrel), bb = new THREE.Box3().setFromObject(sacks)
-  const a = ba.getCenter(new THREE.Vector3()), b = bb.getCenter(new THREE.Vector3())
-  const axis = b.clone().sub(a).setY(0)
-  if (axis.lengthSq() < 1e-6) return null
-  axis.normalize()
-  const mid = a.clone().lerp(b, 0.5), room = floor.getWorldPosition(new THREE.Vector3())
-  const inward = new THREE.Vector3(-axis.z, 0, axis.x)
-  if (inward.dot(room.sub(mid)) < 0) inward.negate()
-  // (the world's units: its middle 0.74 on from halfway toward the sacks and 0.53 in from the line; 2.5 long (the bar's 1.25), its foot inward)
-  const c0 = mid.addScaledVector(axis, 0.74).addScaledVector(inward, 0.53)
-  // (its map no wider than the futon there and the step before its foot need, 2.2 out (item 543): its squares as a wider one's, 2 m 40
-  // of them)
-  const f = floorMap(meshes, frame, c0, Math.min(ba.min.y, bb.min.y), 2.5)
-  // (its length's way in the map: the room's own nearest to `inward`)
-  const ku = f.U.dot(inward), kv = f.V.dot(inward)
-  return Math.abs(ku) >= Math.abs(kv) ? futonFits(f, 0, 0, Math.sign(ku), 0) : futonFits(f, 0, 0, 0, Math.sign(kv))
 }
 const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolean; research: boolean }) {
   const ref = useRef<THREE.Group>(null)
@@ -4215,17 +4189,9 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
       if (!g) return null
       const finds = bedFinds(scene), sd = finds.door, fr = finds.fridge
       g.updateWorldMatrix(true, false)
-      // (item 480, the owner's 「老闆打地鋪在這邊」: on the floor between the barrel and the rice sacks at the back, where the willow stood (moved
-      // up by the barrel, item 479): across it, his head to the wall, his feet into the room, a little nearer the sacks than the barrel (the
-      // willow's by that); his way there across the kitchen as it routes him, to before its foot and onto it)
-      const spot = import.meta.env.DEV && (window as unknown as { __futonAt?: string }).__futonAt === 'stair' ? null : futonSpot(g, finds)
-      if (spot && KITCHEN_ROUTE.route) {
-        const toB = (w: THREE.Vector3) => toBar(g.worldToLocal(w.clone()))
-        const onFloor = (v: THREE.Vector3) => { const q = fromBar(v); return q.setY(floorAt(q)) }
-        const foot = toB(spot.foot), head = toB(spot.head), before = toB(spot.before)
-        const across = KITCHEN_ROUTE.route(toBar(fromGrill), before)
-        if (across && across.length) return { path: [fromGrill.clone(), ...across.slice(1).map((v) => onFloor(v)), onFloor(before), onFloor(foot)], foot: onFloor(foot), head: onFloor(head) }
-      }
+      // (item 561, the owner's 「睡覺位置看要不要改在這」 with his box drawn on the floor: along the wall from the staff's door, the other way
+      // from the fridges' corner, the futon along the wall (FUTON's out and along); before it, item 480's between the barrel and the rice
+      // sacks, full since (item 537), and the stair's foot by the door)
       if (!sd) return null
       sd.updateWorldMatrix(true, false)
       // (the door, the way into the room from it, and along the wall toward the corner (the side wall's way, where the fridges stand), in

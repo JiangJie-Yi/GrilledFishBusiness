@@ -242,8 +242,11 @@ export const OWNER_OUT: { on: boolean; by: OwnerJob | null } = keep(import.meta.
 /** the owner's futon (item 444, game/bossStamina): its size (the bar's units: he stands about 1.0 tall in them), how far into the room from
  * the staff's door its middle lies and how far along the wall toward the corner; his way there from his fire and where its foot and its head
  * lie (Roasting's BossBedWays, in the grill's frame: `frame` that frame's group); whether he's wanted (the shop open), when the player last
- * came to his fire; and how far through laying it down, getting in and folding it away it is (Boss writes it, BossFuton draws it) */
-export const FUTON = { W: 0.62, L: 1.25, top: 0.07, out: 0.46, along: 0.1 }
+ * came to his fire; and how far through laying it down, getting in and folding it away it is (Boss writes it, BossFuton draws it). Where
+ * it goes (item 561, the owner's box drawn on the floor, 「睡覺位置看要不要改在這」): its middle 0.42 into the room and 1.435 along the wall
+ * the other way from the corner (the open floor right of the door as one looks from the bar; it was 0.46 in and 0.1 toward the corner, by
+ * the potted bamboo), searched round from there for the nearest place it lies clear (Roasting's floorMap) */
+export const FUTON = { W: 0.62, L: 1.25, top: 0.07, out: 0.42, along: -1.435 }
 export const BOSS_BED = keep(import.meta.hot, 'BOSS_BED', {
   frame: null as THREE.Object3D | null,
   way: null as ((fromGrill: THREE.Vector3) => { path: THREE.Vector3[]; foot: THREE.Vector3; head: THREE.Vector3 } | null) | null,

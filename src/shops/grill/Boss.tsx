@@ -649,6 +649,12 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     // it, asleep; up again rested, or wanted (the shop opening, the player at his fire), the futon folded and taken off, back to his fire
     const bd = bed.current, ff = BOSS_BED.futon
     if (edit && bd.phase !== 'off') { bd.phase = 'off'; ff.on = false; BOSS_BODY.bed = 'off'; setAsleep(false); s.x = 0; s.z = 0; s.y = 0 }
+    // (no futon down unless he's at it: laying it, in it, or up and folding it (item 561, the owner's 「老闆起身厚，棉被殘留」: he was
+    // back at his fire, his own night's state begun again (drawn anew: a change of the code while he slept), and the futon, the shop's,
+    // was left lying out by the staff's door)
+    if (ff.on && bd.phase !== 'lay' && bd.phase !== 'sleep' && bd.phase !== 'rise') { ff.on = false; ff.fold = 0; ff.cover = 0; ff.unroll = 0; ff.pillow = 0 }
+    // (...nor asleep in the shop's eyes (App rests him by it, the office says so) when he isn't on his way or at it)
+    if (bd.phase === 'off' && BOSS_BODY.bed !== 'off') BOSS_BODY.bed = 'off'
     if (bd.phase === 'off' && !edit && !open && m.parent && BOSS_BED.way && BOSS_BED.frame && ((shutting && sleepsDown(BOSS_BODY.fatigue)) || TO_BED.now)) {
       TO_BED.now = false
       const frame = BOSS_BED.frame
