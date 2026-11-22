@@ -9608,7 +9608,10 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
         // the board, not on the board, where raw fish and meat wait: let go over the basket as it's set out, it drops in and comes to rest
         // there by the basket's own settling (settleBasket), with any roasted ones come back to it; taken from there onto the fire)
         if (!p.body?.live) {
-          const s = [p.node.scale.x, p.node.scale.y, p.node.scale.z].sort((x, y) => x - y)
+          // (its size as made (Dish's), not as it's drawn this moment: the first of each, waiting unseen till then, was still at nothing, and
+          // came to rest as a point, the two firsts one inside the other (the Tester's, item 583))
+          const sc = (p.node.userData.home?.s as THREE.Vector3 | undefined) ?? p.node.scale
+          const s = [sc.x, sc.y, sc.z].sort((x, y) => x - y)
           const k = onTray.indexOf(p)
           p.node.position.copy(basketAt(0)).add(new THREE.Vector3(Math.cos(k * 2.4) * 0.12, 0.3 + (k % 4) * 0.06, Math.sin(k * 2.4) * 0.12))
           flatQ(p, p.node.quaternion, STACK_DIR)
