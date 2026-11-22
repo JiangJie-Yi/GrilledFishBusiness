@@ -30,18 +30,34 @@ const KEY = 'canteen-quality'
 const KEEP_STEP_MS = 3 * 24 * 3600e3
 const ORDER: Tier[] = ['low', 'medium', 'high']
 
-function gpuName(): string {
+/** the compressed picture formats the card takes (WebGL's extension names), read in the same look at it as its name (item 571: the models'
+ * KTX2 pictures turned into one of these, scene/ktx2; a context of their own was one too many under software GL, "Too many active WebGL
+ * contexts", and the oldest is the game's) */
+let formats: Set<string> | null = null
+const COMPRESSED = /compressed|bptc|astc|etc|s3tc|pvrtc/i
+function probe(): { name: string; formats: Set<string> } {
   try {
     const c = document.createElement('canvas')
     const gl = c.getContext('webgl2') as WebGL2RenderingContext | null
-    if (!gl) return ''
+    if (!gl) return { name: '', formats: new Set() }
     const ext = gl.getExtension('WEBGL_debug_renderer_info')
     const name = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : String(gl.getParameter(gl.RENDERER))
+    const fs = new Set((gl.getSupportedExtensions() ?? []).filter((e) => COMPRESSED.test(e)))
     gl.getExtension('WEBGL_lose_context')?.loseContext()
-    return name
+    return { name, formats: fs }
   } catch {
-    return ''
+    return { name: '', formats: new Set() }
   }
+}
+function gpuName(): string {
+  const p = probe()
+  formats = p.formats
+  return p.name
+}
+/** the compressed formats the card takes (looked at once: with the level's own look when it had one) */
+export function compressedFormats(): Set<string> {
+  if (!formats) formats = typeof document === 'undefined' ? new Set() : probe().formats
+  return formats
 }
 
 /** the graphics chip's name, read once (also for the "can't open 3D" notice and the developer's console) */

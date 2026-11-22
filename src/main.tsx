@@ -4,6 +4,8 @@ import './scene/gpuSweep'
 import './scene/assetVersions'
 // (and a phone fetches none of the 3D shop: it draws it flat)
 import './scene/flatGate'
+// (models whose pictures are KTX2 read with a KTX2 loader, item 571)
+import './scene/ktx2'
 // (the pictures the game paints, kept off the graphics card: they survive its resets)
 import './scene/canvasKeep'
 import './scene/triProfiler'
