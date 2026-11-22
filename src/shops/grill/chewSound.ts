@@ -2,19 +2,21 @@
 // different from the last so a run of them doesn't drone.
 
 import { replaces } from '@/scene/hot'
+import { sharedAudio } from '@/scene/sfx'
 
 let ac: AudioContext | null = null
 function ctx() {
   if (ac) return ac.state === 'running' ? ac : null
-  try { ac = new AudioContext({ latencyHint: 'playback' }) } catch { ac = null }
+  // (the game's one context (item 576))
+  try { ac = sharedAudio() } catch { ac = null }
   if (ac?.state === 'suspended') void ac.resume()
   return ac?.state === 'running' ? ac : null
 }
 if (typeof window !== 'undefined') {
   const go = () => { const a = ac ?? ctx(); if (a?.state === 'suspended') void a.resume() }
   window.addEventListener('pointerdown', go)
-  // (let go of, with its sound, when a hot update swaps this module for a new copy)
-  replaces(import.meta.hot, () => { window.removeEventListener('pointerdown', go); void ac?.close() })
+  // (let go of when a hot update swaps this module for a new copy: not the context, every sound's)
+  replaces(import.meta.hot, () => { window.removeEventListener('pointerdown', go) })
 }
 
 function noise(a: AudioContext, seconds: number, shape: (t: number) => number, smooth: number) {

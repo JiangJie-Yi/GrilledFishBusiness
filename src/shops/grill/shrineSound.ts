@@ -2,8 +2,10 @@
 // ring under a fall of small bright bells and a breath of air), and the shrine's little doors (the latch, their wooden pins turning with a
 // soft dry brush and a few faint ticks through a hinoki panel's resonances, a knock as they stop or meet).
 
-let audio: AudioContext | null = null
-const ctx = () => (audio ??= new AudioContext({ latencyHint: 'playback' }))
+import { sharedAudio } from '@/scene/sfx'
+
+// (the game's one context (item 576): the doors' first opening made one of its own, 32 ms of that frame)
+const ctx = () => sharedAudio()
 
 function noise(a: AudioContext, len: number, shape: (x: number) => number) {
   const b = a.createBuffer(1, Math.round(a.sampleRate * len), a.sampleRate)

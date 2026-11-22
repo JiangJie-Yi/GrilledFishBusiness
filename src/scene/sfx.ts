@@ -1,7 +1,7 @@
 // Every sound effect through one switch (the owner's: a master volume, the effects muted on their own from the top right; the music has its
-// speaker on the wall). The game's sounds are made on the spot in a dozen modules, each with its own AudioContext, each connecting straight to
-// its context's speakers; here that one connection is turned, for every context, through a gain of its own (made the first time it's asked
-// for), so all of them are muted or let sound together. The music (ui/Bgm) is an <audio> element, not in any of them.
+// speaker on the wall). The game's sounds are made on the spot in a dozen modules, all in the one AudioContext made here (`sharedAudio`, item
+// 576), each connecting straight to its speakers; here that one connection is turned, for every context, through a gain of its own (made the
+// first time it's asked for), so all of them are muted or let sound together. The music (ui/Bgm) is an <audio> element, not in any of them.
 // Also: `gate` (one sound not started twice within 0.3 s: a walker caught on a door's edge used to set it clattering) and `panOf` (left or
 // right by where it is on screen).
 import * as THREE from 'three'
@@ -12,7 +12,9 @@ const KEY = 'jgs-sfx-muted-1'
 let muted = false
 try { muted = localStorage.getItem(KEY) === '1' } catch { /* (no storage: sound on) */ }
 const masters = new Map<BaseAudioContext, GainNode>()
-const plainConnect = AudioNode.prototype.connect
+// (where there's no WebAudio (the tests, run without a page) nothing here is used, but this module is still loaded: the sounds' modules take
+// their context from it)
+const plainConnect = (typeof AudioNode !== 'undefined' ? AudioNode.prototype.connect : undefined) as AudioNode['connect']
 function masterOf(ctx: BaseAudioContext) {
   let g = masters.get(ctx)
   if (!g) {
@@ -31,9 +33,31 @@ if (typeof AudioNode !== 'undefined') {
     return (plainConnect as (d: AudioNode | AudioParam, ...r: number[]) => AudioNode | void).call(this, dest, ...rest)
   } as typeof AudioNode.prototype.connect
   AudioNode.prototype.connect = turned
-  // (put back when a hot update runs a fresh copy of this module: it turns it again)
-  replaces(import.meta.hot, () => { AudioNode.prototype.connect = plainConnect })
 }
+
+/**
+ * The one AudioContext every sound in the game is made in (item 576, the Tester's, 2026-11-22: the first click stalled a frame, the shrine's
+ * doors' first opening another, 32 ms of it the sound's). The sounds were made in fourteen modules, each in an AudioContext of its own made
+ * the first time it sounded or the first time the player clicked: five of them at that first click, the rest each the first time it was
+ * heard. Made as the page loads (one made before the player's first click or key waits, suspended, as the browser has it, and costs nothing
+ * then), woken by that first click or key; made again if a hot update closed it. Throws where there's no WebAudio, as `new AudioContext` did.
+ */
+let shared: AudioContext | null = null
+export function sharedAudio(): AudioContext {
+  if (!shared || shared.state === 'closed') shared = new AudioContext({ latencyHint: 'interactive' })
+  if (shared.state === 'suspended') shared.resume().catch(() => { /* (not allowed yet: the first click or key wakes it) */ })
+  return shared
+}
+let undoWake = () => {}
+if (typeof window !== 'undefined' && typeof AudioContext !== 'undefined') {
+  try { sharedAudio() } catch { /* (no sound to be had) */ }
+  const wake = () => { if (shared?.state === 'suspended') shared.resume().catch(() => { /* (still not allowed) */ }) }
+  window.addEventListener('pointerdown', wake, true)
+  window.addEventListener('keydown', wake, true)
+  undoWake = () => { window.removeEventListener('pointerdown', wake, true); window.removeEventListener('keydown', wake, true); void shared?.close(); shared = null }
+}
+// (put back when a hot update runs a fresh copy of this module: it turns `connect` again, and makes its own context)
+replaces(import.meta.hot, () => { if (typeof AudioNode !== 'undefined') AudioNode.prototype.connect = plainConnect; undoWake() })
 
 const listeners = new Set<() => void>()
 export const sfxMuted = () => muted

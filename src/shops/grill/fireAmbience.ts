@@ -4,11 +4,14 @@
 // while the view is somewhere else in the shop (`near` 0..1).
 
 import { replaces } from '@/scene/hot'
+import { sharedAudio } from '@/scene/sfx'
 
 let ac: AudioContext | null = null
 let out: GainNode | null = null
 let hiss: GainNode | null = null
 let sizzle: GainNode | null = null
+/** its two loops, stopped when a hot update swaps this module for a new copy */
+const loops: AudioBufferSourceNode[] = []
 let popAt = 0
 let spitAt = 0
 const level = { crackle: 0, sizzle: 0, near: 1 }
@@ -28,7 +31,8 @@ function noiseLoop(a: AudioContext, seconds: number, shape: (i: number, n: numbe
 function start() {
   if (ac) return
   try {
-    ac = new AudioContext({ latencyHint: 'playback' })
+    // (the game's one context (item 576))
+    ac = sharedAudio()
     out = ac.createGain()
     out.gain.value = 0
     out.connect(ac.destination)
@@ -38,6 +42,7 @@ function start() {
     hiss = ac.createGain(); hiss.gain.value = 0
     h.connect(hf).connect(hiss).connect(out)
     h.start()
+    loops.push(h)
     // (the sizzle: bright, busy, swelling and falling a little as fat drips)
     const z = noiseLoop(ac, 3.1, (i, n) => 0.75 + 0.25 * Math.sin((i / n) * Math.PI * 2 * 7) * Math.sin((i / n) * Math.PI * 2 * 3.3))
     const zf = ac.createBiquadFilter(); zf.type = 'highpass'; zf.frequency.value = 3200
@@ -45,6 +50,7 @@ function start() {
     sizzle = ac.createGain(); sizzle.gain.value = 0
     z.connect(zf).connect(zp).connect(sizzle).connect(out)
     z.start()
+    loops.push(z)
   } catch {
     ac = null
   }
@@ -55,8 +61,12 @@ if (typeof window !== 'undefined') {
   window.addEventListener('pointerdown', go)
   window.addEventListener('keydown', go)
   // (let go of when a hot update swaps this module for a new copy, and its sound with it: the old copy's fire went on hissing at its last
-  // loudness under the new one's)
-  replaces(import.meta.hot, () => { window.removeEventListener('pointerdown', go); window.removeEventListener('keydown', go); void ac?.close() })
+  // loudness under the new one's. Its loops stopped and its output let go, not the context: every sound's)
+  replaces(import.meta.hot, () => {
+    window.removeEventListener('pointerdown', go); window.removeEventListener('keydown', go)
+    for (const s of loops) { try { s.stop() } catch { /* (already stopped) */ } }
+    out?.disconnect()
+  })
 }
 
 /**

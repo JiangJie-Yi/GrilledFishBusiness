@@ -8,6 +8,7 @@ import { TILL_STATE, tipOver } from './bar'
 import { getEdit } from './edit'
 import type { Lang } from '@/data/i18n'
 import { drawGlyph } from '@/ui/glyphs'
+import { sharedAudio } from '@/scene/sfx'
 
 /**
  * The till's order tablet on its stand, from blender/ipad.py, in the frame the till had it (the stand's middle at the origin, the screen
@@ -352,7 +353,7 @@ export function IpadModel({ lang = 'zh' }: { lang?: Lang }) {
 let audio: AudioContext | null = null
 function tapSound() {
   try {
-    audio ??= new AudioContext({ latencyHint: 'playback' })
+    audio ??= sharedAudio()
     const t = audio.currentTime
     const n = Math.floor(audio.sampleRate * 0.03)
     const buf = audio.createBuffer(1, n, audio.sampleRate)

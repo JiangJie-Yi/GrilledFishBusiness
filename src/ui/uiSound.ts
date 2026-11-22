@@ -1,12 +1,14 @@
 import { useEffect, useRef } from 'react'
 import { replaces } from '@/scene/hot'
+import { sharedAudio } from '@/scene/sfx'
 
 // The interface's own sounds, made on the spot with WebAudio (no recordings; the owner's: every panel heard as it opens and as it shuts): a
 // soft papery swish, a band of noise sweeping up as the panel comes out and down as it goes back, and a light wooden tick as it settles.
 
 let ac: AudioContext | null = null
 function ctx() {
-  if (!ac) { try { ac = new AudioContext({ latencyHint: 'playback' }) } catch { ac = null } }
+  // (the game's one context (item 576))
+  if (!ac || ac.state === 'closed') { try { ac = sharedAudio() } catch { ac = null } }
   // (still waking (the click that opened the panel is what wakes it): what's set going now is heard as soon as it's up)
   if (ac?.state === 'suspended') void ac.resume()
   return ac && ac.state !== 'closed' ? ac : null
@@ -14,8 +16,8 @@ function ctx() {
 if (typeof window !== 'undefined') {
   const go = () => { const a = ac ?? ctx(); if (a?.state === 'suspended') void a.resume() }
   window.addEventListener('pointerdown', go)
-  // (let go of, with its sound, when a hot update swaps this module for a new copy)
-  replaces(import.meta.hot, () => { window.removeEventListener('pointerdown', go); void ac?.close() })
+  // (let go of when a hot update swaps this module for a new copy: not the context, every sound's)
+  replaces(import.meta.hot, () => { window.removeEventListener('pointerdown', go) })
 }
 
 /** when one was last heard: a panel opened shuts another (the office opened, the stock put away), and one swish is heard for the two */

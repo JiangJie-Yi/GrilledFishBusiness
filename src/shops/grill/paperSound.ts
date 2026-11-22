@@ -1,10 +1,11 @@
 // A tissue pulled from its box: a soft papery whisk, synthesised as it's heard (no sound files)
+import { sharedAudio } from '@/scene/sfx'
 let audio: AudioContext | null = null
 
 /** the sheet drawn up out of the slot: a short breath of filtered noise rising in pitch, and the faint snap as it comes free */
 export function tissuePull() {
   try {
-    audio ??= new AudioContext({ latencyHint: 'playback' })
+    audio ??= sharedAudio()
     const t = audio.currentTime
     const len = 0.32
     const buf = audio.createBuffer(1, Math.round(audio.sampleRate * len), audio.sampleRate)

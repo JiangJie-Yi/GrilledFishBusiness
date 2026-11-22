@@ -4,6 +4,7 @@ import { REGISTER_MANUAL } from '@/data/registerManual'
 import { tl } from '@/data/i18n'
 import { usePanelSound } from './uiSound'
 import { Glyph } from './GameIcons'
+import { sharedAudio } from '@/scene/sfx'
 
 /** whether the register's manual is open (opened by clicking the booklet under the till) */
 let open = false
@@ -16,7 +17,7 @@ const useOpen = () => useSyncExternalStore((f) => { subs.add(f); return () => { 
 let audio: AudioContext | null = null
 function flip() {
   try {
-    audio ??= new AudioContext({ latencyHint: 'playback' })
+    audio ??= sharedAudio()
     const t = audio.currentTime, sr = audio.sampleRate, len = 0.32
     const b = audio.createBuffer(1, Math.round(sr * len), sr)
     const d = b.getChannelData(0)

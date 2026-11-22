@@ -13,7 +13,7 @@ import { clinkSound, pierceSound } from './skewerSound'
 import { coolerDoorSound, gateSound, sizzleBurst } from './restroomSound'
 import { ironSkewer } from './skewerShape'
 import { BONES_GEO, HEAD_GEO, BONE_MAT, BONE_HEAD_MAT } from './fishBones'
-import { heard } from '@/scene/sfx'
+import { heard, sharedAudio } from '@/scene/sfx'
 import type { Gripe, Visit } from '@/game/reputation'
 import { BASE_MATERIAL } from '@/scene/baseMaterial'
 import { SOFT_DOT } from '@/scene/softDot'
@@ -267,7 +267,7 @@ function coalClink(strength: number) {
     const now = performance.now()
     if (now - coalLast < 45) return
     coalLast = now
-    coalAudio ??= new AudioContext({ latencyHint: 'playback' })
+    coalAudio ??= sharedAudio()
     const ac = coalAudio
     const t0 = ac.currentTime
     const out = ac.createGain()

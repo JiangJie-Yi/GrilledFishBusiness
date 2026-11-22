@@ -1,5 +1,6 @@
 // The iron skewers' sounds, synthesised as they're heard (no sound files): one pushed through the food on the board, one laid in the used
 // skewers' tray, a handful dropped back into the holder
+import { sharedAudio } from '@/scene/sfx'
 let audio: AudioContext | null = null
 
 /** a stretch of shaped noise: a few of each kind (`key`) made as they're first wanted, then one of them picked at random (item 374: fresh noise
@@ -34,7 +35,7 @@ function ring(at: number, freq: number, gain: number, decay: number) {
  * three short firm scrapes, a little crisp at the end */
 export function pierceSound() {
   try {
-    audio ??= new AudioContext({ latencyHint: 'playback' })
+    audio ??= sharedAudio()
     const t0 = audio.currentTime
     {
       const s = audio.createBufferSource(), f = audio.createBiquadFilter(), g = audio.createGain()
@@ -66,7 +67,7 @@ export function pierceSound() {
 /** laid in the used skewers' tray: a bright clink */
 export function clinkSound() {
   try {
-    audio ??= new AudioContext({ latencyHint: 'playback' })
+    audio ??= sharedAudio()
     ring(audio.currentTime, 1850 + Math.random() * 300, 0.03, 0.35)
   } catch { /* (no sound to be had) */ }
 }
@@ -74,7 +75,7 @@ export function clinkSound() {
 /** a handful dropped back in the holder: a short rattle of clinks */
 export function rattleSound() {
   try {
-    audio ??= new AudioContext({ latencyHint: 'playback' })
+    audio ??= sharedAudio()
     const t = audio.currentTime
     for (let k = 0; k < 6; k++) ring(t + k * 0.035 + Math.random() * 0.02, 1500 + Math.random() * 900, 0.014, 0.25)
   } catch { /* (no sound to be had) */ }

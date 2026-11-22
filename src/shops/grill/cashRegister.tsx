@@ -12,6 +12,7 @@ import { printSlip, RECEIPT } from '@/game/receipts'
 import { LATE_GRIPE, POINTER_HINT, PRINTER, setPrinter, SUPPLIES, TILL_STATE } from './bar'
 import { getEdit } from './edit'
 import { coinRollMats, type CoinKind } from './Cash'
+import { sharedAudio } from '@/scene/sfx'
 
 /**
  * The till's register, live: the model from blender/register.py (its body, its drawer, its keys and its mode lock), the register's own
@@ -224,7 +225,7 @@ export function liftOn(root: THREE.Object3D | null, on: boolean) {
 let audio: AudioContext | null = null
 export function beep(kind: 'ok' | 'error') {
   try {
-    audio ??= new AudioContext({ latencyHint: 'playback' })
+    audio ??= sharedAudio()
     const t = audio.currentTime
     const o = audio.createOscillator()
     const g = audio.createGain()
@@ -247,7 +248,7 @@ export function beep(kind: 'ok' | 'error') {
  */
 export function chime() {
   try {
-    audio ??= new AudioContext({ latencyHint: 'playback' })
+    audio ??= sharedAudio()
     const ac = audio
     const t = ac.currentTime
     const sr = ac.sampleRate
