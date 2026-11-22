@@ -1069,10 +1069,57 @@ def rope_at(t):
     return Vector((RX0, RY0 - SAG * math.sin(math.pi * t), z)), 0.0026 + 0.0042 * math.sin(math.pi * t) ** 0.7
 
 
-# (two strands twisted round the middle line, as loosely as a straw rope this long is (about 2.7 turns over its span), smooth, thick where
-# the rope's thick)
-# (72 along its span, some 27 to a turn: 120 made each strand 1,920 triangles)
-NSEG = 72
+# (item 551, the owner's 「這邊也是，面數都高到驚人」「很多都可以像花、草，做成一片一片的」: the rope's two strands with fewer faces; the
+# tassels and the paper streamers cards, their shapes cut out of their pictures (alpha, as the money tree's leaves are). It was two
+# strands 72 along, twenty little tubes at its ends, three tassels of fourteen tubes and a cone each, the streamers four boxes each:
+# some 5,500 triangles for a rope 13 cm long. No draw from the shared random numbers here (the pictures are drawn from sines and a
+# generator of their own), so what's made after it comes out as it did.)
+_tw_rng = np.random.default_rng(551)
+# (a tassel's picture: straws hanging from a bound neck, spreading a little, cut square at the foot; clear round them)
+_TW2, _TH2 = 64, 128
+_cx, _cy = np.meshgrid((np.arange(_TW2) + 0.5) / _TW2, (np.arange(_TH2) + 0.5) / _TH2)   # x across 0..1, y up 0..1 (row 0 the foot)
+_half = 0.32 + 0.14 * (1 - _cy)                       # narrower at the neck (top), spread at the foot
+_inside = (np.abs(_cx - 0.5) < _half) & (_cy > 0.02)
+_strands = (0.86 + 0.1 * np.sin((_cx - 0.5) / np.maximum(_half, 1e-3) * 9 * math.pi + _tw_rng.random((1, _TW2)).astype(np.float32) * 6) + 0.06 * _tw_rng.random((1, _TW2)).astype(np.float32)) * (0.8 + 0.2 * _cy)
+_tass = np.clip(np.stack([1.02 * _strands, 0.9 * _strands, 0.64 * _strands], -1), 0, 1).astype(np.float32)
+_gaps = (np.sin((_cx - 0.5) / np.maximum(_half, 1e-3) * 17 * math.pi + 1.3) > 0.97) & (_cy < 0.55)   # a few gaps between the straws, below the neck
+M["tassel"] = pbr("KamiTasselCutout", (1, 1, 1), tex=image("tasselCard", _tass, alpha=(_inside & ~_gaps).astype(np.float32)), rough=0.85, blend=True)
+# (a streamer's picture: the paper cut and folded into four, each fold stepping across and down over the one above; clear round it)
+_SW3, _SH3 = 64, 192
+_sx, _sy = np.meshgrid((np.arange(_SW3) + 0.5) / _SW3, (np.arange(_SH3) + 0.5) / _SH3)   # y 0 the foot, 1 the top
+_paper = np.zeros((_SH3, _SW3), np.float32)
+_shade = np.ones((_SH3, _SW3), np.float32)
+for _j in range(4):
+    _top = 1.0 - _j * 0.22
+    _bot = _top - (0.34 if _j == 3 else 0.29)
+    _left = 0.08 if _j % 2 == 0 else 0.30
+    _fold = (_sy <= _top) & (_sy >= _bot) & (_sx >= _left) & (_sx <= _left + 0.62)
+    _paper = np.maximum(_paper, _fold.astype(np.float32))
+    # (the fold's crease at its top a shade darker, where the paper turns over)
+    _shade = np.where(_fold & (_sy > _top - 0.025), 0.82, _shade)
+_shp = np.stack([0.985 * _shade, 0.98 * _shade, 0.955 * _shade], -1).astype(np.float32)
+M["shideCard"] = pbr("KamiShideCutout", (1, 1, 1), tex=image("shideCard", _shp, alpha=_paper), rough=0.75, blend=True)
+
+
+def card(name, centre, w, h, normal_axis, mat_):
+    """a card (two triangles) standing upright, `w` across and `h` tall, its middle at `centre` (game frame), facing along `normal_axis`
+    ('x' or 'z'); its picture across it"""
+    cx, cy, cz = centre
+    if normal_axis == "x":
+        # (facing out of the shrine, toward -x, where it's seen from: drawn from its back it was lit as if from behind, a grey paper)
+        vs = [P(cx, cy - h / 2, cz + w / 2), P(cx, cy - h / 2, cz - w / 2), P(cx, cy + h / 2, cz - w / 2), P(cx, cy + h / 2, cz + w / 2)]
+    else:
+        vs = [P(cx - w / 2, cy - h / 2, cz), P(cx + w / 2, cy - h / 2, cz), P(cx + w / 2, cy + h / 2, cz), P(cx - w / 2, cy + h / 2, cz)]
+    o = mesh_obj(name, vs, [(0, 1, 2, 3)], mat_)
+    uvl = o.data.uv_layers.new().data
+    for li, uv in zip(o.data.polygons[0].loop_indices, ((0, 0), (1, 0), (1, 1), (0, 1))):
+        uvl[li].uv = uv
+    return o
+
+
+# (the rope: its two strands twisted round the middle line as before, each 24 along its span and 6 round (72 by 8 before): one tube with
+# the twist painted on it lost the strands' own outlines, the ink line down the groove between them, and looked a flat sausage close to)
+NSEG = 24
 for strand in range(2):
     pts, rad = [], []
     for i in range(NSEG + 1):
@@ -1081,52 +1128,33 @@ for strand in range(2):
         ang = t * 2.7 * 2 * math.pi + strand * math.pi
         pts.append((c.x + math.cos(ang) * r * 0.5, c.y + math.sin(ang) * r * 0.5, c.z))
         rad.append(r * 0.62)
-    sn.append(tube(f"KamiShimenawa{strand}", pts, rad, M["straw"], ring=8))
-# (the ends bound and cut: a band of straw round each, the ends splaying a little past it)
+    sn.append(tube(f"KamiShimenawa{strand}", pts, rad, M["straw"], ring=6))
+# (the ends bound and cut: a band of straw round each, and the ends splaying a little past it, a short cone)
 for sd in (0, 1):
     c, r = rope_at(sd * 1.0)
     out_ = -1 if sd == 0 else 1
-    sn.append(cyl(f"KamiShimenawaTie{sd}", 0.0034, 0.003, P(c.x, c.y, c.z - out_ * 0.002), M["straw"], rot=(math.pi / 2, 0, 0), verts=14))
-    for j in range(10):
-        a_ = j * 2 * math.pi / 10
-        p0 = Vector((c.x + math.cos(a_) * 0.0018, c.y + math.sin(a_) * 0.0018, c.z))
-        p1 = Vector((c.x + math.cos(a_) * 0.0032, c.y + math.sin(a_) * 0.0032, c.z + out_ * 0.007))
-        sn.append(tube(f"KamiShimenawaEnd{sd}{j}", [tuple(p0), tuple(p1)], [0.0006, 0.0005], M["straw"], ring=5))
-# (the three tassels (〆の子): a knot where each is tied on, a gold band, then a bundle of straws hanging and spreading a little, cut square)
-FIB = 14
+    sn.append(cyl(f"KamiShimenawaTie{sd}", 0.0034, 0.003, P(c.x, c.y, c.z - out_ * 0.002), M["straw"], rot=(math.pi / 2, 0, 0), verts=8))
+    bpy.ops.mesh.primitive_cone_add(vertices=6, radius1=0.0022, radius2=0.0034, depth=0.007, location=P(c.x, c.y, c.z + out_ * 0.0035),
+                                    rotation=(math.pi / 2, 0, 0))
+    sn.append(finish(active(), f"KamiShimenawaEnd{sd}", M["straw"]))
+# (the three tassels (〆の子): a knot where each is tied on, a gold band, then the bundle of straws: two cards crossed)
 for k, t in enumerate((0.25, 0.5, 0.75)):
     c, r = rope_at(t)
     top = c.y - r * 0.85
     L = 0.024 if k != 1 else 0.028
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.0028, segments=14, ring_count=8, location=P(c.x, top, c.z))
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.0028, segments=8, ring_count=5, location=P(c.x, top, c.z))
     sn.append(finish(active(), f"KamiShimenawaKnob{k}", M["straw"]))
-    sn.append(cyl(f"KamiShimenawaBand{k}", 0.0031, 0.0026, P(c.x, top - 0.0028, c.z), M["gold"], verts=16))
-    rng_t = np.random.default_rng(40 + k)
-    for j in range(FIB):
-        a_ = j * 2 * math.pi / FIB + float(rng_t.uniform(-0.15, 0.15))
-        r0, r1 = 0.0022, 0.0045 + float(rng_t.uniform(0, 0.0012))
-        ll = L * float(rng_t.uniform(0.92, 1.0))
-        p0 = (c.x + math.cos(a_) * r0, top - 0.004, c.z + math.sin(a_) * r0)
-        pm = (c.x + math.cos(a_) * (r0 + r1) * 0.5, top - 0.004 - ll * 0.5, c.z + math.sin(a_) * (r0 + r1) * 0.5)
-        p1 = (c.x + math.cos(a_) * r1, top - 0.004 - ll, c.z + math.sin(a_) * r1)
-        sn.append(tube(f"KamiShimenawaStraw{k}{j}", [p0, pm, p1], [0.0011, 0.0011, 0.0009], M["straw"], ring=5))
-    # (and a core, so the bundle reads full)
-    bpy.ops.mesh.primitive_cone_add(vertices=12, radius1=0.0038, radius2=0.002, depth=L * 0.9, location=P(c.x, top - 0.004 - L * 0.45, c.z))
-    sn.append(finish(active(), f"KamiShimenawaCore{k}", M["straw"]))
-# (the paper streamers: one strip of paper cut and folded into a zigzag of four, each fold stepping down and across over the one above,
-# all one piece, hung over the rope)
+    sn.append(cyl(f"KamiShimenawaBand{k}", 0.0031, 0.0026, P(c.x, top - 0.0028, c.z), M["gold"], verts=8))
+    mid = (c.x, top - 0.004 - L / 2, c.z)
+    sn.append(card(f"KamiShimenawaTasselA{k}", mid, 0.0105, L, "x", M["tassel"]))
+    sn.append(card(f"KamiShimenawaTasselB{k}", mid, 0.0105, L, "z", M["tassel"]))
+# (the paper streamers (紙垂): a card each, the zigzag of its four folds its picture, hung over the rope, a hair in front of it)
 SW, SH_ = 0.0052, 0.0092
 for k, t in enumerate((0.07, 0.375, 0.625, 0.93)):
     c, r = rope_at(t)
     y = c.y - r * 0.4
-    sgn = 1 if k % 2 else -1
-    folds = []
-    for j in range(4):
-        dz = sgn * (SW * 0.27 if j % 2 else -SW * 0.27)
-        hj = SH_ * (1.15 if j == 3 else 1.0)
-        # (each fold overlapping the one above by a little, the paper turned over at it, so the strip is one piece; a hair in front of it)
-        folds.append(box(f"KamiShideF{k}{j}", S(0.00045, hj, SW), P(c.x - 0.0016 - j * 0.0002, y - hj * 0.5 - j * (SH_ - 0.0022), c.z + dz), M["shide"], uv=0))
-    sn.append(join(folds, f"KamiShide{k}"))
+    h = 3 * (SH_ - 0.0022) + SH_ * 1.15
+    sn.append(card(f"KamiShide{k}", (c.x - r * 1.1 - 0.0004, y - h / 2, c.z), SW * 1.6, h, "x", M["shideCard"]))
 parts += sn
 
 root = bpy.data.objects.new("Kamidana", None)
