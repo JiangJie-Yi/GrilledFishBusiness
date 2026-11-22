@@ -1,6 +1,7 @@
 import { memo, useEffect } from 'react'
 import { useThree } from '@react-three/fiber'
 import { IDLE_RELEASED, idleRelease } from './gpuSweep'
+import { PRE_UPLOADED, preUpload } from './preUpload'
 import type * as THREE from 'three'
 import { holdVeil, laterPending, laterSeen, sceneDrawn } from './Later'
 
@@ -81,6 +82,7 @@ export const Prewarm = memo(function Prewarm() {
     const unidle = new URLSearchParams(location.search).get('idle') === '0' ? () => {} : idleRelease(scene)
     if (import.meta.env.DEV) (window as unknown as { __idle?: typeof IDLE_RELEASED }).__idle = IDLE_RELEASED
     let started = false
+    let unupload = () => {}
     const tick = window.setInterval(() => {
       // (everything else in: the stages mounted and the shop drawn, nothing held but this)
       if (started || !laterSeen() || laterPending() > 1 || !sceneDrawn()) return
@@ -91,12 +93,15 @@ export const Prewarm = memo(function Prewarm() {
         .catch(() => undefined)
         .then(() => {
           if (import.meta.env.DEV) console.info(`[prewarm] ${Math.round(performance.now() - t0)} ms, ${later.size} templates, ${gl.info.programs?.length ?? '?'} programs`)
+          // (item 571: and the pictures not on the card yet sent while it's idle, the templates' too)
+          if (new URLSearchParams(location.search).get('upload') !== '0') unupload = preUpload(gl, scene, [...later])
+          if (import.meta.env.DEV) (window as unknown as { __preUpload?: typeof PRE_UPLOADED }).__preUpload = PRE_UPLOADED
           later.clear()
           warmNow = (o) => { void compileSafe(gl, o, camera, scene) }
         })
         .finally(release)
     }, 250)
-    return () => { window.clearInterval(tick); release(); warmNow = null; unkeep(); unidle() }
+    return () => { window.clearInterval(tick); release(); warmNow = null; unkeep(); unidle(); unupload() }
   }, [gl, scene, camera])
   return null
 })
