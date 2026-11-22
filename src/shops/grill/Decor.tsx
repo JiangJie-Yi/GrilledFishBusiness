@@ -8,7 +8,10 @@ import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type React
 import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
-import { countedBatch, homeCopy, plainColours, StaticBatch, mergeByMaterial } from '@/scene/StaticBatch'
+import { bakeable, countedBatch, homeCopy, plainColours, StaticBatch, mergeByMaterial } from '@/scene/StaticBatch'
+import { isDummyMap } from '@/scene/materialNormalize'
+import { mergeState } from '@/scene/worldMerge'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { DRY_STORE, parOf, unitsShown } from '@/game/pantry'
 import { NORI, supplyName } from '@/game/supplies'
 import { QUALITY } from '@/scene/quality'
@@ -1748,6 +1751,122 @@ const bottleSays = (k: number) => {
       : pick3(['按住拖到德利或燒酒杯上方倒一杯，再點一下喝掉', '徳利か杯の上へドラッグして注ぎ、クリックして飲む', 'Drag it over the tokkuri or a glass to pour, then click to drink'])
   return { title: pick3(n.name), hint: `${notes}｜${how}` }
 }
+/** each model's materials as dressSake made them (what each was made from: its name in the model, item 560) */
+const DRESSED = new WeakMap<THREE.Object3D, Map<THREE.Material, THREE.Material>>()
+/** a place on one of the bottles' picture's cells (blender/sakestand.py: four by four, each a column 464 wide with its 24-pixel margins
+ * either side, kept 1.2 % in from the rows above and below), u round it and v up it, as a place on the picture (glTF's v runs down it) */
+const SAKE_CELLS = 4, SAKE_GUT = 24 / 512
+const sakeCellUV = (cell: number, u: number, v: number): [number, number] =>
+  [((cell % SAKE_CELLS) + SAKE_GUT + (1 - 2 * SAKE_GUT) * u) / SAKE_CELLS, 1 - (Math.floor(cell / SAKE_CELLS) + 0.012 + 0.976 * v) / SAKE_CELLS]
+/** the shochu's label's cell; the one with its glass's green (lower) and its cap's silver (upper) (blender/sakestand.py's) */
+const SHOCHU_LABEL_CELL = 13, SHOCHU_FLAT_CELL = 14
+const SHOCHU_GREEN_UV = sakeCellUV(SHOCHU_FLAT_CELL, 0.5, 0.3)
+const SHOCHU_CAP_UV = sakeCellUV(SHOCHU_FLAT_CELL, 0.5, 0.8)
+/** every drink on the stand in one see-through material: each one's colour and how clear it is on its points */
+const DRINKS_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, transparent: true, depthWrite: false, roughness: 0.05 })
+DRINKS_MAT.name = 'SakeDrinks'
+reflectStudio(DRINKS_MAT)
+/** the tray's and the tokkuri's plain colours in one toon material: each one's colour on its points */
+const STAND_PLAIN = new THREE.MeshToonMaterial({ vertexColors: true })
+STAND_PLAIN.name = 'SakeStandPlain'
+// (their programs compiled as the page loads, as the rest: a triangle of each, its colours as the copy has them (the drinks' four a point,
+// how clear too))
+for (const [mat, k] of [[DRINKS_MAT, 4], [STAND_PLAIN, 3]] as const) {
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9), 3))
+  g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array([0, 1, 0, 0, 1, 0, 0, 1, 0]), 3))
+  g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(6), 2))
+  g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(3 * k), k))
+  warmLater(new THREE.Mesh(g, mat))
+}
+/** a toon material that's only a colour: no picture of its own (or the white one scene/materialNormalize gives), opaque, not glowing,
+ * three's own shader */
+const plainToon = (m: THREE.Material) => {
+  const t = m as THREE.MeshToonMaterial
+  return !!t.isMeshToonMaterial && (!t.map || isDummyMap(t.map)) && (!t.emissiveMap || isDummyMap(t.emissiveMap)) && !t.transparent
+    && t.opacity >= 1 && t.emissive.getHex() === 0 && !t.vertexColors && t.onBeforeCompile === THREE.Material.prototype.onBeforeCompile
+}
+/** one colour (and, given, how clear) on every point */
+const colourAll = (g: THREE.BufferGeometry, c: THREE.Color, a?: number) => {
+  const n = g.attributes.position.count, k = a === undefined ? 3 : 4, arr = new Float32Array(n * k)
+  for (let i = 0; i < n; i++) {
+    arr[i * k] = c.r; arr[i * k + 1] = c.g; arr[i * k + 2] = c.b
+    if (a !== undefined) arr[i * k + 3] = a
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(arr, k))
+}
+/** every point's place on the picture, moved by `to` */
+const reUV = (g: THREE.BufferGeometry, to: (u: number, v: number) => readonly [number, number]) => {
+  const uv = g.attributes.uv as THREE.BufferAttribute
+  for (let i = 0; i < uv.count; i++) { const [u, v] = to(uv.getX(i), uv.getY(i)); uv.setXY(i, u, v) }
+}
+/**
+ * The stand's loose things drawn as one while none of them is moving (item 560: the stand was 21 draws while the shop was open: its sake
+ * bottles one copy already (item 135), but the shochu's bottle, its three glasses and the tray beside them 12, the tokkuri 2, the pour's
+ * stream 1). A copy of them as they're posed now, put under `root` (as scene/StaticBatch's homeCopy), and fewer materials between them:
+ * every drink in them (the sake, the cloudy one, the shochu in its bottle and its glasses) one see-through material, its colour and how
+ * clear it is on its points; the shochu's label, its cap and its green glass drawn from the sake bottles' own picture (blender/sakestand.py
+ * paints them in its spare cells) in the sake's opaque and see-through materials; the tray's and the tokkuri's plain colours one toon
+ * material. `home(true)` shows it and hides them (still pointed at: the pointer's rays don't mind what's hidden), `home(false)` the other
+ * way; `drop()` puts it away for good. `kindOf`: each dressed material's name in its model
+ */
+function standCopy(root: THREE.Object3D, movers: THREE.Object3D[], kindOf: Map<THREE.Material, string>, opaque: THREE.Material, glass: THREE.Material) {
+  root.updateWorldMatrix(true, true)
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert()
+  const groups = new Map<THREE.Material, { geos: THREE.BufferGeometry[]; shadow: boolean; lit: boolean; order: number }>()
+  for (const mv of movers) mv.traverse((o) => {
+    const m = o as THREE.Mesh
+    // (shown as its code has it: one the room's merge took while the rest stood still (scene/WorldBatch: a bottle carried a few seconds,
+    // the others merged meanwhile) says it's hidden, and was left out, its label gone once the copy hid it)
+    if (!m.isMesh || (m as THREE.SkinnedMesh).isSkinnedMesh || (m as THREE.InstancedMesh).isInstancedMesh || Array.isArray(m.material) || !(mergeState(m)?.want ?? m.visible)) return
+    const src = m.material as THREE.Material, kind = kindOf.get(src) ?? ''
+    const geo = bakeable(m.geometry, new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld))
+    let mat = src
+    if (/Liquid/.test(kind)) { mat = DRINKS_MAT; colourAll(geo, (src as THREE.MeshStandardMaterial).color, src.opacity) }
+    else if (kind === 'ShochuGlass') { mat = glass; reUV(geo, () => SHOCHU_GREEN_UV) }
+    else if (kind === 'ShochuCap') { mat = opaque; reUV(geo, () => SHOCHU_CAP_UV) }
+    else if (kind === 'ShochuLabel') { mat = opaque; reUV(geo, (u, v) => sakeCellUV(SHOCHU_LABEL_CELL, u, 1 - v)) }
+    else if (plainToon(src)) { mat = STAND_PLAIN; colourAll(geo, (src as THREE.MeshToonMaterial).color) }
+    const g = groups.get(mat) ?? { geos: [], shadow: false, lit: false, order: m.renderOrder }
+    g.geos.push(geo)
+    g.shadow ||= m.castShadow
+    g.lit ||= m.receiveShadow
+    groups.set(mat, g)
+  })
+  const copy = new THREE.Group()
+  copy.name = 'stand-copy'
+  copy.visible = false
+  let whole = groups.size > 0
+  for (const [mat, { geos, shadow, lit, order }] of groups) {
+    const geo = mergeGeometries(geos)
+    for (const x of geos) x.dispose()
+    if (!geo) { whole = false; continue }
+    const mesh = new THREE.Mesh(geo, mat)
+    mesh.castShadow = shadow
+    mesh.receiveShadow = lit
+    mesh.renderOrder = order
+    mesh.raycast = () => {}
+    // (its ink lines are in it, merged as the rest)
+    mesh.userData.inked = true
+    copy.add(mesh)
+  }
+  if (whole) root.add(copy)
+  let at = false
+  const home = (h: boolean) => {
+    if (!whole || h === at) return
+    at = h
+    copy.visible = h
+    for (const mv of movers) { mv.visible = !h; mv.userData.drawnElsewhere = h }
+  }
+  return {
+    home,
+    drop() {
+      home(false)
+      copy.removeFromParent()
+      for (const c of copy.children) (c as THREE.Mesh).geometry.dispose()
+    },
+  }
+}
 function SakeStand() {
   useStudio()
   const gltf = useGLTF(SAKESTAND_URL) as unknown as { scene: THREE.Group }
@@ -1757,7 +1876,9 @@ function SakeStand() {
   const obj = useMemo(() => {
     const r = (gltf.scene.getObjectByName('SakeStand') ?? gltf.scene).clone(true)
     r.position.set(0, 0, 0)
-    dressSake(r, new Map())
+    const made = new Map<THREE.Material, THREE.Material>()
+    dressSake(r, made)
+    DRESSED.set(r, made)
     // (the stand merged; each bottle kept its own, to be lifted and poured (item 89))
     mergeByMaterial(r, (o) => /^SakeBottle\d+$/.test(o.name))
     return r
@@ -1766,7 +1887,9 @@ function SakeStand() {
   const shochu = useMemo(() => {
     const r = (sho.scene.getObjectByName('ShochuSet') ?? sho.scene).clone(true)
     r.position.copy(SHOCHU_AT)
-    dressSake(r, new Map())
+    const made = new Map<THREE.Material, THREE.Material>()
+    dressSake(r, made)
+    DRESSED.set(r, made)
     // (the tray merged; the bottle and the glasses each their own, the bottle to be carried, the glasses to be filled)
     mergeByMaterial(r, (o) => /^Shochu(Bottle|Cup\d)$/.test(o.name))
     return r
@@ -1784,6 +1907,18 @@ function SakeStand() {
     const sb = shochu.getObjectByName('ShochuBottle')
     if (sb) list.push(one(sb, shochu.getObjectByName('ShochuLiquid') ?? null, SHOCHU_AT.clone(), true))
     return list
+  }, [obj, shochu])
+  /** each dressed material's name in its model, and the sake bottles' own opaque and see-through ones (item 560: the copy draws the
+   * shochu's label, cap and glass in them) */
+  const dressed = useMemo(() => {
+    const kindOf = new Map<THREE.Material, string>()
+    let opaque: THREE.Material | null = null, glass: THREE.Material | null = null
+    for (const r of [obj, shochu]) for (const [src, t] of DRESSED.get(r) ?? []) {
+      kindOf.set(t, src.name)
+      if (src.name === 'SakeBottles') opaque = t
+      if (src.name === 'SakeGlass') glass = t
+    }
+    return { kindOf, opaque, glass }
   }, [obj, shochu])
   /** where each can be poured into, in the stand's frame (its lip's middle) and how near its middle the bottle's mouth must come: the
    * tokkuri, then the three glasses */
@@ -1807,8 +1942,10 @@ function SakeStand() {
    * to fill it; let go, it goes back to its place
    */
   const drag = useRef<{ b: number; aim: THREE.Vector3; ray: THREE.Ray | null; tip: number; over: number; t: number; back: number; from: THREE.Vector3; fromQ: THREE.Quaternion } | null>(null)
-  useEffect(() => { bottles.forEach((b, k) => { if (b.liquid) b.liquid.scale.y = Math.max(0.02, b.shochu ? SHOCHU_LEVEL.v : SAKE.levels[k]) }) }, [bottles])
-  useEffect(() => { targets.forEach((t) => { if (t.liquid) t.liquid.scale.y = 0.001 }) }, [targets])
+  /** the copy of the stand's things to be made again (item 560: of them as they were; the levels set, a glass emptied) */
+  const stale = useRef(false)
+  useEffect(() => { bottles.forEach((b, k) => { if (b.liquid) b.liquid.scale.y = Math.max(0.02, b.shochu ? SHOCHU_LEVEL.v : SAKE.levels[k]) }); stale.current = true }, [bottles])
+  useEffect(() => { targets.forEach((t) => { if (t.liquid) t.liquid.scale.y = 0.001 }); stale.current = true }, [targets])
   const TIP_Q = useMemo(() => new THREE.Quaternion(), [])
   /** a bottle posed: tipped by `tip` (0 upright .. 1 right over), its mouth where `mouth` is (or, upright, its foot at `foot`) */
   const pose = (b: (typeof bottles)[number], tip: number, foot: THREE.Vector3, mouth: THREE.Vector3 | null) => {
@@ -1822,25 +1959,34 @@ function SakeStand() {
   const showStream = (mouth: THREE.Vector3 | null, to: THREE.Vector3 | null) => {
     const s = stream.current
     if (!s) return
+    // (drawn only while it's poured (item 560: a draw every frame, a thread scaled to nothing); its program compiled with the page's, as
+    // a hidden one's is)
+    s.visible = !!mouth && !!to
     if (!mouth || !to) { s.scale.set(1, 0.0001, 1); return }
     s.position.copy(mouth)
     s.scale.set(1, Math.max(0.0001, mouth.y - to.y), 1)
   }
   // (the twelve sake bottles drawn as one while none of them is moving (item 135: the stand was 73 draws, each bottle its glass, its sake,
-  // its label and its line): a copy of them made as they come to rest, with their levels as they are then; let go as one's taken up)
-  const homeAt = useRef<ReturnType<typeof homeCopy> | null>(null)
+  // its label and its line), and with them the shochu's bottle, glasses and tray and the tokkuri (item 560, standCopy): a copy of them
+  // made as they come to rest, with their levels as they are then; let go as one's taken up)
+  const homeAt = useRef<ReturnType<typeof standCopy> | null>(null)
+  const jug = useRef<THREE.Group>(null)
   const sakeNodes = useMemo(() => bottles.filter((b) => !b.shochu).map((b) => b.node), [bottles])
   const dropHome = () => {
-    homeAt.current?.home(false)
+    homeAt.current?.drop()
     homeAt.current = null
-    const old = obj.children.find((c) => c.name === 'home-copy')
-    if (old) { old.removeFromParent(); old.traverse((m) => { if ((m as THREE.Mesh).isMesh) (m as THREE.Mesh).geometry.dispose() }) }
   }
-  useEffect(() => dropHome, [obj])
+  useEffect(() => dropHome, [obj, shochu])
   useFrame((_, dt) => {
     const still = !drag.current
-    if (!still && homeAt.current) dropHome()
-    else if (still && !homeAt.current) { homeAt.current = homeCopy(obj, sakeNodes); homeAt.current.home(true) }
+    if (homeAt.current && (!still || stale.current)) dropHome()
+    // (made once the tokkuri's in (its two pieces), so it's in it)
+    const { kindOf, opaque, glass } = dressed
+    if (still && !homeAt.current && group.current && opaque && glass && (jug.current?.children[0]?.children.length ?? 0) >= 2) {
+      homeAt.current = standCopy(group.current, [...sakeNodes, ...shochu.children, jug.current!], kindOf, opaque, glass)
+      homeAt.current.home(true)
+      stale.current = false
+    }
     const d = drag.current
     if (d) {
       const b = bottles[d.b]
@@ -1989,6 +2135,7 @@ function SakeStand() {
     full.current[i] = false
     const l = targets[i].liquid
     if (l) l.scale.y = 0.001
+    stale.current = true
     drunk(i)
   }
   /** what was poured into target `i` drunk (item 363): the first of its make a tasting, its notes written down and said, the staff to speak
@@ -2033,7 +2180,7 @@ function SakeStand() {
         onPointerOut={onOut} onClick={onCupClick} />
       {/* (the tokkuri on the front step, poured into by hand (item 107); full, a click empties it (item 177: a customer's is poured at the sake
           station on the serving counter and carried out, not this one, out of everyone's reach)) */}
-      <group position={JUG_AT} onClick={onJugClick} onPointerOver={onJugOver} onPointerOut={onOut}><Tokkuri /></group>
+      <group ref={jug} position={JUG_AT} onClick={onJugClick} onPointerOver={onJugOver} onPointerOut={onOut}><Tokkuri /></group>
       <mesh geometry={STREAM_GEO} material={STREAM_MAT} scale={[1, 0.0001, 1]} ref={stream} />
     </group>
   )

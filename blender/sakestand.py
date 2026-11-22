@@ -598,6 +598,60 @@ disc(tag, 0.0, 0.124, 0.003, (0.3, 0.3, 0.3))
 cols.append(tag)
 
 cells = [np.clip(k.col, 0, 1) for k in cols] + [np.full((CH, CWID, 3), 0.5, np.float32)] * (NCOL * NROW - len(cols))
+
+# ---- (item 560) the shochu's bottle beside the stand drawn in the sake's own two materials (the game points its UVs here, Decor's
+# standCopy): its label's picture, as shochu.glb has it (round the bottle once, up its band), in the cell after the hang tag's; and in the
+# next its glass's green (the lower part) and its cap's silver (the upper), flat, the game pointing every vertex of each at the middle of
+# its colour. The green darker than shochu.glb's own (#3f9a5e): the sake's glass glows with its picture's colour (0.9 of it), the
+# shochu's glowed half its own
+SHOCHU_LABEL_CELL, SHOCHU_FLAT_CELL = 13, 14
+
+
+def glb_picture(path, name):
+    """a picture packed in a .glb (its bytes written out and loaded), as rows up it, sRGB"""
+    import json
+    import struct
+    import tempfile
+    with open(path, "rb") as f:
+        b = f.read()
+    n = struct.unpack_from("<I", b, 12)[0]
+    j = json.loads(b[20:20 + n])
+    at = 20 + n + 8
+    im = next(i for i in j["images"] if i.get("name") == name)
+    v = j["bufferViews"][im["bufferView"]]
+    tmp = os.path.join(tempfile.gettempdir(), f"{name}.{im['mimeType'].split('/')[-1]}")
+    with open(tmp, "wb") as f:
+        f.write(b[at + v.get("byteOffset", 0):at + v.get("byteOffset", 0) + v["byteLength"]])
+    img = bpy.data.images.load(tmp)
+    w, h = img.size
+    a = np.array(img.pixels[:], np.float32).reshape(h, w, 4)[..., :3].copy()
+    bpy.data.images.remove(img)
+    return a
+
+
+def resample(a, h, w):
+    """a picture drawn again at h by w (bilinear; round the bottle across, so its two edges wrap)"""
+    ys = np.clip((np.arange(h) + 0.5) * a.shape[0] / h - 0.5, 0, a.shape[0] - 1)
+    xs = (np.arange(w) + 0.5) * a.shape[1] / w - 0.5
+    y0 = np.floor(ys).astype(int)
+    y1 = np.minimum(y0 + 1, a.shape[0] - 1)
+    fy = (ys - y0)[:, None, None]
+    x0 = np.floor(xs).astype(int)
+    fx = (xs - x0)[None, :, None]
+    x0 %= a.shape[1]
+    x1 = (x0 + 1) % a.shape[1]
+    top = a[y1][:, x0] * (1 - fx) + a[y1][:, x1] * fx
+    bot = a[y0][:, x0] * (1 - fx) + a[y0][:, x1] * fx
+    return (bot * (1 - fy) + top * fy).astype(np.float32)
+
+
+cells[SHOCHU_LABEL_CELL] = resample(glb_picture(os.path.join(PROJECT, "public", "models", "shochu.glb"), "ShochuLabelPic"), CH, CWID)
+flat = np.empty((CH, CWID, 3), np.float32)
+flat[:] = (0.3, 0.53, 0.38)
+# (the green paler than its own: seen through, the shochu's glass read as a pale mint (item 560: drawn as the sake's glass, the first
+# try, darker, read greener and heavier side by side); the cap's silver a light grey: the sake's opaque material hardly shines)
+flat[int(CH * 0.6):] = (0.64, 0.65, 0.67)
+cells[SHOCHU_FLAT_CELL] = flat
 # (each column's margins: its right edge's picture on the left of it, its left edge's on the right, as round the bottle they're one)
 cells = [np.concatenate([c[:, -GUT:], c, c[:, :GUT]], 1) for c in cells]
 cells = [(c[0::2] + c[1::2]) * 0.5 for c in cells]
