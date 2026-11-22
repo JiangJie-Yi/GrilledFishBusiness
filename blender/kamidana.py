@@ -2216,10 +2216,28 @@ if PREVIEW:
     world.node_tree.nodes["Background"].inputs[1].default_value = 0.6
     bpy.context.scene.world = world
 
+# =====================================================================
+# Item 574, stage B (the owner's pipeline for what never moves, docs/BAKING.md): the shrine area's still pieces (the shrine's own, the book
+# of prayers, the little lanterns, the table and the shelf's brackets) on a few pictures, the pictures themselves packed into them
+# (common.py's slot_atlas: as sharp as they were; baked onto one picture, the grain and the bark's courses blurred to under half, the first
+# try): the hinoki, dark hinoki, bark, keyaki, straw, silk and plain colours, on two pages (2048 by 1024, 1024 by 512); the game merges
+# what shares a material, a page a draw. Left as they were: the brocade (its weave, a pixel fine, blurs shrunk by any amount), the gold
+# (metal, reflecting the studio), the cut-out cards (drawn both sides), the lanterns' paper (lit from inside), the gables (their relief in
+# a normal map of their own), the glazes, and all that moves or is picked up (the doors, the Ebisu, the flask, the oranges, the cups' stand)
+# =====================================================================
+import re as _re
+ATLAS_KEEP = _re.compile(r"^(KamiGold|KamiRuri|KamiEbisu.*|KamiLanternPaper|KamiPeel|KamiLeaf|KamiDish|KamiCobalt|KamiFlaskGlaze|KamiFlaskPaper|KamiGoldLeaf|KamiRoofGable|KamiPlaque|KamiBrocade)$|Cutout")
+
+
+def _still_of(*nodes):
+    return [c for nd in nodes for c in nd.children if c.type == "MESH" and not c.children and len(c.data.polygons)]
+
+
+M["atlas"], _cut_a = slot_atlas("KamiAtlas", _still_of(root, sutra, lantern, table, bracket), 2048, 1024, skip=lambda m: bool(ATLAS_KEEP.search(m.name)))
+
 # ---- for the game: under each node the many small pieces merged into a few meshes, one for each material (and apart, those the game's ink
 # outline passes over (the same test as DiningRoom.tsx's inkModel skip), and on the doors the crest and the corner plates, which the game finds
 # by name), so it draws a handful of meshes, not hundreds
-import re as _re
 NO_INK = _re.compile(r"Gold|Cap|Plate|Crest|Seam|Bal|Katsuogi|Fold|Char|Slip|Calyx|Stem|Bow|Cord|Tail|Tassel|Fringe|Line|Inlay|Nail|Core|Pillar|Beam|Shide|Label|Knot|Edge|Jamb|Sill|Inside|Fuda|Eye|Smile|Ear|Cheek|Rod")
 # (the roof's pieces (item 573: made low and clean where they're made) in meshes of their own, apart from the rest in their material: so
 # optimize_glb.py, which thins any mesh over 1,500 triangles to a third, doesn't thin them with the boards and posts they were merged with)
@@ -2231,7 +2249,8 @@ def merge_kids(node):
     groups = {}
     for c in [c for c in node.children if c.type == "MESH" and not c.children]:
         keep = "Crest" if "Crest" in c.name else "DoorPlate" if "DoorPlate" in c.name else ""
-        key = (c.active_material.name if c.active_material else "", bool(NO_INK.search(c.name)), keep, bool(ROOF_PIECE.search(c.name)))
+        # (by the material it had before its area's picture took its place (item 574))
+        key = (c.get("atlasFrom") or (c.active_material.name if c.active_material else ""), bool(NO_INK.search(c.name)), keep, bool(ROOF_PIECE.search(c.name)))
         groups.setdefault(key, []).append(c)
     for (mat_name, no_ink, keep, _roof), objs in groups.items():
         _jn[0] += 1
