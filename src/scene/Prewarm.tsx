@@ -47,12 +47,34 @@ function compileSafe(gl: THREE.WebGLRenderer, o: THREE.Object3D, camera: THREE.C
   }
 }
 
+/**
+ * Every program the renderer has linked kept for good (item 565: the slowdowns past midnight): three lets a program go the moment the last
+ * material drawn with it is disposed (a customer gone, the coal bed made again, a piece's copy let go), and the next thing drawn with the
+ * same settings links it again, a stop of a tenth to a quarter of a second (the menu's tags 180 ms, the coal 130, the freezer's goods
+ * 260, measured past midnight with the clock moved on: the programs 65, then 63 as two were let go, then 66 as they were made again). A
+ * program's taken once more as it's seen, so it's never at nought; there are some seventy of them, a few kilobytes of the GPU's each.
+ */
+function keepPrograms(gl: THREE.WebGLRenderer) {
+  const kept = new WeakSet<object>()
+  const keep = () => {
+    for (const p of (gl.info.programs ?? []) as unknown as ({ usedTimes: number } & object)[]) {
+      if (kept.has(p)) continue
+      kept.add(p)
+      p.usedTimes++
+    }
+  }
+  keep()
+  const t = window.setInterval(keep, 500)
+  return () => window.clearInterval(t)
+}
+
 // (item 374: drawn again only as its own props change: it does its work in its frames and effects, and was drawn again with every redraw
 // of the page or the scene, about three times a second, for nothing)
 export const Prewarm = memo(function Prewarm() {
   const { gl, scene, camera } = useThree()
   useEffect(() => {
     const release = holdVeil('prewarm')
+    const unkeep = keepPrograms(gl)
     let started = false
     const tick = window.setInterval(() => {
       // (everything else in: the stages mounted and the shop drawn, nothing held but this)
@@ -69,7 +91,7 @@ export const Prewarm = memo(function Prewarm() {
         })
         .finally(release)
     }, 250)
-    return () => { window.clearInterval(tick); release(); warmNow = null }
+    return () => { window.clearInterval(tick); release(); warmNow = null; unkeep() }
   }, [gl, scene, camera])
   return null
 })
