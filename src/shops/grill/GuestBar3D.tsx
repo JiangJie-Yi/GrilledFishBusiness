@@ -3963,6 +3963,9 @@ const CLEAR_REACH = 0.35, CLEAR_LIFT = 0.4, CLEAR_SET = 0.15
 const CLEAR_WIPE_AT = CLEAR_REACH + CLEAR_LIFT + CLEAR_SET
 /** each server's two hands while clearing (the world), and the scratch for finding them */
 const CLEAR_HANDS = [0, 1, 2, 3].map(() => ({ left: new THREE.Vector3(), right: new THREE.Vector3() }))
+/** each server's hands as they put what they've cleared into the sink (item 590): down into the basin over the counter, not the tray held out
+ * before them at their waist, through the curtain under the counter and into the cabinet */
+const SINK_HANDS = [0, 1, 2, 3].map(() => ({ left: new THREE.Vector3(), right: new THREE.Vector3() }))
 const CLEAR_SIDE = new THREE.Vector3()
 /** how far out in front the wiping hand is in the figure's frame (StaffFigure's WIPE_HAND.z): the stroke's middle, for the cloth over the place */
 const WIPE_HAND_Z = 0.44
@@ -3999,6 +4002,12 @@ function frontOf(at: THREE.Vector3, stand: THREE.Vector3, thing: THREE.Vector3) 
 const KITCHEN_BLOCKS = new Set(['warmer', 'prepcounter', 'ricetub', 'misopot', 'denkinabe', 'fryer', 'freezer', 'platerack', 'platerack2', 'lowrack', 'sink', 'sink-bin', 'produce', 'vegcrate', 'vegcrate2', 'vegbasket', 'coalsack', 'servecounter'])
 /** how much room is left round each of them for a server to pass (the bar's units) */
 const PASS_ROOM = 0.13
+/** and the more a server's own place is kept off it, their hands hanging at their sides (the bar's units: 0.1, 20 cm in the world) */
+const HOME_ROOM = 0.1
+/** how far before a server what they hold is (their tray and hands: StaffFigure's, 0.6 out in the world; the bar's units) */
+const TRAY_REACH = 0.3
+/** how far back off the sink's front mark a server stands at it (the bar's units: 16 cm in the world) */
+const SINK_BACK = 0.08
 /** with no cashier at the till (item 203: the register rang them up by itself): how long (the bar's clock, s) one waits there for a server to
  * come round to it before paying as before (no one stuck at the door all night: the shop closing, every server tied up). At 30, on an
  * ordinary evening x2 a server came for 12 of 20 (4 to 27 s); 45, a busy shop's wait */
@@ -4487,8 +4496,18 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     if (kept) return kept
     const blocks = kitchenBlocks()
     if (!blocks.length) return h
-    const [a, l] = standClear(flat(h.at), blocks)
+    // (further off than a passer-by's room (item 590): stood waiting by the sink's end, a server's hand hanging at their side (StaffFigure's
+    // REST, 0.51 out from their middle) was in its side panel 9 to 14 cm all the while)
+    const [a0, l0] = standClear(flat(h.at), blocks.map((r) => ({ x0: r.x0 - HOME_ROOM, z0: r.z0 - HOME_ROOM, x1: r.x1 + HOME_ROOM, z1: r.z1 + HOME_ROOM })))
+    // (and what they hold before them (their tray, TRAY_REACH out) clear of what's there itself (a block less its passing room): stood waiting
+    // facing the sink's end, the second server's tray and hands were in it all the while (item 590); stepped back from it till they're clear)
     const c0 = counters[0]
+    const fwd = new THREE.Vector3(Math.sin(h.yaw), 0, Math.cos(h.yaw)), fa = fwd.dot(c0.along), fl = fwd.dot(c0.lay)
+    const solid = blocks.map((r) => ({ x0: r.x0 + PASS_ROOM, z0: r.z0 + PASS_ROOM, x1: r.x1 - PASS_ROOM, z1: r.z1 - PASS_ROOM }))
+    const held = (k: number) => solid.some((r) => { const x = a0 + fa * (TRAY_REACH - k), z = l0 + fl * (TRAY_REACH - k); return x > r.x0 - 0.02 && x < r.x1 + 0.02 && z > r.z0 - 0.02 && z < r.z1 + 0.02 })
+    let back = 0
+    while (back < 0.3 && held(back)) back += 0.02
+    const a = a0 - fa * back, l = l0 - fl * back
     const at = c0.at.clone().addScaledVector(c0.along, a).addScaledVector(c0.lay, l).setY(h.at.y)
     const made = { ...h, at, way: [at, ...h.way.slice(1)] }
     clearHomes.current.set(wi, made)
@@ -5562,7 +5581,14 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
   }
   /** (every second) the plates out at seats looked over for any left where nobody sits */
   const sweep = useRef(0)
-  const sinkFront = () => ontoStool(inBar('SinkFront', endOf(1)).setY(0))
+  // (stepped back off the sink's front (item 590): stood at its mark, what they held before them (their tray, their hands as they came up to
+  // it) went through the curtain under the counter into the cabinet, 0.13 to 0.29 m; still on the step stool, the basin a lean away)
+  const sinkFront = () => {
+    const at = inBar('SinkFront', endOf(1)).setY(0), mid = inBar('SinkTop', at).setY(0)
+    const out = at.clone().sub(mid)
+    if (out.lengthSq() > 1e-6) at.addScaledVector(out.normalize(), SINK_BACK)
+    return ontoStool(at)
+  }
   /**
    * The owner going to wash the stack of dirty plates left on the sink's counter (game/sinkPile, item 103, the owner's, 2026-11-14): nobody
    * washes it but the player, till the third day; then, a few seconds into the day, if it's still there, he says so (over his head and in
@@ -8917,9 +8943,21 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         f.localToWorld(H.left.copy(tr).addScaledVector(CLEAR_SIDE, -0.11 * STAFF_SCALE).setY(tr.y + 0.01))
         return true
       }
+      /** both hands down into the sink's basin as what's cleared goes in (item 590), a hand's breadth apart across them, a little over its floor */
+      const sinkHands = () => {
+        const f = frame.current
+        if (!f || wi >= SINK_HANDS.length || !markOf('SinkBasinFloor')) return false
+        const yaw = w.look ?? w.yaw
+        CLEAR_SIDE.set(Math.cos(yaw), 0, -Math.sin(yaw))
+        const fl = inBar('SinkBasinFloor', endOf(1)), H = SINK_HANDS[wi]
+        f.localToWorld(H.right.copy(fl).addScaledVector(CLEAR_SIDE, 0.06 * STAFF_SCALE).setY(fl.y + 0.06))
+        f.localToWorld(H.left.copy(fl).addScaledVector(CLEAR_SIDE, -0.06 * STAFF_SCALE).setY(fl.y + 0.06))
+        return true
+      }
       if (o) o.userData.handsAt = w.phase === 'sakePour' && SAKE_HANDS_ON.v ? SAKE_HANDS
         : (w.phase === 'bowlRice' || w.phase === 'bowlSoup') && BOWL_HANDS_ON.v ? BOWL_HANDS
-        : w.phase === 'clearTake' && w.t < CLEAR_WIPE_AT && clearHands() ? CLEAR_HANDS[wi] : undefined
+        : w.phase === 'clearTake' && w.t < CLEAR_WIPE_AT && clearHands() ? CLEAR_HANDS[wi]
+        : w.phase === 'drop' && sinkHands() ? SINK_HANDS[wi] : undefined
       if (sakeJob.current?.server === wi) { SAKE_TRAY.copy(trayAt()); SAKE_TRAY_YAW.v = w.look ?? w.yaw }
       if (passQ.current.some((b) => b.server === wi)) bowlTrays.current.set(wi, { at: trayAt(), yaw: w.look ?? w.yaw })
       else bowlTrays.current.delete(wi)
