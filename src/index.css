@@ -2790,6 +2790,14 @@ body.be-tool .app > :not(.canvas-layer):not(.axis-widget) { display: none; }
   box-shadow: 0 0 0 3px rgb(192 57 43 / 0.22);
 }
 
+/* (a day's tip in the guide's card (ui/DayTip, item 175): what it is, small and red, over its title, where the guide's dots are) */
+.guide-kicker {
+  margin-bottom: 2px;
+  color: #c0392b;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+}
+
 .guide-title {
   font: 400 21px/1.3 var(--brush);
   letter-spacing: 0.06em;

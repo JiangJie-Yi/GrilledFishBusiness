@@ -105,6 +105,8 @@ import { cardFee, platformCut, rentDue } from '@/game/costs'
 import { GUIDE_KEY } from '@/game/firstDay'
 import { FirstDayGuide } from '@/ui/FirstDayGuide'
 import { DayGoal } from '@/ui/DayGoal'
+import { DayTip } from '@/ui/DayTip'
+import { tipFor, tipShown, type TipId } from '@/game/dailyTip'
 import { dayGoal } from '@/game/dayGoal'
 import { CANDIDATES, pickHires, refreshApplicants, ROLLS_PER_DAY, valueOf } from '@/game/hiring'
 import { arrange, onShift, openDay, shutDay, type Rota, type Shift } from '@/game/shifts'
@@ -453,6 +455,8 @@ const METER_KEY = 'jgs-utilities-1'
 const VISITS_KEY = 'jgs-reputation-1'
 /** each day's closing sheet in the books (ui/DaySummary, game/daySummary's DayRecord) */
 const DAYS_KEY = 'jgs-days-1'
+/** the day's tips taken up (ui/DayTip, item 175), kept in the browser as the first day's guide is: not shown again in the next game */
+const TIPS_KEY = 'jgs-tips-1'
 /** how tired the owner is (item 444, game/bossStamina): his own key, cleared only by starting over */
 const BOSS_FATIGUE_KEY = 'jgs-boss-fatigue-1'
 function useSky(): [Sky, (s: Sky) => void] {
@@ -1527,6 +1531,10 @@ export default function App() {
       return !SAVED && localStorage.getItem(GUIDE_KEY) !== 'done'
     } catch { return !SAVED }
   })
+  // (something to try, one a day from the second (ui/DayTip, game/dailyTip, item 175): those taken up, and the day it was put off)
+  const [tipsSeen, setTipsSeen] = useState<TipId[]>(() => { try { return JSON.parse(localStorage.getItem(TIPS_KEY) ?? '[]') as TipId[] } catch { return [] } })
+  const [tipPut, setTipPut] = useState<number | null>(null)
+  const tipLater = useCallback(() => setTipPut(getClock().day), [])
   const guideDone = useCallback(() => {
     setGuide(false)
     try { localStorage.setItem(GUIDE_KEY, 'done') } catch { /* (not kept) */ }
@@ -2812,6 +2820,16 @@ export default function App() {
     if (id !== 'upstairs') setDorm(false)
     setView(id); setResetView((n) => n + 1)
   }, [])
+  // (a day's tip taken up (ui/DayTip, item 175): seen, put away for the day, and they're taken there: the view moved to it, or its panel opened)
+  const tipGo = useCallback((t: TipId) => {
+    const next = tipsSeen.includes(t) ? tipsSeen : [...tipsSeen, t]
+    setTipsSeen(next)
+    try { localStorage.setItem(TIPS_KEY, JSON.stringify(next)) } catch { /* (not kept) */ }
+    setTipPut(getClock().day)
+    if (t === 'grill' || t === 'altar' || t === 'window') goView(t)
+    else if (t === 'rating') setShowRating(true)
+    else if (t === 'recipe') setOffice('book')
+  }, [goView, tipsSeen])
   // (the room upstairs in and drawn: the camera up to it behind the cover, the cover off once it's there)
   const onDormDrawn = useCallback(() => {
     if (viewNow.current === 'upstairs') return
@@ -4365,6 +4383,12 @@ export default function App() {
             menuMin: MENU_MIN[dish.id] ?? 1, open: ai, inHours: guideHours, sold: ledger.revenue > 0 }}
           onSkipTime={() => setClock({ ...getClock(), minute: OPEN_AT })} onDone={guideDone} />
       )}
+      {/* (something to try today, from the second day, while the shop's shut (ui/DayTip, item 175)) */}
+      {(() => {
+        const tip = tipFor(clockDay, tipsSeen)
+        return tip && tipShown({ tip, open: ai || closing || leaving, dismissedDay: tipPut, day: clockDay, busy: guide || !!daySum || editOn || !!bust })
+          ? <DayTip lang={lang} tip={tip} onGo={tipGo} onLater={tipLater} /> : null
+      })()}
       <RegisterManual lang={lang} />
       {(() => {
         const w = staffPop ? staffOf(dish.id).find((x) => x.id === staffPop.id) : undefined
