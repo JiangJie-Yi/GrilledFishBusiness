@@ -1599,7 +1599,9 @@ function PrepCounter() {
  * The sake stand on the cook table (blender/sakestand.py, item 73, the owner's: "a sake stand in the red box, a few bottles of sake on it"):
  * a two-stepped hinoki stand with three 1.8-litre bottles up at the back and two 720 ml ones at the front, on the table's wood between the
  * lantern and the coal crate, its front to the bar. Low-poly, all in its pictures: the bottles' glass shiny with the studio's reflection
- * (standard, not toon: glass that didn't shine read as painted wood), the stand toon; the hang tag a card drawn both sides.
+ * (standard, not toon: glass that didn't shine read as painted wood), the stand toon; the hang tag a card drawn both sides. Item 538: the
+ * stand a low light box of keyaki and paper lit from within, no screen behind (seen from both sides), the tall bottles along its raised
+ * middle, the short ones either side, the kitchen's turned to it.
  */
 /** glass, the drink in it, and the rest, as the stand's own materials are made (shared by the sake and the shochu; and the open bottle at the
  * sake station on the serving counter, item 177) */
@@ -1661,9 +1663,9 @@ export function dressSake(r: THREE.Object3D, made: Map<THREE.Material, THREE.Mat
         reflectStudio(g)
         t = g
       } else if (/SakeShoji/.test(src.name)) {
-        // (the risers' shoji (item 383): its paper lit softly from within, as an andon's, whatever the room's light (no light added): the
-        // picture its own glow, its keyaki bars dark in it)
-        t = new THREE.MeshToonMaterial({ color: src.color.clone(), map: src.map ?? null, emissive: '#ffd08f', emissiveMap: src.map ?? null, emissiveIntensity: 0.32 })
+        // (the light box's paper (item 538; the risers' shoji, item 383): lit from within, as an andon's, whatever the room's light (no
+        // light added): the picture its own glow, its keyaki bars and the ink bamboo behind it dark in it)
+        t = new THREE.MeshToonMaterial({ color: src.color.clone(), map: src.map ?? null, emissive: '#ffcf8a', emissiveMap: src.map ?? null, emissiveIntensity: 0.95 })
       } else t = new THREE.MeshToonMaterial({ color: src.color.clone(), map: src.map ?? null })
       made.set(src, t)
     }
@@ -1695,13 +1697,14 @@ const SHOCHU_AT = new THREE.Vector3(0.655, 0, 0)
 /** the tokkuri, set on the stand's front step at its right-hand end, at the bottles' own size (item 107: it stood at half their size down
  * on the table under where a tipped bottle's mouth came, the stream long and the jug tiny) */
 // (item 285: the front step's last place, between the two bottles behind it, as the front's bottles are; item 380: on its coaster, the
-// front step's top now 0.098 up (the plinth under the steps) and the coaster 0.006)
-const JUG_AT = new THREE.Vector3(2.5 * 0.131, 0.104, 0.07)
+// front step's top now 0.098 up (the plinth under the steps) and the coaster 0.006; item 538: the light box's customers' row, its last
+// place, the low box's top 0.12 (blender/sakestand.py's JUG_X, Y_CUST, LT))
+const JUG_AT = new THREE.Vector3(0.44, 0.126, 0.106)
 /** how long a pour into a cup or the tokkuri takes, held over it (s); how high a bottle's carried, its foot over the table (the stand's
  * frame); how far it's tipped to pour; a cup's pours out of a bottle of shochu */
 const POUR_S = 1.2
-// (over the back step's coasters (0.164, item 380), the bottle clear of them as it's taken up)
-const CARRY_Y = 0.22
+// (over the raised box's coasters (item 538: 0.216, the middle two's on their dais 0.246), the bottle clear of them as it's taken up)
+const CARRY_Y = 0.27
 const TIP_MAX = 1.9
 const SHOCHU_CUPS = 8
 /** the shochu left in its bottle (1 full); a new one put out when it's empty, from the spares in the back (item 199) */
