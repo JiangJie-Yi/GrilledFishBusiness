@@ -584,6 +584,9 @@ function StockerImpl({ counters, fridges, who }: { counters: Counter[]; fridges:
     pos: home.clone(), yaw: 0, check: 0, done: false,
     /** (a fridge filled from behind, item 535) its hatch let go to close, and he waits by it till it's shut before he turns away */
     filled: false,
+    /** (item 554) how far he's stepped in from where he stands while its back's door slides (0) to where he fills it (1), and how long he's
+     * been filling it */
+    slide: 0, fill: 0,
     /** (a bin's bag, item 208) which part of the round he's at (0 to the bins, 1 out to the staff door with it, 2 gone down the stair, 3 back
      * to the bins with a new one), his ways, and what's in his hands */
     leg: 0, ways: null as BinWays | null, bag: null as BinKind | 'new' | null })
@@ -721,12 +724,14 @@ function StockerImpl({ counters, fridges, who }: { counters: Counter[]; fridges:
         if (next && !(next.kind === 'roll' && !wcs) && !(next.kind === 'bin' && !ways)) {
           s.chore = next
           s.done = false
+          s.slide = 0; s.fill = 0; s.filled = false
           if (next.kind === 'drinks') {
             const f = fridges.find((x) => x.n === next.unit)!
             // (in through the stock room's noren and along behind the fridges to this one's back (item 431); to its front, as before, if
             // there's no stock room)
             // (his place is in there now (item 481): straight along behind the fridges)
-            set(storeWay ? [home.clone(), f.back.clone()] : [home.clone(), f.front.clone()])
+            // (before the half of its back that opens, a step back from it while its door slides (item 554))
+            set(storeWay ? [home.clone(), f.wait.clone()] : [home.clone(), f.front.clone()])
           }
           else if (next.kind === 'bin') {
             s.ways = ways
@@ -754,7 +759,9 @@ function StockerImpl({ counters, fridges, who }: { counters: Counter[]; fridges:
       s.t += dt
       // (in the stock room, to the stock along its back wall behind him; by the crates and cartons, toward them)
       const inStore = !!(storeWay && store && c?.kind === 'drinks')
-      const to = inStore ? store!.at(fridges.find((x) => x.n === (c as { unit: number }).unit)!.z, STORE.deep) : null
+      // (straight back from where he stands before the fridge's back: the stock along the room's back wall)
+      const fr = inStore ? fridges.find((x) => x.n === (c as { unit: number }).unit)! : null
+      const to = fr ? s.pos.clone().addScaledVector(fr.wait.clone().sub(fr.back), 25) : null
       const face = to ? Math.atan2(to.x - s.pos.x, to.z - s.pos.z) : Math.atan2(c1.lay.x, c1.lay.z)
       s.yaw += Math.atan2(Math.sin(face - s.yaw), Math.cos(face - s.yaw)) * Math.min(1, dt * 6)
       // (turned first, then bent to it: a quarter of a second to turn, the bend and back after)
@@ -767,24 +774,43 @@ function StockerImpl({ counters, fridges, who }: { counters: Counter[]; fridges:
       s.t += dt
       if (c.kind === 'drinks') {
         const f = fridges.find((x) => x.n === c.unit)!
-        s.yaw = Math.atan2(f.at.x - s.pos.x, f.at.z - s.pos.z)
-        // (its door open while he fills it: his own mark, as the bar counts those at it afresh each frame (a count added to here was lost to
-        // that, and he filled it through the shut glass))
-        if (!s.filled) FRIDGE_STATE[c.unit].stocker = true
-        // (from behind (item 431): its back's hatch slid open first (item 535: its back doors before), the drinks put in row by row, a while
-        // longer, seen through the glass from the room)
-        if (s.t > (storeWay ? 2.4 : 1.6) && !s.filled) {
+        // (facing its back square on (item 554: he stands before the half of it that opens, not its middle))
+        s.yaw = storeWay ? f.yaw : Math.atan2(f.at.x - s.pos.x, f.at.z - s.pos.z)
+        const fillIn = () => {
           const run = restockRun(placesOf(c.unit), FRIDGE_UNITS[c.unit].shelves.map((sh) => sh.ids), DRINK_BACK.back, STOCK_CARRY)
           run.rows.forEach((r, i) => { FRIDGE_STOCK.units[c.unit][i] = r; FRIDGE_STOCK.counts[c.unit][i] = run.counts[i] })
           DRINK_BACK.back = run.back
           DRINK_BACK.ver++
           FRIDGE_STOCK.ver++
           bottleClink(false, FRIDGE_AT[c.unit])
-          FRIDGE_STATE[c.unit].stocker = false
-          // (its hatch let down and shut before he turns away from it (item 535): he'd walk off with it still coming down before him)
-          s.filled = true
         }
-        if (s.filled && s.t > (storeWay ? 2.4 : 1.6) + (storeWay ? 0.45 : 0)) { s.filled = false; s.phase = 'back' }
+        if (storeWay) {
+          // (from behind (items 431, 554): the case taken from the stock behind him, its back's outer door slid across from a step back (the
+          // case in his arms reaches 2 cm past the back's face where he fills it, the door 2 cm proud of it), a step in once it's open, the
+          // drinks put in row by row through the open half (seen through the glass from the room), a step back, slid shut, and away only
+          // once it's home (he'd walk off with it still sliding). His own mark held each frame while it's to be open, as the bar counts those
+          // at it afresh each frame (a count added to here was lost to that, and he filled it through the shut glass))
+          const rear = FRIDGE_STATE[c.unit].rear
+          if (!s.filled) {
+            FRIDGE_STATE[c.unit].stocker = true
+            if (rear > 0.97) s.slide = Math.min(1, s.slide + dt / 0.25)
+            if (s.slide >= 1) {
+              s.fill += dt
+              if (s.fill > 1.6) { fillIn(); s.filled = true }
+            }
+          } else {
+            s.slide = Math.max(0, s.slide - dt / 0.25)
+            FRIDGE_STATE[c.unit].stocker = s.slide > 0
+            if (s.slide <= 0 && rear < 0.02) { s.filled = false; s.fill = 0; s.phase = 'back' }
+          }
+          const e = s.slide * s.slide * (3 - 2 * s.slide)
+          s.pos.lerpVectors(f.wait, f.back, e)
+        } else {
+          // (from the front, the room's glass door open while he fills it)
+          if (!s.filled) FRIDGE_STATE[c.unit].stocker = true
+          if (s.t > 1.6 && !s.filled) { fillIn(); FRIDGE_STATE[c.unit].stocker = false; s.filled = true }
+          if (s.filled && s.t > 1.6) { s.filled = false; s.phase = 'back' }
+        }
       } else if (c.kind === 'roll') {
         // (in, the door shut behind him: the old roll off the holder, a new one on, from the spares in stock; and the towel box and the soap
         // topped up from theirs while he's there)

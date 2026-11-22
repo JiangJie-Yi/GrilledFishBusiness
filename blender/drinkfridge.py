@@ -15,11 +15,12 @@ plain boxes and planes, about 400 triangles.
   floor's): the plinth under the floor, the liner's faces 4 mm off the walls, the shelves' tags 3 mm off their lips.
 - "FridgeDoorL", "FridgeDoorR": the pair of glass doors (the owner's: two black-framed doors a fridge, a black mullion where they meet): each
   its frame, its pane (FridgeGlass, see-through) and a long silver handle by the middle; the game swings each on its outer edge.
-- "FridgeBack", "FridgeHatch": its back, filled from behind (item 431, the owner's, 2026-11-21: 「飲料可以從冷飲櫃後面直接補」: their backs
-  to the stock room, filled from there as a convenience store's are): one fixed piece, the cabinet's black outside and the lit liner inside,
-  and in it a restocking hatch over the two middle shelves (item 535, the owner's 「冷飲櫃後門不能整扇開，會破模型」: the back was a pair of
-  doors, each half of it with its lit liner, swung wide open: the fridge stood open from back to front), the hatch its own piece of the lit
-  face too, trimmed round in steel outside, a pull across its foot; the game slides it out and up behind the back while the stocker fills it.
+- "FridgeBack", "FridgeHatchL", "FridgeHatchR": its back, filled from behind (item 431, the owner's, 2026-11-21: 「飲料可以從冷飲櫃後面直接
+  補」: their backs to the stock room, filled from there as a convenience store's are): one fixed piece, the cabinet's black outside and the lit
+  liner inside, and in it an opening from under the lowest shelf to under its top (item 554, the owner's, 2026-11-22: 「冰箱後面的高度應該開
+  到跟實際能補貨的範圍」「且補貨的門是左右開」; item 535's hatch was over the two middle shelves and slid up), trimmed round in steel outside,
+  shut by a pair of sliding doors (引き違い) on two tracks, each a little over half its width with its own piece of the lit face and a
+  finger pull let into it by its outer edge; the game slides the outer one across over the inner one while the stocker fills it.
 - The foot: six louvre slats and a small silver maker's plate (FridgeMetal).
 
 The game's frame, in the room's units: y up, the door's face toward +z, the middle of its foot at the origin; as big as bar.ts's FRIDGE
@@ -307,16 +308,22 @@ for side, (ax, bx) in (("L", (fx0, -0.002)), ("R", (0.002, fx1))):
     ]
     doors.append(join(parts_, f"FridgeDoor{side}"))
 
-# ---- the back: one piece, its lit liner fixed in it, and a restocking hatch in it (item 535, the owner's, 2026-11-22: 「冷飲櫃後門不能
-# 整扇開，會破模型」: it was a pair of doors (item 431), each half the back with half the lit liner on it, swung wide into the stock room as
-# the stocker filled it: the fridge stood open from back to front, the shop seen right through it from the stock room and the stock room
-# from the shop, the lit halves hanging out like boards). The hatch at the stocker's reach, over the two middle shelves, a shutter the game
-# slides out and up behind the back while he fills it; its piece of the liner with it (a 3 mm seam round it seen from inside); the opening trimmed in steel
-# outside, a pull across the hatch's foot
-HX0, HX1 = -0.34, 0.34      # the hatch's opening across the back (its middle; his two hands and what's in them in it with room either
-                            # side. Hinged at a side it swung into the stocker stood before it, 0.28 a side or 0.34: so it slides up instead)
-HY0, HY1 = 0.66, 1.36       # ...and up it: the shelves at 0.72 and 1.19 in its reach
-HG = 0.003                  # the seam round the hatch in its opening
+# ---- the back: one piece, its lit liner fixed in it, and an opening in it for restocking, shut by a pair of doors. Item 535 (the owner's,
+# 2026-11-22: 「冷飲櫃後門不能整扇開，會破模型」: it was a pair of doors the whole back (item 431), each half with half the lit liner on it, swung
+# wide into the stock room: the fridge stood open from back to front, the lit halves hanging out like boards) made it a hatch over the two
+# middle shelves that slid up; item 554 (the owner's 「冰箱後面的高度應該開到跟實際能補貨的範圍。」「且補貨的門是左右開」): the opening from
+# under the lowest shelf to under the cabinet's top, every shelf in reach, the back's frame still round it (its sides 5.5 cm, its foot over
+# the plinth, its head), shut by a pair of doors that slide across it (引き違い, as a shop's coolers' sliding doors), each a little over half
+# its width, the outer one on a track 2 cm proud of the back (over the steel trim round the opening), the inner one in the back's own
+# thickness: the outer slides over the inner, and the half it leaves is open. Doors swinging out either side were tried (item 554): the stock
+# room is 0.77 deep from the fridges' backs to the cartons along its back wall, the stocker as deep with the case in his arms, and any door
+# swinging out of the back swept through him or he backed into the cartons. Each with its piece of the liner on its inside face, a finger
+# pull let into it by its outer edge (flat: the outer slides over the inner's)
+HX0, HX1 = -0.34, 0.34      # the opening across the back (its middle; his two hands and what's in them in it with room either side)
+HY0, HY1 = 0.19, 1.875      # ...and up it: from under the lowest shelf (0.27) to under the cabinet's top inside (1.90), the top shelf's tallest
+                            # bottles (to 1.87) in its reach
+HG = 0.003                  # the seam round each door in its opening
+HO = 0.02                   # how far each runs past the middle, behind or over the other
 lz = iz0 + LO
 
 
@@ -338,14 +345,21 @@ back = [box("back-b", bx0, bx1, by0, HY0, zb, zb + T, "shell"), box("back-t", bx
         box("trim-b", HX0 - TR, HX1 + TR, HY0 - TR, HY0, zb - 0.002, zb, "metal"), box("trim-t", HX0 - TR, HX1 + TR, HY1, HY1 + TR, zb - 0.002, zb, "metal"),
         box("trim-l", HX0 - TR, HX0, HY0, HY1, zb - 0.002, zb, "metal"), box("trim-r", HX1, HX1 + TR, HY0, HY1, zb - 0.002, zb, "metal")]
 fridge_back = join(back, "FridgeBack")
-# (the hatch: its black panel, its piece of the lit face, the pull a hand's width across its foot on two posts, 2.2 cm off it)
-py = HY0 + 0.06
-hatch = join([box("hatch", HX0 + HG, HX1 - HG, HY0 + HG, HY1 - HG, zb, zb + T, "shell"),
-              liner_back("hatch-liner", HX0 + HG, HX1 - HG, HY0 + HG, HY1 - HG),
-              rod("hatch-pull", (-0.09, py, zb - 0.022), (0.09, py, zb - 0.022), 0.008, "metal", segs=8),
-              rod("hatch-post-l", (-0.08, py, zb + 0.001), (-0.08, py, zb - 0.022), 0.005, "metal", segs=6, round_ends=False),
-              rod("hatch-post-r", (0.08, py, zb + 0.001), (0.08, py, zb - 0.022), 0.005, "metal", segs=6, round_ends=False)], "FridgeHatch")
-rears = [fridge_back, hatch]
+# (the doors: the left on the outer track (2.1 to 0.3 cm out from the back, clear of the trim's 2 mm), the right on the inner (0.3 to 2.1
+# cm in it), 6 mm between them; each its black panel from the opening's side to HO past the middle, its piece of the lit face a millimetre
+# in from its inside face, and a finger pull by its outer edge: a dark steel plate a millimetre proud, 16 by 2.4 cm, at the stocker's chest)
+hatches = []
+for side, (xa, xb), (za, zc) in (("L", (HX0 + HG, HO), (zb - 0.021, zb - 0.003)), ("R", (-HO, HX1 - HG), (zb + 0.003, zb + 0.021))):
+    px = xa + 0.035 if side == "L" else xb - 0.035
+    py0, py1 = 1.04, 1.20
+    lin_ = liner_back(f"hatch-liner{side}", xa, xb, HY0 + HG, HY1 - HG)
+    # (its piece of the lit face moved onto its own inside face)
+    for vt in lin_.data.vertices:
+        vt.co.y = -(zc + 0.001)
+    hatches.append(join([box(f"hatch{side}", xa, xb, HY0 + HG, HY1 - HG, za, zc, "shell"), lin_,
+                         box(f"hatch-pull{side}", px - 0.012, px + 0.012, py0, py1, za - 0.001, za, "gasket")],
+                        f"FridgeHatch{side}"))
+rears = [fridge_back, *hatches]
 
 root = bpy.data.objects.new("DrinkFridge", None)
 bpy.context.collection.objects.link(root)

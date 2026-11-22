@@ -484,9 +484,12 @@ export function fridgesOf(cs: Counter[]) {
     // into its top); the wall open behind it (DiningRoom's), so it's still filled from the stock room (item 431): `back` where the stocker
     // stands to fill it, in the opening's mouth, its back's hatch slid up out of his way (item 535; its back doors before, swung back into
     // the opening either side of him), 12 cm behind the wall's back (6 before: stood there his hands hung into the fridge's back))
+    // (item 554: its back's doors slide across (引き違い), the outer one over the inner, the fridge's own left half left open: `back` before
+    // that half; `wait` 4 cm back from it, where he stands while the door slides (his hands, the case in them, 2 cm past the back's face
+    // where he fills it, the outer door 2 cm proud of it))
     const mid = farOf(c) + FRIDGE_GAP + FRIDGE.D / 2
     return { n, z, at: at(mid), yaw: Math.atan2(c.lay.x, c.lay.z), front: at(mid + FRIDGE.D / 2 + 0.33).add(side), aisle: at(-aisleOf(c)),
-      back: at(farOf(c) - WALL_OUT - 0.12) }
+      back: at(farOf(c) - WALL_OUT - 0.12).sub(side), wait: at(farOf(c) - WALL_OUT - 0.16).sub(side) }
   })
 }
 /** how far a fridge's back stands off the wall's face (clear of the rail over the wainscot, DiningRoom's, 4.5 cm proud of the wall; at 1 cm it
@@ -497,7 +500,8 @@ export const FRIDGE_GAP = 0.055
 export const FRIDGE = { W: 0.86, H: 2.17, D: 0.75 }
 /** each fridge's door: how many are at it just now (GuestBar3D), whether the stocker's filling it (its back's hatch held open for him,
  * from the stock room: items 431, 535; its front door before), and whether the player's opened it (a click) */
-export const FRIDGE_STATE = [{ passing: 0, stocker: false, open: false }, { passing: 0, stocker: false, open: false }]
+// (`rear`: how far its back's doors are open, 0 shut to 1 open past square (item 554: DiningRoom's FridgeDoor keeps it; the stocker waits on it))
+export const FRIDGE_STATE = [{ passing: 0, stocker: false, open: false, rear: 0 }, { passing: 0, stocker: false, open: false, rear: 0 }]
 /** the stock room's noren: how many are passing through it just now (the stocker), its cloth swung aside by them */
 export const STORE_STATE = { passing: 0, push: 0 }
 if (import.meta.env?.DEV && typeof window !== 'undefined') (window as unknown as { __storeState?: typeof STORE_STATE }).__storeState = STORE_STATE
