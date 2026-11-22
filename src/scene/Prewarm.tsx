@@ -2,6 +2,7 @@ import { memo, useEffect } from 'react'
 import { useThree } from '@react-three/fiber'
 import { IDLE_RELEASED, idleRelease } from './gpuSweep'
 import { PRE_UPLOADED, preUpload } from './preUpload'
+import { paceFirstDraws } from './firstDraws'
 import { QUALITY } from './quality'
 import type * as THREE from 'three'
 import { holdVeil, laterPending, laterSeen, sceneDrawn } from './Later'
@@ -105,6 +106,8 @@ export const Prewarm = memo(function Prewarm() {
   const { gl, scene, camera } = useThree()
   useEffect(() => {
     const release = holdVeil('prewarm')
+    // (item 594: till the rest's made, a frame's programs compiled and pictures sent before it's drawn, not in it)
+    const unpace = paceFirstDraws(gl, scene)
     const unkeep = keepPrograms(gl)
     // (item 566: what's hidden a while let go of on the GPU, put back as it's drawn again)
     // (`?idle=0`: not, to measure against)
@@ -130,9 +133,9 @@ export const Prewarm = memo(function Prewarm() {
         })
         // (and the shadows' programs for the skinned and the instanced, the lights all in)
         .then(() => warmShadows(scene))
-        .finally(release)
+        .finally(() => { unpace(); release() })
     }, 250)
-    return () => { window.clearInterval(tick); release(); warmNow = null; unkeep(); unidle(); unupload() }
+    return () => { window.clearInterval(tick); unpace(); release(); warmNow = null; unkeep(); unidle(); unupload() }
   }, [gl, scene, camera])
   return null
 })
