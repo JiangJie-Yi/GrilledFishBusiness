@@ -7,9 +7,14 @@ import { capTexture } from './textureCap'
  * soup): each went up, its mipmaps made, in the middle of the frame something first showed it (the first fish on the grill, a shrine door
  * opened). Now, once the page's programs are made, every picture of every material in the scene (the hidden ones too) and of the templates
  * things are copied from is brought within the cap first (scene/textureCap, as it would be at its first draw) and uploaded, a few
- * milliseconds' worth at a time while the browser's idle; and looked over again every ten seconds for what's come in since.
+ * milliseconds' worth at a time while the browser's idle (only when it is: no deadline that makes it run in a busy frame; a large picture
+ * alone); and looked over again every ten seconds for what's come in since. On the high level only (the Tester window's measure, item 586:
+ * all of them up early took 191 MB more of the card, +24%; a machine on medium or low shares its memory with the system, and that comes
+ * first there, as the pictures' cap does; on high, a separate card, it bought the shop's opening moment its 16 large first uploads, 49 MB,
+ * down to none).
  */
 const BUDGET_MS = 4
+const GAP_MS = 150
 const LOOK_MS = 10000
 
 export const PRE_UPLOADED = { count: 0, ms: 0, waiting: 0 }
@@ -56,7 +61,7 @@ export function preUpload(gl: THREE.WebGLRenderer, scene: THREE.Object3D, extra:
     // (the small ones first: more of them up in each idle stretch)
     queue = [...all].filter((t) => waiting(gl, t)).sort((a, b) => area(a) - area(b))
     PRE_UPLOADED.waiting = queue.length
-    if (queue.length && !idle) idle = onIdle(send, { timeout: 2000 })
+    if (queue.length && !idle) idle = onIdle(send)
   }
   const send = (d: { timeRemaining: () => number }) => {
     idle = 0
@@ -67,11 +72,16 @@ export function preUpload(gl: THREE.WebGLRenderer, scene: THREE.Object3D, extra:
       if (!waiting(gl, t)) continue
       capTexture(t)
       gl.initTexture(t)
+      // (one a stretch: see below)
       PRE_UPLOADED.count++
+      break
     }
     PRE_UPLOADED.ms += performance.now() - t0
     PRE_UPLOADED.waiting = queue.length
-    if (queue.length) idle = onIdle(send, { timeout: 2000 })
+    // (the next a while after: the card does the upload and its mipmaps after the call's returned, in the frames that follow; one at a time,
+    // GAP_MS apart, so they don't pile into the same frames (all in one go, 133 of them in 50 ms of calls, the first 45 s had 136 more frames
+    // over 25 ms))
+    if (queue.length) idle = window.setTimeout(() => { idle = onIdle(send) }, GAP_MS)
   }
   look()
   const t = window.setInterval(look, LOOK_MS)

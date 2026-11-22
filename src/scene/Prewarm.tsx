@@ -2,6 +2,7 @@ import { memo, useEffect } from 'react'
 import { useThree } from '@react-three/fiber'
 import { IDLE_RELEASED, idleRelease } from './gpuSweep'
 import { PRE_UPLOADED, preUpload } from './preUpload'
+import { QUALITY } from './quality'
 import type * as THREE from 'three'
 import { holdVeil, laterPending, laterSeen, sceneDrawn } from './Later'
 
@@ -94,7 +95,7 @@ export const Prewarm = memo(function Prewarm() {
         .then(() => {
           if (import.meta.env.DEV) console.info(`[prewarm] ${Math.round(performance.now() - t0)} ms, ${later.size} templates, ${gl.info.programs?.length ?? '?'} programs`)
           // (item 571: and the pictures not on the card yet sent while it's idle, the templates' too)
-          if (new URLSearchParams(location.search).get('upload') !== '0') unupload = preUpload(gl, scene, [...later])
+          if (QUALITY.tier === 'high' && new URLSearchParams(location.search).get('upload') !== '0') unupload = preUpload(gl, scene, [...later])
           if (import.meta.env.DEV) (window as unknown as { __preUpload?: typeof PRE_UPLOADED }).__preUpload = PRE_UPLOADED
           later.clear()
           warmNow = (o) => { void compileSafe(gl, o, camera, scene) }
