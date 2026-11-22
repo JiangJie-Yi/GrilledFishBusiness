@@ -37,6 +37,24 @@ export function capTexture(t: THREE.Texture | null | undefined) {
   if (!t || !t.isTexture || (t as THREE.DataTexture).isDataTexture || (t as THREE.CubeTexture).isCubeTexture || t.isRenderTargetTexture) return
   const src = t.source
   if (done.has(src)) return
+  // (a compressed picture (a model's KTX2, item 571) can't be drawn smaller: its own smaller levels taken instead, the top ones left out
+  // till it's within the cap (on medium a 1024 one held at 512, a quarter of the memory again))
+  const ct = t as THREE.CompressedTexture
+  if (ct.isCompressedTexture) {
+    done.add(src)
+    const cap = texCap() * Math.min(2, Math.max(1, (t.userData as { capScale?: number }).capScale ?? 1))
+    const mips = ct.mipmaps as { width: number; height: number }[] | undefined
+    if (!mips || mips.length < 2) return
+    let cut = 0
+    while (cut < mips.length - 1 && Math.max(mips[cut].width, mips[cut].height) > cap) cut++
+    if (!cut) return
+    ct.mipmaps = mips.slice(cut) as typeof ct.mipmaps
+    const img = ct.image as { width: number; height: number }
+    img.width = mips[cut].width
+    img.height = mips[cut].height
+    src.needsUpdate = true
+    return
+  }
   const full = src.data
   if (!isPicture(full)) return
   done.add(src)
