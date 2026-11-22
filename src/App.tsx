@@ -2192,11 +2192,13 @@ export default function App() {
     return () => window.removeEventListener('jgs-till', on)
   }, [])
   // ---- the owner's clothes (item 376, the owner's 「老闆可客製化服裝」): their panel opened by a click on him in the room (Boss's jgs-outfit,
-  // a second click shuts it); what's chosen is the panel's and his own (game/bossOutfit's store), nothing here drawn again for it
+  // a second click shuts it); what's chosen is the panel's and his own (game/bossOutfit's store), nothing here drawn again for it. Upstairs
+  // the closet and the chest of drawers open it and only open it (`detail` 'open', item 556, the owner's 「壁櫥沒有老闆的衣服選項可以點」: it
+  // came up at the top left, far from the closet he was looking at, and a second click on the closet shut it again)
   const [outfitOpen, setOutfitOpen] = useState(false)
   const closeOutfit = useCallback(() => setOutfitOpen(false), [])
   useEffect(() => {
-    const on = () => setOutfitOpen((o) => !o)
+    const on = (e: Event) => setOutfitOpen((o) => ((e as CustomEvent<string | undefined>).detail === 'open' ? true : !o))
     window.addEventListener('jgs-outfit', on)
     return () => window.removeEventListener('jgs-outfit', on)
   }, [])

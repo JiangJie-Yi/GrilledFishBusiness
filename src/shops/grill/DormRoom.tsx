@@ -474,7 +474,8 @@ export function DormRoom({ crew = [], open = false, fallback, working }: { crew?
   const things = useMemo(() => ({
     stair: roomThing(() => ({ title: '樓梯', hint: '點一下下樓，回到店裡' }), () => { setTip(null); askView('down') }),
     bath: roomThing(() => BATH_TIP(BATH_STATE.open), () => { bathToggle(); setTip(BATH_TIP(BATH_STATE.open)) }),
-    wardrobe: WARDROBE.map((w) => roomThing(() => wardrobeTip(w), () => { setTip(null); window.dispatchEvent(new CustomEvent('jgs-outfit')) })),
+    // (the closet and the chest: the owner's clothes opened, never shut by a second click (item 556: App's jgs-outfit, 'open'))
+    wardrobe: WARDROBE.map((w) => roomThing(() => wardrobeTip(w), () => { setTip(null); window.dispatchEvent(new CustomEvent('jgs-outfit', { detail: 'open' })) })),
   }), [])
   return (
     <group ref={outer} position={DORM_AT} scale={DORM_SCALE}>
