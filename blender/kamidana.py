@@ -1163,12 +1163,16 @@ def masakaki(tag, x, zc, right):
         a = (k - 2) * 0.5
         d = Vector((-0.25, math.cos(a), math.sin(a)))
         out.append(leaf6(f"Kami{tag}LeafStem{k}", (x, top + 0.002, zc), d, Vector((0, -math.sin(a), math.cos(a))), 0.012 - abs(k - 2) * 0.0012, 0.0045, 0.0008, M["sideLeaf"]))
-    # (the gilt crossbar the silk hangs from, a little under the top, across the bay)
+    # (no crossbar (item 585, the owner's 「這一根都拿掉」: the gilt bar the silk hung from ran across the bay behind the sprig, its two ends out
+    # past the leaves either side like a rod through them); the silk tied to the pole a little under the cap instead, gathered there and
+    # spreading a little as it hangs (gathered to a point it stood like a tent), and what hung from the bar's middle hung from the pole,
+    # just before it)
     bar = top - 0.006
-    out.append(box(f"Kami{tag}Beam", S(0.0014, 0.0014, 0.03), P(x, bar, zc), M["gold"], uv=0))
-    # (the silk: the five colours across, hanging from the bar to below the middle; a face to the front and one to the back)
-    W_, L_, xs = 0.026, 0.044, x - 0.0012
-    q = [P(xs, bar - 0.0007, zc - W_ / 2), P(xs, bar - 0.0007, zc + W_ / 2), P(xs, bar - L_, zc + W_ / 2), P(xs, bar - L_, zc - W_ / 2)]
+    # (the silk: the five colours across, from where it's tied to below the middle; a face to the front and one to the back)
+    W_, L_, xs, G_ = 0.026, 0.044, x - 0.0012, 0.005
+    # (bound to the pole where it's tied by a gilt band, its five strips a centimetre across there, spreading to their full width below)
+    out.append(cyl(f"Kami{tag}SilkBand", 0.0019, 0.0022, P(x, bar - 0.0004, zc), M["gold"], verts=8))
+    q = [P(xs, bar - 0.0007, zc - G_), P(xs, bar - 0.0007, zc + G_), P(xs, bar - L_, zc + W_ / 2), P(xs, bar - L_, zc - W_ / 2)]
     silk = mesh_obj(f"Kami{tag}SilkFringe", q + [tuple(v) for v in q], [(0, 3, 2, 1), (4, 5, 6, 7)], M["goshiki"])
     uvl = silk.data.uv_layers.new().data
     for poly in silk.data.polygons:
@@ -1176,9 +1180,9 @@ def masakaki(tag, x, zc, right):
             vi = silk.data.loops[li].vertex_index % 4
             uvl[li].uv = ((0, 1, 1, 0)[vi], (1, 1, 0, 0)[vi])
     out.append(silk)
-    hx = x - 0.0035
+    hx = x - 0.0024
     if right:
-        # (the mirror, a gilt disc on its cord from the bar's middle; the jewel, a green bead, hung under it)
+        # (the mirror, a gilt disc on its cord from the pole; the jewel, a green bead, hung under it)
         out.append(box(f"Kami{tag}Cord", S(0.0005, 0.005, 0.0005), P(hx, bar - 0.0025, zc), M["shide"], uv=0))
         out.append(cyl(f"Kami{tag}MirrorPlate", 0.0075, 0.0012, P(hx, bar - 0.0125, zc), M["gold"], rot=(0, math.pi / 2, 0), verts=16))
         out.append(box(f"Kami{tag}JewelCord", S(0.0005, 0.006, 0.0005), P(hx, bar - 0.023, zc), M["shide"], uv=0))
