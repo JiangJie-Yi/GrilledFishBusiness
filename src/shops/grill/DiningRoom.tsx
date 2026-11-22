@@ -5102,8 +5102,12 @@ function OrangePlate({ bare = false }: { bare?: boolean }) {
       mesh.geometry.computeBoundingBox()
       const b = mesh.geometry.boundingBox!
       // (its ink, a child of it, goes with it)
-      // (on a stand: no plate at all)
-      if (b.max.x - b.min.x > 0.15) mesh.scale.multiply(bare ? new THREE.Vector3(0.0001, 0.0001, 0.0001) : new THREE.Vector3(DISH_K, 1, DISH_K))
+      // (on a stand: no plate at all, not drawn (item 574: shrunk to nothing, the dish and its cobalt lines were still drawn every frame, two
+      // draws and 1,364 triangles, their ink and their shadows besides))
+      if (b.max.x - b.min.x > 0.15) {
+        if (bare) mesh.visible = false
+        else mesh.scale.multiply(new THREE.Vector3(DISH_K, 1, DISH_K))
+      }
     }
     // (on a stand, the oranges let down onto its tray: they sat as high as the plate under them held them (the owner's, 2026-11-11: floating))
     if (bare) {
