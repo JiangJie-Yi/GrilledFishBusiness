@@ -1278,33 +1278,119 @@ function EntranceImpl({ at, mark }: { at: THREE.Vector3; mark: string }) {
   const NZ = 0.27
   // (pushed aside by whoever walks through under it, the panels they pass swung away from them and back after (item 203: it hung on, still,
   // as they went through it); which way each was pushed kept while someone's under it, set by the side they came from)
-  const swing = useRef([0, 0, 0])
+  // (item 559, the owner's 「門前的簾子，飄的不自然」: each panel swung whole, a board on a hinge, all the time in a steady sine, though it
+  // hangs inside the shut door: now each swings as a pendulum of cloth (its angle `a`, how fast it's going `av`), held by whoever pushes it;
+  // the door shut, the shop's still air only breathing on it; slid open, the street's air in through it leaning it in, in gusts; the cloth
+  // bent and rippling by its own shader (NorenModel's: clothVertex); one walking out folds it out through the open way below the lintel (`f`,
+  // `fv`), where before they went through it (it can't swing out past 0.07 for the leaves)
+  // (`d0`, `s`, `lx0`: the panel's side in the door's frame and how its own x runs there, `at` the lintel's underside down it (0..1): found
+  // as one starts to push it out; `sy` how much longer it's drawn than its own depth (the noren's scale): it's swung and folded in the
+  // world's measure, so it keeps its length as it goes (turned in its own, it came up short, a fifth at a push))
+  const cloth = useRef([0, 1, 2].map(() => ({ a: 0, av: 0, f: 0, fv: 0, d0: 0, s: 1, lx0: 0, at: 0.35, sy: 1 })))
   const side = useRef([0, 0, 0])
   const at3 = useMemo(() => new THREE.Vector3(), [])
+  const doorTo = useMemo(() => new THREE.Matrix4(), [])
+  // (who has it: one going through the way in (out or in along it, faster than NOREN_GOING), or one stood right under it; one only sat or
+  // stood by it doesn't (the bar's end seat, 0.21 in from its line: since item 203 its guest held two panels pushed out the whole evening,
+  // and turned them the wrong way as the next came in); each one's place along the way in, when, how fast they're going along it (smoothed),
+  // kept from frame to frame (one gone forgotten); the figures run by the map's own forEach, its callbacks made once (item 374))
+  const goers = useMemo(() => new Map<THREE.Object3D, { z: number; t: number; v: number }>(), [])
+  const scan = useMemo(() => ({ m: null as THREE.Mesh | null, bb: null as THREE.Box3 | null, leaves: 0, near: 0, from: 0, now: 0, p: new THREE.Vector3() }), [])
+  const { track, forget, reach } = useMemo(() => ({
+    track: (_r: unknown, o: THREE.Object3D) => {
+      if (!o.visible) return
+      const z = o.getWorldPosition(scan.p).applyMatrix4(DOOR_INV).z, now = scan.now
+      const g = goers.get(o)
+      if (!g) { goers.set(o, { z, t: now, v: 0 }); return }
+      if (now <= g.t) return
+      g.v += ((z - g.z) / (now - g.t) - g.v) * Math.min(1, (now - g.t) / 0.15)
+      g.z = z; g.t = now
+    },
+    forget: (_g: unknown, o: THREE.Object3D) => { if (!FIGURES.has(o)) goers.delete(o) },
+    // (in the panel's own frame: across it, and out in front of it or behind; how near the nearest one with it is; one out past the door's
+    // leaves only through the door, as open as it is (one stood outside waiting for it to open pushed it through the shut door))
+    reach: (_r: unknown, o: THREE.Object3D) => {
+      const m = scan.m!, bb = scan.bb!
+      if (!o.visible) return
+      const q = m.worldToLocal(o.getWorldPosition(scan.p))
+      if (q.x < bb.min.x - NOREN_REACH * 0.5 || q.x > bb.max.x + NOREN_REACH * 0.5) return
+      if (Math.abs(q.z) > NOREN_UNDER && Math.abs(goers.get(o)?.v ?? 0) < NOREN_GOING) return
+      let k = 1 - Math.min(1, Math.abs(q.z) / NOREN_REACH)
+      if (q.z > scan.leaves) k *= DOOR_OPEN.k
+      if (k > scan.near) { scan.near = k; scan.from = q.z }
+    },
+  }), [goers, scan])
   useFrame(({ clock }, dt0) => {
     const t = clock.elapsedTime
     const dt = Math.min(dt0, 0.1)
     doorLight()
+    scan.now = t
+    FIGURES.forEach(track)
+    goers.forEach(forget)
+    // (the door's frame to the world: where its leaves stand, for each panel)
+    doorTo.copy(DOOR_INV).invert()
     panels.current.forEach((m, i) => {
       if (!m) return
       if (!m.geometry.boundingBox) m.geometry.computeBoundingBox()
       const bb = m.geometry.boundingBox!
-      // (in the panel's own frame: across it, and out in front of it or behind; how near the nearest one under it is)
-      let near = 0, from = 0
-      for (const o of FIGURES.keys()) {
-        if (!o.visible) continue
-        const q = m.worldToLocal(o.getWorldPosition(at3))
-        if (q.x < bb.min.x - NOREN_REACH * 0.5 || q.x > bb.max.x + NOREN_REACH * 0.5) continue
-        const k = 1 - Math.min(1, Math.abs(q.z) / NOREN_REACH)
-        if (k > near) { near = k; from = q.z }
-      }
+      const c = cloth.current[i]
+      const u = m.userData.cloth as ClothUniforms | undefined
+      // (its measures: how much longer it's drawn than its depth; where the door's leaves stand out in front of it, its own z)
+      m.getWorldScale(at3); c.sy = at3.z > 1e-6 ? at3.y / at3.z : 1
+      if (u) u.uSy.value = c.sy
+      scan.m = m; scan.bb = bb; scan.near = 0; scan.from = 0
+      scan.leaves = m.worldToLocal(at3.set(DOOR_GAP.x[1], DOOR_GAP.lintel * 0.5, DOOR_GAP.leaves).applyMatrix4(doorTo)).z
+      FIGURES.forEach(reach)
+      const near = scan.near, from = scan.from
       if (near <= 0) side.current[i] = 0
-      else if (side.current[i] === 0) side.current[i] = from >= 0 ? 1 : -1
-      // (pushed the way they're going, the hem swung away from them: quickly as they come, slowly falling back)
-      const want = side.current[i] * NOREN_PUSH * near
-      swing.current[i] += (want - swing.current[i]) * Math.min(1, dt * (Math.abs(want) > Math.abs(swing.current[i]) ? 9 : 2.5))
+      else if (side.current[i] === 0) {
+        side.current[i] = from >= 0 ? 1 : -1
+        // (one coming to push it out: its sides in the door's frame, and the lintel's underside in its own)
+        if (side.current[i] < 0 && u) {
+          const ym = (bb.min.y + bb.max.y) / 2
+          const d0 = at3.set(bb.min.x, ym, 0).applyMatrix4(m.matrixWorld).applyMatrix4(DOOR_INV).x
+          const d1 = at3.set(bb.max.x, ym, 0).applyMatrix4(m.matrixWorld).applyMatrix4(DOOR_INV).x
+          const s = (d1 - d0) / Math.max(1e-3, bb.max.x - bb.min.x)
+          c.d0 = d0; c.lx0 = bb.min.x; c.s = Math.abs(s) < 0.1 ? 1 : s
+          m.worldToLocal(at3.set((d0 + d1) / 2, DOOR_GAP.lintel, 0.3).applyMatrix4(doorTo))
+          c.at = Math.min(0.9, Math.max(0.05, (u.uTop.value - at3.y) / u.uLen.value))
+        }
+      }
+      // (the air at it: the door shut, the shop's own, a breath; slid open, the street's in through it, leaning it in (the way in's inside:
+      // its hem swung back, a +), in gusts)
+      const open = DOOR_OPEN.k
+      const air = norenBreeze(t, i) * (0.25 + 0.75 * open)
+      // (pushed the way they're going, the hem swung away from them: while their body has it (the hem on their side of where they hold it),
+      // brought there quickly; let go, it swings free, a pendulum its own length (about 1.6 s a swing), back past where it hangs and back
+      // again, settling in a few swings)
+      const push = side.current[i] * NOREN_PUSH * near
+      const held = push > 0 ? c.a < push : push < 0 ? c.a > push : false
+      c.av += (held ? 70 * (push - c.a) - 9 * c.av : 16 * (0.045 * open + 0.022 * air - c.a) - 2.2 * c.av) * dt
+      c.a += c.av * dt
       // (its hem kept in from the sliding door's leaves, 8 cm out past it (item 410): swung out no more than 0.07)
-      m.rotation.x = Math.max(-0.07, Math.sin(t * 1.3 + i * 0.9) * 0.05 + swing.current[i])
+      if (c.a < -0.07) { c.a = -0.07; if (c.av < 0) c.av = 0 }
+      if (!u) { m.rotation.x = c.a; return }
+      u.uSwing.value = c.a
+      // (one walking out: below the lintel, it's folded out through the open way ahead of them as they come to it (their hand and head
+      // before them: begun 0.3 off, all of it 0.1 off; one only stood nearer than the push's reach doesn't), quickly; let go, it swings back
+      // down and settles; where a leaf's before it (the moving one as it runs, the fixed one), it stays in, eased over 12 cm)
+      const ahead = Math.min(1, Math.max(0, (near - 0.4) / 0.4))
+      const out = push < 0 ? NOREN_FOLD * ahead * ahead * (3 - 2 * ahead) : 0
+      const folding = out > 0 && c.f < out
+      c.fv += (folding ? 110 * (out - c.f) - 13 * c.fv : -20 * c.f - 3.2 * c.fv) * dt
+      c.f += c.fv * dt
+      if (c.f < -0.12) { c.f = -0.12; if (c.fv < 0) c.fv = 0 }
+      const o0 = Math.max(DOOR_GAP.x[0], DOOR_GAP.x[1] + DOOR_RUN.GenkanDoorN * open)
+      const fx = c.lx0 + (o0 - c.d0) / c.s
+      u.uFold.value = c.f
+      u.uFoldAt.value = c.at
+      u.uFoldX.value.set(fx, fx + 0.12 / c.s)
+      // (the cloth: billowed by the air (in, with the street's), its hem trailing behind as it swings (the way it's swinging, the other way
+      // bent), a ripple running down it, more in the street's air and while it moves; its hem's outward reach kept to the door's 0.07 as well)
+      const L = u.uLen.value * c.sy
+      u.uBend.value = Math.max(-0.05, Math.min(0.022 * air - 0.012 * open + 0.05 * c.av, 0.06, L * (0.07 + c.a)))
+      u.uRip.value = 0.001 + open * (0.003 + 0.003 * Math.abs(air)) + Math.min(0.012, 0.012 * Math.abs(c.av))
+      u.uTime.value = t
     })
   })
   return (
@@ -1441,7 +1527,22 @@ function NorenModel({ tex, panels, pole = 'lacquer' }: { tex: THREE.Texture | nu
       const src = m.material as THREE.MeshStandardMaterial
       const k = /NorenPanel(\d)/.exec(m.name)
       if (k) {
-        m.material = new THREE.MeshToonMaterial({ map: panelTex(tex, +k[1]), side: THREE.DoubleSide })
+        // (a cloth (item 559): its own uniforms, Entrance's frame loop driving them; never merged with the room, as it moves in its shader)
+        if (!m.geometry.boundingBox) m.geometry.computeBoundingBox()
+        const bb = m.geometry.boundingBox!
+        const u: ClothUniforms = { uBend: { value: 0 }, uRip: { value: 0 }, uTime: { value: 0 }, uPhase: { value: +k[1] * 1.9 },
+          uTop: { value: bb.max.y }, uLen: { value: Math.max(1e-3, bb.max.y - bb.min.y) },
+          uFold: { value: 0 }, uFoldAt: { value: 0.35 }, uFoldX: { value: new THREE.Vector2(0, 1) }, uSwing: { value: 0 }, uSy: { value: 1 } }
+        const mat = new THREE.MeshToonMaterial({ map: panelTex(tex, +k[1]), side: THREE.DoubleSide })
+        mat.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, u); sh.vertexShader = clothVertex(sh.vertexShader) }
+        mat.customProgramCacheKey = () => 'noren-cloth'
+        // (faded as it hangs between the camera and what's looked at (OccluderFade), still the cloth)
+        mat.userData.fadeKeepsShader = true
+        m.material = mat
+        m.userData.cloth = u
+        m.userData.noWorld = true
+        // (moved in its shader, out past its own bounds: never culled by them)
+        m.frustumCulled = false
       } else if (pole === 'wood') m.material = new THREE.MeshToonMaterial({ color: '#ffffff', map: POLE_WOOD })
       else m.material = src.name === 'NorenBrass' ? new THREE.MeshStandardMaterial({ color: '#c9a04a', metalness: 1, roughness: 0.3 })
         : new THREE.MeshToonMaterial({ color: src.color.clone() })
@@ -1460,6 +1561,62 @@ function NorenModel({ tex, panels, pole = 'lacquer' }: { tex: THREE.Texture | nu
 /** how near (the panel's own units, out from its face) someone walking through comes before they push it, and how far they push its hem (rad) */
 const NOREN_REACH = 0.5
 const NOREN_PUSH = 1.0
+/** how far the cloth below the lintel folds out through the open way for one walking out, at the most (rad; item 559) */
+const NOREN_FOLD = 0.9
+/** (item 559) one this near its line (out or in) is under it and has it, going or not; further off, only one going through the way in, at
+ * this pace along it (a walk's 1.1 a second; one stood swaying, or walking along it, far under it) */
+const NOREN_UNDER = 0.12, NOREN_GOING = 0.15
+/** the sliding door in its own frame (GenkanDoor's group), measured off genkandoor.glb (tests/e2e/_norenx559.mjs): its open way's sides once
+ * open (the fixed leaf's edge, the wall's end; shut, the moving leaf's run (DOOR_RUN) back across it), the lintel's underside (the leaves'
+ * tops), the leaves' inner faces' line (z, out toward the street) */
+const DOOR_GAP = { x: [-0.131, 0.429] as const, lintel: 1.975, leaves: 0.387 }
+/** the street's air at the way in's noren, panel `i` (item 559): gusts that come and go (their swell slow), within them a flutter, each panel a
+ * little behind the one before it; about -1 to 1 */
+const norenBreeze = (t: number, i: number) => {
+  const tt = t - i * 0.35
+  const swell = 0.55 + 0.45 * Math.sin(tt * 0.29 + 0.8) * Math.sin(tt * 0.47 + 2.1)
+  return swell * (0.6 * Math.sin(tt * 1.13) + 0.3 * Math.sin(tt * 2.37 + 1.4) + 0.2 * Math.sin(tt * 3.9 + i))
+}
+/** a noren panel's cloth: how far its hem's bent out along its face (its own units), how much a ripple runs down it, the time, its own phase,
+ * where it hangs from and how long it is */
+type ClothUniforms = { uBend: { value: number }; uRip: { value: number }; uTime: { value: number }; uPhase: { value: number }; uTop: { value: number }; uLen: { value: number }
+  /** folded out below `uFoldAt` (0..1 down it) by this much (rad), across it from none at uFoldX.x to all of it at uFoldX.y (its own x) */
+  uFold: { value: number }; uFoldAt: { value: number }; uFoldX: { value: THREE.Vector2 }
+  /** swung whole about its rod (rad, its hem in a +); how much longer it's drawn than its depth (the world's measure it's turned in) */
+  uSwing: { value: number }; uSy: { value: number } }
+/** the cloth in a noren panel's shader (item 559): hung from its top (uTop), bent out along its face the further down it hangs (h^1.7: the
+ * rod holds its top), a ripple running down it, its hem a little aside; below the fold's line turned out round it (over a fifth of its length,
+ * as cloth goes round the lintel's edge, the rest straight on: lifted as it goes out); the whole swung about the rod. Turned in the world's
+ * measure (its height drawn uSy times its depth), so it keeps its length; its normal leant by the slope it's bent to and turned with it, so the
+ * light moves over its folds */
+const clothVertex = (vs: string) => ['uniform float uBend, uRip, uTime, uPhase, uTop, uLen, uFold, uFoldAt, uSwing, uSy;', 'uniform vec2 uFoldX;', vs]
+  .join(String.fromCharCode(10))
+  .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+  float clothH = clamp((uTop - position.y) / uLen, 0.0, 1.0);
+  float clothW = 6.2832 * (clothH * 1.2 - uTime * 0.8) + uPhase + position.x * 4.0;
+  float clothF = uFold * clamp((position.x - uFoldX.x) / (uFoldX.y - uFoldX.x), 0.0, 1.0);
+  float clothS = clothH - uFoldAt;
+  {
+    float dzdh = uBend * 1.7 * pow(max(clothH, 1e-3), 0.7) + uRip * (sin(clothW) + clothH * 7.5398 * cos(clothW));
+    objectNormal = normalize(objectNormal + vec3(0.0, objectNormal.z * dzdh / uLen, 0.0));
+    float th = uSwing - clothF * clamp(clothS / 0.2, 0.0, 1.0);
+    float cth = cos(th), sth = sin(th);
+    objectNormal = normalize(vec3(objectNormal.x, objectNormal.y * cth - uSy * objectNormal.z * sth, objectNormal.y * sth / uSy + objectNormal.z * cth));
+  }`)
+  .replace('#include <begin_vertex>', `#include <begin_vertex>
+  {
+    float cz = transformed.z + uBend * pow(clothH, 1.7) + uRip * clothH * sin(clothW);
+    transformed.x += uBend * 0.1 * clothH * sin(uPhase + uTime * 0.7);
+    float cy = (transformed.y - uTop) * uSy;
+    if (clothS > 0.0 && abs(clothF) > 1e-4) {
+      float r = min(clothS, 0.2), more = max(clothS - 0.2, 0.0), len = uLen * uSy;
+      cz += len * (0.2 / clothF * (1.0 - cos(clothF * r / 0.2)) + more * sin(clothF));
+      cy += len * (r - 0.2 / clothF * sin(clothF * r / 0.2) + more * (1.0 - cos(clothF)));
+    }
+    float cs = cos(uSwing), sn = sin(uSwing);
+    transformed.y = uTop + (cy * cs - cz * sn) / uSy;
+    transformed.z = cy * sn + cz * cs;
+  }`)
 /** how much longer the way in's noren is drawn than it was made, and how much wider (kept to the doorway's width) */
 /**
  * The plum sprig in the shoe cupboard's vase, painted on one card (item 257): a dark branch forking up out of the vase's mouth, white-pink

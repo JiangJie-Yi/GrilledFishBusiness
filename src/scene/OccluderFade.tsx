@@ -37,6 +37,12 @@ function ownCopy(own: Map<THREE.Material, THREE.Material>, mat: THREE.Material) 
     c.userData.fadeCopy = true
     c.transparent = true
     c.depthWrite = false
+    // (one whose shader's its own and moves it (`userData.fadeKeepsShader`: the noren's cloth, item 559) keeps it in its copy, the copy
+    // made ready with the rest (warm): a copy doesn't carry it, and the cloth went flat and still as it faded)
+    if (mat.userData.fadeKeepsShader) {
+      c.onBeforeCompile = mat.onBeforeCompile
+      c.customProgramCacheKey = mat.customProgramCacheKey
+    }
     own.set(mat, c)
   }
   return c
