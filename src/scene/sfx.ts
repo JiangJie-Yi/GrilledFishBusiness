@@ -43,9 +43,12 @@ if (typeof AudioNode !== 'undefined') {
  * then), woken by that first click or key; made again if a hot update closed it. Throws where there's no WebAudio, as `new AudioContext` did.
  */
 let shared: AudioContext | null = null
+/** whether the player has done something yet (a click, a key): until then the browser won't let sound start, and says so in the console each
+ * time it's asked to (the Tester's: 7 warnings became 24 once the one context was made as the page loads and every sound asked it to wake) */
+const mayWake = () => typeof navigator === 'undefined' || !('userActivation' in navigator) || (navigator as Navigator & { userActivation: { hasBeenActive: boolean } }).userActivation.hasBeenActive
 export function sharedAudio(): AudioContext {
   if (!shared || shared.state === 'closed') shared = new AudioContext({ latencyHint: 'interactive' })
-  if (shared.state === 'suspended') shared.resume().catch(() => { /* (not allowed yet: the first click or key wakes it) */ })
+  if (shared.state === 'suspended' && mayWake()) shared.resume().catch(() => { /* (not allowed yet: the first click or key wakes it) */ })
   return shared
 }
 let undoWake = () => {}
