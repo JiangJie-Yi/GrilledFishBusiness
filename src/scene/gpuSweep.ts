@@ -102,6 +102,10 @@ export function idleRelease(scene: THREE.Object3D, every = 10000): () => void {
     const next = new Set<THREE.BufferGeometry>()
     let n = 0
     for (const g of all) {
+      // (let go of before, but on the GPU again: drawn a moment between two looks (the room's merge made again gives its pieces back for a
+      // few seconds) and three put it back up, its dispose listener with it; taken as let go of, it was never let go of again (the Tester
+      // window's three days: 310 more on the GPU at the first remaking of the room's merge, and there they stayed))
+      if (released.has(g) && (g as unknown as { _listeners?: { dispose?: unknown[] } })._listeners?.dispose?.length) released.delete(g)
       if (shown.has(g) || released.has(g)) continue
       if (shared.size && anyPart(g, (p) => shared.has(p))) continue
       if (idle.has(g) && whole(g)) { g.dispose(); released.add(g); n++ } else next.add(g)
