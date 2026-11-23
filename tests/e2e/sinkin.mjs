@@ -72,9 +72,16 @@ const res = await page.evaluate(async ({ WATCH, STEP, TOL, only, who, BOX }) => 
         const n = q.geometry.attributes.position.count
         // (each point with the part it moves with: its bone's name, or its index)
         const si = q.geometry.attributes.skinIndex, bones = q.skeleton?.bones ?? []
+        // (a part put away by scaling its bone to nothing (scene/rigidSkin: a server's tray between dishes, the fan, the handheld) is all at
+        // one point there, nothing drawn: not counted (item 628: a server's put-away tray, 173 points at one spot in the soup counter's box))
+        const gone = new Map()
         for (let i = 0; i < n; i += 5) {
-          const v = q.getVertexPosition(i, new T.Vector3()).applyMatrix4(q.matrixWorld)
           const b = si ? bones[si.getX(i)] : null
+          if (b) {
+            if (!gone.has(b)) gone.set(b, b.getWorldScale(new T.Vector3()).x < 1e-3)
+            if (gone.get(b)) continue
+          }
+          const v = q.getVertexPosition(i, new T.Vector3()).applyMatrix4(q.matrixWorld)
           v.part = b ? (b.name || `bone${si.getX(i)}`) : ''
           pts.push(v)
         }

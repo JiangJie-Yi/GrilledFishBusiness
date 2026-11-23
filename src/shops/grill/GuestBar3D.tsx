@@ -52,7 +52,7 @@ import { Drips } from '@/scene/Drips'
 import { ServeCounter } from './ServeCounter'
 import { PathVias, PathZones } from './PathZone'
 import { unlitShade } from '@/game/roomLights'
-import { StaffFigure, TRAY_AT as HELD_AT, wipeStroke, SHAPE_HAND, SweepBroom, ownerSweepPose, floorWipePose, OWNER_BEND } from '@/scene/StaffFigure'
+import { StaffFigure, TRAY_AT as HELD_AT, CARRY_FRONT, HOLD_AIR, wipeStroke, SHAPE_HAND, SweepBroom, ownerSweepPose, floorWipePose, OWNER_BEND } from '@/scene/StaffFigure'
 import { CRATE, CRATE_FULL, useRiceTub } from './Decor'
 import { COAL_PER_ADD } from '@/game/coalPile'
 import { BossModel, drawnCentre } from './Boss'
@@ -3959,6 +3959,28 @@ const GRATE_EVERY = 55, GRATE_S = 4.2
  * (the bar's units) */
 const DIP_NEAR = 0.7, DIP_REACH = 0.21
 const RICE_BOWL_GEO = new THREE.CylinderGeometry(0.1, 0.07, 0.07, 16, 1, true).translate(0, 0.035, 0)
+/** the rice bowl's middle held out before the one carrying it (the bar's units): their body's front, a little air, and the bowl's own
+ * radius (item 628, the owner's 「避免這種情況」: held at a tray's place, a tray's thin, the back half of the bowl was in the third cook) */
+const BOWL_HOLD = (CARRY_FRONT + HOLD_AIR) * STAFF_SCALE + RICE_BOWL_GEO.parameters.radiusTop
+/** the phases the third cook has the rice bowl in their hands: scooped full at the sack, to the sink, washed, to the pot, tipped in */
+const RICE_WASH_PHASES = new Set(['scoopRaw', 'toSink', 'wash', 'toKama', 'load'])
+/** (item 628) the third cook's hands on the rice bowl's sides (the world's), a third of the way up it, wherever it is: carried, swirled in
+ * the sink, tipped into the pot (they stayed where a tray's held, under the bowl's back half) */
+const WASH_BOWL_HANDS = { left: new THREE.Vector3(), right: new THREE.Vector3() }
+const WASH_BOWL_ON = { v: false }
+const BOWL_SIDE = new THREE.Vector3()
+const BOWL_TIP_AXIS = new THREE.Vector3(0, 0, 1)
+function riceBowlHands(b: THREE.Object3D, yaw: number) {
+  const p = RICE_BOWL_GEO.parameters, up = p.height / 3
+  // (its wall's radius that far up it, and a palm's thickness out from it)
+  const r = p.radiusBottom + (p.radiusTop - p.radiusBottom) / 3 + 0.012
+  b.updateWorldMatrix(true, false)
+  for (const [out, sd] of [[WASH_BOWL_HANDS.left, -1], [WASH_BOWL_HANDS.right, 1]] as const) {
+    // (their side, in the bowl's own frame: the bar's, the bowl tipped about the bar's z as it's poured)
+    BOWL_SIDE.set(Math.cos(yaw) * sd, 0, -Math.sin(yaw) * sd).applyAxisAngle(BOWL_TIP_AXIS, -b.rotation.z)
+    b.localToWorld(out.copy(BOWL_SIDE).multiplyScalar(r).setY(BOWL_SIDE.y * r + up))
+  }
+}
 const RICE_IN_GEO = new THREE.CylinderGeometry(0.092, 0.08, 0.025, 16)
 /** how long a server wipes the bar down where a plate was cleared: two strokes along and back */
 const WIPE_S = 1.6
@@ -8229,7 +8251,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         o.userData.handsAt = pl.phase === 'pourSake' && SAKE_HANDS_ON.v ? SAKE_HANDS
           : (pl.phase === 'riceBowl' || pl.phase === 'soupBowl') && BOWL_HANDS_ON.v ? BOWL_HANDS
             : pl.phase === 'stir' && STIR_HANDS_ON.v ? STIR_HANDS : pl.phase === 'grate' && GRATE_ON.v ? GRATE_HANDS
-              : pl.phase === 'cookStation' && COOK_HANDS_ON.v ? COOK_HANDS : undefined
+              : pl.phase === 'cookStation' && COOK_HANDS_ON.v ? COOK_HANDS
+                : WASH_BOWL_ON.v && RICE_WASH_PHASES.has(pl.phase) ? WASH_BOWL_HANDS : undefined
         // (grating: the right hand with the daikon up and down the grater's length, pressed down on the way out, eased back; the left holding
         // the grater's near end; their places on the grater the world's (item 392))
         GRATE_ON.v = false
@@ -8270,13 +8293,14 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       // (the rice in its bowl in their hands: washing it, to the pot with it (going in at 'load'); scooped out of the pot, to the tub with it)
       const pb = platerBowl.current
       if (pb && o) {
-        const holding = ['scoopRaw', 'toSink', 'wash', 'toKama', 'load'].includes(pl.phase)
+        const holding = RICE_WASH_PHASES.has(pl.phase)
         pb.visible = holding
         // (both hands out in front, holding it (or the plates))
         o.userData.carry = holding || (pl.n > 0 && pl.phase !== 'idle') || pl.phase === 'toBowlPass' || pl.phase === 'bowlPut'
           || (bowlJob.current?.by === 'plater' && (pl.phase === 'toSoupBowl'))
         if (holding) {
-          const hands = heldBase().add(new THREE.Vector3(0, HELD_AT[1] * STAFF_SCALE + 0.02, HELD_AT[2] * STAFF_SCALE).applyAxisAngle(UP_Y, pl.yaw))
+          // (held out before them by its own size (BOWL_HOLD), both hands on its sides)
+          const hands = heldBase().add(new THREE.Vector3(0, HELD_AT[1] * STAFF_SCALE + 0.02, BOWL_HOLD).applyAxisAngle(UP_Y, pl.yaw))
           // (swirled in the water as it's washed)
           if (pl.phase === 'wash') hands.add(new THREE.Vector3(Math.sin(pl.t * 9) * 0.02, -0.03, Math.cos(pl.t * 9) * 0.02))
           const k = pl.phase === 'load' ? Math.min(1, pl.t / 0.6) : pl.phase === 'scoopRaw' ? Math.min(1, pl.t / SCOOP_S) : 0
@@ -8285,7 +8309,9 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           pb.rotation.z = pl.phase === 'load' ? Math.sin(Math.PI * k) * 1.1 : 0
           const rice = pb.getObjectByName('bowl-rice')
           if (rice) rice.scale.setScalar(pl.phase === 'load' ? Math.max(0.01, 1 - k) : pl.phase === 'scoopRaw' ? Math.max(0.01, k) : 1)
+          riceBowlHands(pb, pl.yaw)
         }
+        WASH_BOWL_ON.v = holding
       }
       // (the rice ball between their hands as they shape it, turned a little with each press; its nori wrapped on at the last)
       const ball = platerBall.current

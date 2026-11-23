@@ -216,8 +216,16 @@ function poseBroom(broom: THREE.Object3D, sweep: number | undefined, carried: bo
     broom.quaternion.identity()
   }
 }
-/** where a server's tray is held, and the stock keeper's clipboard: on the hands, out in front of the belly (the figure's frame) */
-export const TRAY_AT: [number, number, number] = [0, 0.4, 0.36]
+/** how far forward of the figure its body's front is at the height things are carried before it (the figure's frame; item 628: measured
+ * off the crew's figures at work, the fullest (a server's samue, the stock keeper's jacket) 0.28): what's carried is kept out past it by its
+ * own size and a little air (HOLD_AIR) */
+export const CARRY_FRONT = 0.285
+export const HOLD_AIR = 0.015
+/** the round tray a server carries: its rim's radius (the figure's frame) */
+const TRAY_R = 0.1
+/** where a server's tray is held, and the stock keeper's clipboard: on the hands, out in front of the belly (the figure's frame), the tray's
+ * back rim clear of it (item 628: at 0.36 the back of a server's tray was 2 cm into the samue) */
+export const TRAY_AT: [number, number, number] = [0, 0.4, CARRY_FRONT + TRAY_R + HOLD_AIR]
 const REST = { L: new THREE.Vector3(-0.31, 0.26, 0.05), R: new THREE.Vector3(0.31, 0.26, 0.05) }
 const REACH_A = new THREE.Vector3(), REACH_B = new THREE.Vector3()
 /** where a lean to their work bends them, a share of their height up from their feet (a counter's top on them) (item 387) */
@@ -299,7 +307,7 @@ function heldPieces(): { geo: THREE.BufferGeometry; part: Part }[] {
   return [
     // (a tray with a rim standing round it (scene/trayGeometry, item 248): a flat disc it was, read as a plate; its underside where the
     // disc's was, the cup on its floor)
-    { part: 'tray', geo: piece(rimmedTray(0.1, 0.02, 0.006), '#3a1a14', at.clone().multiply(new THREE.Matrix4().makeTranslation(0, -0.007, 0))) },
+    { part: 'tray', geo: piece(rimmedTray(TRAY_R, 0.02, 0.006), '#3a1a14', at.clone().multiply(new THREE.Matrix4().makeTranslation(0, -0.007, 0))) },
     { part: 'tray', geo: piece(new THREE.CylinderGeometry(0.024, 0.02, 0.05, 8), '#e8dcc0', at.clone().multiply(new THREE.Matrix4().makeTranslation(0.03, 0.024, 0))) },
     { part: 'clip', geo: piece(new THREE.BoxGeometry(0.12, 0.008, 0.16), '#c9a66b', clip) },
     { part: 'clip', geo: piece(new THREE.PlaneGeometry(0.1, 0.12), '#f7f3ea', clip.clone().multiply(new THREE.Matrix4().makeTranslation(0, 0.005, 0.01)).multiply(new THREE.Matrix4().makeRotationX(-Math.PI / 2))) },
