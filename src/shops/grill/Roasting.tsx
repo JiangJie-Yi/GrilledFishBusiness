@@ -4438,7 +4438,23 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
       const c0 = GRILL_COUNTERS[0], gate = gateOf(c0, BAR_GATES[0]).mid
       const aisle = [gate.clone().addScaledVector(c0.lay, -aisleOf(c0)), aisleCornerOf(GRILL_COUNTERS, GRILL_COUNTERS[1])]
       const before = beforeW ? bar(beforeW).setY(0) : foot.clone().addScaledVector(along, -0.4)
-      return { path: [...head0, onFloor(out[1]), ...aisle.map(onFloor), onFloor(before), onFloor(foot)], foot: onFloor(foot), head: onFloor(head) }
+      const viaFirst = [...head0, onFloor(out[1]), ...aisle.map(onFloor), onFloor(before), onFloor(foot)]
+      // (out by whichever of the bar's two gates is the shorter way to it (item 632, the owner's 「我發現老闆會先到員工專用門在回來，動線條一
+      // 下」: it was always the first counter's gate, round the far side of the kitchen to it and back the length of the aisle, 24.6 to a futon
+      // 9 away; the side counter's gate's by it)
+      const lengthOf = (pts: THREE.Vector3[]) => pts.slice(1).reduce((n, q, i) => n + q.distanceTo(pts[i]), 0)
+      let path = viaFirst
+      const c1 = GRILL_COUNTERS[1]
+      if (c1 && BAR_GATES[1] && KITCHEN_ROUTE.route) {
+        const g1 = gateOf(c1, BAR_GATES[1]).mid
+        // (in, through and out to the aisle's middle before it turns along it, as by the first gate: straight from its doorway it brushed
+        // the stools along the side counter)
+        const in1 = g1.clone().addScaledVector(c1.lay, 0.45), out1 = g1.clone().addScaledVector(c1.lay, -0.5), aisle1 = g1.clone().addScaledVector(c1.lay, -aisleOf(c1))
+        const across1 = KITCHEN_ROUTE.route(toBar(fromGrill), in1)
+        const viaSide = [fromGrill.clone(), ...across1.slice(1).map((v) => onFloor(v)), onFloor(out1), onFloor(aisle1), onFloor(before), onFloor(foot)]
+        if (lengthOf(viaSide) < lengthOf(viaFirst) - 0.3) path = viaSide
+      }
+      return { path, foot: onFloor(foot), head: onFloor(head) }
     }
     return () => { BOSS_BED.way = null; BOSS_BED.frame = null }
   }, [scene])
