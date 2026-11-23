@@ -1,8 +1,11 @@
 // Every view from the eye button, pictured from a fresh browser (nothing placed by hand): for checking each frames its part of the shop.
 //   node tests/e2e/views.mjs [url]      OUT=<dir>  Q=<tier, default medium>
 import { chromium } from 'playwright-core'
+import fs from 'node:fs'
 const URL = process.argv[2] ?? 'http://localhost:5173/GrilledFishBusiness/'
-const OUT = process.env.OUT ?? '.'
+// (pictures into shots/ by default, a folder git leaves alone (item 605, the owner's 「然後資料夾很多截圖，都清一下」: they piled up in the project's root))
+const OUT = process.env.OUT ?? 'shots'
+fs.mkdirSync(OUT, { recursive: true })
 const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] })
 const page = await (await browser.newContext({ viewport: { width: 1440, height: 860 } })).newPage()
 await page.goto(URL + `?q=${process.env.Q ?? 'medium'}`, { timeout: 60000 })

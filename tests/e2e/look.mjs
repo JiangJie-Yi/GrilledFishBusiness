@@ -9,6 +9,7 @@
 //   npm run dev          (in another terminal)
 //   node tests/e2e/paths.mjs [url]        (WATCH=<ms> how long to watch, default 120000; SHOT=<dir> pictures of each clash)
 import { chromium } from 'playwright-core'
+import fs from 'node:fs'
 import { toOpeningHours } from './hours.mjs'
 
 const URL = process.argv[2] ?? 'http://localhost:5173/GrilledFishBusiness/'
@@ -55,7 +56,9 @@ await page.locator('.ai-toggle').click()
 await page.evaluate(() => { window.__drinkRate = 0.08 })
 
 
-const OUT = process.env.OUT ?? '.'
+// (pictures into shots/ by default, a folder git leaves alone (item 605, the owner's 「然後資料夾很多截圖，都清一下」: they piled up in the project's root))
+const OUT = process.env.OUT ?? 'shots'
+fs.mkdirSync(OUT, { recursive: true })
 // (until someone's sat down, or WAIT runs out)
 for (let t = 0; t < Number(process.env.WAIT ?? 240000); t += 2000) {
   await page.waitForTimeout(2000)

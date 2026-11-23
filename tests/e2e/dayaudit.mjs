@@ -149,7 +149,9 @@ for (;;) {
   if (SHOT > 0 && Date.now() - lastShot > SHOT) {
     lastShot = Date.now()
     await p.mouse.move(5, 880)
-    await p.screenshot({ path: `${process.env.OUT ?? 'dayaudit'}-${String(n++).padStart(2, '0')}.png` })
+    // (into shots/ by default (item 605): they piled up in the project's root)
+    if (!process.env.OUT) fs.mkdirSync('shots', { recursive: true })
+    await p.screenshot({ path: `${process.env.OUT ?? 'shots/dayaudit'}-${String(n++).padStart(2, '0')}.png` })
   }
   // (past midnight the clock runs on from 1440, or starts again at 0: stopped either way once it's past END in the morning)
   const after = m >= 24 * 60 ? m - 24 * 60 : m < 12 * 60 ? m : -1

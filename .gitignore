@@ -36,3 +36,6 @@ __pycache__/
 
 # glTF-Transform output to compare before taking (scripts/optimize-glb.mjs)
 public/models-opt/
+
+# pictures from the probes and tests (item 605, the owner's: screenshots piled up in the project's root): into shots/
+shots/

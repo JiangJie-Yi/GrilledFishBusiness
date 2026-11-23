@@ -86,8 +86,8 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  App.tsx
 | `npm run sync` | 只做自動同步 |
 | `npm test` | 單元測試＋架構測試（Vitest，約 1 秒） |
 | `npm run e2e` | 瀏覽器實際玩一遍（需先開 dev server，約 5 分鐘；預設用 `?q=low` 跑，軟體 GL 在最高畫質只有 1 FPS，`Q=high` 可改）。`node tests/e2e/flow.mjs <url> grilledfish` 只測一間；沒有 Chrome 時 `CHROME_PATH=<chromium 路徑>`；軟體 GL 很慢時 `OPEN_FOR=240000`（營業等待毫秒，預設 90000：軟體 GL 約每秒 10 格，客人的時鐘跟著格數走，第一張單約一分鐘才進來） |
-| `node tests/e2e/views.mjs` | 從乾淨的瀏覽器把 9 個視角各截一張（`OUT=<資料夾>`、`Q=low`），檢查每個視角的構圖 |
-| `node tests/e2e/look.mjs` | 開店後近拍吧台客人（`OUT=<資料夾>`），看人物造型用 |
+| `node tests/e2e/views.mjs` | 從乾淨的瀏覽器把 9 個視角各截一張（`OUT=<資料夾>`，預設 `shots/`、`Q=low`），檢查每個視角的構圖 |
+| `node tests/e2e/look.mjs` | 開店後近拍吧台客人（`OUT=<資料夾>`，預設 `shots/`），看人物造型用；探針與測試的截圖一律寫進 `shots/`（不進 git，第 605 項） |
 | `node tests/e2e/paths.mjs [url]` | 客人動線檢查：開店後每 0.3 秒量每位走動中的客人四周（膝、胸高度），報告撞到的擺設；坐上自己的椅子不算（`WATCH=<ms>` 觀察時間） |
 | `node tests/e2e/dayaudit.mjs` | 一整天巡檢（約 7 分鐘）：×2 從開店跑到員工下班，每格量每個人物有沒有一格跳太遠或上下一個台階（瞬移），記下跳出的提示與營業日誌，以及料理台禁區推過誰（幾次、最遠、推到的位置一格換邊幾次）（`AT`、`END`、`SHOT`、`JSON`）；開頭共用 `tests/e2e/shop.mjs`（`boot`、`openShop`、`rush`）。整套測試流程與探針清單在 `docs/DETAILS.md`「測試流程」 |
 | `node tests/e2e/crowd.mjs` | 客人走路的跳動與互相穿過：開店搶客 ×2，每格量比走路快的格數、一格跳超過 0.2 的、兩人疊在一起的（誰跟誰；長凳的客人也算，`bench-in`、`bench-out`）、同一階段時間倒退（`WATCH`、`CALM=1`、`LIST=1`） |
