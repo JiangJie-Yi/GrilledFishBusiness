@@ -1142,7 +1142,10 @@ def sealed_sack(name, cx, cz, L, W, T, yaw, mat, salt=0, seg=16, NU=14, stand=Fa
 # on the floor in front of them; stood up, clear of the counter's face behind) ----
 sealed_sack("ProduceSackSealed", -0.81, -0.08, 0.75, 0.38, 0.3, -0.12, "sackP", salt=3, stand=True)
 # ---- a few rolled out in front ----
-tuber("ProduceLoose0", -0.22, 0.045, 0.29, 0.055, "potato", rot=(0.3, 0.2, 0.9))
+# (item 608, the owner's 「這顆馬鈴薯移到袋子腳邊」: at the potato sack's foot, on the floor between it and the sweet potatoes' sack, lying
+# front to back where they part; in front of them, at (-0.22, 0.29), it lay inside the root vegetables' crate since the crates came in
+# front of the sacks (item 262) and were drawn deeper (item 524))
+tuber("ProduceLoose0", -0.207, 0.034, 0.085, 0.055, "potato", rot=(0.25, 0.0, 1.45))
 # (a potato and an onion: the owner's)
 onion("ProduceLooseOnion", 0.24, 0.044, 0.31, 0.044, rot=(1.4, 0.3, 0.6))
 # ---- the stepped stand of six wooden baskets that stood beside the onions' sack is gone (the owner's, 2026-11-15: crossed out, and "take
