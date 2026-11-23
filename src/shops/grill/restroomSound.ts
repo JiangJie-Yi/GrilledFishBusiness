@@ -805,6 +805,19 @@ export function washerBeep(at: THREE.Vector3) {
   ping(a, t + 0.13, 520, 0.35, 0.09, o, 'square')
 }
 
+/** a looping sound's samples (the television's hiss, the rain's), made once for a rate of the context's and kept (the Optimization window's:
+ * not made again each time the sound is) */
+const LOOPS = new Map<string, AudioBuffer>()
+function loopBuffer(a: BaseAudioContext, key: string, seconds: number, fill: (d: Float32Array) => void) {
+  const k = `${key}:${a.sampleRate}`
+  let b = LOOPS.get(k)
+  if (!b) {
+    b = a.createBuffer(1, Math.floor(a.sampleRate * seconds), a.sampleRate)
+    fill(b.getChannelData(0))
+    LOOPS.set(k, b)
+  }
+  return b
+}
 /** the television upstairs (items 612, 613) switched: the switch's click, and coming on, the picture's little crackle as it comes up; going
  * off, a softer one as it drops */
 export function tvSwitchSound(on: boolean) {
@@ -850,8 +863,7 @@ export function tvMurmur(at?: BaseAudioContext) {
   const make = () => {
     const a = at ?? ctx()
     if (!a) return null
-    const b = a.createBuffer(1, Math.floor(a.sampleRate * 2), a.sampleRate), d = b.getChannelData(0)
-    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1
+    const b = loopBuffer(a, 'tvHiss', 2, (d) => { for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1 })
     const src = a.createBufferSource()
     src.buffer = b; src.loop = true
     const f = a.createBiquadFilter()
@@ -934,17 +946,21 @@ export function rainAmbience(at?: BaseAudioContext) {
   const make = () => {
     const a = at ?? ctx()
     if (!a) return null
-    const n = Math.floor(a.sampleRate * 3), hissB = a.createBuffer(1, n, a.sampleRate), h = hissB.getChannelData(0)
     // (the hiss: noise a little smoothed (softer than white), its loop's ends faded into each other)
-    let last = 0
-    for (let i = 0; i < n; i++) { last = last * 0.55 + (Math.random() * 2 - 1) * 0.45; h[i] = last }
-    for (let i = 0; i < 2000; i++) { const w = i / 2000; h[i] = h[i] * w + h[n - 2000 + i] * (1 - w) }
-    const m = Math.floor(a.sampleRate * 4), tickB = a.createBuffer(1, m, a.sampleRate), d = tickB.getChannelData(0)
+    const hissB = loopBuffer(a, 'rainHiss', 3, (h) => {
+      const n = h.length
+      let last = 0
+      for (let i = 0; i < n; i++) { last = last * 0.55 + (Math.random() * 2 - 1) * 0.45; h[i] = last }
+      for (let i = 0; i < 2000; i++) { const w = i / 2000; h[i] = h[i] * w + h[n - 2000 + i] * (1 - w) }
+    })
     // (the drops: seventy short clicks over four seconds, each its own loudness)
-    for (let k = 0; k < 70; k++) {
-      const s = Math.floor(Math.random() * (m - 200)), g = 0.3 + 0.7 * Math.random()
-      for (let i = 0; i < 160; i++) d[s + i] += (Math.random() * 2 - 1) * g * Math.exp(-i / 22)
-    }
+    const tickB = loopBuffer(a, 'rainTicks', 4, (d) => {
+      const m = d.length
+      for (let k = 0; k < 70; k++) {
+        const s = Math.floor(Math.random() * (m - 200)), g = 0.3 + 0.7 * Math.random()
+        for (let i = 0; i < 160; i++) d[s + i] += (Math.random() * 2 - 1) * g * Math.exp(-i / 22)
+      }
+    })
     const hiss = a.createBufferSource(), ticks = a.createBufferSource()
     hiss.buffer = hissB; hiss.loop = true
     ticks.buffer = tickB; ticks.loop = true
