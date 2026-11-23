@@ -42,7 +42,7 @@ import { StaffWords, TiredBadges } from './StaffWords'
 import { STAFF_IDLE, STAFF_SAY, STAFF_TALK, idleTick, paceOfStaff } from '@/game/shopState'
 import { PILE_LINE, bossCleans, pileLeft, staffSink } from '@/game/sinkPile'
 import { HAND_WASH_LINES, SPONGE_S, WASH_WET, beatLength, handClean, handSays, handStops, scrubbed, washBeat, washPlateS, type HandAt } from '@/game/handWash'
-import { POUR_TOTAL, SAKE_SET_S, SAKE_UP_S, pourBeat, pouredBy, streaming } from '@/game/sakePour'
+import { POUR_TOTAL, SAKE_SET_S, SAKE_UP_S, STREAM_FROM, STREAM_TO, pourBeat, pouredBy, streaming } from '@/game/sakePour'
 import { SAKE_BOTTLE_ML, STATION_GO, TOKKURI_ML, stationGo } from '@/game/sakeStand'
 import { PLATE_NAME, plateSays } from '@/game/plateTip'
 import { newWashPose, spongePose, washPose, type WashPoints } from '@/scene/washMotion'
@@ -64,7 +64,7 @@ import { activityOf, type Look as StaffLook } from '@/data/staff'
 import type { Lang } from '@/data/i18n'
 import { inkModel, inkTogether } from '@/scene/inkHull'
 import { aimTip, setTip, shownOver } from '@/scene/hoverTip'
-import { shrineDoor } from './shrineSound'
+import { pourSakeAt, shrineDoor } from './shrineSound'
 import { getLights, setLightSwitch } from '@/scene/lightsStore'
 import { Later } from '@/scene/Later'
 import { wareGeometry } from './ware'
@@ -116,7 +116,7 @@ import { BONES_GEO, HEAD_GEO } from './fishBones'
 import { arrivals, buyCase, caseCost, emptyFillable, emptyGaps, orderCase, restockRun } from '@/game/drinkStock'
 import { tl } from '@/data/i18n'
 import { NO_POINTER, zr } from '@/scene/htmlProps'
-import { tick } from '@/scene/speed'
+import { GAME_SPEED, tick } from '@/scene/speed'
 /** where a sound's heard from, worked out in place */
 const SOUND_AT = new THREE.Vector3()
 
@@ -4126,6 +4126,8 @@ const STREAM_W = new THREE.Vector3()
 /** the player's plate in hand (items 224, 234): where it's to be held (the scratch), and how long it takes washed into the basket (s) */
 const HAND_TO = new THREE.Vector3()
 const HAND_TO_BASKET_S = 0.35
+/** scratch: where the sake station's pour is heard from (item 633) */
+const STATION_POUR_AT = new THREE.Vector3()
 const HAND_STREAM = new THREE.Vector3()
 /** (item 458) scratch for the pointer's ray: where it's on the screen, the level it meets, where; a point in the world */
 const HAND_NDC = new THREE.Vector2(), HAND_PLANE = new THREE.Plane(), HAND_HIT = new THREE.Vector3(), HAND_TOP = new THREE.Vector3(), HAND_W = new THREE.Vector3(), HAND_BOX = new THREE.Box3()
@@ -5446,6 +5448,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
   }, [seats])
   const scene = useThree((st) => st.scene)
   const camera = useThree((st) => st.camera)
+  /** (item 633) whether the sake station's stream ran last frame: its pour heard as it starts */
+  const stationRan = useRef(false)
   const marks = useRef(new Map<string, THREE.Object3D | null>())
   /** when each mark was last looked for and not found: looked for again a second later (the owner, 2026-11-15: the dirty stack and the
    * draining basket's plates hung in the air over the cook table's end: their marks first looked for before the sink's model was in, the
@@ -9682,6 +9686,10 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         // (not drawn at all between pours (item 533: drawn a hair long, a draw every frame of the evening); in the scene from the start, its
         // program's made at load all the same: scene/Prewarm compiles the hidden ones too)
         const on = pouring && streaming(j!.t)
+        // (heard as the sake starts to run (item 633, the owner's 「倒酒的音效應統一，供酒的也是」): the one pour's sound, the shrine's, as
+        // long as the stream runs in the world's time)
+        if (on && !stationRan.current && STATION_OBJ.group) pourSakeAt((STREAM_TO - STREAM_FROM) / Math.max(0.25, GAME_SPEED.value), STATION_OBJ.group.localToWorld(STATION_POUR_AT.copy(P.mouth)), camera)
+        stationRan.current = on
         sm.visible = on
         if (on) { const to = STATION_STREAM_TO(); sm.position.copy(P.mouth); sm.scale.set(1, Math.max(1e-4, P.mouth.y - to.y), 1) }
         else sm.scale.set(1, 1e-4, 1)

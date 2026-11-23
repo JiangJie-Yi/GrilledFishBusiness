@@ -2,6 +2,7 @@
 // ring under a fall of small bright bells and a breath of air), and the shrine's little doors (the latch, their wooden pins turning with a
 // soft dry brush and a few faint ticks through a hinoki panel's resonances, a knock as they stop or meet).
 
+import * as THREE from 'three'
 import { sharedAudio } from '@/scene/sfx'
 
 // (the game's one context (item 576): the doors' first opening made one of its own, 32 ms of that frame)
@@ -29,36 +30,80 @@ function ring(a: AudioContext, out: AudioNode, t: number, f: number, g: number, 
   o.stop(t + len + 0.05)
 }
 
-/** the blessing: a temple bowl (りん) struck once, its partials beating as they ring, and a cascade of little bells over it, a soft rush of air */
+/** a soft bell: a sine at `f` and a faint octave over it, rising over `rise` (no hard strike), ringing away over `len` */
+function softBell(a: AudioContext, out: AudioNode, t: number, f: number, g: number, len: number, rise = 0.025) {
+  for (const [ff, gg] of [[f, g], [f * 2, g * 0.25]] as [number, number][]) {
+    const o = a.createOscillator(), v = a.createGain()
+    o.type = 'sine'
+    o.frequency.value = ff
+    v.gain.setValueAtTime(0, t)
+    v.gain.linearRampToValueAtTime(gg, t + rise)
+    v.gain.exponentialRampToValueAtTime(0.0001, t + len)
+    o.connect(v).connect(out)
+    o.start(t)
+    o.stop(t + len + 0.05)
+  }
+}
+/** a held tone: swelling in over `rise`, held, let go over the rest of `len` */
+function pad(a: AudioContext, out: AudioNode, t: number, f: number, g: number, len: number, rise = 0.28) {
+  const o = a.createOscillator(), v = a.createGain()
+  o.type = 'sine'
+  o.frequency.value = f
+  v.gain.setValueAtTime(0, t)
+  v.gain.linearRampToValueAtTime(g, t + rise)
+  v.gain.setValueAtTime(g, t + rise + 0.25)
+  v.gain.exponentialRampToValueAtTime(0.0001, t + len)
+  o.connect(v).connect(out)
+  o.start(t)
+  o.stop(t + len + 0.05)
+}
+
+/**
+ * The blessing, the offering taken (item 619, the owner's 「小神龕供完酒的燈一聲拿掉，換成提升的聲響。」: the temple bowl struck once, the ding,
+ * gone): a lift. A run of soft bells climbing two octaves of a major pentatonic, quickening as it climbs, a low tone gliding up an octave
+ * and a swell of air rising bright under them; at the top a bright major chord swells in and is held, then fades, as the glints rise in
+ * front of the doors. About two seconds, no hard strike anywhere in it.
+ */
 export function blessingChime() {
   try {
     const a = ctx()
     const t = a.currentTime + 0.02
     const out = a.createGain()
-    out.gain.value = 0.55
+    out.gain.value = 0.5
     out.connect(a.destination)
-    // (the bowl: its inharmonic partials, each a pair a hair apart so they beat)
-    for (const [f, g, len] of [[523, 0.22, 4.5], [1408, 0.1, 3.2], [2650, 0.05, 2.2], [4230, 0.025, 1.4]] as [number, number, number][]) {
-      ring(a, out, t, f, g, len)
-      ring(a, out, t, f * 1.004, g * 0.7, len * 0.9)
-    }
-    // (the small bells: a quick fall down a pentatonic run, each a bright partial pair)
-    const notes = [2637, 2349, 1976, 1760, 1568, 1319, 1175]
-    notes.forEach((f, k) => {
-      const tk = t + 0.35 + k * 0.09 + Math.random() * 0.02
-      ring(a, out, tk, f, 0.05, 1.4)
-      ring(a, out, tk, f * 2.76, 0.015, 0.6)
+    // (the run up: C5 to C7 on the major pentatonic)
+    const run = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66, 1318.51, 1567.98, 1760, 2093]
+    let tk = t
+    run.forEach((f, k) => {
+      softBell(a, out, tk, f, 0.045 + 0.003 * k, 0.9)
+      tk += 0.078 - k * 0.0035
     })
-    // (a breath of air rising under it all)
-    const air = noise(a, 2.2, (x) => Math.sin(Math.PI * x) ** 2)
+    // (the lift from below: a low tone gliding up an octave under the run, swelling then gone)
+    const lo = a.createOscillator(), lg = a.createGain()
+    lo.type = 'triangle'
+    lo.frequency.setValueAtTime(130.81, t)
+    lo.frequency.exponentialRampToValueAtTime(261.63, t + 0.85)
+    lg.gain.setValueAtTime(0, t)
+    lg.gain.linearRampToValueAtTime(0.07, t + 0.3)
+    lg.gain.exponentialRampToValueAtTime(0.0001, t + 1.15)
+    lo.connect(lg).connect(out)
+    lo.start(t)
+    lo.stop(t + 1.25)
+    // (a swell of air rising under it, from low to bright)
+    const air = noise(a, 1.5, (x) => Math.sin(Math.PI * Math.min(1, x * 1.2)) ** 2)
     const af = a.createBiquadFilter(), ag = a.createGain()
     af.type = 'bandpass'
-    af.frequency.setValueAtTime(600, t)
-    af.frequency.exponentialRampToValueAtTime(4200, t + 2)
-    af.Q.value = 0.7
-    ag.gain.value = 0.06
+    af.Q.value = 1.1
+    af.frequency.setValueAtTime(320, t)
+    af.frequency.exponentialRampToValueAtTime(6000, t + 1.25)
+    ag.gain.value = 0.065
     air.connect(af).connect(ag).connect(out)
     air.start(t)
+    // (the top: C major's bright chord, each tone with a twin a hair apart to shimmer, held and let go)
+    for (const [f, g] of [[1046.5, 0.045], [1318.51, 0.035], [1567.98, 0.035], [2093, 0.022]] as [number, number][]) {
+      pad(a, out, tk, f, g, 1.7)
+      pad(a, out, tk + 0.02, f * 1.0035, g * 0.6, 1.6)
+    }
   } catch {
     // (no audio: silent)
   }
@@ -204,6 +249,18 @@ export function shrineDoor(open: boolean) {
   } catch {
     // (no audio: silent)
   }
+}
+
+const POUR_SAT = new THREE.Vector3()
+/**
+ * The one pour's sound wherever sake's poured (item 633, the owner's 「倒酒的音效應統一，供酒的也是」: the shrine's cups, the tasting at the
+ * sake stand and the third cook's tokkuri at the pass; only the shrine's was heard): pourSake, `len` seconds, at `at` in the world, as loud
+ * as the camera's near and from the side of the picture it's on
+ */
+export function pourSakeAt(len: number, at: THREE.Vector3, camera: THREE.Camera) {
+  const d = camera.position.distanceTo(at)
+  const x = POUR_SAT.copy(at).project(camera).x
+  pourSake(Math.max(0.25, len), Math.min(1, 1.8 / (d + 0.6)), x)
 }
 
 /**

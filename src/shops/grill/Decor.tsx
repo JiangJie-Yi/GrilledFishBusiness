@@ -32,6 +32,7 @@ import { LowPlateRack, PlateRack } from './PlateRack'
 import { SINK_SETS, STEP_STOOL_AT, SinkModel, SinkPart, StepStoolModel } from './Sink'
 import { CharcoalSack, ProduceSacks, VegBasket, type VegNode } from './KitchenStores'
 import { coolerDoorSound, lightSwitchSound } from './restroomSound'
+import { pourSakeAt } from './shrineSound'
 import { getEdit } from './edit'
 import { useBinchotan } from './binchotanModel'
 import { inkModel } from '@/scene/inkHull'
@@ -2025,6 +2026,8 @@ function SakeStand() {
       const pouring = !!tg && d.tip > 0.85
       showStream(pouring ? mouth : null, pouring ? tg!.top.clone().add(new THREE.Vector3(0, -0.02, 0)) : null)
       if (pouring) {
+        // (heard as it starts to run (item 633, the owner's 「倒酒的音效應統一，供酒的也是」): the one pour's sound, the shrine's)
+        if (d.t === 0 && group.current) pourSakeAt(POUR_S - 0.1, group.current.localToWorld(TASTE_POUR_AT.copy(tg!.top)), camera)
         d.t += Math.min(dt, 0.05)
         if (tg!.liquid) tg!.liquid.scale.y = Math.max(0.001, Math.min(1, d.t / POUR_S))
         if (b.liquid) b.liquid.scale.y = Math.max(0.02, (b.shochu ? SHOCHU_LEVEL.v : SAKE.levels[d.b]) - (d.t / POUR_S) * (b.shochu ? 1 / SHOCHU_CUPS : 0.1))
@@ -2193,6 +2196,8 @@ function SakeStand() {
   )
 }
 const X_AXIS = new THREE.Vector3(1, 0, 0)
+/** scratch: where a tasting's pour is heard from (item 633) */
+const TASTE_POUR_AT = new THREE.Vector3()
 /** the sake's stream: a thin straw-gold thread, its top at its origin, a unit long downward (scaled to the drop) */
 export const STREAM_GEO = new THREE.CylinderGeometry(0.0022, 0.0018, 1, 6, 1, true).translate(0, -0.5, 0)
 export const STREAM_MAT = new THREE.MeshStandardMaterial({ color: '#e9dcae', transparent: true, opacity: 0.75, roughness: 0.05, emissive: '#3a3018' })
