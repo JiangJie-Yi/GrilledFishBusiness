@@ -60,10 +60,12 @@ export type HandAt = 'tap' | 'water' | null
 /** the plate in the water `dt` seconds on: the water's own (a rinse under the tap the quicker), and the rubbing (`scrub`: how hard it's being
  * rubbed to and fro, 0..1) with the sponge or the bare hand, the liquid's bonus on that (item 458) */
 export function handClean(dirt: number, dt: number, at: HandAt, o: { sponge: boolean; soap: boolean; scrub: number }) {
-  if (!at) return dirt
-  const rub = Math.min(1, Math.max(0, o.scrub)) * SCRUB_RATE * (o.sponge ? 1 : HAND_RUB) * (o.soap ? SOAP_X : 1)
-  return Math.max(0, dirt - ((at === 'tap' ? RINSE_RATE : SOAK_RATE) + rub) * dt)
+  // (item 638, the owner's 「我拖曳菜瓜布來回刷應該要有效果」: with no water it did nothing at all; rubbed dry it comes off, slower)
+  const rub = Math.min(1, Math.max(0, o.scrub)) * SCRUB_RATE * (o.sponge ? 1 : HAND_RUB) * (o.soap ? SOAP_X : 1) * (at ? 1 : DRY_RUB)
+  return Math.max(0, dirt - ((at === 'tap' ? RINSE_RATE : at === 'water' ? SOAK_RATE : 0) + rub) * dt)
 }
+/** how much of a wet plate's rubbing a dry one takes off (item 638) */
+export const DRY_RUB = 0.45
 /** what's said of the plate being washed (items 234, 458): carried (`held`), where to let it go; in the water, how dirty it is and the one
  * thing that would make it go faster, the liquid's bonus said as a number. (item 606, the owner's 「這邊都用拖曳的」: the sponge is dragged
  * over the plate, and the clean plate dragged into the basket: it's said so) */
@@ -71,7 +73,8 @@ export function handSays(at: HandAt, dirt: number, o: { sponge: boolean; soap: b
   if (o.held) return dirt <= CLEAN_AT ? (o.basketFull ? '瀝水籃滿了：先把乾的收回碗盤架' : '拖到瀝水籃放開') : '拖到水龍頭下或水裡放開｜洗碗機的門開著，也能直接放進去'
   if (dirt <= CLEAN_AT) return o.basketFull ? '乾淨了｜瀝水籃滿了，先把乾的收回碗盤架' : '乾淨了：拖到瀝水籃'
   const left = `還有 ${Math.max(1, Math.round(Math.min(1, dirt) * 100))}% 髒`
-  if (!at) return `${left}｜沒有水：打開水龍頭`
+  // (rubbed dry it still comes off (item 638), slower: the tap's the player's to turn on)
+  if (!at) return `${left}｜${o.sponge ? '乾刷比較慢' : '按住菜瓜布拖到盤子上，來回刷'}｜開水龍頭沖著刷更快`
   const head = at === 'tap' ? `沖水中，${left}` : `泡在水裡，${left}`
   const next = !o.sponge ? '按住菜瓜布拖到盤子上，來回刷' : !o.soap ? `來回刷｜擠洗碗精刷得更快 ×${SOAP_X}` : `來回刷，洗碗精加成 ×${SOAP_X}`
   return `${head}｜${next}`
@@ -92,7 +95,7 @@ export const HAND_STEP_SAYS: Record<HandStep, string> = {
   // (item 234, the owner's 「流理台洗碗玩法還是很不順」: pressed, a plate's taken up and washed where the water is, the tap turned on if there's
   // none: nothing to aim, nothing to carry)
   // (item 458, the owner's 「玩的模式不對，應該是拖曳過去，然後用菜瓜布刷」: the plate dragged to the water, the sponge rubbed over it)
-  water: '把髒盤子拖到水槽放開，水龍頭會自己打開',
+  water: '把髒盤子拖到水槽放開，打開水龍頭沖著刷',
   scrub: '把髒盤子拖進水裡，按住菜瓜布拖到上面來回刷',
 }
 /** the thing that lights up for each step, to be clicked next (none: there's nothing to click but the dirty plates themselves) */

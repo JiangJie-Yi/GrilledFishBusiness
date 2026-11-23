@@ -114,6 +114,14 @@ feature('玩家自己拿盤子洗（第 224 項）', () => {
   })
   // (item 606, the owner's 「這邊都用拖曳的」: the sponge was clicked up and down and a clean plate went into the basket by itself; now the
   // sponge is dragged over the plate to rub it, and the clean plate dragged into the basket)
+  // (item 638, the owner's 「我拖曳菜瓜布來回刷應該要有效果」: in a dry basin the rubbing did nothing)
+  scenario('沒有水也刷得掉，只是比較慢', ({ then, and }) => {
+    const rubbed = (at: 'tap' | 'water' | null) => 0.6 - handClean(0.6, 0.5, at, { sponge: true, soap: false, scrub: 1 })
+    then('乾刷也會變乾淨', () => { expect(rubbed(null)).toBeGreaterThan(0) })
+    and('比泡在水裡刷慢', () => { expect(rubbed(null)).toBeLessThan(rubbed('water')) })
+    and('不刷、沒水，不會變乾淨', () => { expect(handClean(0.6, 1, null, { sponge: true, soap: false, scrub: 0 })).toBe(0.6) })
+    and('提示說開水龍頭會更快', () => { expect(handSays(null, 0.5, { sponge: true, soap: false, basketFull: false })).toContain('水龍頭') })
+  })
   scenario('洗碗都用拖的：菜瓜布拖到盤子上刷，洗好的拖到瀝水籃', ({ then, and, but }) => {
     then('還沒拿菜瓜布：說按住菜瓜布拖到盤子上', () => { expect(handSays('water', 0.5, { sponge: false, soap: false, basketFull: false })).toContain('拖到盤子上') })
     and('不再說「點」菜瓜布', () => { expect(handSays('tap', 0.5, { sponge: false, soap: false, basketFull: false })).not.toContain('點菜瓜布') })
