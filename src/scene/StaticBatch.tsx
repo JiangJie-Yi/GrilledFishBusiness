@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, type MutableRefObject, type ReactNode } from 'react'
 import * as THREE from 'three'
+import { isDummyMap, isFlatNormal } from './materialNormalize'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { mergeState } from './worldMerge'
 
@@ -63,11 +64,28 @@ export function keyOf(m: THREE.Material) {
 /** the materials plain pieces share, their colours on their points: one for each way of drawing that isn't the colour */
 const PLAIN = new Map<string, THREE.MeshToonMaterial>()
 /** a toon material that's only a colour: no picture, opaque, not glowing, not reworked in its shader */
+// (the white picture and flat normals scene/materialNormalize gives a material without its own, and its tiny alphaTest, are none of its own:
+// item 598, a normalised plain colour was taken for a picture, and 25 of them stood apart in the room's merge, a draw each in each stretch)
 const plainOf = (m: THREE.Material) => {
   const t = m as THREE.MeshToonMaterial
-  if (!t.isMeshToonMaterial || t.map || t.alphaMap || t.emissiveMap || t.normalMap || t.bumpMap || t.lightMap || t.aoMap || t.transparent || t.opacity < 1
-    || t.alphaTest > 0 || t.vertexColors || t.wireframe || t.emissive.getHex() !== 0 || t.onBeforeCompile !== THREE.Material.prototype.onBeforeCompile) return null
+  const own = (x: THREE.Texture | null | undefined) => !!x && !isDummyMap(x) && !isFlatNormal(x)
+  if (!t.isMeshToonMaterial || own(t.map) || t.alphaMap || own(t.emissiveMap) || own(t.normalMap) || t.bumpMap || t.lightMap || t.aoMap || t.transparent || t.opacity < 1
+    || t.alphaTest > 0.002 || t.vertexColors || t.wireframe || t.emissive.getHex() !== 0 || t.onBeforeCompile !== THREE.Material.prototype.onBeforeCompile) return null
   return [t.gradientMap?.uuid, t.side, t.depthWrite, t.depthTest, t.toneMapped, t.fog, t.polygonOffset, t.polygonOffsetFactor, t.polygonOffsetUnits].join('|')
+}
+/** the material plain-coloured pieces drawn like `m` share (its colour then on their points), or null if `m` isn't a plain colour */
+export function plainShared(m: THREE.Material): THREE.MeshToonMaterial | null {
+  const key = plainOf(m)
+  if (key === null) return null
+  let shared = PLAIN.get(key)
+  if (!shared) {
+    shared = (m as THREE.MeshToonMaterial).clone()
+    shared.color.set('#ffffff')
+    shared.vertexColors = true
+    shared.name = 'PlainColours'
+    PLAIN.set(key, shared)
+  }
+  return shared
 }
 /**
  * The plain-coloured pieces under root given one material between them, each one's colour written on its points (its geometry copied first:
