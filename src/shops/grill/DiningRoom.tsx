@@ -7067,7 +7067,7 @@ function FridgeDoorImpl({ n = 0 }: { n?: number }) {
   // fills it from the stock room)
   const rear = useRef({ k: 0, sounded: false })
   // (the door's state lives outside React: leave it shut when the shop's let go, so it doesn't come back open)
-  useEffect(() => () => { FRIDGE_STATE[n].open = false; FRIDGE_STATE[n].passing = 0 }, [n])
+  useEffect(() => () => { FRIDGE_STATE[n].open = false; FRIDGE_STATE[n].passing = 0; FRIDGE_STATE[n].rearOpen = false }, [n])
   // (heard: its seal let go as it starts to swing open, a muffled knock as it swings shut (the owner's), as loud as it's near)
   const sounded = useRef(0)
   useFrame((_, dt) => {
@@ -7086,7 +7086,7 @@ function FridgeDoorImpl({ n = 0 }: { n?: number }) {
     // (the back's doors (item 554): the outer pulled across over the inner, quick to start and running on to its stop, a little rebound off
     // it; let go, slid home, a knock as it shuts; heard from there. How far open, kept for the stocker (he steps in once it's open, and away
     // only once it's home))
-    const r = rear.current, wantR = FRIDGE_STATE[n].stocker ? 1 : 0
+    const r = rear.current, wantR = FRIDGE_STATE[n].stocker || FRIDGE_STATE[n].rearOpen ? 1 : 0
     if (wantR && !r.sounded) { r.sounded = true; coolerDoorSound(true, near() * 0.6) }
     else if (!wantR && r.sounded && r.k < 0.04) { r.sounded = false; coolerDoorSound(false, near() * 0.6) }
     r.k += Math.sign(wantR - r.k) * Math.min(Math.abs(wantR - r.k), Math.min(dt, 0.1) * 2.2)
@@ -7103,8 +7103,10 @@ function FridgeDoorImpl({ n = 0 }: { n?: number }) {
     <group>
       {/* the model's own door, hung on its pivot (the glass and its frame), swung with the rest of the model's scale */}
       <group onClick={(ev) => { ev.stopPropagation(); if (getEdit().on) return; FRIDGE_STATE[n].open = !FRIDGE_STATE[n].open }} {...tipOver('飲料櫃', '點一下開關門')}><primitive object={doorRoot} /></group>
-      {/* (its back's doors, in the stock room) */}
-      <primitive object={rearRoot} />
+      {/* (its back's doors, in the stock room: slid open by a click, shut by another (item 614, the owner's 「是用拉門式的，這邊可以互動」); the
+          stocker's own opening of them goes on as ever) */}
+      <group onClick={(ev) => { ev.stopPropagation(); if (getEdit().on) return; FRIDGE_STATE[n].rearOpen = !FRIDGE_STATE[n].rearOpen }}
+        {...tipOver('飲料櫃後門', '點一下拉開／關上（從倉庫補貨的拉門）')}><primitive object={rearRoot} /></group>
       {/* the cold, pouring out over the open door's foot and rolling out over the floor (it was drawn as rising steam: the owner saw it
           was wrong) */}
       <group position={[0, 0, D / 2 + 0.02]}>

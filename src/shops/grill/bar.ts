@@ -511,7 +511,9 @@ export const FRIDGE = { W: 0.86, H: 2.17, D: 0.75 }
 /** each fridge's door: how many are at it just now (GuestBar3D), whether the stocker's filling it (its back's hatch held open for him,
  * from the stock room: items 431, 535; its front door before), and whether the player's opened it (a click) */
 // (`rear`: how far its back's doors are open, 0 shut to 1 open past square (item 554: DiningRoom's FridgeDoor keeps it; the stocker waits on it))
-export const FRIDGE_STATE = [{ passing: 0, stocker: false, open: false, rear: 0 }, { passing: 0, stocker: false, open: false, rear: 0 }]
+/** (each fridge: who's passing it, whether its stocker's at its back, its door left open, how far its back's doors are open; and whether the
+ * player's slid its back's doors open from the stock room (item 614, the owner's 「是用拉門式的，這邊可以互動」)) */
+export const FRIDGE_STATE = [{ passing: 0, stocker: false, open: false, rear: 0, rearOpen: false }, { passing: 0, stocker: false, open: false, rear: 0, rearOpen: false }]
 /** the stock room's noren: how many are passing through it just now (the stocker), its cloth swung aside by them */
 export const STORE_STATE = { passing: 0, push: 0 }
 if (import.meta.env?.DEV && typeof window !== 'undefined') (window as unknown as { __storeState?: typeof STORE_STATE }).__storeState = STORE_STATE

@@ -341,9 +341,9 @@ back = [box("back-b", bx0, bx1, by0, HY0, zb, zb + T, "shell"), box("back-t", bx
         # (the lit face round the opening: the sides' pieces a millimetre into those over and under it (no hairline where they meet; the same
         # picture there both ways))
         liner_back("liner-back-b", ix0, ix1, open_y0, HY0), liner_back("liner-back-t", ix0, ix1, HY1, open_y1),
-        liner_back("liner-back-l", ix0, HX0, HY0 - 0.001, HY1 + 0.001), liner_back("liner-back-r", HX1, ix1, HY0 - 0.001, HY1 + 0.001),
-        box("trim-b", HX0 - TR, HX1 + TR, HY0 - TR, HY0, zb - 0.002, zb, "metal"), box("trim-t", HX0 - TR, HX1 + TR, HY1, HY1 + TR, zb - 0.002, zb, "metal"),
-        box("trim-l", HX0 - TR, HX0, HY0, HY1, zb - 0.002, zb, "metal"), box("trim-r", HX1, HX1 + TR, HY0, HY1, zb - 0.002, zb, "metal")]
+        liner_back("liner-back-l", ix0, HX0, HY0 - 0.001, HY1 + 0.001), liner_back("liner-back-r", HX1, ix1, HY0 - 0.001, HY1 + 0.001)]
+# (no steel trim round the opening (item 614, the owner's 「冰箱後面沒有白邊，是用拉門式的」: it read as a white frame round the doors from the
+# stock room): the back's black runs right to the opening's edge, the sliding doors over it as they were)
 fridge_back = join(back, "FridgeBack")
 # (the doors: the left on the outer track (2.1 to 0.3 cm out from the back, clear of the trim's 2 mm), the right on the inner (0.3 to 2.1
 # cm in it), 6 mm between them; each its black panel from the opening's side to HO past the middle, its piece of the lit face a millimetre
