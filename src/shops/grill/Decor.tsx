@@ -1331,7 +1331,11 @@ function Warmer() {
     // (its cupboards' doors left whole, each on its hinge, to be opened (item 130, the owner's, 2026-11-15: "the doors under the counter all
     // open"); the rest drawn by material)
     const isDoor = (o: THREE.Object3D) => /^WarmerDoor\d$/.test(o.name)
-    mergeByMaterial(r, isDoor)
+    // (and what's kept in its cupboards (blender/warmer.py's WarmerStores: the stock pot, the stacks of soup bowls, the dishes, the trays, 3,494
+    // triangles and their ink) kept apart too: behind shut doors, dark inside, nothing of it can be seen; drawn only while a door's open (item 601))
+    mergeByMaterial(r, (o) => isDoor(o) || o.name === 'WarmerStores')
+    const kept = r.getObjectByName('WarmerStores') ?? null
+    if (kept) kept.visible = false
     const doors: THREE.Object3D[] = []
     r.traverse((o) => { if (isDoor(o)) doors.push(o) })
     doors.sort((a, b) => a.name.localeCompare(b.name))
@@ -1394,7 +1398,7 @@ function Warmer() {
     // (its program made at load, as the veils' are: shown only once a door's opened)
     warmLater(new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.01, 0.01), PANTRY_LABEL))
     const pantry = { cups, stores, at: -1, lang: '' }
-    return { root: r, doors, shut, cells, glow: mats.find((m) => m.name === 'WarmerGlow'), lamp: mats.find((m) => m.name === 'WarmerLamp'), pantry }
+    return { root: r, doors, shut, cells, glow: mats.find((m) => m.name === 'WarmerGlow'), lamp: mats.find((m) => m.name === 'WarmerLamp'), pantry, kept }
   }, [gltf, pantryGltf])
   /** each door: whether it's to be open, and how far it is (0 shut .. 1 open) */
   const open = useRef<boolean[]>([])
@@ -1442,6 +1446,8 @@ function Warmer() {
     const o0 = openOf(0), o1 = openOf(1)
     P.cups[0].visible = o0
     P.cups[1].visible = o1
+    // (what's kept in the cupboards: shown while any of their doors is open (item 601))
+    if (model.kept) model.kept.visible = o0 || o1 || openOf(2)
     if ((o0 || o1) && now - P.at > 500) {
       P.at = now
       for (const s of P.stores) {
