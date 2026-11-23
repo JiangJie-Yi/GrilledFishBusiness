@@ -7,13 +7,15 @@
 // one plate's luck). Item 53, an ordinary evening at x2 for 240 s, two runs each: dirty plates at seats at any moment 3.92 before, 0.92 after.
 //
 //   npm run dev     (in another terminal)
-//   node tests/e2e/flowhealth.mjs     (WATCH=<ms> default 240000; CALM=1 the usual crowd; AT=<min>; STUCK=<shop minutes> listed over;
+//   node tests/e2e/flowhealth.mjs     (WATCH=<ms> default 240000; CALM=1 the usual crowd; AT=<min>; STUCK=<shop minutes> listed over; FATIGUE=<n> the crew that worn;
 //                                      NOKITCHEN=1 the cook's menu without the kitchen's own dishes)
 import { boot, openShop, rush } from './shop.mjs'
 // (NOKITCHEN=1: the cook's menu made without the stove's, the fryer's and the board's dishes (App's dev flag), an evening to weigh against)
 const { browser, page: p } = await boot({ width: 1280, height: 800, before: process.env.NOKITCHEN ? (pg) => pg.addInitScript(() => { window.__noKitchen = true }) : undefined })
 await openShop(p, { x2: true, at: +(process.env.AT ?? 17 * 60) })
 if (!process.env.CALM) await rush(p)
+// (FATIGUE=<0..100>: every one hired that worn from the start (App's __fatigue; 85 and over works at half pace), the deep night's crew to weigh against a fresh one (item 597))
+if (process.env.FATIGUE) await p.evaluate((v) => window.__fatigue?.(v), +process.env.FATIGUE)
 await p.evaluate(() => {
   const A = window.__st = { samples: 0, guest: {}, run: {}, takeout: {}, counts: {}, long: [], sum: { dirty: 0, ready: 0, bench: 0, waiting: 0 } }
   const since = new Map()
