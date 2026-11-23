@@ -158,13 +158,20 @@ export function nextChore({ duty, serve, dirty, sink, rack, dryer, drain = NO_DR
   /** the bowls, chopsticks and renge (game/ware, item 600): how many wait in the sink to go in the washer (`sink`: they go with its plates;
    * `wash`: enough of them to go in by themselves, or a kind run short), how many washed ones are in it, and whether a kind's run short in
    * the cabinets with some of it washed or waiting (`urgent`: as the racks bare, taken out and washed first) */
-  wares?: { sink: number; wash: boolean; washer: number; urgent: boolean } }): Chore {
+  wares?: { sink: number; wash: boolean; washer: number; urgent: boolean; out?: boolean } }): Chore {
   const dish = duty !== 'floor', floor = duty !== 'dish'
   const late = dirty > 0 && dirtyAge >= CLEAR_LATE
+  const dried = dryer.left === 0 && dryer.n + (wares?.washer ?? 0) > 0, drained = drain.left === 0 && drain.n > 0
+  // (a kind of bowl or the chopsticks with none clean left, some of it in the sink or the washer (`out`): the dishes' server sees to it first,
+  // before carrying food, the floor's server carrying it meanwhile (the Tester's, item 600: all the rice bowls in the sink, they came back
+  // in 67 s, both servers carrying food all the while); one server alone still carries the food first)
+  if (duty === 'dish' && wares?.out) {
+    if (dried) return 'unload'
+    if (washNow(Math.max(1, sink), 0, dryer)) return 'wash'
+  }
   // (not before a plate's carried out, though someone's waiting on the bench for the seat: tried (item 53), the plates ready at the plating
   // place waited 72 of the shop's minutes for a server, not 20, and those waiting for their food 128, not 96; the seat freed little sooner)
   if (serve) return 'serve'
-  const dried = dryer.left === 0 && dryer.n + (wares?.washer ?? 0) > 0, drained = drain.left === 0 && drain.n > 0
   const bare = rack === 0 || !!wares?.urgent
   if (dish && dried && bare) return 'unload'
   if (dish && drained && rack === 0) return 'unbasket'

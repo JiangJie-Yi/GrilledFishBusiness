@@ -100,7 +100,7 @@ import { WARM_TUB_HOLDS, keptWarm } from '@/game/takeout'
 import { MAKE_S, SOUP_BOWLS, emptyPot, heatNow, heatRate, potTick, setSoup, soupGoes, soupReady, takeBowl, topUpGoes } from '@/game/soup'
 import { RICE_BEATS, SOUP_BEATS, beatsLength } from '@/game/sides'
 import { SeatBowls, fillRice, fillSoup, ladleRest, leftOf, paddleRest, riceFillPose, soupFillPose, useSideProps, type FillAt, type FillPose, type WareAt } from './SideBowls'
-import { addWares, cabinetAtStart, canFill, layPlace, noWares, takeForFill, wareCount, wareIntoWasher, wareTrip, wareUrgent, wareWashNow, type Wares } from '@/game/ware'
+import { addWares, cabinetAtStart, canFill, layPlace, leftAdded, noWares, takeForFill, wareCount, wareIntoWasher, wareOut, wareTrip, wareUrgent, wareWashNow, type Wares } from '@/game/ware'
 import { bottleClink, lightSwitchSound, plateClink, plateDownSound, scrubSound, slideDoorSound, stoolSound, tapTurnSound, washSplash } from './restroomSound'
 import { LAST_CALL, ON_DUTY, SHOP, clockIn } from '@/game/shopState'
 import { flowerBuffs } from '@/game/shrineFlowers'
@@ -5096,7 +5096,9 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     // bowl's 0.073 round here, the pot's 0.058: the bowls in its two front corners, the pot in a back one, a couple of centimetres off the walls)
     const at = (x: number, z: number) => f.worldToLocal(basin.localToWorld(new THREE.Vector3(x, -0.08, z)))
     const a = at(0, 0), b = at(1, 0)
-    sinkWare.current = { t: now, rice: at(-0.225, 0.195), soup: at(0.225, 0.195), pot: at(-0.24, -0.21), yaw: Math.atan2(-(b.z - a.z), b.x - a.x) }
+    // (its walls' inner faces at x 0.31 and z 0.28 either way, its corners rounded 0.05 round (measured: tests/e2e/_basin601.mjs): the pot
+    // 0.05 clear of both walls, out of its back corner's round (at -0.24, -0.21 it went 1.5 to 3 cm into it: the Tester's clips, item 600))
+    sinkWare.current = { t: now, rice: at(-0.225, 0.195), soup: at(0.225, 0.195), pot: at(-0.2, -0.17), yaw: Math.atan2(-(b.z - a.z), b.x - a.x) }
     return sinkWare.current
   }
   /** a place's pair's piece (BarTableware's chop-pair-<seat>), found once */
@@ -7367,8 +7369,15 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     // it; their plate taken already, or none, on its own for a server to clear (a 'bare' run: no plate drawn))
     if (SEAT_LEFT.size) {
       for (const [seat, left] of SEAT_LEFT) {
-        const r = runs.current.find((x) => x.seat === seat && (x.phase === 'dirty' || (x.phase === 'clear' && x.t < 0)))
-        if (r) r.ware = addWares(r.ware ?? noWares(), left)
+        const atSeat = runs.current.filter((x) => x.seat === seat && (x.phase === 'dirty' || (x.phase === 'clear' && x.t < 0)))
+        const r = atSeat[0]
+        // (the place's one pair counted once, whichever of what's still at it holds it: one who sat at it uncleared ate with the pair already
+        // on its rest (the Tester's, item 600: 61 pairs, two customers' leftovers each a pair))
+        if (r) {
+          const pair = atSeat.reduce((n, x) => n + (x.ware?.chops ?? 0), 0)
+          const add = leftAdded({ ...noWares(), chops: pair }, left)
+          r.ware = addWares(r.ware ?? noWares(), { ...add, chops: add.chops - pair })
+        }
         else if (seats[seat]) {
           const by = waiters.current.length > 0
           runs.current.push({ key: ++runSeq.current, seat, guest: -1, phase: by ? 'dirty' : 'clear', t: by ? 0 : -CLEAR_DELAY, from: plateAt(seat), bare: true, ware: left, dirt: 0, sticks: 0, bones: 0 })
@@ -8765,7 +8774,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
             dirtyAge: dirtyNow.reduce((m, r) => Math.max(m, r.t), 0),
             // (the bowls, the renge and the chopsticks in the sink and the washer (item 600))
             wares: atSink ? undefined : { sink: wareCount(WARE.sink), wash: wareWashNow(WARE.sink, WARE.cab), washer: wareCount(WARE.washer),
-              urgent: wareUrgent(addWares(WARE.sink, WARE.washer), WARE.cab) } })
+              urgent: wareUrgent(addWares(WARE.sink, WARE.washer), WARE.cab), out: wareOut(addWares(WARE.sink, WARE.washer), WARE.cab) } })
           if (chore === 'serve') {
             // (across the kitchen to the chef for it)
             w.slot = slot

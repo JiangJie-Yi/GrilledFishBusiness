@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { CARRY_BOWLS, WARE_ALL, WARE_WASH_AT, WASHER_BOWLS, cabinetAtStart, canFill, layPlace, leftBehind, noWares, shortOf, sinkWareSays, takeForFill,
+import { CARRY_BOWLS, WARE_ALL, WARE_LOW, WARE_WASH_AT, WASHER_BOWLS, cabinetAtStart, canFill, layPlace, leftAdded, leftBehind, lowOf, noWares, shortOf, sinkWareSays, takeForFill,
   wareIntoWasher, wareTotal, wareTrip, wareUrgent, wareWashNow, type Wares } from '@/game/ware'
 import { TABLEWARE } from '@/game/tableware'
 import { nextChore, type Dryer } from '@/game/plates'
@@ -24,6 +24,11 @@ feature('飯碗、湯碗、湯匙、筷子也要洗（店主 2026-11-23：「這
     but('東西還沒來就生氣走了：筷子沒用過，留在筷架上不用洗', () => {
       expect(leftBehind({ rice: false, soup: false, ate: false })).toEqual(noWares())
     })
+  })
+  scenario('座位還沒收、下一位客人就坐下吃了：碗是各自的，筷子是筷架上同一雙，只算一雙', ({ then, and }) => {
+    const first = leftBehind({ rice: true, soup: true, ate: true }), second = leftBehind({ rice: true, soup: false, ate: true })
+    then('兩個飯碗、一個湯碗、一支湯匙、一雙筷子', () => { expect(leftAdded(first, second)).toEqual({ rice: 2, soup: 1, renge: 1, chops: 1 }) })
+    and('座位上沒有留下的：照客人留下的算', () => { expect(leftAdded(noWares(), second)).toEqual(second) })
   })
   scenario('盛飯、盛湯要用櫃裡乾淨的碗，湯還要一支湯匙', ({ then, and, but }) => {
     then('櫃裡都有：飯、湯都能盛', () => { expect(canFill(cabinetAtStart(8))).toEqual({ rice: true, soup: true }) })
@@ -71,6 +76,11 @@ feature('碗與餐具走洗碗機（瀝水籃整個寬度是盤子的梳架，�
     and('櫃裡沒有乾淨的筷子、水槽裡有：馬上洗', () => { expect(wareWashNow(w({ chops: 1 }), { ...cab, chops: 0 })).toBe(true) })
     but('不到一架、櫃裡都還有：等跟盤子一起洗（只為幾個碗開洗碗機，後來的盤子只能手洗）', () => { expect(wareWashNow(w({ rice: 2, soup: 2, renge: 2 }), cab)).toBe(false) })
     and('用完的那種在洗碗機裡洗好了：算急件', () => { expect(wareUrgent(w({ soup: 2 }), { ...cab, soup: 0 })).toBe(true) })
+    and(`快用完了（飯碗剩 ${WARE_LOW.rice} 個以下、筷子剩 ${WARE_LOW.chops} 雙以下）也先洗，不等到一個都沒有`, () => {
+      expect(wareWashNow(w({ rice: 1 }), { ...cab, rice: WARE_LOW.rice })).toBe(true)
+      expect(lowOf({ ...cab, chops: WARE_LOW.chops })).toEqual(['chops'])
+    })
+    but('還夠用：照常等一架', () => { expect(wareUrgent(w({ rice: 1 }), { ...cab, rice: WARE_LOW.rice + 1 })).toBe(false) })
     and('用完的是哪幾種', () => { expect(shortOf(w({ rice: 2, chops: 1 }))).toEqual(['soup', 'renge']) })
   })
   scenario(`洗好的一趟最多端 ${CARRY_BOWLS} 個碗回碗盤櫃，筷子湯匙一次全帶`, ({ then, and }) => {
@@ -101,6 +111,13 @@ feature('管洗碗的也照顧碗與餐具', () => {
     and('櫃裡缺的那種在裡面：比收座位還優先', () => {
       expect(nextChore({ ...base, duty: 'all', dirty: 2, dryer: { n: 0, left: 0 }, wares: { sink: 0, wash: false, washer: 3, urgent: true } })).toBe('unload')
     })
+  })
+  scenario('櫃裡有一種一個都不剩、水槽或洗碗機裡有：管洗碗的先去處理，菜交給管外場的端', ({ then, and, but }) => {
+    const out = { sink: 6, wash: true, washer: 0, urgent: true, out: true }
+    then('有菜要端：管洗碗的還是先去洗', () => { expect(nextChore({ ...base, serve: true, wares: out })).toBe('wash') })
+    and('洗碗機裡洗好了：先拿出來', () => { expect(nextChore({ ...base, serve: true, dryer: { n: 0, left: 0 }, wares: { ...out, sink: 0, washer: 6 } })).toBe('unload') })
+    but('管外場的：照樣先端菜', () => { expect(nextChore({ ...base, duty: 'floor', serve: true, wares: out })).toBe('serve') })
+    but('只有一位外場：先端菜', () => { expect(nextChore({ ...base, duty: 'all', serve: true, wares: out })).toBe('serve') })
   })
   scenario('盤子的流程不變（沒有碗與餐具時）', ({ then }) => {
     then('盤子 5 個：洗', () => { expect(nextChore({ ...base, sink: 5 })).toBe('wash') })

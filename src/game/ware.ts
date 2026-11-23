@@ -43,8 +43,18 @@ export const layPlace = (cab: Readonly<Wares>) => (cab.chops > 0 ? { cab: { ...c
 
 /** the kinds none of which is clean in the cabinets now: what needs them waits */
 export const shortOf = (cab: Readonly<Wares>): WareKind[] => WARE_KINDS.filter((k) => cab[k] <= 0)
-/** whether any of `where`'s is of a kind run short (washing it, taking it back, comes first) */
-export const wareUrgent = (where: Partial<Wares>, cab: Readonly<Wares>) => shortOf(cab).some((k) => (where[k] ?? 0) > 0)
+/** how few clean ones of a kind left in the cabinets count as running low: its washing comes first, before it runs out (a rackful of bowls
+ * and their renge, a pair for every place). Waiting for none: all the rice bowls dumped in the sink came back in 67 s, the floor kept busy
+ * and the washing put after it, the cabinets at 0 to 4 meanwhile (the Tester's, item 600) */
+export const WARE_LOW: Readonly<Wares> = { rice: 4, soup: 4, renge: 4, chops: 8 }
+export const lowOf = (cab: Readonly<Wares>): WareKind[] => WARE_KINDS.filter((k) => cab[k] <= WARE_LOW[k])
+/** whether any of `where`'s is of a kind none of which is clean (what needs it waits on it: the dishes' server sees to it before carrying food) */
+export const wareOut = (where: Partial<Wares>, cab: Readonly<Wares>) => shortOf(cab).some((k) => (where[k] ?? 0) > 0)
+/** whether any of `where`'s is of a kind running low (washing it, taking it back, comes first) */
+export const wareUrgent = (where: Partial<Wares>, cab: Readonly<Wares>) => lowOf(cab).some((k) => (where[k] ?? 0) > 0)
+/** a customer's leftovers added to what's still at their place uncleared: their bowls and renge their own, but the place has the one pair of
+ * chopsticks (one who sat at it uncleared ate with the pair already on the rest): never more than the one pair to be cleared from it */
+export const leftAdded = (at: Readonly<Wares>, left: Readonly<Wares>): Wares => ({ ...addWares(at, left), chops: Math.min(1, at.chops + left.chops) })
 
 /** the washer's rack for bowls besides its plates' (game/plates' DRYER_CAP), how many it holds; its cutlery basket takes all there are */
 export const WASHER_BOWLS = 6
@@ -63,7 +73,7 @@ export function wareIntoWasher(sink: Readonly<Wares>, washer: Readonly<Wares>, r
   const s = { ...sink }, w = { ...washer }
   if (running) return { sink: s, washer: w, moved: null }
   if (bowlCount(w) < WASHER_BOWLS) {
-    const short = cab ? shortOf(cab) : []
+    const short = cab ? lowOf(cab) : []
     const order: ('rice' | 'soup')[] = short.includes('soup') && !short.includes('rice') ? ['soup', 'rice'] : ['rice', 'soup']
     for (const k of order) if (s[k] > 0) { s[k]--; w[k]++; return { sink: s, washer: w, moved: k } }
   }
