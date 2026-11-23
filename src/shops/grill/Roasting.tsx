@@ -4489,7 +4489,9 @@ const BossFuton = memo(function BossFuton() {
     // the morning as he throws it back)
     const cv = ease(f.cover) * (1 - fold)
     const kl = 1 / 3 + (2 / 3) * cv
-    parts.kake.scale.set(1, 0.35 + 0.65 * cv, kl)
+    // (its swell up to his full height as soon as it's being pulled over him (item 631, the owner's 「睡覺動畫有破綻」: risen with its
+    // length, half pulled up it was half his height, and his shirt and his hands came out through its top)
+    parts.kake.scale.set(1, 0.35 + 0.65 * ease(Math.min(1, cv / 0.2)), kl)
     // (its picture as long as what's shown of it, its head's band at its head (item 474, the owner's 「棉被被拉開的時候破圖了」: shortened, the
     // whole picture was squeezed into it, the crosses a third their size and running, as it was pulled up over him))
     if (parts.kakeMap) { parts.kakeMap.repeat.set(1, kl); parts.kakeMap.offset.set(0, 1 - kl) }

@@ -176,8 +176,8 @@ type BedTrip = { phase: 'off' | 'go' | 'lay' | 'sleep' | 'rise' | 'back'; pts: T
   foot: THREE.Vector3; feet: THREE.Vector3; off: THREE.Vector3; head: THREE.Vector3; bar: number; lie: number
   /** (item 624) shaken awake with nothing to get up for: till when he stirs, sits up a little and lies down again; till when he's shaken */
   stir?: number; shake?: number }
-/** (item 624) how far he's sat up, stirring (0 lying .. ~0.55): up and back down over STIR_MS */
-const stirUp = (bd: BedTrip) => { const left = (bd.stir ?? 0) - performance.now(); if (left <= 0) return 0; const k = 1 - left / STIR_MS; return 0.55 * Math.sin(Math.PI * k) }
+/** (item 624) how far he lifts, stirring (0 lying .. 0.08: a stir under the quilt, not a sit up through it, item 631): and down over STIR_MS */
+const stirUp = (bd: BedTrip) => { const left = (bd.stir ?? 0) - performance.now(); if (left <= 0) return 0; const k = 1 - left / STIR_MS; return 0.08 * Math.sin(Math.PI * k) }
 /** scratch for carrying him (item 635): the pointer on the screen, its ray, the floor's plane, where it meets */
 const RAY_NDC = new THREE.Vector2(), CARRY_RAY = new THREE.Raycaster(), CARRY_PLANE = new THREE.Plane(), CARRY_AT = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0)
 /** how far in from the futon's foot his feet go as he lies down, so his head comes to the pillow (the bar's units) */
@@ -744,16 +744,18 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
           if (beat.phase === 'asleep') { bd.phase = 'sleep'; BOSS_BODY.bed = 'asleep'; BOSS_BODY.since = performance.now(); setAsleep(true) }
         }
       } else if (bd.phase === 'sleep') {
-        // (item 624: shaken with nothing to get up for: the quilt slides off him as he sits up a little, and back up as he lies down)
-        bd.lie = 1; ff.cover = 1 - 0.55 * stirUp(bd)
+        // (item 624: shaken with nothing to get up for: he lifts a little and settles again, the quilt left over him (item 631: sat up
+        // half way with it slid down, he came up through it))
+        bd.lie = 1; ff.cover = 1
         if (wakesUp(BOSS_BODY.fatigue, BOSS_BED.wanted || BOSS_BED.callAt > BOSS_BODY.since)) { bd.phase = 'rise'; bd.t = 0; BOSS_BODY.bed = 'rising'; BOSS_BODY.since = performance.now(); setAsleep(false) }
       } else if (bd.phase === 'rise') {
         bd.t += dt
         const beat = riseBeat(bd.t)
         if (beat.phase === 'sit') {
-          // (the quilt thrown back as he sits up)
-          ff.cover = 1 - easeIO(beat.k)
-          bd.lie = 1 - 0.62 * easeIO(beat.k)
+          // (the quilt thrown back off him first, as he lies, then up he sits (item 631, the owner's 「睡覺動畫有破綻」: he sat up as it was
+          // thrown back, through it, his arms and his shirt out through its top))
+          ff.cover = 1 - easeIO(Math.min(1, beat.k / 0.45))
+          bd.lie = 1 - 0.62 * easeIO(Math.max(0, (beat.k - 0.45) / 0.55))
         } else if (beat.phase === 'stand') {
           // (up onto his feet, a step back off it to its foot, turned to fold it)
           ff.cover = 0
