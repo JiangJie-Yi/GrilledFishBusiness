@@ -9,10 +9,19 @@ export type GlyphId =
   | 'fast' | 'menu' | 'close' | 'minus' | 'chevL' | 'chevR' | 'caretR' | 'caretD' | 'refresh' | 'undo'
   | 'note' | 'notes' | 'heart' | 'coin' | 'bolt' | 'drop' | 'receipt' | 'tissue' | 'globe' | 'box'
   | 'tools' | 'person' | 'group' | 'search' | 'arrowR' | 'arrowU' | 'ban' | 'plus' | 'eye' | 'gamepad' | 'thumb' | 'towel' | 'soap' | 'check' | 'calendar' | 'list' | 'people'
-  | 'fish' | 'steam' | 'crossFace' | 'gladFace' | 'climb'
+  | 'fish' | 'steam' | 'crossFace' | 'gladFace' | 'climb' | 'handOpen' | 'handShake' | 'handFist'
 
 const S = 1.6
 export const GLYPHS: Record<GlyphId, GlyphPart[]> = {
+  // (item 624, the owner's 「hover 會變成手的符號，需另外設計 cursor」: the hands for taking hold of the owner. Open: four fingers up off a round
+  // palm, the thumb out to the left; shaking: the same smaller with a swing mark either side; closed: the fingers folded over, their
+  // knuckles' lines cut in)
+  handOpen: [{ d: 'M5 8.4V3.6M7.4 8V2.6M9.8 8V3M12 8.8V4.8', stroke: 1.9 }, { d: 'M4 8.2h9.2v3.3a3.3 3.3 0 0 1-3.3 3.3H7.3A3.3 3.3 0 0 1 4 11.5Z' },
+    { d: 'M4.6 10.6 2.3 8', stroke: 1.9 }],
+  handShake: [{ d: 'M6 8.6V4.6M8 8.2V3.8M10 8.2V4.2M11.8 8.8V5.6', stroke: 1.6 }, { d: 'M5.2 8.4h7.4v2.8a2.8 2.8 0 0 1-2.8 2.8H8a2.8 2.8 0 0 1-2.8-2.8Z' },
+    { d: 'M5.6 10.4 3.8 8.4', stroke: 1.6 }, { d: 'M1.6 5.6a6.5 6.5 0 0 0 0 5.4M15 5.6a6.5 6.5 0 0 1 0 5.4', stroke: 1.1 }],
+  handFist: [{ d: 'M4 6.6h8.6a1.6 1.6 0 0 1 1.6 1.6v3.3a3.3 3.3 0 0 1-3.3 3.3H7.3A3.3 3.3 0 0 1 4 11.5Z' },
+    { d: 'M6.7 6.9v2.2M9.1 6.9v2.2M11.5 6.9v2.2', stroke: 0.8, cut: true }, { d: 'M4.5 9.8 2.9 8.3', stroke: 1.8 }],
   // (fast forward: two filled wedges, nose to tail)
   fast: [{ d: 'M1.8 3.4 8 8 1.8 12.6Z' }, { d: 'M8 3.4 14.2 8 8 12.6Z' }],
   // (the tools' menu: three bars)

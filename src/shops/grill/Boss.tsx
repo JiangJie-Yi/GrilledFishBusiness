@@ -21,7 +21,8 @@ import { BOSS_BODY, bossWorn, layBeat, riseBeat, sleepsDown, wakesUp } from '@/g
 import { footDust, newSteps } from '@/scene/DustPuffs'
 const FEET = new THREE.Vector3()
 import { RUSH, SPEAKERS, STAFF_TALK } from '@/game/shopState'
-import { FigureHit } from '@/scene/FigureHit'
+import { FigureHit, GRABBING } from '@/scene/FigureHit'
+import { glyphCursor } from '@/ui/glyphs'
 import { Glyph } from '@/ui/GameIcons'
 /** the skin's own colour on a figure (its BossSkin material's) */
 const skinOf = (r: THREE.Object3D) => {
@@ -31,8 +32,15 @@ const skinOf = (r: THREE.Object3D) => {
 }
 /** his name tag's words: his role, and his name when he's been given one */
 const bossName = () => SPEAKERS.get('owner') ?? '老闆'
-/** what a click on him does, in the page's language (item 376) */
-const outfitHint = () => { const l = document.documentElement.lang; return l.startsWith('ja') ? 'クリック：着替える' : l.startsWith('en') ? 'Click: change his clothes' : '點一下：換衣服' }
+/** what's said of him as the pointer's over him, in the page's language: asleep, a press shakes him awake (item 624); up and about, he's
+ * taken hold of and carried (item 635). His clothes are chosen upstairs at the closet or the chest (item 636, the owner's 「老闆的衣服要上
+ * 樓點衣櫃才能」: a click on him opened them) */
+const pick3 = (zh: string, ja: string, en: string) => { const l = document.documentElement.lang; return l.startsWith('ja') ? ja : l.startsWith('en') ? en : zh }
+/** the hands over him (item 624, the owner's 「hover 會變成手的符號，需另外設計 cursor」): shaking him awake, taking hold, holding him up */
+const CURSOR_SHAKE = glyphCursor('handShake', [8, 8]), CURSOR_GRAB = glyphCursor('handOpen', [8, 8]), CURSOR_HOLD = glyphCursor('handFist', [8, 8])
+/** (item 624) how long he stirs, woken with nothing to get up for, before he's off again (ms); (item 635) how high he's held off the floor
+ * as he's carried (his parent's units); how near his round's line he must be let down to stand there (else he's put back where he was) */
+const STIR_MS = 2600, CARRY_UP = 0.16, SNAP_TO_ROUND = 0.45
 import { crewFaceSheet, crewFrame, faceRange, markFace, ownShape, setFace, squash as jelly, type CrewFace } from '@/scene/faceSheet'
 import { faceNow, newFaceLife, type FaceLife } from '@/game/faceLife'
 import { turnEase } from './commuteWalk'
@@ -165,7 +173,13 @@ const WALK_SPEED = 0.9
 /** (item 444) his way to his futon the nights he's worn out, and back: where he is along it; laying it down, asleep, getting up; where its
  * foot is and where he lies down on it (his own frame); how far he's lain back (0 standing .. 1 on his back) */
 type BedTrip = { phase: 'off' | 'go' | 'lay' | 'sleep' | 'rise' | 'back'; pts: THREE.Vector3[]; len: number; d: number; t: number
-  foot: THREE.Vector3; feet: THREE.Vector3; off: THREE.Vector3; head: THREE.Vector3; bar: number; lie: number }
+  foot: THREE.Vector3; feet: THREE.Vector3; off: THREE.Vector3; head: THREE.Vector3; bar: number; lie: number
+  /** (item 624) shaken awake with nothing to get up for: till when he stirs, sits up a little and lies down again; till when he's shaken */
+  stir?: number; shake?: number }
+/** (item 624) how far he's sat up, stirring (0 lying .. ~0.55): up and back down over STIR_MS */
+const stirUp = (bd: BedTrip) => { const left = (bd.stir ?? 0) - performance.now(); if (left <= 0) return 0; const k = 1 - left / STIR_MS; return 0.55 * Math.sin(Math.PI * k) }
+/** scratch for carrying him (item 635): the pointer on the screen, its ray, the floor's plane, where it meets */
+const RAY_NDC = new THREE.Vector2(), CARRY_RAY = new THREE.Raycaster(), CARRY_PLANE = new THREE.Plane(), CARRY_AT = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0)
 /** how far in from the futon's foot his feet go as he lies down, so his head comes to the pillow (the bar's units) */
 const FEET_IN = 0.29
 /** lain on his back, how far up off the floor his pivot (his feet's middle) comes: the mattress and his back's depth (the bar's units) */
@@ -531,10 +545,15 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
   const palmY = useRef({ r: NaN, l: NaN })
   const st = useRef({ last: 0, phase: 0, t: 0, x: 0, z: 0, yaw: 0, stride: 0, blinkAt: 2, blinks: 0, y: 0, vy: 0, ground: 0, probeAt: -1, probeX: 0, probeZ: 0, probeEdit: false })
   const bed = useRef<BedTrip>({ phase: 'off', pts: [], len: 0, d: 0, t: 0, foot: new THREE.Vector3(), feet: new THREE.Vector3(), off: new THREE.Vector3(), head: new THREE.Vector3(), bar: 1, lie: 0 })
+  /** (item 635, the owner's 「老闆可以用滑鼠左鍵拖曳」) him carried by the pointer: where it is, where he was taken from (his parent's frame);
+   * let go, where he's settling to and till when */
+  const carry = useRef<{ on: boolean; px: number; py: number; from: [number, number]; to: [number, number]; until: number } | null>(null)
+  const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null
   // (asleep on it: the Zz over him)
   const [asleep, setAsleep] = useState(false)
   const scene = useThree((s) => s.scene)
   const camera = useThree((s) => s.camera)
+  const gl = useThree((s) => s.gl)
   const ray = useMemo(() => new THREE.Raycaster(), [])
   /** what's under him (in his frame's height): the first solid surface straight down from his middle, anything drawn but himself and the
    * editor's handles; the floor where he stands if nothing's found */
@@ -725,7 +744,8 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
           if (beat.phase === 'asleep') { bd.phase = 'sleep'; BOSS_BODY.bed = 'asleep'; BOSS_BODY.since = performance.now(); setAsleep(true) }
         }
       } else if (bd.phase === 'sleep') {
-        bd.lie = 1; ff.cover = 1
+        // (item 624: shaken with nothing to get up for: the quilt slides off him as he sits up a little, and back up as he lies down)
+        bd.lie = 1; ff.cover = 1 - 0.55 * stirUp(bd)
         if (wakesUp(BOSS_BODY.fatigue, BOSS_BED.wanted || BOSS_BED.callAt > BOSS_BODY.since)) { bd.phase = 'rise'; bd.t = 0; BOSS_BODY.bed = 'rising'; BOSS_BODY.since = performance.now(); setAsleep(false) }
       } else if (bd.phase === 'rise') {
         bd.t += dt
@@ -777,7 +797,28 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     // (his height on his way and at his futon as worked out above: the floor's under his way (the dining room's higher than the kitchen's),
     // not the ground's probe or the kitchen's floor his walk round keeps to)
     const bedY = s.y
-    if (bedOn) {
+    // (item 635: carried by the pointer, or let go and settling where he's put: nothing else moves him meanwhile)
+    const cr = carry.current
+    if (cr && m.parent && !bedOn) {
+      if (cr.on) {
+        const rect = gl.domElement.getBoundingClientRect()
+        RAY_NDC.set(((cr.px - rect.left) / rect.width) * 2 - 1, -((cr.py - rect.top) / rect.height) * 2 + 1)
+        CARRY_RAY.setFromCamera(RAY_NDC, camera)
+        const floorY = m.parent.localToWorld(CARRY_AT.set(0, s.ground, 0)).y
+        if (CARRY_RAY.ray.intersectPlane(CARRY_PLANE.set(UP, -floorY), CARRY_AT)) {
+          m.parent.worldToLocal(CARRY_AT)
+          const k = Math.min(1, dt * 16), vx = (CARRY_AT.x - s.x) * k
+          s.x += vx; s.z += (CARRY_AT.z - s.z) * k
+          b.rotation.z = Math.max(-0.5, Math.min(0.5, -vx * 18))
+        }
+      } else {
+        const k = Math.max(0, Math.min(1, 1 - (cr.until - performance.now()) / 260))
+        s.x += (cr.to[0] - s.x) * k; s.z += (cr.to[1] - s.z) * k
+        if (k >= 1) carry.current = null
+      }
+      act = 'idle'
+      s.t = 0
+    } else if (bedOn) {
       // (his futon (item 444): where he is and which way he faces worked out above; a walk's waddle while he walks)
       speed = bedSpeed
       act = 'idle'
@@ -905,6 +946,8 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
       if (s.y <= s.ground) { s.y = s.ground; s.vy = s.vy < -1.2 ? -s.vy * 0.28 : 0 }
     } else { s.y = s.ground; s.vy = 0 }
     if (bedOn) { s.y = bedY; s.vy = 0 }
+    // (held up off the floor as he's carried (item 635); let go, his fall's the one above, a bounce as he lands)
+    if (carry.current?.on) { s.y = s.ground + CARRY_UP; s.vy = 0 }
     m.position.set(s.x, s.y, s.z)
     m.rotation.y = s.yaw
 
@@ -931,8 +974,9 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     if (bedOn) {
       const bend = bd.phase === 'lay' && bd.lie === 0 && !(ff.unroll >= 1 && ff.pillow >= 1) ? 0.5 : bd.phase === 'rise' && ff.fold > 0 && ff.fold < 1 ? 0.45 : 0
       if (bd.lie > 0) {
-        b.rotation.x = -bd.lie * Math.PI / 2
-        b.rotation.z = 0
+        // (item 624: stirring, he sits up a little and lies down again; shaken, he wobbles where he lies)
+        b.rotation.x = -bd.lie * (1 - stirUp(bd)) * Math.PI / 2
+        b.rotation.z = performance.now() < (bd.shake ?? 0) ? Math.sin(T * 42) * 0.08 : 0
         b.position.y = bd.lie * LIE_LIFT * bd.bar
         if (bd.phase === 'sleep') { const br = Math.sin(T * 1.3) * 0.02; b.scale.set(1 + br, 1, 1 + br * 1.4) }
       } else if (bend) b.rotation.x = bend
@@ -1147,15 +1191,73 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     // (his moustache bobbing: with each breath, and up and down as he talks)
     if (parts.moustache) parts.moustache.position.set(tache.x, tache.y + Math.sin(T * 1.6) * 0.003 + (face === 'talk' ? 0.006 : 0), tache.z)
   })
+  /** (item 624) shaken where he sleeps: up if there's something to get up for (the shop opening, someone at his fire: BOSS_BED.wanted),
+   * else he stirs, mutters and sleeps on */
+  const poke = () => {
+    const bd = bed.current, now = performance.now()
+    bd.shake = now + 380
+    if (BOSS_BED.wanted) { BOSS_BED.callAt = now; return }
+    bd.stir = now + STIR_MS
+    setSay({ text: pick3('嗯……還沒開店吧……讓我再睡一下……', 'んん……まだ開店前だろ……もうちょっと……', 'Mm... not open yet... five more minutes...'), key: Date.now() })
+  }
+  /** (item 635) whether he can be taken up just now: up and about at his round, not mid-task (a piece in his hands, tasting, drinking,
+   * away from his fire) */
+  const canCarry = useMemo(() => () => !getEdit().on && bed.current.phase === 'off' && !OWNER_GRILL.on && !OWNER_OUT.on && !BOSS_TASTE.at && !BOSS_DRINK.at, [])
+  const bossHint = useMemo(() => () => (bed.current.phase === 'sleep' ? pick3('睡著了｜按一下搖醒他（沒事的話會再睡）', '眠っている｜クリックで揺り起こす（用がなければまた寝る）', 'Asleep | click to shake him awake (nothing to do, he sleeps on)')
+    : canCarry() ? pick3('按住拖著走，放回他的走道', 'ドラッグで運べる（通路に下ろす）', 'Drag to carry him (down on his aisle)') : ''), [canCarry])
+  const bossCursor = useMemo(() => () => (bed.current.phase === 'sleep' ? CURSOR_SHAKE : canCarry() ? CURSOR_GRAB : null), [canCarry])
+  /** (item 635) taken up by the pointer: carried after it, held off the floor, swinging; let go, down on his round's line near there and on
+   * with his round from it, or, let go far from it, back where he was taken from */
+  const takeUp = (x: number, y: number, el: HTMLElement | null) => {
+    const s = st.current
+    carry.current = { on: true, px: x, py: y, from: [s.x, s.z], to: [s.x, s.z], until: 0 }
+    if (controls) controls.enabled = false
+    GRABBING.on = true
+    if (el?.style) el.style.cursor = CURSOR_HOLD
+    document.body.style.cursor = CURSOR_HOLD
+    const move = (ev: PointerEvent) => { const c = carry.current; if (c) { c.px = ev.clientX; c.py = ev.clientY } }
+    const up = () => {
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up)
+      if (controls) controls.enabled = true
+      GRABBING.on = false
+      document.body.style.cursor = ''
+      if (el?.style && el.style.cursor === CURSOR_HOLD) el.style.cursor = ''
+      const c = carry.current
+      if (!c) return
+      // (down on the nearest point of his round's line: his place to the aisle's mouth, and along the aisle; too far from it, back)
+      const p: [number, number] = [st.current.x, st.current.z]
+      const segs: [number, number, number, number][] = []
+      if (aisle) {
+        const [mx, mz] = aisle.mouth, [ax, az] = aisle.dir
+        segs.push([0, 0, mx, mz], [mx + ax * aisle.range[0], mz + az * aisle.range[0], mx + ax * aisle.range[1], mz + az * aisle.range[1]])
+      } else segs.push([0, 0, to[0], to[1]])
+      let best: [number, number] = c.from, bestD = Infinity
+      for (const [x0, z0, x1, z1] of segs) {
+        const dx = x1 - x0, dz = z1 - z0, l2 = dx * dx + dz * dz || 1
+        const k = Math.max(0, Math.min(1, ((p[0] - x0) * dx + (p[1] - z0) * dz) / l2))
+        const q: [number, number] = [x0 + dx * k, z0 + dz * k], d = Math.hypot(q[0] - p[0], q[1] - p[1])
+        if (d < bestD) { bestD = d; best = q }
+      }
+      c.on = false
+      c.to = bestD < SNAP_TO_ROUND ? best : c.from
+      c.until = performance.now() + 260
+      if (bestD >= SNAP_TO_ROUND) setSay({ text: pick3('欸欸，我的位子在這邊啦。', 'おいおい、持ち場はこっちだ。', 'Hey now, my place is over here.'), key: Date.now() })
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
   return (
     <group ref={mover} name="BossFollow">
       {children}
       {/* (named as the pointer's over him; never to be dragged) */}
       {/* (clicked: his clothes to choose (item 376, App's panel)) */}
-      <FigureHit title={bossName} hint={outfitHint} onPointerDown={(e) => {
-        if ((e.nativeEvent as PointerEvent).button !== 0) return
+      {/* (item 624: asleep, a press shakes him awake, his own hand over him; item 635: up and about, taken hold of and carried; item 636: his
+          clothes are upstairs, a click on him opened them) */}
+      <FigureHit title={bossName} hint={bossHint} cursor={bossCursor} grabbable={canCarry} onPointerDown={(e) => {
+        if ((e.nativeEvent as PointerEvent).button !== 0 || getEdit().on) return
         e.stopPropagation()
-        window.dispatchEvent(new CustomEvent('jgs-outfit'))
+        if (bed.current.phase === 'sleep') { poke(); return }
+        if (canCarry()) takeUp(e.nativeEvent.clientX, e.nativeEvent.clientY, e.nativeEvent.target as HTMLElement | null)
       }} />
       {/* (what he's muttering, over his head) */}
       {say && !getEdit().on && (

@@ -25,32 +25,39 @@ const NO_CAST = () => {}
 const shownFrom = (o: THREE.Object3D | null) => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true }
 // (item 374: drawn again only when its callbacks are new ones: a customer's are made once for them, GuestBar3D's hitOf)
 export const FigureHit = memo(FigureHitImpl)
-function FigureHitImpl({ title, hint, onPointerDown, grabbable }: { title: () => string; hint?: () => string
+function FigureHitImpl({ title, hint, onPointerDown, grabbable, cursor }: { title: () => string; hint?: () => string
   onPointerDown?: (e: ThreeEvent<PointerEvent>) => void
+  /** the pointer's own picture over them just now (a CSS cursor, item 624: the owner's hands), or none: the plain one */
+  cursor?: () => string | null
   /** whether they can be picked up just now: the open hand over them, and they glow (the owner's), as the things in the room that can */
   grabbable?: () => boolean }) {
   const box = useRef<THREE.Mesh>(null)
   const fits = useRef(0)
   const over = useMemo(() => {
     const w = whoOver(title, hint)
-    if (!grabbable) return w
+    if (!grabbable && !cursor) return w
+    let mine = ''
     return {
       onPointerOver: (e: ThreeEvent<PointerEvent>) => {
         w.onPointerOver(e)
-        if (!grabbable()) return
         const el = e.nativeEvent?.target as HTMLElement | null
-        if (el?.style) el.style.cursor = 'grab'
+        // (their own pointer over them (item 624), else the grabbing hand where they can be taken up)
+        const own = cursor?.() ?? null
+        if (own && el?.style) { el.style.cursor = own; mine = el.style.cursor }
+        if (!grabbable?.()) return
+        if (!own && el?.style) { el.style.cursor = 'grab'; mine = 'grab' }
         glowOn(e.eventObject.parent)
       },
       onPointerOut: (e: ThreeEvent<PointerEvent>) => {
         w.onPointerOut(e)
         if (GRABBING.on) return
         const el = e.nativeEvent?.target as HTMLElement | null
-        if (el?.style && el.style.cursor === 'grab') el.style.cursor = ''
+        if (el?.style && mine && el.style.cursor === mine) el.style.cursor = ''
+        mine = ''
         glowOff(e.eventObject.parent)
       },
     }
-  }, [title, hint, grabbable])
+  }, [title, hint, grabbable, cursor])
   useFrame(() => {
     const me = box.current, p = me?.parent
     if (!me || !p) return
