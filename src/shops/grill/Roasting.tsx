@@ -5442,8 +5442,9 @@ function inkOneLine(p: Piece) {
  * turned out from the fire, so it lies flat, loop and all, on the board. One per model rod and piece, shared by every copy; also where the
  * rod's middle is (its own frame), for laying it centred on the board.
  */
-/** the longest a rod is drawn (in the world); each dish's own is as long as its food reaches up it and a little over for the loop (rodReach) */
-const STICK_LEN = 1.4
+/** the longest a rod is drawn (in the world); each dish's own is as long as its food reaches up it and a little over for the loop (rodReach).
+ * (item 620: 1.4 was too short for a whole fish run through its length, a mackerel's or an aji's: the rod's loop came out of its middle) */
+const STICK_LEN = 2.0
 /** the shortest, and how far past the food's top a rod goes (its loop clear of the food) */
 const STICK_MIN = 0.7, STICK_OVER = 0.16
 const STICK_W = 0.0095
@@ -5463,7 +5464,7 @@ const PULL_MS = 450, PULL_OUT = 1.1
  * size compared again and again"): from where its point goes into the ash up to the top of its food, and STICK_OVER over for its loop,
  * between STICK_MIN and STICK_LEN. Measured on the model's own rod and food as the piece is first found, standing at home
  */
-function rodReach(rod: THREE.Mesh, piece: THREE.Object3D, size: THREE.Vector3) {
+function rodReach(rod: THREE.Mesh, piece: THREE.Object3D, upIn: THREE.Vector3, size: THREE.Vector3) {
   // (in the piece's own frame: a piece is first found drawn at no size, a hidden template, so the world can't measure it; then brought to
   // the world by the size it's shown at (Dish's home) and its parent's)
   const toPiece = (m: THREE.Object3D) => {
@@ -5471,16 +5472,14 @@ function rodReach(rod: THREE.Mesh, piece: THREE.Object3D, size: THREE.Vector3) {
     for (let a: THREE.Object3D | null = m; a && a !== piece; a = a.parent) { a.updateMatrix(); rel.premultiply(a.matrix) }
     return rel
   }
-  const pos = rod.geometry.attributes.position as THREE.BufferAttribute
+  // (its two ends as the iron's drawn on it (rodEnds: its foot in the hearth, its point up), brought into the piece's frame. Item 620, the
+  // owner's 「鐵籤串不好這個好像修很多次了」: its lowest and highest points in the piece's frame were taken for its ends, and where a dish's rod
+  // lies along its piece's X (19 of the 32: the model's skewers run along their pieces' X), those were two points across its thickness:
+  // the food's reach came out a tenth to two thirds of itself, the rod drawn as short as rods go, and the food stood above its loop)
   const v = new THREE.Vector3(), r = toPiece(rod)
-  let lo: THREE.Vector3 | null = null, hi: THREE.Vector3 | null = null
-  for (let i = 0; i < pos.count; i++) {
-    v.fromBufferAttribute(pos, i).applyMatrix4(r)
-    if (!lo || v.y < lo.y) lo = v.clone()
-    if (!hi || v.y > hi.y) hi = v.clone()
-  }
-  if (!lo || !hi) return STICK_LEN
-  const dir = hi.clone().sub(lo).normalize()
+  const ends = rodEnds(rod.geometry, upIn)
+  const lo = ends.foot.clone().applyMatrix4(r)
+  const dir = ends.tip.clone().applyMatrix4(r).sub(lo).normalize()
   let reach = 0
   piece.traverse((o) => {
     const m = o as THREE.Mesh
@@ -5489,23 +5488,27 @@ function rodReach(rod: THREE.Mesh, piece: THREE.Object3D, size: THREE.Vector3) {
     for (let i = 0; i < p.count; i += 3) reach = Math.max(reach, v.fromBufferAttribute(p, i).applyMatrix4(rm).sub(lo!).dot(dir))
   })
   // (every copy of a dish the same rod (the owner's: no rods one long, one short): as long as the largest a copy of it is drawn (Dish
-  // draws them up to 1.22 times their size, 1.12 again in height) needs)
-  void size
-  return THREE.MathUtils.clamp(reach * ROD_COPY_MAX * (piece.parent ? piece.parent.getWorldScale(v).x : 1) + STICK_OVER, STICK_MIN, STICK_LEN)
+  // draws them up to 1.22 times their size, 1.12 again in height) needs. Its reach brought to the world by the size the piece is shown at
+  // along the rod (`size`, its home's) and its parent's: item 620, the piece's own size was left out, and a dish drawn at 0.76 had its loop
+  // twice as far over it as it should, one drawn bigger hardly clear of it)
+  const along = dir.clone().multiply(size).length()
+  return THREE.MathUtils.clamp(reach * along * ROD_COPY_MAX * (piece.parent ? piece.parent.getWorldScale(v).x : 1) + STICK_OVER, STICK_MIN, STICK_LEN)
 }
 /** the largest a copy of a dish is drawn against its model; and each dish's rod length once worked out (by the dish's id) */
 const ROD_COPY_MAX = 1.35
 const ROD_LEN = new Map<string, number>()
-function standardStick(src: THREE.BufferGeometry, scale: THREE.Vector3, turn: THREE.Quaternion, out: THREE.Vector3, upIn: THREE.Vector3, rodLen = STICK_LEN) {
-  const key = [...scale.toArray(), ...turn.toArray(), ...out.toArray(), ...upIn.toArray(), rodLen].map((x) => x.toFixed(3)).join()
-  const mine = RODS.get(src) ?? new Map<string, { geo: THREE.BufferGeometry; mid: THREE.Vector3; out: THREE.Vector3 }>()
-  RODS.set(src, mine)
-  const had = mine.get(key)
-  if (had) return had
+/**
+ * A model rod's two ends, in its own frame: `foot`, where it stands in the hearth (the middle of its lower end), and `tip`, its far point.
+ * Its ends are the farthest two of its points; the model's point is the end whose last few millimetres all close in on one spot, its foot a
+ * ring. The iron's point goes in where the rod stands in the hearth: its lower end, standing on the fire (`upIn`, the way up in the rod's own
+ * frame). The model's own point told it before, and a rod whose two ends were alike was a coin toss: some stood ring first in the sand, the
+ * point up in the air (the owner saw). One lying (a rod across the net) by its point still. Shared by the iron drawn on it (standardStick)
+ * and its length (rodReach, item 620).
+ */
+function rodEnds(src: THREE.BufferGeometry, upIn: THREE.Vector3) {
   const P = src.attributes.position as THREE.BufferAttribute
   const pts: THREE.Vector3[] = []
   for (let i = 0; i < P.count; i++) pts.push(new THREE.Vector3().fromBufferAttribute(P, i))
-  // (its two ends: the farthest two points; the model's point is the end whose last few millimetres all close in on one spot, its foot a ring)
   let a = pts[0], b = pts[0], far = -1
   for (const p of pts) for (const q of pts) { const d = p.distanceToSquared(q); if (d > far) { far = d; a = p; b = q } }
   const axis = b.clone().sub(a).normalize()
@@ -5515,14 +5518,17 @@ function standardStick(src: THREE.BufferGeometry, scale: THREE.Vector3, turn: TH
     return { c, spread: Math.max(...near.map((p) => p.distanceTo(c))) }
   }
   const ea = end(a, -1), eb = end(b, 1)
-  // (the iron's point goes in where the rod stands in the hearth: its lower end, standing on the fire (`upIn`, the way up in the rod's own
-  // frame). The model's own point told it before (the end whose last few millimetres close in on one spot), and a rod whose two ends were
-  // alike was a coin toss: some stood ring first in the sand, the point up in the air (the owner saw). One lying (a rod across the net) by
-  // its point still)
   const rise = eb.c.clone().sub(ea.c).dot(upIn), len = ea.c.distanceTo(eb.c)
   const aLow = Math.abs(rise) > 0.3 * len ? rise > 0 : ea.spread > eb.spread
-  const foot = aLow ? ea.c : eb.c
-  const tip = aLow ? b : a
+  return { foot: (aLow ? ea.c : eb.c).clone(), tip: (aLow ? b : a).clone() }
+}
+function standardStick(src: THREE.BufferGeometry, scale: THREE.Vector3, turn: THREE.Quaternion, out: THREE.Vector3, upIn: THREE.Vector3, rodLen = STICK_LEN) {
+  const key = [...scale.toArray(), ...turn.toArray(), ...out.toArray(), ...upIn.toArray(), rodLen].map((x) => x.toFixed(3)).join()
+  const mine = RODS.get(src) ?? new Map<string, { geo: THREE.BufferGeometry; mid: THREE.Vector3; out: THREE.Vector3 }>()
+  RODS.set(src, mine)
+  const had = mine.get(key)
+  if (had) return had
+  const { foot, tip } = rodEnds(src, upIn)
   const up = tip.clone().sub(foot).normalize()
   // (its flat's face out from the fire: across it, the bar's width and the loop's plane)
   const face = out.clone().addScaledVector(up, -out.dot(up))
@@ -6071,7 +6077,7 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
           .applyQuaternion(m.quaternion.clone().invert()).normalize()
         // (and the way up, there: which of its ends is down in the hearth)
         const upIn = new THREE.Vector3(0, 1, 0).applyQuaternion(p.homeQ0.clone().invert()).divide(sc).applyQuaternion(m.quaternion.clone().invert()).normalize()
-        const rod = standardStick(m.geometry, sc, m.quaternion, outward, upIn, ROD_LEN.get(p.id) ?? ROD_LEN.set(p.id, rodReach(m, p.node, sc)).get(p.id)!)
+        const rod = standardStick(m.geometry, sc, m.quaternion, outward, upIn, ROD_LEN.get(p.id) ?? ROD_LEN.set(p.id, rodReach(m, p.node, upIn, sc)).get(p.id)!)
         m.geometry = rod.geo
         for (const c of m.children) if (c instanceof THREE.Mesh && c.name.endsWith('_outline')) c.geometry = rod.geo
         p.stickMid = rod.mid.clone().applyQuaternion(m.quaternion).add(m.position)
