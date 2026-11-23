@@ -623,7 +623,8 @@ export function SinkPart({ node }: { node: string }) {
     lift.current.position.y += ((node === 'SinkSpongeSet' && SINK.sponge && !HAND_WASH.spongeAt ? SPONGE_UP : 0) - lift.current.position.y) * 0.25
     // (taken up by the owner to wash with (item 174): his hand has it, drawn there)
     // (and in the player's hand over the water (item 458): GuestBar3D draws it there)
-    lift.current.visible = !(node === 'SinkSpongeSet' && (HAND_WASH.spongeHeld || (SINK.sponge && !!HAND_WASH.spongeAt)))
+    // (and on its way back onto its dish as it's let go of (item 606): GuestBar3D draws it there till it lands)
+    lift.current.visible = !(node === 'SinkSpongeSet' && (HAND_WASH.spongeHeld || (SINK.sponge && !!HAND_WASH.spongeAt) || performance.now() < (HAND_WASH.spongeBack ?? 0)))
   })
   /** a drop of the washing-up liquid out of its pump's spout (item 289), as the pump's pressed, flung a little way: into the water if the
    * basin's filled, else onto the sponge (where it's lying, or held up); heard as it's pumped and as it lands */
@@ -644,27 +645,38 @@ export function SinkPart({ node }: { node: string }) {
       // (onto the sponge's top: it's held about its middle, a couple of centimetres thick)
       to = at.clone().add(new THREE.Vector3(0, 0.016, 0))
     }
-    if (!to && wet && pool) to = pool.getWorldPosition(new THREE.Vector3())
+    // (onto the sponge on its dish (item 606: it's only in hand while it's dragged, so it's lying there as the pump's pressed): into the water
+    // only with no sponge there to catch it)
+    let onSponge = false
     if (!to && WASH_GUIDE.sponge) {
       const b = solidBox(WASH_GUIDE.sponge)
       to = b.getCenter(new THREE.Vector3()).setY(b.max.y + 0.002)
+      onSponge = true
     }
+    if (!to && wet && pool) to = pool.getWorldPosition(new THREE.Vector3())
     pumpSound(0.45)
     if (!to) return
     // (out of the spout's end: the pump head's furthest reach toward where it's going, just under its top)
     const c = box.getCenter(new THREE.Vector3()), half = box.getSize(new THREE.Vector3()).multiplyScalar(0.5)
     const way = new THREE.Vector3(to.x - c.x, 0, to.z - c.z).normalize()
     const from = c.clone().add(new THREE.Vector3(way.x * half.x * 0.6, 0, way.z * half.z * 0.6)).setY(box.max.y - 0.012)
-    drip({ from, to, kind: 'dishSoap', delay: 0.05, arc: 0.3, onLand: () => plipSound(0.4, wet) })
+    drip({ from, to, kind: 'dishSoap', delay: 0.05, arc: 0.3, onLand: () => plipSound(0.4, wet && !onSponge) })
   }
-  // (the washing-up liquid squeezed into the water, the sponge taken up or put down: steps of washing up by hand (item 103), clicked)
+  // (the washing-up liquid squeezed onto the sponge, clicked (it's pressed); the sponge pressed and carried while it's held (item 606, the
+  // owner's 「這邊都用拖曳的」: it was clicked up and clicked down): steps of washing up by hand (item 103))
+  const grabSponge = (e: { stopPropagation: () => void; nativeEvent: PointerEvent }) => {
+    e.stopPropagation()
+    if (getEdit().on || e.nativeEvent.button !== 0) return
+    if (HAND_WASH.grabSponge?.(e.nativeEvent.clientX, e.nativeEvent.clientY)) { guideOff(); setTip(null) }
+  }
   if (node === 'SinkDetergentSet' || node === 'SinkSpongeSet') return (
-    <group ref={(g) => { lift.current = g; WASH_GUIDE[node === 'SinkDetergentSet' ? 'soap' : 'sponge'] = g }} onPointerDown={stopPress} onPointerOver={(e) => { if (getEdit().on || HAND_WASH.held) return; tipOver(name, partSays(node)).onPointerOver(e) }}
+    <group ref={(g) => { lift.current = g; WASH_GUIDE[node === 'SinkDetergentSet' ? 'soap' : 'sponge'] = g }} onPointerDown={node === 'SinkSpongeSet' ? grabSponge : stopPress} onPointerOver={(e) => { if (getEdit().on || HAND_WASH.held) return; tipOver(name, partSays(node)).onPointerOver(e) }}
       onPointerOut={(e) => { if (getEdit().on) return; tipOver(name, '').onPointerOut(e) }}
       onClick={(e) => {
         e.stopPropagation(); if (getEdit().on) return
         // (out of the bottle in use, a new one opened from stock as it runs out: none at all, nothing comes (item 203))
-        if (node === 'SinkDetergentSet') { if (squeezeSoap()) { SINK.soap = pumpSoap(SINK.soap); dripSoap() } } else SINK.sponge = !SINK.sponge
+        if (node !== 'SinkDetergentSet') return
+        if (squeezeSoap()) { SINK.soap = pumpSoap(SINK.soap); dripSoap() }
         guideOff()
         window.setTimeout(() => setTip({ title: name, hint: partSays(node) }), 60)
       }}>
@@ -739,8 +751,8 @@ function partSays(node: string) {
     case 'SinkBinSet': return `${BIN_NAME.rubbish} ${binSays('rubbish')}｜${BIN_NAME.recycle} ${binSays('recycle')}`
     // (the name's the tip's title already: not said again at the head of its hint)
     case 'SinkDetergentSet': return IN_USE.soap <= 0 && SUPPLIES.has(DISH_SOAP) === 0 ? '用完了，庫存也沒有：到庫存的耗材訂洗碗精'
-      : `點一下擠一點${SINK.sponge && HAND_WASH.spongeAt ? '在手上的菜瓜布' : SINK.water >= WASH_WET ? '到水裡' : '在菜瓜布上'}，刷得快 ×${SOAP_X}（夠洗 ${SINK.soap} 個；這瓶還能擠 ${IN_USE.soap} 次）`
-    case 'SinkSpongeSet': return SINK.sponge ? '拿在手上了：在泡著的盤子上按住來回刷｜點菜瓜布碟子放回去' : '黃的那面軟，綠的那面刷｜點一下拿起來，在泡著的盤子上按住來回刷'
+      : `點一下擠一點在菜瓜布上，刷得快 ×${SOAP_X}（夠洗 ${SINK.soap} 個；這瓶還能擠 ${IN_USE.soap} 次）`
+    case 'SinkSpongeSet': return '黃的那面軟，綠的那面刷｜按住拖到泡著的盤子上來回刷，放開就放回去'
     default: return ''
   }
 }

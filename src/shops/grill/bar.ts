@@ -1102,13 +1102,19 @@ export const HAND_WASH: { ask: 'wash' | 'take' | null; until: number; boss: bool
   /** a plate in the player's own hand, being washed (item 224): what's under the pointer meanwhile says nothing (the plate says how it's
    * coming on) */
   held: boolean
-  /** a press on the sink's basin starts the washing as a press on the dirty stack does (item 234; GuestBar3D sets it): whether it started */
+  /** a press on the sink's basin starts the washing as a press on the dirty stack does (item 234; GuestBar3D sets it): whether it started;
+   * pressed on the basin with a plate in the water, that plate's taken up out of it to be carried (item 606) */
   take: ((x: number, y: number) => boolean) | null
-  /** (item 458) a plate of the player's lying in the water to be rubbed (a press on the basin rubs it then); where the sponge in the player's
+  /** (item 606, the owner's 「這邊都用拖曳的」) a press on the sponge takes it up, carried after the pointer as long as it's held, rubbing the
+   * plate in the water as it's moved over it, back onto its dish as it's let go of (GuestBar3D sets it): whether it was taken up */
+  grabSponge: ((x: number, y: number) => boolean) | null
+  /** till when (performance.now()) the sponge let go of is on its way back onto its dish (the dish's own stays hidden till it's there) */
+  spongeBack: number
+  /** (item 458) a plate of the player's lying in the water to be rubbed (item 606: a press on the basin takes it up then); where the sponge in the player's
    * hand is, in the world, while it's over the water (the liquid's squeezed onto it there), or null */
   soaking: boolean; spongeAt: THREE.Vector3 | null
   /** (item 459) where the sponge in hand is brought to, till when: under the washing-up liquid's spout as it's pressed, to catch it */
-  spongeTo: { at: THREE.Vector3; until: number } | null } = keep(import.meta.hot, 'HAND_WASH', { ask: null, until: 0, boss: false, spongeHeld: false, stream: null, held: false, take: null, soaking: false, spongeAt: null, spongeTo: null })
+  spongeTo: { at: THREE.Vector3; until: number } | null } = keep(import.meta.hot, 'HAND_WASH', { ask: null, until: 0, boss: false, spongeHeld: false, stream: null, held: false, take: null, grabSponge: null, spongeBack: 0, soaking: false, spongeAt: null, spongeTo: null })
 /** where the shop's plates are just now, told over for the racks' and the basket's labels (the owner's: every plate counted): on the racks, in
  * the sink, in the washer, in the basket, and out (the plating place's stack, on their way, at the seats); GuestBar3D keeps it */
 export const PLATE_COUNT = keep(import.meta.hot, 'PLATE_COUNT', { rack: 0, low: 0, sink: 0, washer: 0, basket: 0, out: 0 })

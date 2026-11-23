@@ -65,14 +65,15 @@ export function handClean(dirt: number, dt: number, at: HandAt, o: { sponge: boo
   return Math.max(0, dirt - ((at === 'tap' ? RINSE_RATE : SOAK_RATE) + rub) * dt)
 }
 /** what's said of the plate being washed (items 234, 458): carried (`held`), where to let it go; in the water, how dirty it is and the one
- * thing that would make it go faster, the liquid's bonus said as a number */
+ * thing that would make it go faster, the liquid's bonus said as a number. (item 606, the owner's 「這邊都用拖曳的」: the sponge is dragged
+ * over the plate, and the clean plate dragged into the basket: it's said so) */
 export function handSays(at: HandAt, dirt: number, o: { sponge: boolean; soap: boolean; basketFull: boolean; held?: boolean }): string {
-  if (o.held) return '拖到水龍頭下或水裡放開｜洗碗機的門開著，也能直接放進去'
-  if (dirt <= CLEAN_AT) return o.basketFull ? '乾淨了｜瀝水籃滿了，先把乾的收回碗盤架' : '乾淨了，放進瀝水籃'
+  if (o.held) return dirt <= CLEAN_AT ? (o.basketFull ? '瀝水籃滿了：先把乾的收回碗盤架' : '拖到瀝水籃放開') : '拖到水龍頭下或水裡放開｜洗碗機的門開著，也能直接放進去'
+  if (dirt <= CLEAN_AT) return o.basketFull ? '乾淨了｜瀝水籃滿了，先把乾的收回碗盤架' : '乾淨了：拖到瀝水籃'
   const left = `還有 ${Math.max(1, Math.round(Math.min(1, dirt) * 100))}% 髒`
   if (!at) return `${left}｜沒有水：打開水龍頭`
   const head = at === 'tap' ? `沖水中，${left}` : `泡在水裡，${left}`
-  const next = !o.sponge ? '點菜瓜布拿起來，在盤子上按住來回刷' : !o.soap ? `按住來回刷｜擠洗碗精刷得更快 ×${SOAP_X}` : `按住來回刷，洗碗精加成 ×${SOAP_X}`
+  const next = !o.sponge ? '按住菜瓜布拖到盤子上，來回刷' : !o.soap ? `來回刷｜擠洗碗精刷得更快 ×${SOAP_X}` : `來回刷，洗碗精加成 ×${SOAP_X}`
   return `${head}｜${next}`
 }
 /** a squeeze of the liquid into the water (what's in it so far kept, up to the most it holds) */
@@ -92,12 +93,12 @@ export const HAND_STEP_SAYS: Record<HandStep, string> = {
   // none: nothing to aim, nothing to carry)
   // (item 458, the owner's 「玩的模式不對，應該是拖曳過去，然後用菜瓜布刷」: the plate dragged to the water, the sponge rubbed over it)
   water: '把髒盤子拖到水槽放開，水龍頭會自己打開',
-  scrub: '把髒盤子拖進水裡，拿菜瓜布在上面來回刷',
+  scrub: '把髒盤子拖進水裡，按住菜瓜布拖到上面來回刷',
 }
 /** the thing that lights up for each step, to be clicked next (none: there's nothing to click but the dirty plates themselves) */
 export const GUIDE_OF: Record<HandStep, 'tap' | 'basket' | null> = { none: null, basketFull: 'basket', water: null, scrub: null }
 /** said under the next step while there's washing to be done (item 234): how the washing goes on */
-export const WASH_FLOW_SAYS = '洗好自己放進瀝水籃｜洗碗機的門開著，髒盤子也能直接拖進去'
+export const WASH_FLOW_SAYS = '洗好的拖到瀝水籃｜洗碗機的門開著，髒盤子也能直接拖進去'
 
 /**
  * Washing up by hand is the owner's to do (item 166, the owner's, 2026-11-15: "isn't the owner meant to take it over?"): the player's click

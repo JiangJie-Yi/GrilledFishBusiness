@@ -112,6 +112,15 @@ feature('玩家自己拿盤子洗（第 224 項）', () => {
     and('乾淨了：放進瀝水籃', () => { expect(handSays('tap', 0, { sponge: true, soap: true, basketFull: false })).toContain('瀝水籃') })
     and('乾淨了但瀝水籃滿了：先收乾的', () => { expect(handSays('tap', 0, { sponge: true, soap: true, basketFull: true })).toContain('收回碗盤架') })
   })
+  // (item 606, the owner's 「這邊都用拖曳的」: the sponge was clicked up and down and a clean plate went into the basket by itself; now the
+  // sponge is dragged over the plate to rub it, and the clean plate dragged into the basket)
+  scenario('洗碗都用拖的：菜瓜布拖到盤子上刷，洗好的拖到瀝水籃', ({ then, and, but }) => {
+    then('還沒拿菜瓜布：說按住菜瓜布拖到盤子上', () => { expect(handSays('water', 0.5, { sponge: false, soap: false, basketFull: false })).toContain('拖到盤子上') })
+    and('不再說「點」菜瓜布', () => { expect(handSays('tap', 0.5, { sponge: false, soap: false, basketFull: false })).not.toContain('點菜瓜布') })
+    and('乾淨了：說拖到瀝水籃', () => { expect(handSays('water', 0, { sponge: false, soap: false, basketFull: false })).toContain('拖到瀝水籃') })
+    and('拿著洗好的盤子：說拖到瀝水籃放開', () => { expect(handSays(null, 0, { sponge: false, soap: false, basketFull: false, held: true })).toContain('拖到瀝水籃') })
+    but('拿著還髒的盤子：說拖到水裡', () => { expect(handSays(null, 0.5, { sponge: false, soap: false, basketFull: false, held: true })).toContain('水裡') })
+  })
 })
 
 // (item 458, the owner's 「字太小，然後玩的模式不對，應該是拖曳過去，然後用菜瓜布刷，有用洗碗精會加成。」: the plate dragged into the water, the
