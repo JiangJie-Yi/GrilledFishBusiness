@@ -804,3 +804,91 @@ export function washerBeep(at: THREE.Vector3) {
   ping(a, t, 520, 0.35, 0.09, o, 'square')
   ping(a, t + 0.13, 520, 0.35, 0.09, o, 'square')
 }
+
+/** the television upstairs (items 612, 613) switched: the switch's click, and coming on, the picture's little crackle as it comes up; going
+ * off, a softer one as it drops */
+export function tvSwitchSound(on: boolean) {
+  const a = ctx()
+  if (!a) return
+  lightSwitchSound(on)
+  const s = noise(a, on ? 0.18 : 0.1, (x) => (1 - x) ** 2, 0)
+  const f = a.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = on ? 3200 : 1800; f.Q.value = 0.6
+  s.connect(f).connect(out(a, on ? 0.05 : 0.03))
+  s.start(a.currentTime + 0.02)
+}
+/** its channel changed: a small click and the hiss of static between the one and the next */
+export function tvChannelSound() {
+  const a = ctx()
+  if (!a) return
+  const t = a.currentTime
+  lightSwitchSound(true)
+  const s = noise(a, 0.3, (x) => Math.min(1, x / 0.08) * (1 - x) ** 1.5, 0)
+  const f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2600; f.Q.value = 0.5
+  s.connect(f).connect(out(a, 0.06))
+  s.start(t + 0.01)
+}
+/** what each channel sounds like across the room: a voice's band given syllables and pauses (the news, the weather; the cooking's under a
+ * sizzle), a crowd's swell (the ball game), the sea's wash (the documentary); the filter's kind and pitch, the syllables' and the phrases'
+ * rates a second, how loud */
+const TV_HUM: readonly { kind: BiquadFilterType; f: number; q: number; syl: number; phr: number; gain: number }[] = [
+  { kind: 'lowpass', f: 820, q: 0.9, syl: 4.6, phr: 0.37, gain: 0.5 },
+  { kind: 'lowpass', f: 950, q: 0.9, syl: 4.1, phr: 0.29, gain: 0.42 },
+  { kind: 'bandpass', f: 640, q: 0.45, syl: 0.55, phr: 0.12, gain: 0.25 },
+  { kind: 'bandpass', f: 2400, q: 0.6, syl: 5.2, phr: 0.23, gain: 0.2 },
+  { kind: 'lowpass', f: 380, q: 0.7, syl: 0.18, phr: 0.07, gain: 0.36 },
+]
+/**
+ * While the television's on, what's on it heard low across the room: a loop of hiss through a filter, its loudness wavering at a syllable's
+ * rate and again at a phrase's (two slow tones turning its gain), tuned to the channel; made the first time it's tuned on, its loudness eased
+ * to each channel's (or to nothing, off), all let go by `stop` (the room gone down from). `at` a context of its own to make it in (a probe's
+ * offline one, to measure how loud it comes out), else the game's.
+ */
+export function tvMurmur(at?: BaseAudioContext) {
+  let made: { a: BaseAudioContext; src: AudioBufferSourceNode; f: BiquadFilterNode; syl: OscillatorNode; phr: OscillatorNode; vol: GainNode } | null = null
+  const make = () => {
+    const a = at ?? ctx()
+    if (!a) return null
+    const b = a.createBuffer(1, Math.floor(a.sampleRate * 2), a.sampleRate), d = b.getChannelData(0)
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1
+    const src = a.createBufferSource()
+    src.buffer = b; src.loop = true
+    const f = a.createBiquadFilter()
+    // (the syllables: the gain about a half, a tone swinging it a half either way; the phrases the same over that, slower)
+    const g1 = a.createGain(), g2 = a.createGain(), d1 = a.createGain(), d2 = a.createGain()
+    g1.gain.value = 0.5; d1.gain.value = 0.5; g2.gain.value = 0.6; d2.gain.value = 0.4
+    const syl = a.createOscillator(), phr = a.createOscillator()
+    syl.connect(d1).connect(g1.gain)
+    phr.connect(d2).connect(g2.gain)
+    const vol = a.createGain()
+    vol.gain.value = 0
+    src.connect(f).connect(g1).connect(g2).connect(vol).connect(a.destination)
+    src.start(); syl.start(); phr.start()
+    return { a, src, f, syl, phr, vol }
+  }
+  return {
+    /** to a channel (its number), or off (null) */
+    tune(ch: number | null) {
+      if (ch === null && !made) return
+      made ??= make()
+      if (!made) return
+      const t = made.a.currentTime
+      if (ch === null) { made.vol.gain.setTargetAtTime(0, t, 0.06); return }
+      const p = TV_HUM[((ch % TV_HUM.length) + TV_HUM.length) % TV_HUM.length]
+      made.f.type = p.kind
+      made.f.frequency.setTargetAtTime(p.f, t, 0.05)
+      made.f.Q.setTargetAtTime(p.q, t, 0.05)
+      made.syl.frequency.setTargetAtTime(p.syl, t, 0.05)
+      made.phr.frequency.setTargetAtTime(p.phr, t, 0.05)
+      made.vol.gain.setTargetAtTime(p.gain, t, 0.15)
+    },
+    stop() {
+      if (!made) return
+      const m = made
+      made = null
+      const t = m.a.currentTime
+      m.vol.gain.setTargetAtTime(0, t, 0.05)
+      m.src.onended = () => m.vol.disconnect()
+      for (const n of [m.src, m.syl, m.phr]) n.stop(t + 0.3)
+    },
+  }
+}

@@ -418,11 +418,13 @@ const CREW_FEEL = new Map<string, unknown>()
 const AT_NOW = new THREE.Vector3(), HAND_OUT = new THREE.Vector3(), FAN_OFF = new THREE.Vector3(0, 0.03, 0.02)
 if (import.meta.env.DEV && typeof window !== 'undefined') Object.assign(window, { __crewFeel: CREW_FEEL })
 export const StaffFigure = memo(StaffFigureImpl)
-function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, face: faceAsked }: { id: string; role: Role; look: StaffLook; moving?: boolean
+function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, face: faceAsked, playing = false }: { id: string; role: Role; look: StaffLook; moving?: boolean
   /** a face to make, whatever they're doing (the character viewer's buttons) */
   face?: CrewFace
   /** sat (the cashier on the till's chair): leaning in a little, the hands up on the counter in front, now and then tapping at the keys */
-  seated?: boolean }) {
+  seated?: boolean
+  /** at their handheld game whatever their idle says (upstairs on their cushion, items 612, 613: shops/grill/DormRoom), as one slacking is */
+  playing?: boolean }) {
   const own = featuresOf(id, who)
   const h = own.h
   const seed = h % 997
@@ -626,7 +628,7 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
       }
     }
     if (cook) {
-      fanning.current = job?.fetcher ? !!job.fanNow : (t + seed * 3.7) % 17 < 6 && !going
+      fanning.current = job?.fetcher ? !!job.fanNow : (t + seed * 3.7) % 17 < 6 && !going && !playing
     }
     // (a waddle as they walk, as Overcooked's cooks do: bobbing at each step, rocking side to side; standing, breathing)
     // (their step's beat: quicker pressed, slower worn out (its own phase, so a change of pace never jumps it))
@@ -638,7 +640,7 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
     fig.body.rotation.z = walk * Math.sin(ph) * 0.07 + (1 - walk) * Math.sin(t * 0.8 + seed * 2.1) * 0.022
     // (a bow of the head and shoulders at the door)
     const workLean = job?.lean ?? 0
-    fig.body.rotation.x = walk * 0.08 + (seated ? 0.07 : 0) + (job?.nod ?? 0) * 0.28 + workLean + (!id.startsWith('viewer-') && walk < 0.2 && activityOf(STAFF_IDLE.get(id)) === 'slack' ? 0.1 : 0)
+    fig.body.rotation.x = walk * 0.08 + (seated ? 0.07 : 0) + (job?.nod ?? 0) * 0.28 + workLean + (playing || (!id.startsWith('viewer-') && walk < 0.2 && activityOf(STAFF_IDLE.get(id)) === 'slack') ? 0.1 : 0)
       // (worn out, their head and shoulders down; pressed, leaning into their stride)
       + 0.13 * B.slump + 0.07 * B.hurry * walk
     // (a lean to their work bent at the waist, about where a counter's top comes on them, not from their feet: what's under it drawn back as
@@ -657,7 +659,7 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
     const now = performance.now()
     // (slacking, a good while with nothing to do (data/staff's activityOf): their handheld game out before their chest, head down over it,
     // thumbs going, the face of one deep in a game; not as they walk)
-    const slack = !id.startsWith('viewer-') && walk < 0.2 && activityOf(STAFF_IDLE.get(id)) === 'slack' && job?.sweep === undefined && !job?.broom
+    const slack = (playing || (!id.startsWith('viewer-') && walk < 0.2 && activityOf(STAFF_IDLE.get(id)) === 'slack')) && job?.sweep === undefined && !job?.broom
     const word = STAFF_TALK.find((w) => w.id === id)
     const tapping = seated && (t + seed) % 7 < 2.2
     let face: CrewFace = faceAsked ?? (now - RUSH.at < 2500 ? 'panic' : job?.prep || job?.fanNow || (cook && fanning.current) || tapping || job?.wipe !== undefined || job?.sweep !== undefined || job?.floorWipe !== undefined || slack ? 'focused'

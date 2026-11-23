@@ -6,8 +6,8 @@ house is, from its open front.
 The mats laid as they're laid (the half mat in the middle, the four turning round it: no four corners meeting at a point), their weave
 across each mat; the board strip on the right, the stair's well in it with the steps going down out of sight and a rail on posts along its
 open side, slippers at its head. The back wall: a window with its shoji slid half open on a night of roofs and lit windows, a television
-on its low stand (books under it, a flask on it), a calendar and a clock over it; work clothes on hooks over the board floor. The left wall:
-the closet (oshiire) with one fusuma slid across the other, the futons folded on its shelf; a small chest of drawers in the corner. A round
+on its low stand (books under it), a calendar and a clock over it; work clothes on hooks over the board floor. The left wall: the closet
+(oshiire) with one fusuma slid across the other, the futons folded on its shelf; a small chest of drawers in the corner, a flask on it. A round
 low table with tea and mandarins, three cushions round it; a washi lamp over it.
 
 - node "Dorm": the room, its floor's middle at the origin, its open front toward +z; metres.
@@ -444,18 +444,23 @@ for k in range(4):
     y0, y1 = 0.1 + k * 0.21, 0.29 + k * 0.21
     block(f"DormChestFace{k}", (CX0 + 0.03, y0, CZ1), (CX1 - 0.03, y1, CZ1 + 0.012), "wood", 0.4)
     block(f"DormChestPull{k}", ((CX0 + CX1) / 2 - 0.05, (y0 + y1) / 2 - 0.01, CZ1 + 0.012), ((CX0 + CX1) / 2 + 0.05, (y0 + y1) / 2 + 0.01, CZ1 + 0.026), "iron", 0.2)
-# (the television on its low stand right of the window: the stand's shelf with books, a flask on top; the set's screen and its foot)
+# (the television on its low stand right of the window: the stand's shelf with books; the set, its screen and its foot)
 VX0, VX1, VZ0, VZ1 = 0.12, 0.82, Z0 + 0.02, Z0 + 0.4
 block("DormStandTop", (VX0, 0.4, VZ0), (VX1, 0.44, VZ1), "wood", 0.5)
 block("DormStandShelf", (VX0 + 0.02, 0.2, VZ0), (VX1 - 0.02, 0.23, VZ1), "wood", 0.5)
 for k, x in enumerate((VX0, VX1 - 0.03)):
     block(f"DormStandSide{k}", (x, FLOOR, VZ0), (x + 0.03, 0.4, VZ1), "wood", 0.5)
 block("DormBooks", (VX0 + 0.06, 0.23, VZ0 + 0.06), (VX0 + 0.46, 0.38, VZ1 - 0.08), "spine", 0.4)
-block("DormTvFoot", (0.4, 0.44, VZ0 + 0.12), (0.56, 0.46, VZ0 + 0.26), "tv", 0.3)
-block("DormTvNeck", (0.46, 0.46, VZ0 + 0.17), (0.5, 0.52, VZ0 + 0.21), "tv", 0.3)
-block("DormTvBody", (0.2, 0.5, VZ0 + 0.15), (0.76, 0.84, VZ0 + 0.2), "tv", 0.3)
-block("DormTvScreen", (0.225, 0.52, VZ0 + 0.2), (0.735, 0.82, VZ0 + 0.204), "screen", 0.3)
-lathe("DormFlask", 0.7, 0.44, VZ0 + 0.3, [(0.045, 0.0), (0.045, 0.2), (0.03, 0.24), (0.03, 0.27), (0.015, 0.28)], "flask", 12)
+# (item 613, the owner's 「電視大台點，可以互動」: 0.84 wide (it was 0.56), a little past the low stand's ends either side as a big set is, as
+# tall as a 16:9 screen in it wants; 17 cm out from the wall, before the window's frame (3 cm out) and its sill (7) it reaches over, under
+# the calendar (from 1.1), short of the bath's doorway's frame (from 0.96); the game lights its screen and changes its programmes. The
+# flask that stood on the stand before its screen's corner moved over onto the chest of drawers)
+# (its foot a millimetre over the stand's top, the neck's ends a few millimetres into the foot and the set: no two faces in one plane)
+block("DormTvFoot", (0.35, 0.441, VZ0 + 0.12), (0.59, 0.461, VZ0 + 0.26), "tv", 0.3)
+block("DormTvNeck", (0.45, 0.456, VZ0 + 0.17), (0.49, 0.505, VZ0 + 0.21), "tv", 0.3)
+block("DormTvBody", (0.05, 0.5, VZ0 + 0.15), (0.89, 0.98, VZ0 + 0.2), "tv", 0.3)
+block("DormTvScreen", (0.075, 0.525, VZ0 + 0.2), (0.865, 0.955, VZ0 + 0.204), "screen", 0.3)
+lathe("DormFlask", CX0 + 0.44, 0.952, CZ0 + 0.24, [(0.045, 0.0), (0.045, 0.2), (0.03, 0.24), (0.03, 0.27), (0.015, 0.28)], "flask", 12)
 # (the calendar and the clock over the set; the work clothes on their hooks over the board floor: a happi coat and an apron)
 block("DormCalendar", (0.24, 1.1, Z0 + 0.002), (0.66, 1.6, Z0 + 0.008), "cal", 0.5)
 # (the clock: turned on its back to face out of the wall, its rim and its face)

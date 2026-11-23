@@ -6,6 +6,7 @@ import type { Look, Role } from '@/data/staff'
 import { commuteOf } from '@/game/commute'
 import { CLIMB_S, downBeat, downLength, dormDoing, upBeat, upstairs } from '@/game/dormLife'
 import { bedFit } from '@/game/nightTogether'
+import { TV_FREE, nextChannel, pastimeOf, tvNow, tvSwitched, upstairsDoing, type TvHold } from '@/game/dormTv'
 import { SHOP } from '@/game/shopState'
 import { toDorm } from '@/scene/floors'
 import { inkModel } from '@/scene/inkHull'
@@ -14,10 +15,11 @@ import { setTip } from '@/scene/hoverTip'
 import { SIGN_FONT, signTexture } from '@/scene/signFont'
 import { StaffFigure } from '@/scene/StaffFigure'
 import { isFigureHit } from '@/scene/FigureHit'
-import { getClock } from '@/ui/clockStore'
+import { getClock, minutesNow } from '@/ui/clockStore'
 import { DORM_LIFE, NIGHT_WITH } from './bar'
 import { BossModel } from './Boss'
-import { slideDoorSound } from './restroomSound'
+import { slideDoorSound, tvChannelSound, tvMurmur, tvSwitchSound } from './restroomSound'
+import { TV_H, TV_SHOWS, TV_W, drawTv, tvBusy, type TvPicture } from './dormTvShows'
 import { doorAlong } from './ServeCounter'
 import { getEdit } from './edit'
 import { makeAlleyView, type AlleySky } from '@/scene/alleyView'
@@ -111,7 +113,7 @@ const wardrobeTip = (w: (typeof WARDROBE)[number]) => {
  * cook sat before the chest, the tag said the chest's "click: change the owner's clothes", and a click on him opened them; a person's tag
  * lets what's behind them answer as well, and the chest's, set after, was the one shown)
  */
-function roomThing(tip: () => Parameters<typeof setTip>[0], go: () => void) {
+function roomThing(tip: () => Parameters<typeof setTip>[0], go: () => void, alt?: () => void) {
   let on = false
   const behindSomeone = (e: ThreeEvent<PointerEvent> | ThreeEvent<MouseEvent>) => isFigureHit(e.intersections[0]?.object)
   const point = (e: ThreeEvent<PointerEvent>) => {
@@ -128,6 +130,8 @@ function roomThing(tip: () => Parameters<typeof setTip>[0], go: () => void) {
     onPointerMove: point,
     onPointerOut: () => { if (!on) return; on = false; document.body.style.cursor = ''; setTip(null) },
     onClick: (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); if (getEdit().on || behindSomeone(e)) return; go() },
+    // (a right click, where it does something else (the television's next channel, items 612, 613))
+    ...(alt ? { onContextMenu: (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); e.nativeEvent.preventDefault(); if (getEdit().on || behindSomeone(e)) return; alt() } } : {}),
   }
 }
 /** a cook's figure here as big as in the shop (measured there: 1.646 of the world) */
@@ -141,7 +145,9 @@ export const askView = (id: string) => window.dispatchEvent(new CustomEvent('jgs
 
 type Living = { id: string; role: Role; look: Look }
 /** the room's marks (blender/dorm.py's empties), in its own frame */
-type Marks = { seats: THREE.Vector3[]; beds: THREE.Vector3[]; top: THREE.Vector3; foot: THREE.Vector3; table: THREE.Vector3 }
+type Marks = { seats: THREE.Vector3[]; beds: THREE.Vector3[]; top: THREE.Vector3; foot: THREE.Vector3; table: THREE.Vector3
+  /** the television's screen's middle (items 612, 613): what those watching it turn to */
+  tv: THREE.Vector3 }
 
 /** the way from the stair's head to a place (round the rail along the well, which only opens behind it; round the table): its corners */
 function wayTo(m: Marks, to: THREE.Vector3, bed: boolean): THREE.Vector3[] {
@@ -227,16 +233,85 @@ function upNow(id: string, open: boolean, walk: number, off = false) {
 const BEDS_LAID: boolean[] = [false, false]
 /** (in development, what each of them is doing up here this frame, to look at from the console: __dormSeen) */
 const DORM_SEEN: Record<number, unknown> = {}
+/**
+ * The television (items 612, 613, the owner's, 2026-11-24: 「二樓有人的時候可以開電視，或是人物在玩switch」「電視大台點，可以互動」): on or off,
+ * its channel, when each last changed (performance's seconds), the player's switch that holds (game/dormTv); TV_WISH what each of those
+ * living in wants of it just now (settled on their cushion, awake, their spell the television's). Kept as the room's gone down from and up to
+ * again.
+ */
+const DORM_TV: TvPicture & { hold: TvHold; wish: boolean } = { on: false, ch: 0, onAt: -1e9, offAt: -1e9, chAt: -1e9, hold: TV_FREE, wish: false }
+const TV_WISH: boolean[] = [false, false]
+/** the set switched on or off (the player's click, or one of them up here picking up the remote), heard */
+function tvSet(on: boolean) {
+  if (on === DORM_TV.on) return
+  const now = performance.now() / 1000
+  DORM_TV.on = on
+  if (on) DORM_TV.onAt = now
+  else DORM_TV.offAt = now
+  tvSwitchSound(on)
+}
+/** the player's left click on it: on or off, and held so against the room's wish till that turns */
+function tvToggle() {
+  DORM_TV.hold = tvSwitched(DORM_TV.on, DORM_TV.wish)
+  tvSet(!DORM_TV.on)
+}
+/** the right click: the next channel (an off set's switched on, at the channel it was on) */
+function tvNext() {
+  if (!DORM_TV.on) { tvToggle(); return }
+  DORM_TV.ch = nextChannel(DORM_TV.ch)
+  DORM_TV.chAt = performance.now() / 1000
+  tvChannelSound()
+}
+const TV_TIP = () => (DORM_TV.on ? { title: '電視', hint: `第 ${DORM_TV.ch + 1} 台：${TV_SHOWS[DORM_TV.ch].zh}｜左鍵關掉、右鍵換台` } : { title: '電視', hint: '關著｜左鍵打開、右鍵換台' })
+if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __dormTv: DORM_TV, __dormTvToggle: tvToggle, __dormTvNext: tvNext })
+/** a box's UVs laid flat along its x and y (the screen's face: 0 to 1 across, 0 to 1 up) */
+function planar(geo: THREE.BufferGeometry) {
+  geo.computeBoundingBox()
+  const b = geo.boundingBox!, p = geo.attributes.position, uv = new Float32Array(p.count * 2)
+  const w = b.max.x - b.min.x || 1, h = b.max.y - b.min.y || 1
+  for (let i = 0; i < p.count; i++) { uv[i * 2] = (p.getX(i) - b.min.x) / w; uv[i * 2 + 1] = (p.getY(i) - b.min.y) / h }
+  geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2))
+}
+/** the glow round the set as its picture's lit (its plane this much the screen's width and height) */
+const HALO_W = 1.7, HALO_H = 1.9
+/** that glow's picture: a soft rim out from the screen's edge, clear over the screen itself (the picture not washed over), white (its
+ * material's colour the picture's) */
+function haloTexture() {
+  const c = document.createElement('canvas')
+  c.width = 128; c.height = 80
+  const g = c.getContext('2d')!
+  const w = c.width / HALO_W, h = c.height / HALO_H, x = (c.width - w) / 2, y = (c.height - h) / 2
+  // (laid three times over: the rim's light strongest at the frame, gone a hand's breadth out)
+  g.shadowColor = '#ffffff'; g.shadowBlur = 13
+  g.fillStyle = '#ffffff'
+  for (let i = 0; i < 3; i++) g.fillRect(x, y, w, h)
+  g.globalCompositeOperation = 'destination-out'
+  g.shadowBlur = 0
+  g.fillRect(x, y, w, h)
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace
+  return t
+}
+const wrapPi = (a: number) => Math.atan2(Math.sin(a), Math.cos(a))
+/** the glow's strength by the part of the day (the page's data-sky): faint against the day's light in the room, strongest by night */
+const SKY_GLOW: Record<string, number> = { dawn: 1, day: 0.6, dusk: 1, night: 1.35 }
+const TV_GLOW = new THREE.Color(), TV_WHITE = new THREE.Color('#ffffff')
 if (import.meta.env.DEV && typeof window !== 'undefined') Object.assign(window, { __dormSeen: DORM_SEEN })
 
+/** a resident's pose as drawn: walking, sat, lying asleep, at their handheld game, laughing at the television */
+type Pose = { moving: boolean; seated: boolean; asleep: boolean; playing: boolean; laugh: boolean }
+const POSE_REST: Pose = { moving: false, seated: false, asleep: false, playing: false, laugh: false }
+const samePose = (a: Pose, b: Pose) => a.moving === b.moving && a.seated === b.seated && a.asleep === b.asleep && a.playing === b.playing && a.laugh === b.laugh
 const Resident = memo(function Resident({ m, k, marks, open, quilt, off }: { m: Living; k: number; marks: Marks; open: boolean; quilt: THREE.Material | null; off: boolean }) {
   const g = useRef<THREE.Group>(null), cover = useRef<THREE.Group>(null)
-  const [pose, setPose] = useState({ moving: false, seated: false, asleep: false })
+  const [pose, setPose] = useState(POSE_REST)
   /** (from one place to the other as the time of day turns (to bed at four in the morning, up at eleven): up off it, across, down onto the
    * other; the place they're going from and when they set off) */
   const move = useRef<{ was: boolean; from: THREE.Vector3; at: number } | null>(null)
   const doingWas = useRef<boolean | null>(null)
-  useFrame(() => {
+  /** which way they're turned on their cushion (to the table, or round to the television while they watch it), eased round */
+  const yaw = useRef<number | null>(null)
+  useFrame((_, dt) => {
     const o = g.current
     if (!o) return
     const asleepNow = dormDoing(getClock().minute) === 'sleep'
@@ -246,7 +321,8 @@ const Resident = memo(function Resident({ m, k, marks, open, quilt, off }: { m: 
     o.visible = here
     if (cover.current) cover.current.visible = false
     BEDS_LAID[k] = false
-    if (!here) { doingWas.current = null; move.current = null; return }
+    TV_WISH[k] = false
+    if (!here) { doingWas.current = null; move.current = null; yaw.current = null; return }
     // (the time of day turned while they were settled: off from the one place to the other)
     if (doingWas.current !== null && doingWas.current !== asleepNow && (upFor === null || upFor > 30) && downFor === null)
       move.current = { was: doingWas.current, from: (doingWas.current ? marks.beds[k] : marks.seats[k]).clone(), at: performance.now() }
@@ -267,8 +343,7 @@ const Resident = memo(function Resident({ m, k, marks, open, quilt, off }: { m: 
         o.rotation.set(-Math.PI / 2 * e, e > 0.5 ? 0 : Math.PI, 0)
         if (cover.current) { cover.current.visible = true; quiltAt(cover.current, mv.from, THREE.MathUtils.smoothstep(settled, 0.45, 1)) }
         BEDS_LAID[k] = true
-        const want = { moving: false, seated: false, asleep: false }
-        if (want.moving !== pose.moving || want.seated !== pose.seated || want.asleep !== pose.asleep) setPose(want)
+        if (!samePose(POSE_REST, pose)) setPose(POSE_REST)
         return
       }
       if (mvFor < 0.5) {
@@ -276,8 +351,8 @@ const Resident = memo(function Resident({ m, k, marks, open, quilt, off }: { m: 
         o.position.copy(mv.from)
         o.position.y -= 0.03 * settled
         o.rotation.set(0, Math.atan2(marks.table.x - mv.from.x, marks.table.z - mv.from.z), 0)
-        const want = { moving: false, seated: settled > 0.5, asleep: false }
-        if (want.moving !== pose.moving || want.seated !== pose.seated || want.asleep !== pose.asleep) setPose(want)
+        const want = { ...POSE_REST, seated: settled > 0.5 }
+        if (!samePose(want, pose)) setPose(want)
         return
       }
     } else if (downFor !== null) {
@@ -294,7 +369,13 @@ const Resident = memo(function Resident({ m, k, marks, open, quilt, off }: { m: 
     }
     // (their futon laid as they come to it to lie down, not as they come up the stair)
     BEDS_LAID[k] = asleepNow && !moving
-    if (import.meta.env.DEV) DORM_SEEN[k] = { id: m.id, upFor, downFor, climb, moving, settled, y: +o.position.y.toFixed(3), z: +o.position.z.toFixed(3) }
+    // (what they're doing with their time up here, awake and settled on their cushion (items 612, 613): watching the television, at their
+    // handheld game, or at the table with their tea; and whether they'd have the set on)
+    const pastime = pastimeOf(m.id, minutesNow())
+    const sat = !moving && !asleepNow && settled > 0.5
+    const doing = upstairsDoing(pastime, DORM_TV.on)
+    TV_WISH[k] = sat && pastime === 'tv'
+    if (import.meta.env.DEV) DORM_SEEN[k] = { id: m.id, upFor, downFor, climb, moving, settled, y: +o.position.y.toFixed(3), z: +o.position.z.toFixed(3), pastime, doing: sat ? doing : null, yaw: +o.rotation.y.toFixed(2) }
     if (climb >= 0) {
       // (on the stair: from its foot, out of sight down the well, up to its head, rising a step at a time)
       AT.copy(marks.foot).lerp(marks.top, Math.max(0, Math.min(1, climb)))
@@ -305,7 +386,9 @@ const Resident = memo(function Resident({ m, k, marks, open, quilt, off }: { m: 
     if (moving) {
       o.position.copy(AT)
       o.rotation.set(0, Math.atan2(DIR.x, DIR.z), 0)
+      yaw.current = null
     } else if (asleepNow) {
+      yaw.current = null
       // (lying down: from standing by the futon's foot onto their back, the head on the pillow, the quilt over them up to the shoulders)
       // (the night she's not alone (item 637): over on her half of it, a little turned to him: OwnerBeside)
       const e = THREE.MathUtils.smoothstep(settled, 0, 1), len = 0.95 * FIG_SCALE / 0.823
@@ -328,19 +411,26 @@ const Resident = memo(function Resident({ m, k, marks, open, quilt, off }: { m: 
         }
       }
     } else {
-      // (sat on their cushion, turned to the table; settling onto it a moment)
+      // (sat on their cushion, turned to the table; settling onto it a moment) (items 612, 613: round to the television while they watch it,
+      // easing round as they turn to it and back)
       o.position.copy(spot)
       o.position.y -= 0.03 * settled
-      o.rotation.set(0, Math.atan2(marks.table.x - spot.x, marks.table.z - spot.z), 0)
+      const toTable = Math.atan2(marks.table.x - spot.x, marks.table.z - spot.z)
+      const aim = doing === 'watch' ? Math.atan2(marks.tv.x - spot.x, marks.tv.z - spot.z) : toTable
+      yaw.current = yaw.current === null ? toTable : yaw.current + wrapPi(aim - yaw.current) * Math.min(1, dt * 3)
+      o.rotation.set(0, yaw.current, 0)
     }
-    const want = { moving, seated: !moving && !asleepNow && settled > 0.5, asleep: !moving && asleepNow && settled > 0.5 }
-    if (want.moving !== pose.moving || want.seated !== pose.seated || want.asleep !== pose.asleep) setPose(want)
+    // (watching, a laugh at what's on now and then (each at their own moments); at their game, its handheld out)
+    const want = { moving, seated: sat, asleep: !moving && asleepNow && settled > 0.5, playing: sat && doing === 'handheld',
+      laugh: sat && doing === 'watch' && (performance.now() / 1000 + k * 3.7) % 9 < 1.3 }
+    if (!samePose(want, pose)) setPose(want)
   })
   return (
     <>
       <group ref={g} visible={false}>
         <group scale={FIG_SCALE}>
-          <StaffFigure id={m.id} role={m.role} look={m.look} moving={pose.moving} seated={pose.seated} face={pose.asleep ? 'blink' : undefined} />
+          <StaffFigure id={m.id} role={m.role} look={m.look} moving={pose.moving} seated={pose.seated} face={pose.asleep ? 'blink' : pose.laugh ? 'happy' : undefined}
+            playing={pose.playing} />
         </group>
       </group>
       {quilt && <group ref={cover} visible={false}><mesh geometry={QUILT_GEO} material={quilt} raycast={() => {}} /></group>}
@@ -454,10 +544,17 @@ export function DormRoom({ crew = [], open = false, fallback, working }: { crew?
   /** the ids of those on today's shift (the rest of those living in are off: up here all day); none given, all of them are */
   working?: readonly string[] }) {
   const gltf = useGLTF(DORM_URL) as unknown as { scene: THREE.Group }
-  const { root, look, marks, pieces, quilts, leftCut, leftX, bathDoor, bathX, bathCut, bathCutX, bathWin, mats } = useMemo(() => {
+  const { root, look, marks, pieces, quilts, leftCut, leftX, bathDoor, bathX, bathCut, bathCutX, bathWin, mats, tv } = useMemo(() => {
     const r = (gltf.scene.getObjectByName('DormRoot') ?? gltf.scene).clone(true)
     r.position.set(0, 0, 0)
     const made = new Map<THREE.Material, THREE.Material>()
+    // (the television's screen (items 612, 613): its own small canvas, what's on drawn into it (dormTvShows); unlit, as the drink fridges'
+    // thermostats' displays are (the one shader for both, made with theirs as the shop loads: none made going up the stair))
+    const tvCanvas = document.createElement('canvas')
+    tvCanvas.width = TV_W; tvCanvas.height = TV_H
+    const tvTex = new THREE.CanvasTexture(tvCanvas)
+    tvTex.colorSpace = THREE.SRGBColorSpace
+    let screen: THREE.Mesh | null = null
     r.traverse((o) => {
       const m = o as THREE.Mesh
       if (!m.isMesh) return
@@ -469,13 +566,20 @@ export function DormRoom({ crew = [], open = false, fallback, working }: { crew?
         // went near black))
         t = src.name === 'DormLampShade' ? new THREE.MeshBasicMaterial({ color: '#ffe6b8' })
           : src.name === 'DormNightView' ? new THREE.MeshBasicMaterial({ visible: false })
-            : new THREE.MeshToonMaterial({ color: src.color.clone(), map: src.map ?? null, emissive: new THREE.Color('#2a1f14'), emissiveIntensity: 1 })
+            : src.name === 'DormScreen' ? new THREE.MeshBasicMaterial({ map: tvTex, toneMapped: false })
+              : new THREE.MeshToonMaterial({ color: src.color.clone(), map: src.map ?? null, emissive: new THREE.Color('#2a1f14'), emissiveIntensity: 1 })
         t.name = src.name
         made.set(src, t)
       }
       m.material = t
+      if (src.name === 'DormScreen') {
+        // (the picture across the screen's face: its own copy of the box (the loader's kept as it came), laid out by its x and y)
+        m.geometry = m.geometry.clone()
+        planar(m.geometry)
+        screen = m
+      }
       m.castShadow = src.name !== 'DormLampShade' && src.name !== 'DormNightView'
-      m.receiveShadow = true
+      m.receiveShadow = src.name !== 'DormScreen'
     })
     // (the room's line, in its own metres: the dining room's 0.0016 a metre; none round the glow, the night, the screen)
     // (nor round the bathroom's water, its mirror, its frosted panes (items 427, 456))
@@ -493,6 +597,8 @@ export function DormRoom({ crew = [], open = false, fallback, working }: { crew?
     const bathCut = r.getObjectByName('DormBathCut') ?? new THREE.Group()
     const bathCutX = new THREE.Box3().setFromObject(bathCut).max.x - 0.104
     mergeByMaterial(r, (o) => PIECES.test(o.name) || o === leftCut || o === bathDoor || o === bathCut)
+    // (the screen, alone in its material, left as it was by the merge: where it is, how big)
+    const tvBox = screen ? new THREE.Box3().setFromObject(screen) : null
     const at = (n: string, d: THREE.Vector3) => r.getObjectByName(n)?.position.clone() ?? d
     const mk: Marks = {
       seats: [0, 1, 2].map((k) => at(`DormSeat${k}`, new THREE.Vector3(-0.9 + k * 0.6, 0.125, 0))),
@@ -500,15 +606,23 @@ export function DormRoom({ crew = [], open = false, fallback, working }: { crew?
       top: at('DormStairTop', new THREE.Vector3(1.35, 0.055, -0.35)),
       foot: at('DormStairFoot', new THREE.Vector3(1.35, -1.145, 1.22)),
       table: new THREE.Vector3(-0.45, 0.055, 0),
+      tv: tvBox ? tvBox.getCenter(new THREE.Vector3()) : new THREE.Vector3(0.47, 0.7, -1.13),
     }
     const ps: Record<string, THREE.Object3D | undefined> = {}
     for (const n of ['DormTable', 'DormTableAway', 'DormBedding0', 'DormBedding1']) ps[n] = r.getObjectByName(n)
     const byName = (n: string) => [...made.values()].find((x) => x.name === n) ?? null
     const lk = r.getObjectByName('DormLook')
+    // (the glow round the set (its colour and how strong set each frame), let go with the room's own materials)
+    const halo = new THREE.MeshBasicMaterial({ map: haloTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0, toneMapped: false })
     return { root: r, look: lk ? lk.position.clone() : new THREE.Vector3(0.15, 0.6, 0.1), marks: mk, pieces: ps, quilts: [byName('DormFutonBlue'), byName('DormFutonPink')],
       leftCut, leftX, bathDoor, bathX: bathDoor?.position.x ?? 0, bathCut, bathCutX, bathWin: byName('DormBathWindow') as THREE.MeshToonMaterial | null,
-      mats: [...made.values()] }
+      mats: [...made.values(), halo],
+      tv: { g: tvCanvas.getContext('2d')!, tex: tvTex, box: tvBox, halo, last: -1, dark: false, heard: '' } }
   }, [gltf])
+  // (what's on the television heard low across the room while it's on (items 612, 613), let go as the room's gone down from)
+  const hum = useMemo(() => tvMurmur(), [])
+  useEffect(() => () => hum.stop(), [hum])
+  const haloMesh = useRef<THREE.Mesh>(null)
   // (those living in: the cooks hired (the shop's own second cook when none is), two at most, the futons' and the cushions' number)
   // (the same list while it's the same people: a new array each time the scene's drawn)
   const key = crew.map((m) => `${m.id}:${m.role}`).join(',')
@@ -542,7 +656,7 @@ export function DormRoom({ crew = [], open = false, fallback, working }: { crew?
     wasOpen.current = open
   }, [open, living])
   // (asleep: the table folded away, each sleeper's futon laid; else the table out, the futons in the closet)
-  useFrame(({ camera }) => {
+  useFrame(({ camera }, dt) => {
     if (++layered.current % 20 === 0 && outer.current) toDorm(outer.current)
     // (the left wall and the closet's shell away while the camera's out past it (item 426), back as it comes round)
     CAM_IN.copy(camera.position)
@@ -579,14 +693,42 @@ export function DormRoom({ crew = [], open = false, fallback, working }: { crew?
     for (const k of [living.length, 2]) { const bed = pieces[`DormBedding${k}`]; if (bed && k >= living.length) bed.visible = false }
     if (pieces.DormTable) pieces.DormTable.visible = !anyone
     if (pieces.DormTableAway) pieces.DormTableAway.visible = anyone
+    // (the television (items 612, 613): on while one of them wants to watch it, unless the player's switch holds; what's on drawn a dozen
+    // times a second (every frame as it comes on, goes off, or is static; off, once), its glow about it, what's on heard low)
+    const wish = TV_WISH.some((w, k) => w && k < living.length)
+    const set = tvNow(DORM_TV.hold, wish)
+    DORM_TV.hold = set.hold
+    DORM_TV.wish = wish
+    tvSet(set.on)
+    const t = performance.now() / 1000, busy = tvBusy(DORM_TV, t)
+    if (DORM_TV.on ? busy || t - tv.last >= 1 / 12 : busy || !tv.dark) {
+      drawTv(tv.g, DORM_TV, t)
+      tv.tex.needsUpdate = true
+      tv.last = t
+      tv.dark = !DORM_TV.on && !busy
+    }
+    const heard = DORM_TV.on ? String(DORM_TV.ch) : ''
+    if (heard !== tv.heard) { tv.heard = heard; hum.tune(DORM_TV.on ? DORM_TV.ch : null) }
+    // (the glow: the picture's colour (white a moment in the static), wavering a little as what's on does; eased up and away)
+    const lit = DORM_TV.on && t - DORM_TV.onAt > 0.1
+    const sky = SKY_GLOW[document.documentElement.dataset.sky ?? 'day'] ?? 1
+    const aim = lit ? (t - DORM_TV.chAt < 0.32 ? 0.5 : 0.34 + 0.06 * Math.sin(t * 7.3) * Math.sin(t * 3.1)) * sky : 0
+    tv.halo.opacity += (aim - tv.halo.opacity) * Math.min(1, dt * 8)
+    TV_GLOW.set(TV_SHOWS[DORM_TV.ch].glow)
+    if (t - DORM_TV.chAt < 0.32) TV_GLOW.lerp(TV_WHITE, 0.7)
+    tv.halo.color.lerp(TV_GLOW, Math.min(1, dt * 6))
+    if (haloMesh.current) haloMesh.current.visible = tv.halo.opacity > 0.004
   })
   // (the room's things the pointer can do something with, made once: each keeps whether it's showing its tag just now (item 540))
   const things = useMemo(() => ({
     stair: roomThing(() => ({ title: '樓梯', hint: '點一下下樓，回到店裡' }), () => { setTip(null); askView('down') }),
+    // (the television (items 612, 613): a left click on or off, a right click the next channel; its tag what's on)
+    tv: roomThing(TV_TIP, () => { tvToggle(); setTip(TV_TIP()) }, () => { tvNext(); setTip(TV_TIP()) }),
     bath: roomThing(() => BATH_TIP(BATH_STATE.open), () => { bathToggle(); setTip(BATH_TIP(BATH_STATE.open)) }),
     // (the closet and the chest: the owner's clothes opened, never shut by a second click (item 556: App's jgs-outfit, 'open'))
     wardrobe: WARDROBE.map((w) => roomThing(() => wardrobeTip(w), () => { setTip(null); window.dispatchEvent(new CustomEvent('jgs-outfit', { detail: 'open' })) })),
   }), [])
+  const tvMid = marks.tv, tvSize = useMemo(() => tv.box?.getSize(new THREE.Vector3()) ?? new THREE.Vector3(), [tv])
   return (
     <group ref={outer} position={DORM_AT} scale={DORM_SCALE}>
       <primitive object={root} />
@@ -603,6 +745,18 @@ export function DormRoom({ crew = [], open = false, fallback, working }: { crew?
       <mesh position={[STAIR.x, 0.08, STAIR.z]} visible={false} {...things.stair}>
         <boxGeometry args={[STAIR.w, 0.16, STAIR.d]} />
       </mesh>
+      {/* (the television (items 612, 613): pointed at, what's on; a left click on or off, a right click the next channel; the glow round it
+          while it's on, added over its frame and the wall about it) */}
+      {tv.box && (
+        <>
+          <mesh position={[tvMid.x, tvMid.y, tv.box.max.z - 0.025]} visible={false} {...things.tv}>
+            <boxGeometry args={[tvSize.x + 0.06, tvSize.y + 0.06, 0.07]} />
+          </mesh>
+          <mesh ref={haloMesh} position={[tvMid.x, tvMid.y, tv.box.max.z + 0.006]} material={tv.halo} visible={false} raycast={() => {}} renderOrder={3}>
+            <planeGeometry args={[tvSize.x * HALO_W, tvSize.y * HALO_H]} />
+          </mesh>
+        </>
+      )}
       {/* (the bathroom's door (item 427): pointed at, what's behind it; clicked, slid open or shut) */}
       <mesh position={[BATH.x, BATH.y, BATH.z + 0.06]} visible={false} {...things.bath}>
         <boxGeometry args={[BATH.w, BATH.h, 0.04]} />
