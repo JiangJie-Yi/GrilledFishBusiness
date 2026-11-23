@@ -119,6 +119,12 @@ feature('管洗碗的也照顧碗與餐具', () => {
     but('管外場的：照樣先端菜', () => { expect(nextChore({ ...base, duty: 'floor', serve: true, wares: out })).toBe('serve') })
     but('只有一位外場：先端菜', () => { expect(nextChore({ ...base, duty: 'all', serve: true, wares: out })).toBe('serve') })
   })
+  scenario('長凳上有人等位、有位子還沒收：閒著的外場（管洗碗的也是）先去收，收好才能入座', ({ then, and, but }) => {
+    then('管洗碗的：先收，不先洗', () => { expect(nextChore({ ...base, sink: 5, dirty: 1, seatWait: true })).toBe('clear') })
+    and('管外場的：照樣去收', () => { expect(nextChore({ ...base, duty: 'floor', dirty: 1, seatWait: true })).toBe('clear') })
+    but('有菜要端：先端', () => { expect(nextChore({ ...base, serve: true, dirty: 1, seatWait: true })).toBe('serve') })
+    but('沒人在等：管洗碗的照舊先洗', () => { expect(nextChore({ ...base, sink: 5, dirty: 1 })).toBe('wash') })
+  })
   scenario('盤子的流程不變（沒有碗與餐具時）', ({ then }) => {
     then('盤子 5 個：洗', () => { expect(nextChore({ ...base, sink: 5 })).toBe('wash') })
   })

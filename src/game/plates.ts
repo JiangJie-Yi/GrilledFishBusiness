@@ -151,10 +151,13 @@ export type Chore = 'serve' | 'clear' | 'wash' | 'handwash' | 'unload' | 'unbask
  * washUrgent), before anything but a plate to carry or the bare racks (item 47: the floor's server alone took them, and a busy evening never
  * left them idle: none washed all evening, and late at night the cooks stood an hour and a half with none).
  */
-export function nextChore({ duty, serve, dirty, sink, rack, dryer, drain = NO_DRAIN, skewers = false, dirtyAge = 0, wares }: { duty: Duty; serve: boolean
+export function nextChore({ duty, serve, dirty, sink, rack, dryer, drain = NO_DRAIN, skewers = false, dirtyAge = 0, wares, seatWait = false }: { duty: Duty; serve: boolean
   dirty: number; sink: number; rack: number; dryer: Dryer; drain?: Drain; skewers?: boolean | 'urgent'
   /** how long the longest left of the dirty plates at the seats has been there */
   dirtyAge?: number
+  /** someone waiting on the bench for a seat: a place left uncleared is a seat they can't have (no one's seated at one till it's cleared:
+   * item 600), so the dishes' server clears it too, after carrying food out, before their washing up */
+  seatWait?: boolean
   /** the bowls, chopsticks and renge (game/ware, item 600): how many wait in the sink to go in the washer (`sink`: they go with its plates;
    * `wash`: enough of them to go in by themselves, or a kind run short), how many washed ones are in it, and whether a kind's run short in
    * the cabinets with some of it washed or waiting (`urgent`: as the racks bare, taken out and washed first) */
@@ -176,6 +179,9 @@ export function nextChore({ duty, serve, dirty, sink, rack, dryer, drain = NO_DR
   if (dish && dried && bare) return 'unload'
   if (dish && drained && rack === 0) return 'unbasket'
   if (skewers === 'urgent') return 'skewers'
+  // (someone waiting for a seat and a place uncleared: cleared first by whoever's free (item 600: a place is sat at only once it's cleared, and
+  // with the dishes' server left to their washing a rush let 12% fewer through, the floor's server carrying food, the places standing empty))
+  if (seatWait && dirty > 0) return 'clear'
   // (the washer takes the sink's bowls and cutlery with its plates, or for themselves once there's a batch of them (game/ware's wareWashNow))
   if (dish && (washNow(sink, bare ? 0 : rack, dryer) || (!!wares?.wash && washNow(1, 0, dryer)))) return 'wash'
   if (dish && handNow(sink, rack, dryer, drain)) return 'handwash'

@@ -7170,10 +7170,16 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     for (const x of shown) SEATS_TAKEN.add(x.seat)
     // (and the places not cleared and laid again since their last customer: no one new sat at them meanwhile (item 600))
     SEATS_UNCLEARED.clear()
-    for (const r of runs.current) if (r.phase === 'dirty' || (r.phase === 'clear' && r.t < 0)) SEATS_UNCLEARED.add(r.seat)
-    for (const n of CHOPS_OFF) SEATS_UNCLEARED.add(n)
+    // (left uncleared with no one on their way to it: a server sent to clear it (it's in their carry), the next from the bench is called and
+    // walks over as they do, the server there first and clearing as they come (waiting till it was cleared, the Tester's rush let 12% fewer
+    // through, the places standing empty a server's whole walk and clearing each time))
+    const coming = new Set(waiters.current.flatMap((x) => x.carry ?? []))
+    for (const r of runs.current) if ((r.phase === 'dirty' && !coming.has(r.key)) || (r.phase === 'clear' && r.t < 0)) SEATS_UNCLEARED.add(r.seat)
     for (const n of SEAT_LEFT.keys()) SEATS_UNCLEARED.add(n)
-    for (const x of waiters.current) if (x.phase === 'clearTake' && x.seat >= 0) SEATS_UNCLEARED.add(x.seat)
+    // (bare of its pair: but free as soon as a server's at it clearing it, what was left lifted onto their tray: the next customer called from
+    // the bench walks over while it's wiped and laid, done before they reach it (the Tester's: waiting till it was laid, a rush let 12% fewer
+    // through); bare with no one laying it (none clean), not)
+    for (const n of CHOPS_OFF) if (!waiters.current.some((x) => x.phase === 'clearTake' && x.seat === n)) SEATS_UNCLEARED.add(n)
     SEATS_SAT.clear()
     for (const x of shown) if (x.phase === 'sit') SEATS_SAT.add(x.seat)
     // (and whose chopsticks are up off their rest, in their hand: those sat eating)
@@ -8781,7 +8787,9 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
             dirtyAge: dirtyNow.reduce((m, r) => Math.max(m, r.t), 0),
             // (the bowls, the renge and the chopsticks in the sink and the washer (item 600))
             wares: atSink ? undefined : { sink: wareCount(WARE.sink), wash: wareWashNow(WARE.sink, WARE.cab), washer: wareCount(WARE.washer),
-              urgent: wareUrgent(addWares(WARE.sink, WARE.washer), WARE.cab), out: wareOut(addWares(WARE.sink, WARE.washer), WARE.cab) } })
+              urgent: wareUrgent(addWares(WARE.sink, WARE.washer), WARE.cab), out: wareOut(addWares(WARE.sink, WARE.washer), WARE.cab) },
+            // (someone on the bench waiting for a seat (item 600))
+            seatWait: BENCH.ids.length > 0 })
           if (chore === 'serve') {
             // (across the kitchen to the chef for it)
             w.slot = slot
