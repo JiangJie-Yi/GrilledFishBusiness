@@ -5013,6 +5013,8 @@ function kamidanaOf(scene: THREE.Group) {
     const m = o as THREE.Mesh
     if (!m.isMesh) return
     const src = m.material as THREE.MeshStandardMaterial
+    // (what it was made of, kept: the export renames the meshes (KamiJ32Part...), so a part's known by its material (item 644))
+    m.userData.mat = src.name
     let t = mats.get(src)
     if (!t) {
       if (src.name === 'KamiGold') {
@@ -5070,7 +5072,12 @@ function kamidanaOf(scene: THREE.Group) {
     m.castShadow = true
     m.receiveShadow = true
   })
-  inkModel(r, (m) => /Gold|Cap|Plate|Crest|Seam|Bal|Katsuogi|Fold|Char|Slip|Calyx|Stem|Bow|Cord|Tail|Tassel|Fringe|Line|Inlay|Nail|Core|Pillar|Beam|Shide|Label|Knot|Edge|Jamb|Sill|Inside|Fuda|Eye|Smile|Ear|Cheek|Rod/.test(m.name), { width: 0.0012, weld: true })
+  inkModel(r, (m) => /Gold|Cap|Plate|Crest|Seam|Bal|Katsuogi|Fold|Char|Slip|Calyx|Stem|Bow|Cord|Tail|Tassel|Fringe|Line|Inlay|Nail|Core|Pillar|Beam|Shide|Label|Knot|Edge|Jamb|Sill|Inside|Fuda|Eye|Smile|Ear|Cheek|Rod/.test(m.name) || /^KamiEbisu(Line|Stone)$/.test(m.userData.mat), { width: 0.0012, weld: true })
+  // (the Ebisu's face's lines bare (his brows' mesh, exported as KamiJ32Part, wore the shrine's line, a band of black round them, heavy and
+  // cross from across the room; his eyes' did not), and his own line finer (item 644, the Tester's: at the shrine's 0.0012 his nose was
+  // ringed in black, and wider than the narrow cuts of his moustache and the corners of his smile it showed through them, black notches in
+  // his face): narrower than the cuts, it keeps out of them)
+  inkModel(r, (m) => m.userData.mat !== 'KamiEbisuStone', { width: 0.0005, weld: true })
   const take = (n: string) => { const o = r.getObjectByName(n)!; o.removeFromParent(); o.position.set(0, 0, 0); return o }
   // (the doors' leaves, each hung from its hinge, apart from the rest (they swing open); the Ebisu inside, a piece of its own)
   const doors = new THREE.Group()
