@@ -11,7 +11,10 @@ import { parOf, unitsShown } from '@/game/pantry'
 import { reflectStudio, useStudio } from '@/scene/studio'
 import { SACK_STICKS, SEASON_GOODS } from '@/game/supplies'
 import { PAR } from '@/game/economy'
+import { fillToward, landed } from '@/game/fillUp'
+import { puff } from '@/scene/DustPuffs'
 import { askPantry, SUPPLIES, tipOver } from './bar'
+import { putInSound } from './restroomSound'
 import { DISHES } from '@/data/menu'
 import { storageOf } from '@/data/storage'
 import { getEdit } from './edit'
@@ -316,6 +319,29 @@ const pileShown = (have: number, all: number) => (have < 0 ? all : have <= 0 ? 0
  * third of its height, it read as a wooden bowl, its weave pressed into a grain, its lining a dark hollow); how tall it drops from, and how
  * quickly it settles (per s) */
 const SLUMP_H = 0.3, SLUMP_W = 1.08, SLUMP_RATE = 3
+/** (item 607) something put into a container as a delivery's put away (game/fillUp: one after another, not all in a frame): heard from its
+ * mouth (`mouth`, in `o`'s frame), a knock as each goes in; now and then a wisp of dust out of its mouth, and a little puff as it's full (a
+ * fist of the shop's cream puffs read as garlic sat on the potatoes: kept small, few) */
+const PUT_AT = new THREE.Vector3()
+function putIn(o: THREE.Object3D, mouth: THREE.Vector3, n: number, full: boolean, kind: 'veg' | 'coal' = 'veg') {
+  o.localToWorld(PUT_AT.copy(mouth))
+  putInSound(PUT_AT, kind)
+  const s = o.getWorldScale(PUT_SCALE).y
+  if (full || Math.random() < 0.08 * n) puff(PUT_AT.setY(PUT_AT.y + 0.04 * s), (Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3, (full ? 0.07 : 0.045) * s)
+}
+const PUT_SCALE = new THREE.Vector3()
+/** the top middle of what's in `r` (its frame), where things go into it */
+const mouthOf = (r: THREE.Object3D, only?: (o: THREE.Object3D) => boolean) => {
+  r.updateMatrixWorld(true)
+  const inv = new THREE.Matrix4().copy(r.matrixWorld).invert(), box = new THREE.Box3(), b = new THREE.Box3()
+  r.traverse((o) => {
+    const g = (o as THREE.Mesh).geometry
+    if (!(o as THREE.Mesh).isMesh || !g || (only && !only(o))) return
+    if (!g.boundingBox) g.computeBoundingBox()
+    box.union(b.copy(g.boundingBox!).applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld)))
+  })
+  return box.isEmpty() ? new THREE.Vector3() : box.getCenter(new THREE.Vector3()).setY(box.max.y)
+}
 const ROLL_FROM = 1.35, ROLL_RATE = 4
 export function ProduceSacks() {
   const gltf = useGLTF(PRODUCE_URL) as unknown as { scene: THREE.Group }
@@ -372,21 +398,28 @@ export function ProduceSacks() {
       // (its emptied one: hidden till it's empty)
       const e = r.getObjectByName(`ProduceSackEmpty${i}`) ?? null
       if (e) e.visible = false
-      return { g, k: 0, e, ek: 0 }
+      // (its mouth, where a delivery's put in (item 607))
+      return { g, k: 0, e, ek: 0, mouth: r.worldToLocal(box.getCenter(new THREE.Vector3()).setY(box.max.y)) }
     })
     return { obj: r, piles, sacks }
   }, [gltf])
+  // (dev: the piles' counts and the sacks' slumps, for the probes (item 607))
+  useEffect(() => { if (import.meta.env?.DEV) Object.assign(window, { __produce: { piles, sacks } }) }, [piles, sacks])
   useFrame((_, dt) => {
     piles.forEach((p, i) => {
       const n = pileShown(SUPPLIES.has(p.id), p.all)
-      if (n !== p.shown) {
-        p.shown = n
-        p.body.show(n)
-        p.roots?.show(p.rootsOf(n))
+      // (a delivery (item 607): not full in a frame, but put in one after another once the sack's stood up again (game/fillUp); used, at once)
+      const sk = sacks[i]
+      const next = sk && sk.k > 0.25 && n > p.shown && p.shown >= 0 ? p.shown : fillToward(p.shown, n, p.all, dt)
+      const went = landed(p.shown, next)
+      if (p.shown < 0 || Math.floor(next) !== Math.floor(p.shown)) {
+        p.body.show(Math.floor(next))
+        p.roots?.show(p.rootsOf(Math.floor(next)))
       }
+      p.shown = next
+      if (went && sk) putIn(obj, sk.mouth, went, Math.floor(next) >= n)
       // (empty: the sack slumps down on its foot, a little wider, and right down it's rolled down: the emptied one in its place, dropping the
       // last bit and settling; filled again, that's put away and the full one stands up as it was)
-      const sk = sacks[i]
       if (!sk) return
       const want = n === 0 ? 1 : 0
       const rolled = want === 1 && sk.k >= 1 && !!sk.e
@@ -438,7 +471,7 @@ const LARDER = ['Potato', 'SweetPotato', 'Onion', ...Object.values(VEG_STOCK).fi
 /** `deeper`: the container's sides drawn up that much more than it's drawn across (item 524), what's in it raised with its rim, its own shape */
 export function VegBasket({ node, deeper = 1 }: { node: VegNode; deeper?: number }) {
   const gltf = useGLTF(PRODUCE_URL) as unknown as { scene: THREE.Group }
-  const { obj, kinds } = useMemo(() => {
+  const { obj, kinds, mouth } = useMemo(() => {
     // (each vegetable its own piece in the model, <node>_<Kind>_<i>, the first at the bottom (blender/produce.py, item 262): kept out of the
     // container's merging, to be counted out as there's stock)
     const vegRe = new RegExp(`^${node}_(?!Frame)([A-Za-z]+)_(\\d+)$`)
@@ -479,17 +512,29 @@ export function VegBasket({ node, deeper = 1 }: { node: VegNode; deeper?: number
       const all = Math.max(...lists.flatMap((l) => l.map((x) => x.i))) + 1
       return { stock: VEG_STOCK[kind] ?? null, all, shown: -1, batches: lists.map((l) => ({ at: l.map((x) => x.i), b: countedBatch(r, l.map((x) => x.m)) })) }
     })
-    return { obj: r, kinds }
+    // (its mouth: the top of what it's made of, where a delivery's put in (item 607))
+    return { obj: r, kinds, mouth: mouthOf(r) }
   }, [gltf, node, deeper])
-  useFrame(() => {
+  useFrame((_, dt) => {
     // (none of anything in the larder: the kinds that aren't on the menu go too; no shop running: all of them there)
     const any = LARDER.some((id) => SUPPLIES.has(id) !== 0)
+    let went = 0, full = true
     for (const k of kinds) {
       const n = pileShown(k.stock ? SUPPLIES.has(k.stock) : any ? -1 : 0, k.all)
-      if (n === k.shown) continue
-      k.shown = n
-      for (const bt of k.batches) bt.b.show(bt.at.filter((i) => i < n).length)
+      // (a delivery (item 607): put in one after another (game/fillUp); used, at once)
+      const next = fillToward(k.shown, n, k.all, dt)
+      went += landed(k.shown, next)
+      full &&= Math.floor(next) >= n
+      if (k.shown >= 0 && Math.floor(next) === Math.floor(k.shown)) { k.shown = next; continue }
+      k.shown = next
+      const m = Math.floor(next)
+      for (const bt of k.batches) {
+        let c = 0
+        for (const i of bt.at) if (i < m) c++
+        bt.b.show(c)
+      }
     }
+    if (went) putIn(obj, mouth, went, full)
   })
   const [title, hint] = VEG_SAYS[node]
   return (
@@ -509,7 +554,7 @@ const STICKS_SHOWN = 14
  */
 export function CharcoalSack() {
   const gltf = useGLTF(PRODUCE_URL) as unknown as { scene: THREE.Group }
-  const { obj, sticks } = useMemo(() => {
+  const { obj, sticks, mouth } = useMemo(() => {
     const r = partOf(gltf.scene, 'CharcoalSack', 0.004, (o) => /^CharcoalStick/.test(o.name))
     r.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = true })
     const list: THREE.Mesh[] = []
@@ -517,15 +562,20 @@ export function CharcoalSack() {
     // (the outer ring goes first, the middle ones stand longest: the sticks in the order they're shown, the middle's first; all of them one
     // mesh and one ink line, cut to as many as are left (they were a mesh and a line each: 28 draws))
     list.sort((a, b) => +b.name.slice(13) - +a.name.slice(13))
-    return { obj: r, sticks: countedBatch(r, list) }
+    // (its mouth, where a delivery's sticks are stood in (item 607): the top of its sack, not of the sticks standing up out of it)
+    const mouth = mouthOf(r, (o) => !/^CharcoalStick/.test(o.name))
+    return { obj: r, sticks: countedBatch(r, list), mouth }
   }, [gltf])
   const shown = useRef(-1)
-  useFrame(() => {
+  useFrame((_, dt) => {
     const left = SUPPLIES.coal()
     const n = left === Infinity ? STICKS_SHOWN : Math.min(STICKS_SHOWN, Math.ceil((left / (2 * SACK_STICKS)) * STICKS_SHOWN))
-    if (n === shown.current) return
-    shown.current = n
-    sticks.show(n)
+    // (a delivery (item 607): stood in one after another (game/fillUp); used, at once)
+    const next = fillToward(shown.current, n, STICKS_SHOWN, dt)
+    const went = landed(shown.current, next)
+    if (shown.current < 0 || Math.floor(next) !== Math.floor(shown.current)) sticks.show(Math.floor(next))
+    shown.current = next
+    if (went) putIn(obj, mouth, went, Math.floor(next) >= n, 'coal')
   })
   const says = () => {
     const left = SUPPLIES.coal()

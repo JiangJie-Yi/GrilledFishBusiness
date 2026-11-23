@@ -903,3 +903,21 @@ export function tvMurmur(at?: BaseAudioContext) {
     },
   }
 }
+
+/** something put into a container in the storeroom as a delivery's put away (item 607): a potato, an onion, a tomato into its sack or crate,
+ * a soft dull knock with the burlap's rustle over it, each its own pitch; a stick of binchotan into its sack, a dry woody clack (charcoal
+ * rings a little); a few a second at most from one place */
+export function putInSound(at: THREE.Vector3, kind: 'veg' | 'coal' = 'veg') {
+  const a = ctx()
+  const { near, pan } = heard(at)
+  if (!a || near < 0.02 || !gate(`putin${at.x.toFixed(1)}${at.z.toFixed(1)}`, 70)) return
+  const t = a.currentTime, coal = kind === 'coal', o = out(a, (coal ? 0.1 : 0.13) * near, pan)
+  const k = noise(a, 0.05, (x) => (1 - x) ** 2.5, 0.3, { key: 'putin', ways: 4 })
+  const f = a.createBiquadFilter()
+  f.type = coal ? 'bandpass' : 'lowpass'
+  f.frequency.value = coal ? 2200 : 700 + Math.random() * 300
+  f.Q.value = coal ? 2 : 0.7
+  k.connect(f).connect(o)
+  k.start(t)
+  ping(a, t, coal ? 900 + Math.random() * 250 : 120 + Math.random() * 50, coal ? 0.18 : 0.35, coal ? 0.05 : 0.07, o)
+}
