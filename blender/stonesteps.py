@@ -263,8 +263,10 @@ OVER = 0.002             # a tread's front stones this far out over its riser's 
 S_RINGS = (0.0, 0.0025, 0.005, 0.009, 0.028)
 S_ROUND = 0.009
 S_DOME = 0.0025          # (item 485: 0.004, the crowns' rise; lower, the stones read smoother, as the genkan's inside)
-GREEN = (0.55, 0.76, 0.36)   # what moss does to a stone's colour where it creeps onto it
-MOSS_TINT = (0.46, 0.70, 0.26)  # ...and to the pebble-wash's
+# what moss does to a stone's colour where it creeps onto it (item 626: the cushions gone, the moss is this colour alone: deeper, a moss's
+# green and not a stain's, 0.55, 0.76, 0.36 it was)
+GREEN = (0.42, 0.66, 0.24)
+MOSS_TINT = (0.38, 0.66, 0.2)  # ...and to the pebble-wash's (item 626: deeper, as the stones'; 0.46, 0.70, 0.26 it was)
 
 # (the genkan floor's own granite (blender/genkanfloor.py's, the same recipe), for the stones)
 N1 = 1024
@@ -431,9 +433,12 @@ class Mossy:
             a, b = Vector(p0), Vector(p1)
             t = max(0.0, min(1.0, (q - a).dot(b - a) / max(1e-9, (b - a).length_squared)))
             d = (q - (a + (b - a) * t)).length
-            m = max(m, w * min(1.0, max(0.0, 1.0 - (d - r * 1.2) / 0.05)))
+            # (item 626: the moss painted on, no cushions over it: its reach wider, 11 cm on from where a cushion's edge was, so it reads)
+            m = max(m, w * min(1.0, max(0.0, 1.0 - (d - r * 1.2) / 0.11)))
         m = max(m, 0.3 * min(1.0, max(0.0, (abs(x) - (self.W / 2 - 0.1)) / 0.1)))
-        return m
+        # (and in clumps, as moss grows: thicker here, thinner there along a joint or a foot, never an even band)
+        clump = 0.72 + 0.28 * math.sin(x * 29.0 + math.sin(z * 17.0) * 2.1) * math.cos(z * 23.0 + y * 11.0 + math.sin(x * 13.0))
+        return m * clump
 
 
 def stone(bm, L, poly, face, crown, tint, moss, rnd=S_ROUND, rings=S_RINGS, dome=S_DOME, thick=SK, shade=None):
@@ -515,7 +520,8 @@ def stone(bm, L, poly, face, crown, tint, moss, rnd=S_ROUND, rings=S_RINGS, dome
             a, b, h, g, ring = info[lp.vert]
             ua, ub = flat[lp.vert]
             lp[L["uv"]].uv = (ua / tile + off[0], ub / tile + off[1])
-            m = moss.at(*g) * (1.0, 0.85, 0.55, 0.3, 0.15)[min(ring, 4)]
+            # (up over its rounded edge and a little onto its face: further than when cushions lay over the edge (1, .85, .55, .3, .15))
+            m = moss.at(*g) * (1.0, 0.95, 0.78, 0.5, 0.25)[min(ring, 4)]
             k = shade(*g) if shade else 1.0
             lp[L["col"]] = (*(tint[i_] * (1 - m * (1 - GREEN[i_])) * k for i_ in range(3)), 1.0)
     return len(sides) * 2 + sum(len(f.verts) - 2 for f in tops)
@@ -700,8 +706,10 @@ def build_step(name):
             tris["mortar"] += mortar(bm, L, (-W / 2 + RECESS, -H / 2, -D / 2), (W / 2 - RECESS, -0.010, D / 2 - 0.004), moss)
         else:
             tris["mortar"] += mortar(bm, L, (-W / 2 + RECESS, -H / 2, -D / 2), (W / 2 - RECESS, H / 2 - RECESS, D / 2 - RECESS), moss)
-        for p0, p1, nf, nw, r in cush:
-            tris["moss"] += cushion(bm, L, p0, p1, nf, nw, r * 1.2, RS.uniform(0.85, 1.0))
+        # (item 626, the owner's 「青苔沒貼好」「青苔請用貼圖，而且面數這樣很浪費也不好看」: the cushions of moss in the corners are gone: out on
+        # the street past the stones' feet some of them lay on the ground, some stood off it; the moss is the stones' and the joints' colour
+        # where the cushions were, painted on (Mossy). Still made, and thrown away, so the dice come out as they did for every stone after)
+        unmade(cush)
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)
     bm.free()
@@ -712,6 +720,20 @@ def build_step(name):
     parts.append(o)
     print("STEP424", name, tris)
     return o
+
+
+def unmade(cush):
+    """(item 626) the cushions of moss made as they were, on a mesh thrown away: none drawn, the dice thrown as many times as before, so every
+    stone after them comes out as it did (the steps the owner has looked over)"""
+    junk = bmesh.new()
+    Lj = {"uv": junk.loops.layers.uv.new("UVMap"), "col": junk.loops.layers.color.new("Col")}
+    for p0, p1, nf, nw, r in cush:
+        cushion(junk, Lj, p0, p1, nf, nw, r * 1.2, RS.uniform(0.85, 1.0))
+    junk.free()
+
+
+# (item 627) the footing's joints' lean: dice of their own, so the stones' own come out as they did
+LEAN = np.random.default_rng(627)
 
 
 def runs(D, avoid, lo=0.2, hi=0.32):
@@ -778,13 +800,22 @@ def build_foot():
     def damp(x, y, z):
         t = min(1.0, max(0.0, (y - gnd) / 0.12))
         return 0.8 + 0.2 * t * t * (3 - 2 * t)
-    for (y0, y1), course in (((-H / 2 + 2 * rise, H / 2), upper), ((-H / 2, -H / 2 + 2 * rise), lower)):
-        for b0, b1 in inset_runs(course, D):
-            tris["stone"] += stone(bm, L, [(b0, y0 + SJ), (b1, y0 + SJ), (b1, y1 - SJ), (b0, y1 - SJ)], "right", W / 2, wall_tint(), moss,
-                                   shade=damp)
+    # (item 627, the owner's 「石梯側面太方正，應該會有些斜面，可參考旁邊其它石階」 with two of the upper course's joints drawn slanting: each
+    # upright joint a little off upright, this way or that (the upper course's more, 2 to 5 cm over its height; the lower's 1 to 3.5), so
+    # its stones are cut stones of a wall, not a grid of boxes; the face's two ends upright; each stone's edges rounded off as ever)
+    for (y0, y1), course, (s_lo, s_hi) in (((-H / 2 + 2 * rise, H / 2), upper, (0.02, 0.05)), ((-H / 2, -H / 2 + 2 * rise), lower, (0.01, 0.035))):
+        lean = {round(a0, 6): LEAN.uniform(s_lo, s_hi) * (1 if LEAN.random() < 0.5 else -1) for a0, _ in course if a0 > -D / 2 + 1e-6}
+
+        def at(a, y, inward, y0=y0, y1=y1, lean=lean):
+            if abs(a + D / 2) < 1e-6 or abs(a - D / 2) < 1e-6:
+                return a
+            return a + lean.get(round(a, 6), 0.0) * ((y - y0) / (y1 - y0) - 0.5) + inward * SJ
+        for a0, a1 in course:
+            poly = [(at(a0, y0 + SJ, 1), y0 + SJ), (at(a1, y0 + SJ, -1), y0 + SJ), (at(a1, y1 - SJ, -1), y1 - SJ), (at(a0, y1 - SJ, 1), y1 - SJ)]
+            tris["stone"] += stone(bm, L, poly, "right", W / 2, wall_tint(), moss, shade=damp)
     tris["mortar"] += mortar(bm, L, (-W / 2, -H / 2, -D / 2), (W / 2 - RECESS, H / 2, D / 2), moss, shows_only=("right",), shade=damp)
-    for p0, p1, nf, nw, r in cush:
-        tris["moss"] += cushion(bm, L, p0, p1, nf, nw, r * 1.2, RS.uniform(0.85, 1.0))
+    # (item 626: its cushions of moss along its foot gone, the moss painted on where they were (Mossy); thrown away as the steps' are)
+    unmade(cush)
     me = bpy.data.meshes.new("StoneFoot")
     bm.to_mesh(me)
     bm.free()
