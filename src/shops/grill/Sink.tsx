@@ -15,7 +15,8 @@ import { reflectStudio, useStudio } from '@/scene/studio'
 import { Steam } from '@/scene/Steam'
 import { canOpen, DRY_S, DRYER_CAP, drainSays, dryerPhase, handWashSays, playerLoad, shutStarts, type DryerPhase } from '@/game/plates'
 import { EMPTY_AT } from '@/game/bins'
-import { DRAIN, DRYER, HAND_WASH, IN_USE, POINTER_HINT, SINK, SINK_BIN, SUPPLIES, squeezeSoap, tipOver } from './bar'
+import { DRAIN, DRYER, HAND_WASH, IN_USE, POINTER_HINT, SINK, SINK_BIN, SUPPLIES, WARE, squeezeSoap, tipOver } from './bar'
+import { sinkWareSays, wareCount } from '@/game/ware'
 import { DISH_SOAP } from '@/game/household'
 import { basinSays, waterTick } from '@/game/sinkWater'
 import { GUIDE_OF, HAND_STEP_SAYS, SOAP_X, WASH_FLOW_SAYS, WASH_WET, handStep, pumpSoap, soapWith, washTips } from '@/game/handWash'
@@ -499,8 +500,11 @@ export const basinHint = () => {
   if (HAND_WASH.ask === 'wash') return `${basinSays(SINK.water, SINK.plug)}｜老闆忙完就來洗（髒盤 ${SINK.dirty}）`
   // (and, ready to wash, the player's choices said as advice (item 217): the liquid, the plug)
   const tips = st === 'scrub' || st === 'water' ? [WASH_FLOW_SAYS, ...washTips(handSink())] : []
-  return `${basinSays(SINK.water, SINK.plug)}｜${st === 'none' ? handWashSays(SINK.dirty, DRAIN) : `${HAND_STEP_SAYS[st]}（髒盤 ${SINK.dirty}）`}${tips.map((t) => `｜${t}`).join('')}`
+  return `${basinSays(SINK.water, SINK.plug)}｜${st === 'none' ? handWashSays(SINK.dirty, DRAIN) : `${HAND_STEP_SAYS[st]}（髒盤 ${SINK.dirty}）`}${wareSays()}${tips.map((t) => `｜${t}`).join('')}`
 }
+/** (item 600) the bowls, the renge and the chopsticks waiting in it for the washer (they go in its bowls' rack and cutlery basket, never the
+ * draining basket), said after its plates */
+const wareSays = () => (wareCount(WARE.sink) > 0 ? `｜等洗碗機：${sinkWareSays(WARE.sink)}` : '')
 /** how far a bin's lid lifts (rad); how far it stands open with the bin heaped over full (it won't shut on it) */
 // (up past upright till it rests on the wall behind (item 434): its hinge 1.6 cm off the wall, the round lid 25.6 cm across leans back 3.6
 // degrees to touch it; at 1.75 it went 3 cm into the wall)

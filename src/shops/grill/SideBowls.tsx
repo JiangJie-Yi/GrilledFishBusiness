@@ -85,6 +85,8 @@ export type SideProps = {
   shamoji: THREE.Group; lump: THREE.Object3D; otama: THREE.Group; ladleSoup: THREE.Object3D; stream: THREE.Mesh
   /** the paddle's holder by the cooker (item 253) */
   holder: THREE.Group
+  /** the soaking pot in the sink's basin (item 600): the cleared chopsticks and renge stood in it till they go in the washer */
+  soakPot: THREE.Group
 }
 /** one set of the props for the one filling bowls and carrying them out: a rice bowl and its rice, a soup bowl and its soup, the paddle and
  * its lump of rice, the ladle and the soup in it, the soup's stream as it's poured; each a group at its origin, inked, made ready to draw */
@@ -113,14 +115,15 @@ export function useSideProps(): SideProps {
     const holder = group(cupMesh)
     const stream = new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0025, 1, 6, 1, true).translate(0, -0.5, 0),
       new THREE.MeshToonMaterial({ color: '#a8713a' }))
-    for (const g of [chawan, wan, shamoji, otama, holder]) {
+    const soakPot = group(part('SoakPot'))
+    for (const g of [chawan, wan, shamoji, otama, holder, soakPot]) {
       inkModel(g, () => false, { width: 0.0012, weld: true })
       g.visible = false
       warmLater(g)
     }
     stream.visible = false
     warmLater(stream)
-    return { chawan, rice, wan, soup, shamoji, lump, otama, ladleSoup, stream, holder }
+    return { chawan, rice, wan, soup, shamoji, lump, otama, ladleSoup, stream, holder, soakPot }
   }, [gltf])
 }
 
@@ -461,41 +464,50 @@ export function fillSoup(soup: THREE.Object3D, fill: number) {
   soup.position.y = 0.014 + 0.028 * s
 }
 
-const SEAT_MAX = 12
-type Part = { geo: THREE.BufferGeometry; mat: THREE.Material; kind: 'body' | 'rice' | 'soup' }
+// (the places' (8 seats' rice and soup) and those on the move (item 600: on the counter, the trays, cleared, in the sink) besides)
+const SEAT_MAX = 40
+type Part = { geo: THREE.BufferGeometry; mat: THREE.Material; kind: 'body' | 'rice' | 'soup' | 'renge' }
+/** one bowl (or renge) to draw: where (its foot's middle, the bar's frame), turned `yaw` about the upright, or `q` (a bowl stood upside
+ * down, a renge tipped into its bowl); how full (`fill`, 0..1: a bowl left, cleared, washed; else as eaten down by its key, leftOf) */
+export type WareAt = { key: string; at: THREE.Vector3; yaw: number; fill?: number; q?: THREE.Quaternion }
+const GONE = new THREE.Matrix4().makeScale(0, 0, 0)
 /**
  * The bowls set at the customers' places, eaten down (item 205: the soup's bowl stood full till it was cleared): each part of the rice bowl
- * and the soup bowl one draw for all of them (instanced), laid out where GuestBar3D says (the bar's frame), as full as each has been eaten to.
+ * and the soup bowl one draw for all of them (instanced), laid out where GuestBar3D says (the bar's frame), as full as each has been eaten to;
+ * and the renge (item 600: in their soup bowls, cleared with them, stood in the soaking pot), one draw for all of them.
  */
 // (item 374: drawn again only when its own props change, not each time what holds it is drawn)
 export const SeatBowls = memo(SeatBowlsImpl)
-function SeatBowlsImpl({ rice, soup }: { rice: { key: string; at: THREE.Vector3; yaw: number }[]; soup: { key: string; at: THREE.Vector3; yaw: number }[] }) {
+function SeatBowlsImpl({ rice, soup, renge }: { rice: WareAt[]; soup: WareAt[]; renge?: WareAt[] }) {
   const gltf = useGLTF(SIDEBOWLS_URL) as unknown as { scene: THREE.Group }
   const parts = useMemo(() => {
     const grab = (name: string, kind: Part['kind']) => {
-      const o = gltf.scene.getObjectByName(name)!.clone(true)
+      const found = gltf.scene.getObjectByName(name)
+      if (!found) return []
+      const o = found.clone(true)
       dress(o)
       const out: Part[] = []
       o.traverse((m) => { const me = m as THREE.Mesh; if (me.isMesh) out.push({ geo: me.geometry, mat: forInstances(me.material as THREE.Material), kind }) })
       return out
     }
-    return { rice: [...grab('ChawanBody', 'body'), ...grab('ChawanRice', 'rice')], soup: [...grab('WanBody', 'body'), ...grab('WanSoup', 'soup')] }
+    return { rice: [...grab('ChawanBody', 'body'), ...grab('ChawanRice', 'rice')], soup: [...grab('WanBody', 'body'), ...grab('WanSoup', 'soup')],
+      renge: grab('Renge', 'renge') }
   }, [gltf])
-  const meshes = useRef<Record<'rice' | 'soup', (THREE.InstancedMesh | null)[]>>({ rice: [], soup: [] })
+  const meshes = useRef<Record<'rice' | 'soup' | 'renge', (THREE.InstancedMesh | null)[]>>({ rice: [], soup: [], renge: [] })
   const M = useMemo(() => ({ m: new THREE.Matrix4(), q: new THREE.Quaternion(), s: new THREE.Vector3(), p: new THREE.Vector3(), lp: new THREE.Vector3(), lq: new THREE.Quaternion(), wq: new THREE.Quaternion() }), [])
-  useLayoutEffect(() => { for (const k of ['rice', 'soup'] as const) for (const m of meshes.current[k]) if (m) warmLater(m) }, [])
+  useLayoutEffect(() => { for (const k of ['rice', 'soup', 'renge'] as const) for (const m of meshes.current[k]) if (m) warmLater(m) }, [])
   useFrame(() => {
     const now = performance.now()
-    for (const k of ['rice', 'soup'] as const) {
-      const list = k === 'rice' ? rice : soup
+    for (const k of ['rice', 'soup', 'renge'] as const) {
+      const list = k === 'rice' ? rice : k === 'soup' ? soup : renge ?? []
       parts[k].forEach((pt, i) => {
         const m = meshes.current[k][i]
         if (!m) return
         const n = Math.min(SEAT_MAX, list.length)
         for (let j = 0; j < n; j++) {
-          const b = list[j], left = leftOf(b.key, now)
+          const b = list[j], left = b.fill ?? leftOf(b.key, now)
           // (a bowl up in someone's hands for a mouthful (item 345, scene/bowlLift): where they hold it, tipped as they hold it)
-          const lift = BOWL_LIFT.get(b.key)
+          const lift = pt.kind !== 'renge' ? BOWL_LIFT.get(b.key) : undefined
           if (lift) {
             m.worldToLocal(M.lp.copy(lift.p))
             M.lq.copy(m.getWorldQuaternion(M.wq).invert()).multiply(lift.q)
@@ -508,14 +520,17 @@ function SeatBowlsImpl({ rice, soup }: { rice: { key: string; at: THREE.Vector3;
             m.setMatrixAt(j, M.m)
             continue
           }
-          M.q.setFromAxisAngle(UP, b.yaw)
-          if (pt.kind === 'body') M.m.compose(b.at, M.q, M.s.set(1, 1, 1))
+          if (b.q) M.q.copy(b.q)
+          else M.q.setFromAxisAngle(UP, b.yaw)
+          if (pt.kind === 'body' || pt.kind === 'renge') M.m.compose(b.at, M.q, M.s.set(1, 1, 1))
+          // (what's in it: none in one emptied (washed, or stood upside down))
+          else if (left <= 0.001) M.m.copy(GONE)
           else if (pt.kind === 'rice') {
             const s = Math.max(0.02, left)
-            M.m.compose(M.p.copy(b.at).add(new THREE.Vector3(0, 0.014 + 0.036 * s, 0)), M.q, M.s.set(0.55 + 0.45 * s, s, 0.55 + 0.45 * s))
+            M.m.compose(M.p.set(0, 0.014 + 0.036 * s, 0).applyQuaternion(M.q).add(b.at), M.q, M.s.set(0.55 + 0.45 * s, s, 0.55 + 0.45 * s))
           } else {
             const s = Math.max(0.02, left)
-            M.m.compose(M.p.copy(b.at).add(new THREE.Vector3(0, 0.014 + 0.028 * s, 0)), M.q, M.s.set(0.62 + 0.38 * s, 1, 0.62 + 0.38 * s))
+            M.m.compose(M.p.set(0, 0.014 + 0.028 * s, 0).applyQuaternion(M.q).add(b.at), M.q, M.s.set(0.62 + 0.38 * s, 1, 0.62 + 0.38 * s))
           }
           m.setMatrixAt(j, M.m)
         }
@@ -526,7 +541,7 @@ function SeatBowlsImpl({ rice, soup }: { rice: { key: string; at: THREE.Vector3;
   })
   return (
     <>
-      {(['rice', 'soup'] as const).map((k) => parts[k].map((pt, i) => (
+      {(['rice', 'soup', 'renge'] as const).map((k) => parts[k].map((pt, i) => (
         <instancedMesh key={`${k}${i}`} ref={(o) => { meshes.current[k][i] = o }} args={[pt.geo, pt.mat, SEAT_MAX]} count={0} frustumCulled={false} receiveShadow />
       )))}
     </>

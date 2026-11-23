@@ -53,6 +53,7 @@ import { fireCall, fireLow, HOT_AT, roastRate } from '@/game/fireTend'
 import { afterPhase, CHEF_PACE, nextTrip, PREP_S, TAKE_S, TEND_AT, tendOf, type ChefPhase, type Store } from '@/game/chefFlow'
 import { BOARD_SLOTS, RING_AZ, boardRoom, freeRingSlot } from '@/game/fireSlots'
 import { pickOrders, takesAt } from '@/game/orderPick'
+import { addWares, leftBehind, noWares, wareCount } from '@/game/ware'
 import { fairPrice } from '@/game/economy'
 import { getClock, minutesNow } from '@/ui/clockStore'
 import { crewAnswer, crewEcho } from './crewTalk'
@@ -103,7 +104,7 @@ import { CREW_LOAD, GAZE, SHOP, STAFF_SAY, clockIn, idleTick, paceOfStaff, LATE,
 import { loadOf } from '@/game/crewMood'
 /** (where a customer's looking, worked out) */
 const GAZE_AT = new THREE.Vector3()
-import { aisleCornerOf, aisleOf, FIGURES, CARRIED, FED, EAT_PHASE, PLATE_FACES, SEATS_SAT, DRAWER_KICK, TISSUE_REACH_MS, SAY_SEATED, BOWLS, RICE_SEATS, SIDE_SALE, FIRE_TEND, SKEWERS, SEAT_MOVE, STAFF_DOOR_HOLD, CUBBY_KICK, seatLabel, CHOPS_UP, GRIPES, gripe, CUBBY_OPEN, meterWater, KITCHEN_ROUTE, askPantry, shutPantry, SUPPLIES, PLACE, sharedAlong, SICK, LIP_H, PLATING, READY_SLOTS, readyAlong, PLATES_OUT, PLATER_OUT, OWNER_GRILL, FETCHER, SEAT_STICKS, SEAT_BONES, WHOLE_FISH, RICE, seatAlong, tipOver, ALONG, handOver, genkanY, ONIGIRI_TRAY, FLOOR_NEAR, staffWayOut, doorOutOf, inKitchen, alongPath, pathLength, drinkFor, type DrinkId, sauceSide, POINTER_HINT, PLATES_SET, SEATS_TAKEN, SERVICE, PANTRY, KITCHEN_FOLK, platingOf, BAR_GATES, gateCut, gateOf, type Gate, TILL, GRILL_BAR_TOP, GRILL_COUNTERS, GRILL_OFFSET, GRILL_SCALE, GRILL_SEATS, SIDE_PULL, FIRE_SHIFT, KITCHEN_DROP, LAY, toGrillScene, CUBBY, CUBBY2, CUBBY_FLOOR_Y, CUBBY_SHELF_Y, COOK_NOTCH, SOUS_NOTCH, nameOver, BAR_BASE_Z, SOY_DISH_AT, seatTurn, roomOf, type Counter } from './bar'
+import { aisleCornerOf, aisleOf, FIGURES, CARRIED, FED, EAT_PHASE, PLATE_FACES, SEATS_SAT, DRAWER_KICK, TISSUE_REACH_MS, SAY_SEATED, BOWLS, RICE_SEATS, SIDE_SALE, FIRE_TEND, SKEWERS, SEAT_MOVE, STAFF_DOOR_HOLD, CUBBY_KICK, seatLabel, CHOPS_UP, CHOPS_USED, CHOPS_OFF, CHOPS_LOOSE, SEAT_LEFT, GRIPES, gripe, CUBBY_OPEN, meterWater, KITCHEN_ROUTE, askPantry, shutPantry, SUPPLIES, PLACE, sharedAlong, SICK, LIP_H, PLATING, READY_SLOTS, readyAlong, PLATES_OUT, PLATER_OUT, OWNER_GRILL, FETCHER, SEAT_STICKS, SEAT_BONES, WHOLE_FISH, RICE, seatAlong, tipOver, ALONG, handOver, genkanY, ONIGIRI_TRAY, FLOOR_NEAR, staffWayOut, doorOutOf, inKitchen, alongPath, pathLength, drinkFor, type DrinkId, sauceSide, POINTER_HINT, PLATES_SET, SEATS_TAKEN, SERVICE, PANTRY, KITCHEN_FOLK, platingOf, BAR_GATES, gateCut, gateOf, type Gate, TILL, GRILL_BAR_TOP, GRILL_COUNTERS, GRILL_OFFSET, GRILL_SCALE, GRILL_SEATS, SIDE_PULL, FIRE_SHIFT, KITCHEN_DROP, LAY, toGrillScene, CUBBY, CUBBY2, CUBBY_FLOOR_Y, CUBBY_SHELF_Y, COOK_NOTCH, SOUS_NOTCH, nameOver, BAR_BASE_Z, SOY_DISH_AT, seatTurn, roomOf, type Counter } from './bar'
 import { freshFactor, sickChance } from '@/game/freshness'
 import { warmLater } from '@/scene/Prewarm'
 import { NO_POINTER, zr } from '@/scene/htmlProps'
@@ -4003,9 +4004,11 @@ const BarChopsticks = memo(function BarChopsticks() {
     // (each lying stick itself, 56 triangles, square at the top tapering to its rounded tip, its ink line round it, both instanced: two draws
     // for every place's pair (item 281, the owner's, 2026-11-17: 「筷子跟筷架要有基本的立體感」: laid as one flat sheet with its picture from
     // above (item 144) they were a hairline seen along the bar, and cast no shadow); those in a customer's hand are theirs, drawn with them)
-    const sticks = new THREE.InstancedMesh(geo, mat, places.length * 2)
-    const ink = new THREE.InstancedMesh(hull, CHOP_INK, places.length * 2)
+    // (and room for those off the places (item 600): on a tray, standing in the soaking pot, on their way back to a place)
+    const sticks = new THREE.InstancedMesh(geo, mat, places.length * 2 + CHOPS_LOOSE.m.length)
+    const ink = new THREE.InstancedMesh(hull, CHOP_INK, places.length * 2 + CHOPS_LOOSE.m.length)
     ink.instanceMatrix = sticks.instanceMatrix
+    sticks.count = ink.count = places.length * 2
     sticks.receiveShadow = true
     sticks.frustumCulled = ink.frustumCulled = false
     return { sticks, ink, places, geo, hull, mat, onSet }
@@ -4017,9 +4020,14 @@ const BarChopsticks = memo(function BarChopsticks() {
   useEffect(() => () => { if (made) { made.geo.dispose(); made.hull.dispose(); made.mat.dispose(); made.ink.dispose(); made.sticks.dispose() } }, [made])
   // (which places' pairs are up, last laid out: laid out again only when that changes)
   const shown = useRef('-')
+  const loose = useMemo(() => ({ inv: new THREE.Matrix4(), m: new THREE.Matrix4() }), [])
   useFrame(() => {
     if (!made) return
-    let key = [...CHOPS_UP].sort((a, b) => a - b).join()
+    // (up in a hand, or taken up with what's cleared and not laid again (item 600); and those off the places, as they move)
+    let up = 0, off = 0
+    for (const n of CHOPS_UP) up |= 1 << n
+    for (const n of CHOPS_OFF) off |= 1 << n
+    let key = `${up}/${off}/${CHOPS_LOOSE.ver}`
     // (laid where their set's piece is: found once it's drawn, and followed while edit mode's on)
     const parent = made.sticks.parent
     if (parent && (settled.current < 2 || getEdit().on)) {
@@ -4035,7 +4043,14 @@ const BarChopsticks = memo(function BarChopsticks() {
     }
     if (key === shown.current) return
     shown.current = key
-    made.places.forEach((pair, i) => pair.forEach((m, k) => made.sticks.setMatrixAt(i * 2 + k, CHOPS_UP.has(i) ? CHOP_GONE : m)))
+    made.places.forEach((pair, i) => pair.forEach((m, k) => made.sticks.setMatrixAt(i * 2 + k, CHOPS_UP.has(i) || CHOPS_OFF.has(i) ? CHOP_GONE : m)))
+    // (the pairs off the places, laid out in the world by GuestBar3D: into this one's frame)
+    const base = made.places.length * 2, n = Math.min(CHOPS_LOOSE.n, CHOPS_LOOSE.m.length)
+    if (n > 0 && parent) {
+      loose.inv.copy(parent.matrixWorld).invert()
+      for (let k = 0; k < n; k++) made.sticks.setMatrixAt(base + k, loose.m.multiplyMatrices(loose.inv, CHOPS_LOOSE.m[k]))
+    }
+    made.sticks.count = made.ink.count = base + (parent ? n : 0)
     made.sticks.instanceMatrix.needsUpdate = true
   })
   if (!made) return null
@@ -8005,7 +8020,17 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       g.leftAt ??= now
       if (now - g.leftAt < 1.6) continue
       g.cleared = true
-      // (their soup bowl cleared with their plate, and their rice bowl; their bowls not yet brought, not to be now)
+      // (what they leave at their place to be washed (item 600, the owner's: the bowls, the renge and the chopsticks as the plates are): their
+      // bowls as they were brought, and their chopsticks if they ate with them (a pair laid there); GuestBar3D clears them with their plate)
+      if (g.seat >= 0 && !g.takeout) {
+        const left = leftBehind({ rice: RICE_SEATS.has(g.seat) && BOWLS.setAt.has(`rice:${g.seat}`), soup: SOUP_SEATS.has(g.seat) && BOWLS.setAt.has(`soup:${g.seat}`),
+          // (ate anything: rice and soup with them too, not only what's off the fire (only that has the pair up in their hand: CHOPS_UP))
+          ate: (CHOPS_USED.has(g.seat) || g.eaten.length > 0) && !CHOPS_OFF.has(g.seat) })
+        CHOPS_USED.delete(g.seat)
+        if (wareCount(left) > 0) SEAT_LEFT.set(g.seat, addWares(SEAT_LEFT.get(g.seat) ?? noWares(), left))
+      }
+      // (their soup bowl off the drawn ones at the places, and their rice bowl (GuestBar3D draws them left there now, item 600); their bowls
+      // not yet brought, not to be now)
       if (SOUP_SEATS.delete(g.seat)) SOUP.served++
       if (RICE_SEATS.delete(g.seat)) BOWLS.ver++
       // (and the dishes from the stove and the fryer at their place, and what of theirs wasn't made yet (items 461, 469))

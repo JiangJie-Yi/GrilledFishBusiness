@@ -313,6 +313,60 @@ bon.data.materials.append(BON_FLOOR)
 planar_uv(bon, 0.15)
 parts.append(bon)
 
+# ---------------------------------------------------------------------------------------------------- the renge and the soaking pot
+# (item 600, the owner's, 2026-11-23: the bowls, the chopsticks and the spoons washed as the plates are)
+# (the soup's spoon (れんげ), brought in its bowl: white porcelain, glossy; its bowl an oval 4.6 by 3.4 cm and 1.5 deep, flat underneath,
+# its handle up from the bowl's back at a slant, flat, a little wider at its end; 13 cm long in all. The back of its bowl's foot at the
+# origin, the bowl out along +x, the handle back along -x and up; 12 round (a small thing seen small): 72 faces, no fan into a point)
+RENGE_WHITE = pbr("RengeWhite", lin("#f2efe8"), rough=0.22, coat=0.4)
+
+
+def renge():
+    bm = bmesh.new()
+    segs = 12
+    cx = 0.023
+    # (the oval's half length along x, half width across, height: up the outside to the rim, then down the inside to its floor)
+    prof = [(0.014, 0.0100, 0.0), (0.021, 0.0155, 0.006), (0.023, 0.0170, 0.0145), (0.0205, 0.0148, 0.0135), (0.012, 0.0085, 0.0035)]
+    rings = [[bm.verts.new(P(cx + ax * math.cos(2 * math.pi * i / segs), h, az * math.sin(2 * math.pi * i / segs))) for i in range(segs)] for ax, az, h in prof]
+    for a_, b_ in zip(rings, rings[1:]):
+        for i in range(segs):
+            bm.faces.new((a_[i], a_[(i + 1) % segs], b_[(i + 1) % segs], b_[i]))
+    ladder_fill(bm, list(reversed(rings[0])))
+    ladder_fill(bm, rings[-1])
+    # (the handle: a flat bar from inside the bowl's back rim up and back, its sections (x, height, half width), 3.5 mm thick)
+    sec = [(0.004, 0.011, 0.0062), (-0.028, 0.025, 0.0058), (-0.062, 0.037, 0.0074), (-0.078, 0.04, 0.008)]
+    hr = []
+    for k, (x_, y_, hw) in enumerate(sec):
+        a = Vector((sec[min(k + 1, 3)][0] - sec[max(k - 1, 0)][0], sec[min(k + 1, 3)][1] - sec[max(k - 1, 0)][1]))
+        a.normalize()
+        nx, ny = -a.y, a.x            # (the bar's up, square to it in its own plane)
+        t = 0.002
+        hr.append([bm.verts.new(P(x_ + nx * t * sy, y_ + ny * t * sy, hw * sz)) for sz, sy in ((1, 1), (-1, 1), (-1, -1), (1, -1))])
+    for a_, b_ in zip(hr, hr[1:]):
+        for i in range(4):
+            bm.faces.new((a_[i], a_[(i + 1) % 4], b_[(i + 1) % 4], b_[i]))
+    bm.faces.new(list(reversed(hr[0])))
+    bm.faces.new(hr[-1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new("Renge")
+    bm.to_mesh(me)
+    bm.free()
+    o = bpy.data.objects.new("Renge", me)
+    bpy.context.collection.objects.link(o)
+    o.data.materials.append(RENGE_WHITE)
+    planar_uv(o, 0.09)
+    for p_ in o.data.polygons:
+        p_.use_smooth = True
+    parts.append(o)
+    return o
+
+
+renge()
+# (the soaking pot in the sink's basin (浸け置き): a stainless pot the cleared chopsticks and renge are stood in, in water, till they go in
+# the washer's cutlery basket; 8 cm across, 12 high, its floor closed (a ladder), open at the top, a rolled rim; 16 round: 88 faces)
+POT_STEEL = pbr("SoakSteel", lin("#b9bec4"), rough=0.32, metal=0.8)
+turn("SoakPot", [(0.036, 0.0), (0.04, 0.004), (0.04, 0.118), (0.042, 0.12), (0.037, 0.12), (0.037, 0.006)], [POT_STEEL], [0, 0, 0, 0, 0], cap_hi=0)
+
 # ---------------------------------------------------------------------------------------------------- out
 for o in parts:
     o.location = (0, 0, 0)

@@ -6,7 +6,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
-import { LOW_RACK, PLATE_COUNT, PLATE_RACK, tipOver } from './bar'
+import { LOW_RACK, PLATE_COUNT, PLATE_RACK, WARE, tipOver } from './bar'
 import { PER_CABINET } from '@/game/tableware'
 import { getEdit } from './edit'
 import { coolerDoorSound } from './restroomSound'
@@ -58,11 +58,18 @@ function useCabinet() {
 const DOOR_SLIDE = 0.43, DRAWER_OUT = 0.22
 /** what each door and drawer says pointed at: what's in it, how many, and what a click does */
 const CAB_SAYS = [
-  { title: '碗櫃（左）', what: `飯碗 ${PER_CABINET.riceBowls} 個（4 個一疊，3 疊）` },
-  { title: '碗櫃（右）', what: `湯碗 ${PER_CABINET.soupBowls} 個（4 個一疊，3 疊）` },
-  { title: '抽屜（左）', what: `筷子 ${PER_CABINET.chopsticks} 雙（10 雙一束，3 束）` },
-  { title: '抽屜（右）', what: `湯匙 ${PER_CABINET.spoons} 支（6 支一疊，2 疊）` },
-]
+  { title: '碗櫃（左）', kind: 'rice', what: (n: number) => `飯碗 ${n}/${PER_CABINET.riceBowls} 個（4 個一疊，3 疊）` },
+  { title: '碗櫃（右）', kind: 'soup', what: (n: number) => `湯碗 ${n}/${PER_CABINET.soupBowls} 個（4 個一疊，3 疊）` },
+  { title: '抽屜（左）', kind: 'chops', what: (n: number) => `筷子 ${n}/${PER_CABINET.chopsticks} 雙（10 雙一束，3 束）` },
+  { title: '抽屜（右）', kind: 'renge', what: (n: number) => `湯匙 ${n}/${PER_CABINET.spoons} 支（6 支一疊，2 疊）` },
+] as const
+/** how many clean ones of a kind are in this cabinet now (item 600: the washed ones put back, those in use and in the wash not): the first
+ * of the two filled first, as the plates' racks are */
+const inCabinet = (kind: 'rice' | 'soup' | 'chops' | 'renge', part: number) => {
+  const half = { rice: PER_CABINET.riceBowls, soup: PER_CABINET.soupBowls, chops: PER_CABINET.chopsticks, renge: PER_CABINET.spoons }[kind]
+  const n = WARE.cab[kind]
+  return part === 0 ? Math.min(n, half) : Math.max(0, Math.min(half, n - half))
+}
 /** the cupboard's doors and drawers: clicked, a door slides open over the other's half (the other shut: only one half opens at a time), a
  * drawer pulls out; and again, shut */
 function CabinetFront({ cab, part }: { cab: ReturnType<typeof useCabinet>; part: number }) {
@@ -70,7 +77,7 @@ function CabinetFront({ cab, part }: { cab: ReturnType<typeof useCabinet>; part:
   const at = useRef([0, 0, 0, 0])
   // (dev: opened from the console: __cabOpen[part][0..3] = 1)
   if (import.meta.env.DEV) { const w = window as unknown as { __cabOpen?: number[][] }; (w.__cabOpen ??= [])[part] = want.current }
-  const says = (i: number) => `${CAB_SAYS[i].what}｜點一下${want.current[i] ? '關上' : '打開'}`
+  const says = (i: number) => `${CAB_SAYS[i].what(inCabinet(CAB_SAYS[i].kind, part))}｜點一下${want.current[i] ? '關上' : '打開'}`
   useFrame((_, dt) => {
     const k = Math.min(1, Math.min(dt, 0.1) * 6)
     for (let i = 0; i < 4; i++) at.current[i] += (want.current[i] - at.current[i]) * k

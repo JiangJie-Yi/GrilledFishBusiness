@@ -22,7 +22,8 @@ import { Glyph } from '@/ui/GameIcons'
 import { FoodArt } from '@/ui/FoodArt'
 import type { Restock } from '@/ui/Menu'
 import { CRATE, FREEZER_TEMP } from './Decor'
-import { GRILL_SEATS, KAKUBAT, onPrinter, PLATE_COUNT, PRINTER, SERVICE, tissuesAt, TOILETS } from './bar'
+import { GRILL_SEATS, KAKUBAT, onPrinter, PLATE_COUNT, PRINTER, SERVICE, tissuesAt, TOILETS, WARE } from './bar'
+import { WARE_ALL, type WareKind } from '@/game/ware'
 import { DrinkStockBody } from './DrinkStockPanel'
 import { frostSound, usePanelSound } from '@/ui/uiSound'
 
@@ -516,6 +517,15 @@ function Tableware({ lang }: { lang: Lang }) {
                 <FitLine className="drink-bin-sub" min={8}>{[live[0], live[4]].map(([k, n]) => `${k} ${n}`).join('・')}</FitLine>
                 <FitLine className="drink-bin-sub" min={8}>{live.slice(1, 4).map(([k, n]) => `${k} ${n}`).join('・')}</FitLine>
               </>}
+              {/* (the bowls, the renge and the chopsticks likewise (item 600): in the cabinets, out (at the places, on the trays, at the counter),
+                  in the sink and in the washer) */}
+              {w.id in WARE_OF && (() => {
+                const k = WARE_OF[w.id], cab = WARE.cab[k], sink = WARE.sink[k], washer = WARE.washer[k], out = Math.max(0, WARE_ALL[k] - cab - sink - washer)
+                return <>
+                  <FitLine className="drink-bin-sub" min={8}>{`${tl(lang, '櫃裡', '棚', 'Cabinet')} ${cab}・${live[4][0]} ${out}`}</FitLine>
+                  <FitLine className="drink-bin-sub" min={8}>{`${live[1][0]} ${sink}・${live[2][0]} ${washer}`}</FitLine>
+                </>
+              })()}
               {/* (the trays where they are now: in the servers' hands, the rest at the pass (item 311)) */}
               {w.id === 'trays' && <FitLine className="drink-bin-sub" min={8}>{tl(lang, `外場手上 ${trays.hands}・出餐口 ${trays.pass}`, `手元 ${trays.hands}・出し口 ${trays.pass}`, `In hand ${trays.hands} · at the pass ${trays.pass}`)}</FitLine>}
               {/* (the square tray: out by the owner while the shop's open, what's on it waiting for the servers' tongs (item 317)) */}
@@ -523,11 +533,13 @@ function Tableware({ lang }: { lang: Lang }) {
             </div>
           ))}
         </div>
-        <p className="stock-note">{tl(lang, '餐具是店裡自己的，不會用完；盤子的數字是現在各在哪裡。', '食器は店の備品で、なくならない。皿の数は今どこにあるか。', 'The tableware is the shop’s own and isn’t used up; the plates’ numbers say where they are just now.')}</p>
+        <p className="stock-note">{tl(lang, '餐具是店裡自己的，不會用完；盤子、碗、湯匙、筷子的數字是現在各在哪裡（用過的洗好才回到櫃裡）。', '食器は店の備品で、なくならない。皿・碗・れんげ・箸の数は今どこにあるか（使ったものは洗ってから棚に戻る）。', 'The tableware is the shop’s own and isn’t used up; the plates’, bowls’, renge’s and chopsticks’ numbers say where they are just now (used, they’re back in the cabinet once washed).')}</p>
       </section>
     </div>
   )
 }
+/** the tableware tab's rows told over live besides the plates (item 600), and what game/ware calls each */
+const WARE_OF: Record<string, WareKind> = { riceBowls: 'rice', soupBowls: 'soup', spoons: 'renge', chopsticks: 'chops' }
 /** each piece's little picture */
 function WareIcon({ id }: { id: string }) {
   const s = { fill: '#f4f1ea', stroke: '#3b4a5c', strokeWidth: 1 }

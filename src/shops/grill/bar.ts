@@ -18,6 +18,7 @@ import { aimTip, setTip } from '@/scene/hoverTip'
 import { openingFloat, payCash, type DrawerCash, type Tab } from '@/game/till'
 import type { CalmKind } from '@/game/calm'
 import { LOW_FULL, RACK_FULL, type Dryer, type Drain } from '@/game/plates'
+import { cabinetAtStart, noWares, type Wares } from '@/game/ware'
 import { PILE_START } from '@/game/sinkPile'
 import type { Flower } from '@/game/shrineFlowers'
 import { freshRoom } from '@/game/restroom'
@@ -1112,6 +1113,26 @@ export const HAND_WASH: { ask: 'wash' | 'take' | null; until: number; boss: bool
  * the sink, in the washer, in the basket, and out (the plating place's stack, on their way, at the seats); GuestBar3D keeps it */
 export const PLATE_COUNT = keep(import.meta.hot, 'PLATE_COUNT', { rack: 0, low: 0, sink: 0, washer: 0, basket: 0, out: 0 })
 if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __drain: DRAIN, __plateCount: PLATE_COUNT, __handWash: HAND_WASH, __ownerOut: OWNER_OUT })
+/**
+ * The bowls, the renge and the chopsticks (game/ware, item 600, the owner's: 「我還有飯碗、湯碗、筷子、湯匙，這些也都是要清洗的」): how many of
+ * each are where. `cab`: clean in the cabinets under the racks (the kitchen takes a bowl to fill, the floor a pair to lay a place); `sink`:
+ * waiting in the sink to be washed (the bowls in its basin, the chopsticks and the renge in the soaking pot); `washer`: in the washer with
+ * its plates; `out`: at the places (in use, or left for clearing), on the trays, at the counter filled (GuestBar3D tells them over every
+ * frame, for the stock's tableware tab and the cabinets' labels: every piece counted, as the plates are); `ver` counts each change.
+ */
+// (the places' pairs taken out of the cabinets as the shop's laid out: GuestBar3D, as the day's set (the counters are made further down))
+export const WARE = keep(import.meta.hot, 'WARE', { cab: cabinetAtStart(0), sink: noWares(), washer: noWares(), out: noWares(), ver: 0 })
+/** each place's things left as its customer goes (Roasting, as it lets them go: their bowls, and their chopsticks if they ate), for GuestBar3D
+ * to clear with their plate (or by themselves, a customer who had none) */
+export const SEAT_LEFT = keep(import.meta.hot, 'SEAT_LEFT', new Map<number, Wares>())
+/** the places whose pair has been up in a customer's hand since it was laid (GuestBar3D marks them as CHOPS_UP is): to be washed */
+export const CHOPS_USED = keep(import.meta.hot, 'CHOPS_USED', new Set<number>())
+/** the places with no pair on their rest: taken up with what's cleared, not yet laid again (Roasting's BarChopsticks leaves the rest bare) */
+export const CHOPS_OFF = keep(import.meta.hot, 'CHOPS_OFF', new Set<number>())
+/** chopsticks off the places, drawn with theirs (Roasting's BarChopsticks): each stick's place and turn in the world, two to a pair (on a tray,
+ * standing in the soaking pot, on the way to a place); GuestBar3D lays them out every frame, `n` of them, `ver` changed when they move */
+export const CHOPS_LOOSE = keep(import.meta.hot, 'CHOPS_LOOSE', { m: Array.from({ length: 96 }, () => new THREE.Matrix4()), n: 0, ver: 0 })
+if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __ware: WARE, __seatLeft: SEAT_LEFT, __chopsOff: CHOPS_OFF, __chopsLoose: CHOPS_LOOSE })
 /** the bins by the sink (item 208, game/bins): how many used sticks are in the rubbish one (cleared off the customers' plates with them;
  * the owner's: thrown away there), how full each is and the bottles and cans in the recycling one; each lid asked open (a click) or
  * lifted till then (something thrown in, the stock keeper at it); and the bin whose bag is out just now (being carried off by the stock
