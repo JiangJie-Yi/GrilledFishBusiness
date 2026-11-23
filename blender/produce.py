@@ -1145,7 +1145,75 @@ sealed_sack("ProduceSackSealed", -0.81, -0.08, 0.75, 0.38, 0.3, -0.12, "sackP", 
 # (item 608, the owner's 「這顆馬鈴薯移到袋子腳邊」: at the potato sack's foot, on the floor between it and the sweet potatoes' sack, lying
 # front to back where they part; in front of them, at (-0.22, 0.29), it lay inside the root vegetables' crate since the crates came in
 # front of the sacks (item 262) and were drawn deeper (item 524))
-tuber("ProduceLoose0", -0.207, 0.034, 0.085, 0.055, "potato", rot=(0.25, 0.0, 1.45))
+# (item 641, the Tester's: it touched the full sweet potatoes' sack (0.1 cm): 1.2 cm along and 0.5 out, 1.3 cm clear of it, scanned. Not
+# further out: within 10 cm of the root crate's back (0.245 out, as the game sets it) it's hidden behind it from the front)
+loose = tuber("ProduceLoose0", -0.219, 0.034, 0.09, 0.055, "potato", rot=(0.25, 0.0, 1.45))
+# ---- (item 641, the Tester's: emptied and rolled down, the sacks either side of it laid their rolls 2.4 and 3.2 cm into it) each emptied
+# sack's roll pushed in round it toward its own middle, as cloth lies against something there: a column at a time (the roll's cross-section
+# at one bearing, moved as one, never squashed thin), as far as keeps it LOOSE_AIR clear of the potato, the columns either side taken part
+# of the way in, so it's a dent and not a step. (Its vertices kept 1.2 cm off: the faces between them come a little nearer, 0.3 cm at 0.6) ----
+LOOSE_AIR = 0.012
+
+
+def keep_off(name, cx, cz, other):
+    o = bpy.data.objects.get(name)
+    if o is None or o.type != "MESH":
+        return 0
+    bm = bmesh.new()
+    bm.from_object(other, bpy.context.evaluated_depsgraph_get())
+    bm.transform(other.matrix_world)
+    tree = BVHTree.FromBMesh(bm)
+    bm.free()
+    up = Vector((0.0001, 0.0002, 1.0)).normalized()
+
+    def clear(w):
+        n, q = 0, w.copy()
+        for _ in range(30):
+            hit = tree.ray_cast(q, up)
+            if hit[0] is None:
+                break
+            n += 1
+            q = hit[0] + up * 1e-5
+        if n % 2:
+            return False
+        f = tree.find_nearest(w)
+        return f[0] is None or f[3] >= LOOSE_AIR
+    mw = o.matrix_world
+    inv = mw.inverted()
+    # (each vertex's bearing round the sack's middle, the game's frame: its x, and z as Blender's -y)
+    cols = {}
+    for v in o.data.vertices:
+        w = mw @ v.co
+        a = round(math.atan2(-w.y - cz, w.x - cx), 4)
+        cols.setdefault(a, []).append(v)
+    keys = sorted(cols)
+    need = []
+    for a in keys:
+        rad = Vector((math.cos(a), -math.sin(a), 0.0))
+        s = 0.0
+        for v in cols[a]:
+            w = mw @ v.co
+            k = 0.0
+            while k < 0.09 and not clear(w - rad * k):
+                k += 0.002
+            s = max(s, k)
+        need.append(s)
+    n = len(keys)
+    moved = 0
+    for j, a in enumerate(keys):
+        s = max(need[j], 0.6 * max(need[j - 1], need[(j + 1) % n]), 0.3 * max(need[j - 2], need[(j + 2) % n]))
+        if s <= 0:
+            continue
+        rad = Vector((math.cos(a), -math.sin(a), 0.0))
+        for v in cols[a]:
+            v.co = inv @ ((mw @ v.co) - rad * s)
+        moved += 1
+    o.data.update()
+    return moved
+
+
+for i, (x, z, h, r, mat, lean, kind) in enumerate(SACKS):
+    print("KEPT_OFF", f"ProduceSackEmpty{i}", keep_off(f"ProduceSackEmpty{i}", x, z, loose), "columns")
 # (a potato and an onion: the owner's)
 onion("ProduceLooseOnion", 0.24, 0.044, 0.31, 0.044, rot=(1.4, 0.3, 0.6))
 # ---- the stepped stand of six wooden baskets that stood beside the onions' sack is gone (the owner's, 2026-11-15: crossed out, and "take
