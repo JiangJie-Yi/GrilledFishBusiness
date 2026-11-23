@@ -16,7 +16,8 @@ import { bossSituation } from '@/game/talkTime'
 import { getClock } from '@/ui/clockStore'
 import { DrinkBottle } from './DiningRoom'
 import { gulpSound } from './chewSound'
-import { BOSS_BED, FIGURES, FRIDGE_STOCK, FUTON, KITCHEN_FOLK, OWNER_GRILL, OWNER_OUT, type DrinkId } from './bar'
+import { BOSS_BED, FIGURES, FRIDGE_STOCK, FUTON, KITCHEN_FOLK, NIGHT_WITH, OWNER_GRILL, OWNER_OUT, STAFF_DOOR_HOLD, type DrinkId } from './bar'
+import { dormDoing } from '@/game/dormLife'
 import { BOSS_BODY, bossWorn, layBeat, riseBeat, sleepsDown, wakesUp } from '@/game/bossStamina'
 import { footDust, newSteps } from '@/scene/DustPuffs'
 const FEET = new THREE.Vector3()
@@ -172,7 +173,8 @@ const ROUND_OPEN: Phase[] = [{ act: 'tongs', len: 6 }, { act: 'idle', len: 2.5 }
 const WALK_SPEED = 0.9
 /** (item 444) his way to his futon the nights he's worn out, and back: where he is along it; laying it down, asleep, getting up; where its
  * foot is and where he lies down on it (his own frame); how far he's lain back (0 standing .. 1 on his back) */
-type BedTrip = { phase: 'off' | 'go' | 'lay' | 'sleep' | 'rise' | 'back'; pts: THREE.Vector3[]; len: number; d: number; t: number
+/** (item 637) 'up': to the staff's door and through it, up the stair to her; 'upstairs': up there (the room upstairs draws him); then 'back' */
+type BedTrip = { phase: 'off' | 'go' | 'lay' | 'sleep' | 'rise' | 'back' | 'up' | 'upstairs'; pts: THREE.Vector3[]; len: number; d: number; t: number
   foot: THREE.Vector3; feet: THREE.Vector3; off: THREE.Vector3; head: THREE.Vector3; bar: number; lie: number
   /** (item 624) shaken awake with nothing to get up for: till when he stirs, sits up a little and lies down again; till when he's shaken */
   stir?: number; shake?: number }
@@ -412,6 +414,10 @@ function styledBoss(scene: THREE.Group, fan: THREE.Object3D) {
     if (fanNode) { fanNode.add(uchiwaInHand(fan)); fanNode.visible = false }
     // (what's held starts put away)
     for (const n of ['BossTongs', 'BossFan']) r.getObjectByName(n)?.scale.setScalar(0)
+    // (every part as he stands at rest, before the shop's frame moves any of it: a copy of him made later is put back to it (BossModel))
+    const rest: number[][] = []
+    r.traverse((o) => rest.push([...o.position.toArray(), ...o.quaternion.toArray(), ...o.scale.toArray(), o.visible ? 1 : 0]))
+    r.userData.rest = rest
     made = r
   }
   return made
@@ -421,7 +427,15 @@ export function BossModel({ face = 'idle' }: { face?: CrewFace }) {
   const gltf = useGLTF(URL) as unknown as { scene: THREE.Group }
   const fan = useGLTF(UCHIWA_URL) as unknown as { scene: THREE.Group }
   const regions = useLoader(THREE.TextureLoader, REGIONS_URL)
-  const obj = useMemo(() => cloneFigure(styledBoss(gltf.scene, fan.scene)), [gltf, fan])
+  const obj = useMemo(() => {
+    const o = cloneFigure(styledBoss(gltf.scene, fan.scene))
+    // (as he stands at rest, not as the one in the shop was the moment he was copied (item 637: upstairs, the fan in his hand and his arm
+    // up through the quilt, copied as he fanned the coals): every part put back as it was made, what he holds put away)
+    const rest = o.userData.rest as number[][] | undefined
+    let i = 0
+    if (rest) o.traverse((q) => { const t = rest[i++]; if (!t) return; q.position.fromArray(t, 0); q.quaternion.fromArray(t, 3); q.scale.fromArray(t, 7); q.visible = t[10] === 1 })
+    return o
+  }, [gltf, fan])
   // (dressed as chosen: his atlas and his shape are the room's own, shared)
   useLayoutEffect(() => wearing(regions.image as Pic), [obj, regions])
   useEffect(() => () => releaseFigure(obj), [obj])
@@ -545,6 +559,8 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
   const palmY = useRef({ r: NaN, l: NaN })
   const st = useRef({ last: 0, phase: 0, t: 0, x: 0, z: 0, yaw: 0, stride: 0, blinkAt: 2, blinks: 0, y: 0, vy: 0, ground: 0, probeAt: -1, probeX: 0, probeZ: 0, probeEdit: false })
   const bed = useRef<BedTrip>({ phase: 'off', pts: [], len: 0, d: 0, t: 0, foot: new THREE.Vector3(), feet: new THREE.Vector3(), off: new THREE.Vector3(), head: new THREE.Vector3(), bar: 1, lie: 0 })
+  /** (item 637) the business day whose night he last went up for (once a night) */
+  const nightGone = useRef(-1)
   /** (item 635, the owner's 「老闆可以用滑鼠左鍵拖曳」) him carried by the pointer: where it is, where he was taken from (his parent's frame);
    * let go, where he's settling to and till when */
   const carry = useRef<{ on: boolean; px: number; py: number; from: [number, number]; to: [number, number]; until: number } | null>(null)
@@ -616,7 +632,8 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     const m = mover.current
     if (!m) return
     // (out on the floor serving, drawn there by GuestBar3D: not here at his place meanwhile)
-    m.visible = !OWNER_OUT.on
+    // (nor while he's upstairs with her (item 637))
+    m.visible = !OWNER_OUT.on && bed.current.phase !== 'upstairs'
     for (const el of floats.current) {
       if (!el.isConnected) { floats.current.delete(el); continue }
       const vis = m.visible ? '' : 'hidden'
@@ -668,13 +685,33 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     // ---- (item 444) the nights he's worn out, as the shop's shut: off to the stair's foot by the staff's door, his futon down there, in under
     // it, asleep; up again rested, or wanted (the shop opening, the player at his fire), the futon folded and taken off, back to his fire
     const bd = bed.current, ff = BOSS_BED.futon
-    if (edit && bd.phase !== 'off') { bd.phase = 'off'; ff.on = false; BOSS_BODY.bed = 'off'; setAsleep(false); s.x = 0; s.z = 0; s.y = 0 }
+    if (edit && bd.phase !== 'off') { bd.phase = 'off'; ff.on = false; BOSS_BODY.bed = 'off'; setAsleep(false); s.x = 0; s.z = 0; s.y = 0; NIGHT_WITH.up = false }
     // (no futon down unless he's at it: laying it, in it, or up and folding it (item 561, the owner's 「老闆起身厚，棉被殘留」: he was
     // back at his fire, his own night's state begun again (drawn anew: a change of the code while he slept), and the futon, the shop's,
     // was left lying out by the staff's door)
     if (ff.on && bd.phase !== 'lay' && bd.phase !== 'sleep' && bd.phase !== 'rise') { ff.on = false; ff.fold = 0; ff.cover = 0; ff.unroll = 0; ff.pillow = 0 }
     // (...nor asleep in the shop's eyes (App rests him by it, the office says so) when he isn't on his way or at it)
     if (bd.phase === 'off' && BOSS_BODY.bed !== 'off') BOSS_BODY.bed = 'off'
+    // ---- (item 637, the owner's 「只要住宿是女生，好感度達到一定程度，在睡覺時間上樓有機率會恩愛」) a night together upstairs (App's
+    // NIGHT_WITH, settled as the shop shut): not to his futon but out by the staff's door and up the stair to her, once that night, worn out
+    // or not; the room upstairs draws him by her while he's up there; down again and back to his fire as she wakes (eleven: game/dormLife),
+    // or wanted (the shop opening, the player come to his fire)
+    if (bd.phase === 'off' && !edit && !open && m.parent && NIGHT_WITH.id && NIGHT_WITH.day !== nightGone.current && BOSS_BED.way && BOSS_BED.frame
+      && dormDoing(getClock().minute) === 'sleep') {
+      const frame = BOSS_BED.frame
+      const w = BOSS_BED.way(frame.worldToLocal(m.getWorldPosition(new THREE.Vector3())))
+      if (w) {
+        nightGone.current = NIGHT_WITH.day
+        TO_BED.now = false
+        const mine = (p: THREE.Vector3) => m.parent!.worldToLocal(frame.localToWorld(p.clone()))
+        // (his way to his futon as far as its last turn by the door, then to the door's mouth and through it)
+        bd.pts = [...w.path.slice(0, -2), w.doorFront, w.door].map(mine)
+        bd.len = lengthOf(bd.pts)
+        bd.d = 0; bd.t = 0; bd.lie = 0
+        bd.phase = 'up'
+        BOSS_BODY.bed = 'going'; BOSS_BODY.since = performance.now()
+      }
+    }
     if (bd.phase === 'off' && !edit && !open && m.parent && BOSS_BED.way && BOSS_BED.frame && ((shutting && sleepsDown(BOSS_BODY.fatigue)) || TO_BED.now)) {
       TO_BED.now = false
       const frame = BOSS_BED.frame
@@ -704,9 +741,11 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     const toward = (to: number, rate: number) => turnTo(s, to, dt, rate)
     if (bedOn) {
       const hd = Math.atan2(bd.head.x - bd.foot.x, bd.head.z - bd.foot.z)
-      if (bd.phase === 'go' || bd.phase === 'back') {
+      if (bd.phase === 'go' || bd.phase === 'back' || bd.phase === 'up') {
         // (along his way; wanted on the way there, he turns back)
-        if (bd.phase === 'go' && (BOSS_BED.wanted || BOSS_BED.callAt > BOSS_BODY.since)) { bd.phase = 'back'; bd.pts = bd.pts.slice().reverse(); bd.d = Math.max(0, bd.len - bd.d) }
+        if ((bd.phase === 'go' || bd.phase === 'up') && (BOSS_BED.wanted || BOSS_BED.callAt > BOSS_BODY.since)) { bd.phase = 'back'; bd.pts = bd.pts.slice().reverse(); bd.d = Math.max(0, bd.len - bd.d) }
+        // (the staff's door slid open for him as he comes to it, going up or coming down (DiningRoom's StaffDoor))
+        if ((bd.phase === 'up' && bd.len - bd.d < 0.9) || (bd.phase === 'back' && NIGHT_WITH.day === nightGone.current && bd.d < 0.6)) STAFF_DOOR_HOLD.until = performance.now() + 900
         // (his own pace there; back at a run if the shop's opening without him)
         bedSpeed = bd.phase === 'back' && open ? RUN_SPEED * 0.8 : WALK_SPEED
         const was = alongPts(bd.pts, bd.d, new THREE.Vector3())
@@ -716,9 +755,18 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
         s.x = p.x; s.z = p.z; s.y = p.y
         if (p.distanceTo(was) > 1e-5) toward(Math.atan2(p.x - was.x, p.z - was.z), 8)
         if (bd.d >= bd.len - 1e-6) {
-          if (bd.phase === 'go') { bd.phase = 'lay'; bd.t = 0; BOSS_BODY.bed = 'laying'; BOSS_BODY.since = performance.now(); ff.on = true }
+          if (bd.phase === 'up') { bd.phase = 'upstairs'; bd.t = 0; NIGHT_WITH.up = true; NIGHT_WITH.at = performance.now(); BOSS_BODY.bed = 'asleep'; BOSS_BODY.since = performance.now() }
+          else if (bd.phase === 'go') { bd.phase = 'lay'; bd.t = 0; BOSS_BODY.bed = 'laying'; BOSS_BODY.since = performance.now(); ff.on = true }
           else { bd.phase = 'off'; BOSS_BODY.bed = 'off'; s.x = 0; s.z = 0; s.y = 0; s.phase = 0; s.t = 0 }
           bedSpeed = 0
+        }
+      } else if (bd.phase === 'upstairs') {
+        // (up there with her: rested as if asleep (App's bossRest); down the stair as she wakes, or wanted, and back the way he came)
+        bd.t += dt
+        if (BOSS_BED.wanted || BOSS_BED.callAt > BOSS_BODY.since || dormDoing(getClock().minute) !== 'sleep') {
+          NIGHT_WITH.up = false
+          bd.phase = 'back'; bd.pts = bd.pts.slice().reverse(); bd.d = 0; BOSS_BODY.bed = 'off'
+          STAFF_DOOR_HOLD.until = performance.now() + 900
         }
       } else if (bd.phase === 'lay') {
         bd.t += dt

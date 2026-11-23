@@ -4454,7 +4454,8 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
         const viaSide = [fromGrill.clone(), ...across1.slice(1).map((v) => onFloor(v)), onFloor(out1), onFloor(aisle1), onFloor(before), onFloor(foot)]
         if (lengthOf(viaSide) < lengthOf(viaFirst) - 0.3) path = viaSide
       }
-      return { path, foot: onFloor(foot), head: onFloor(head) }
+      // (the staff's door, and the floor just inside the room before it: his way up the stair to the room upstairs (item 637))
+      return { path, foot: onFloor(foot), head: onFloor(head), door: onFloor(d.clone().addScaledVector(room, -0.25)), doorFront: onFloor(d.clone().addScaledVector(room, 0.45)) }
     }
     return () => { BOSS_BED.way = null; BOSS_BED.frame = null }
   }, [scene])

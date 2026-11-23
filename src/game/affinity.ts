@@ -94,7 +94,8 @@ export const BOND_STAGES = [
   { at: 50, zh: '友好', ja: '良好', en: 'Friendly',
     does: { zh: '做事快一點，店裡氣氛變好', ja: '少し速い。店の空気が良くなる', en: 'A little quicker; the shop warmer' } },
   { at: 80, zh: '親密', ja: '親密', en: 'Close',
-    does: { zh: '做事最快；成年的女員工可以交往', ja: '一番速い。成人の女性スタッフと交際できる', en: 'Quickest; a woman of age on the staff can be asked out' } },
+    // (item 637: no dating any more; a woman of age living upstairs, this close, may spend a night with him (game/nightTogether))
+    does: { zh: '做事最快；住在二樓的成年女員工，夜裡有時會跟老闆共度', ja: '一番速い。二階に住む成人の女性スタッフと夜を過ごすことも', en: 'Quickest; a woman of age living upstairs may spend a night with you' } },
 ] as const
 /** the band someone's in, the next one up, and how far to it */
 export function stageOf(b: number | undefined) {

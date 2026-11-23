@@ -56,7 +56,7 @@ import { commuteOf, delayOf, lineOf, talkersOf } from '@/game/commute'
 import { CLOSE_DORM, CLOSE_HOME, LAST_ORDER, OPEN_DORM, OPEN_HOME } from '@/data/commuteLines'
 import { GAME_SPEED, paused } from '@/scene/speed'
 import { BOARD_SLOTS } from '@/game/fireSlots'
-import { BOARD, CALM_ASK, COAL_BRIDGE, DRINK_PANEL, DRINKS, DRINKS_KEY, TASTED_KEY, type DrinkId, onDrinkPanel, onPantryAsk, onPantryShut, PANTRY, payIn, RIDERS, setDrinkPanel, SHOP_PURSE, SIDE_SALE, TILL_CASH, TILL_STATE } from '@/shops/grill/bar'
+import { BOARD, CALM_ASK, COAL_BRIDGE, DRINK_PANEL, DRINKS, DRINKS_KEY, NIGHT_WITH, TASTED_KEY, type DrinkId, onDrinkPanel, onPantryAsk, onPantryShut, PANTRY, payIn, RIDERS, setDrinkPanel, SHOP_PURSE, SIDE_SALE, TILL_CASH, TILL_STATE } from '@/shops/grill/bar'
 import { unitCost } from '@/game/drinkStock'
 import { RICE_SIDE, riceName } from '@/data/sides'
 import { deselectAll, getEdit, offsetOf, positionOf, rotationOf, setCharHidden, setEditLang, setViewCams, toggleEdit, useEditSel, type V3 } from '@/shops/grill/edit'
@@ -116,7 +116,7 @@ import { atmosphere, bondAfter, bondOf, bondPace, canPraise, CUT_BOND, CUT_MAX, 
   PRAISE_AFTER_H, RAISE_MAX, RAISE_STEP, raiseBond, WORN_AT } from '@/game/affinity'
 import { asksToday, DORM_CAP, hasRoom, lodgeDayBond, lodgeWhy, MOVE_OUT_BOND, movesOut, NO_BOND, takesOffer, wantsLodging } from '@/game/lodging'
 import { wageOf } from '@/game/hiring'
-import { canConfess, canDate, confess, DATE_COST, dayRomance, goOnDate, ROMANCE_ATMOS } from '@/game/romance'
+import { afterTogether, tonightWith, type Lodger } from '@/game/nightTogether'
 import { keptForResume, resumeFrom } from '@/game/resume'
 import { Office, type OfficeTab } from '@/ui/Office'
 import { Welcome } from '@/ui/Welcome'
@@ -1628,6 +1628,8 @@ export default function App() {
   useEffect(() => { setLightSwitch('door', lanternsLit(ai, closing)) }, [ai, closing])
   // (shut: the day's counted done, the next shift's on duty from now (game/shifts' dutyDay))
   useEffect(() => { if (!ai) SHOP.counted = false }, [ai])
+  // (open again: the night upstairs over with (item 637); the owner, wanted, comes down for it if he's still up there)
+  useEffect(() => { if (ai) NIGHT_WITH.id = null }, [ai])
   /** the last half hour begun: said in the kitchen's log (the current language and shop: the clock's timer is made once) */
   const lastCallSay = useRef(() => {})
   // (into the day's log, where the shop's going on is told (talk): it went into the chat with the second cook (addTalk), unseen while the shop's
@@ -1762,16 +1764,13 @@ export default function App() {
   // (shopState's STAFF_BOND, ATMOS) and the office's meter)
   const atmosNow = useMemo(() => {
     const on: number[] = [], ids: string[] = []
-    let sweet = false
     for (const [shop, ws] of Object.entries(hired)) for (const [id, r] of Object.entries(ws)) {
       if (!onShift(r.shift, dutyDay(ai)) || !CANDIDATES[shop]?.some((x) => x.id === id)) continue
       on.push(bondOf(r.bond)); ids.push(id)
-      if (r.dating !== undefined) sweet = true
     }
     const pairBonds: number[] = []
     for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) pairBonds.push(pairs[pairKey(ids[i], ids[j])] ?? 50)
-    // (a little lighter with the one the owner's seeing on today (game/romance, item 340))
-    return Math.min(100, atmosphere(on, pairBonds) + (sweet ? ROMANCE_ATMOS : 0))
+    return atmosphere(on, pairBonds)
   }, [hired, pairs, ai])
   useEffect(() => {
     STAFF_BOND.clear()
@@ -1919,36 +1918,6 @@ export default function App() {
       }))]
     })))
   }, [hired])
-  /** (item 340, game/romance) the one of the staff the owner's seeing, if any (one at a time) */
-  const seeing = (dishId: string) => Object.entries(hired[dishId] ?? {}).find(([, r]) => r.dating !== undefined)?.[0] ?? null
-  /** asking her out: yes or no by the dice, as fond as she is; said in the log */
-  const askOut = (dishId: string, w: Hand) => {
-    const today = dutyDay(ai), r = hired[dishId]?.[w.id]
-    if (!r || !canConfess(w, r, today, seeing(dishId) !== null)) return
-    const res = confess(r, today, Math.random())
-    setHired((h) => ({ ...h, [dishId]: { ...h[dishId], [w.id]: { ...h[dishId][w.id], ...res.r } } }))
-    const name = personName(w, lang)
-    talk('owner', res.yes
-      ? tl(lang, `鼓起勇氣約了${name}。${name}紅著臉點頭：「……嗯，我也一直在等老闆開口。」兩人開始交往了。`,
-        `勇気を出して${name}を誘った。${name}は頬を赤らめてうなずいた。「……はい、ずっと待ってました。」二人は付き合い始めた。`,
-        `plucked up the courage and asked ${name} out. She went pink and nodded: "...Yes. I was hoping you'd ask." They're seeing each other now.`)
-      : tl(lang, `約了${name}，${name}低下頭：「對不起，我現在還想專心在工作上……」場面有點尷尬。（一星期內先別再問）`,
-        `${name}を誘ったが、${name}はうつむいた。「ごめんなさい、今は仕事に集中したくて……」少し気まずい。（一週間は誘わないで）`,
-        `asked ${name} out. She looked down: "I'm sorry, I'd rather keep my mind on the work for now..." A little awkward. (Give it a week.)`))
-  }
-  /** a date, on a day the shop's shut (once a day; its cost from the cash): her feeling up; said in the log */
-  const goOut = (dishId: string, w: Hand) => {
-    const today = dutyDay(ai), r = hired[dishId]?.[w.id]
-    if (!r || !canDate(r, today, ai) || cash < DATE_COST) return
-    // (a treat for one of the staff: the staff's costs in the books)
-    book('wage', DATE_COST, 'date')
-    setHired((h) => ({ ...h, [dishId]: { ...h[dishId], [w.id]: goOnDate(h[dishId][w.id], today) } }))
-    const name = personName(w, lang)
-    const pool = lang === 'ja' ? [`${name}と川沿いを散歩して、屋台でたこ焼きを分けた。`, `${name}と映画を観て、喫茶店でパフェを食べた。`, `${name}と水族館へ。クラゲの前でずっと話していた。`]
-      : lang === 'en' ? [`A walk by the river with ${name}, takoyaki shared from a stall.`, `A film with ${name}, then a parfait at a coffee shop.`, `The aquarium with ${name}: they talked for ages by the jellyfish.`]
-        : [`和${name}沿著河邊散步，在攤子分著吃章魚燒。`, `和${name}看了一場電影，再去喫茶店吃聖代。`, `和${name}去水族館，在水母前聊了好久。`]
-    talk('owner', `${pool[Math.floor(Math.random() * pool.length)]}（NT$${DATE_COST.toLocaleString('en-US')}）`)
-  }
   const giveMeal = (dishId: string) => {
     const today = dutyDay(ai)
     const on = staffOf(dishId)
@@ -3526,16 +3495,30 @@ export default function App() {
             if (givesNotice(out.low)) quits.push({ shop, w })
             else if (out.low === QUIT_AFTER - 1) warns.push(w)
           }
-          // (and seeing each other (game/romance, item 340): her feeling up a little each day; fallen too low, it's over)
-          const breakups: Hand[] = []
+          // (a night together upstairs (game/nightTogether, item 637): of those living in and staying on, a woman of age fond enough, the
+          // fondest, if the night's dice say so; the owner goes up the stair to her instead of to his futon (Boss), the room upstairs shows
+          // the two of them (DormRoom); her feeling up a little for it)
+          const lodgers: Lodger[] = []
+          for (const [shop, ws] of Object.entries(hiredNow.current)) for (const [id, r] of Object.entries(ws)) {
+            const w = CANDIDATES[shop]?.find((x) => x.id === id)
+            if (!w || quits.some((q) => q.w.id === id)) continue
+            lodgers.push({ id, female: w.look.female, years: w.years, lives: !!r.lives, bond: res.get(id)?.bond ?? r.bond ?? 0 })
+          }
+          const her = tonightWith(lodgers, day)
+          NIGHT_WITH.id = her; NIGHT_WITH.day = day; NIGHT_WITH.up = false
+          if (her) {
+            const w = Object.values(CANDIDATES).flat().find((x) => x.id === her)
+            if (w) window.setTimeout(() => talk('owner', tl(lang, `收拾好店面，老闆沒有鋪自己的地鋪，悄悄上了二樓。${personName(w, lang)}還沒睡。`,
+              `片付けを終えた店主は、自分の布団は敷かずに、そっと二階へ上がった。${personName(w, lang)}はまだ起きている。`,
+              `The shop put to bed, the boss doesn't lay out his own futon tonight; he slips upstairs. ${personName(w, lang)} is still awake.`)), 0)
+          }
           // (and living upstairs (game/lodging, item 361): one who wants to and is fond enough asks; one fallen out with him moves out)
           const asks: Hand[] = [], leaves: Hand[] = []
           setHired((h) => Object.fromEntries(Object.entries(h).map(([shop, ws]) => [shop, Object.fromEntries(Object.entries(ws)
             .filter(([id]) => !quits.some((q) => q.shop === shop && q.w.id === id))
             .map(([id, r]) => {
-              const rom = dayRomance({ ...shutDay(r, day), ...(res.get(id) ?? {}) })
-              if (rom.brokeUp) { const w = CANDIDATES[shop]?.find((x) => x.id === id); if (w && !breakups.includes(w)) breakups.push(w) }
-              let next = rom.r
+              let next = { ...shutDay(r, day), ...(res.get(id) ?? {}) }
+              if (id === her) next = { ...next, bond: afterTogether(next.bond ?? 0) }
               const w = CANDIDATES[shop]?.find((x) => x.id === id)
               if (w && movesOut(next)) { next = { ...next, lives: false }; if (!leaves.includes(w)) leaves.push(w) }
               else if (w && asksToday(id, next, day + 1)) { next = { ...next, lodgeAsk: day + 1 }; if (!asks.includes(w)) asks.push(w) }
@@ -3550,11 +3533,6 @@ export default function App() {
             }
             for (const w of leaves) talk('staff', tl(lang, `${personName(w, lang)}搬出了二樓：「我還是自己住好了。」`, `${personName(w, lang)}が二階を出た。「やっぱり自分で部屋を借ります。」`,
               `${personName(w, lang)} moved out from upstairs: "I'd rather find my own place."`))
-          }, 0)
-          window.setTimeout(() => {
-            for (const w of breakups) talk('staff', tl(lang, `${personName(w, lang)}：「老闆，我們……就到這裡吧。最近真的太累了。」兩人分手了。`,
-              `${personName(w, lang)}「店長、私たち……ここまでにしましょう。最近、本当に疲れてしまって。」二人は別れた。`,
-              `${personName(w, lang)}: "Boss... let's leave it here. I've been so worn out lately." They've broken up.`))
           }, 0)
           setPairs((p) => dayPairs(p, crew))
           for (const { w } of quits) talk('staff', tl(lang, `${personName(w, lang)}遞了辭呈：「老闆，我做到今天就好……」（好感度連續 ${QUIT_AFTER} 天低於 ${LOW_BOND}）`,
@@ -4164,9 +4142,6 @@ export default function App() {
             bossFatigue={bossFatigue}
             payOf={(w) => payOf(dish.id, w)} marketOf={(w) => wageOf(w.role, w)} onPay={(w, dir) => changePay(dish.id, w, dir)}
             lodgers={lodgerCount(dish.id)} onLodge={(w, act) => lodge(dish.id, w, act)}
-            seeing={seeing(dish.id)} canAsk={(w) => { const r = hired[dish.id]?.[w.id]; return !!r && canConfess(w, r, dutyDay(ai), seeing(dish.id) !== null) }}
-            canGoOut={(w) => { const r = hired[dish.id]?.[w.id]; return !!r && canDate(r, dutyDay(ai), ai) && cash >= DATE_COST }}
-            onAskOut={(w) => askOut(dish.id, w)} onGoOut={(w) => goOut(dish.id, w)}
             onFire={(w) => setHired((h) => {
               const mine = { ...(h[dish.id] ?? {}) }
               delete mine[w.id]

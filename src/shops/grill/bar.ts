@@ -166,6 +166,13 @@ export const CUBBY_KICK = keep(import.meta.hot, 'CUBBY_KICK', { left: -1e9, righ
 /** the staff door held open till then (performance.now()): one of the staff going up or coming down the stair behind it */
 export const STAFF_DOOR_HOLD = keep(import.meta.hot, 'STAFF_DOOR_HOLD', { until: -1e9 })
 /**
+ * (item 637, the owner's 「交往中拿掉，是說只要住宿是女生，好感度達到一定程度，在睡覺時間上樓有機率會恩愛」) tonight's night together upstairs, as
+ * App settled it as the shop shut (game/nightTogether): with whom (none: null) and the business day it was; whether the owner's up there now
+ * (Boss sends him up the stair and down again; DormRoom draws him by her), and since when
+ */
+export const NIGHT_WITH = keep(import.meta.hot, 'NIGHT_WITH', { id: null as string | null, day: -1, up: false, at: 0 })
+if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __nightWith: NIGHT_WITH })
+/**
  * The shoe cupboard's cubbies (the owner's: a customer's shoes go into one as they come in and out of it as they go): the colour of the
  * shoes in each (by cell, 0..8), when each one's door was last opened for them (performance.now(): open a moment), and where the cupboard
  * stands (the world: the customers turn to it)
@@ -250,7 +257,8 @@ export const OWNER_OUT: { on: boolean; by: OwnerJob | null } = keep(import.meta.
 export const FUTON = { W: 0.62, L: 1.25, top: 0.07, out: 0.42, along: -1.435 }
 export const BOSS_BED = keep(import.meta.hot, 'BOSS_BED', {
   frame: null as THREE.Object3D | null,
-  way: null as ((fromGrill: THREE.Vector3) => { path: THREE.Vector3[]; foot: THREE.Vector3; head: THREE.Vector3 } | null) | null,
+  /** (and the staff's door, on the floor in the bar's frame, and the floor before it: his way up the stair, item 637) */
+  way: null as ((fromGrill: THREE.Vector3) => { path: THREE.Vector3[]; foot: THREE.Vector3; head: THREE.Vector3; door: THREE.Vector3; doorFront: THREE.Vector3 } | null) | null,
   wanted: false,
   /** when the player last came to his fire (the hearth's view, the shop shut: they'll be cooking by hand with him), performance.now() */
   callAt: -1,

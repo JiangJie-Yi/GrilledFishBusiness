@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import type { Look, Role } from '@/data/staff'
 import { commuteOf } from '@/game/commute'
 import { CLIMB_S, downBeat, downLength, dormDoing, upBeat, upstairs } from '@/game/dormLife'
+import { bedFit } from '@/game/nightTogether'
 import { SHOP } from '@/game/shopState'
 import { toDorm } from '@/scene/floors'
 import { inkModel } from '@/scene/inkHull'
@@ -14,7 +15,8 @@ import { SIGN_FONT, signTexture } from '@/scene/signFont'
 import { StaffFigure } from '@/scene/StaffFigure'
 import { isFigureHit } from '@/scene/FigureHit'
 import { getClock } from '@/ui/clockStore'
-import { DORM_LIFE } from './bar'
+import { DORM_LIFE, NIGHT_WITH } from './bar'
+import { BossModel } from './Boss'
 import { slideDoorSound } from './restroomSound'
 import { doorAlong } from './ServeCounter'
 import { getEdit } from './edit'
@@ -305,11 +307,26 @@ const Resident = memo(function Resident({ m, k, marks, open, quilt, off }: { m: 
       o.rotation.set(0, Math.atan2(DIR.x, DIR.z), 0)
     } else if (asleepNow) {
       // (lying down: from standing by the futon's foot onto their back, the head on the pillow, the quilt over them up to the shoulders)
+      // (the night she's not alone (item 637): over on her half of it, a little turned to him: OwnerBeside)
       const e = THREE.MathUtils.smoothstep(settled, 0, 1), len = 0.95 * FIG_SCALE / 0.823
-      o.position.set(spot.x, spot.y + 0.08 * e, spot.z + len * e)
-      o.rotation.set(-Math.PI / 2 * e, e > 0.5 ? 0 : Math.PI, 0)
-      // (the quilt, gathered at their feet, drawn up over them as they settle)
-      if (cover.current) { cover.current.visible = e > 0.55; quiltAt(cover.current, spot, THREE.MathUtils.smoothstep(e, 0.55, 1)) }
+      const two = TWO.k * (NIGHT_WITH.id === m.id ? 1 : 0)
+      o.position.set(spot.x - TWO.sd * TWO.side * two, spot.y + 0.08 * e, spot.z + len * e)
+      o.rotation.set(-Math.PI / 2 * e, e > 0.5 ? TWO.sd * TWO_ROLL * two : Math.PI, 0)
+      // (the quilt, gathered at their feet, drawn up over them as they settle; lifted a moment and settling again over the two of them as
+      // the owner comes in under it, the night he's here (item 637))
+      if (cover.current) {
+        cover.current.visible = e > 0.55
+        quiltAt(cover.current, spot, THREE.MathUtils.smoothstep(e, 0.55, 1))
+        // (over the two of them it's let out wider and fuller (the owner's broad: at its own size his shoulder and arm came out at its side,
+        // as item 631's did through his own), lifted a moment as he comes in under it)
+        if (NIGHT_WITH.id === m.id && TWO.k > 0) {
+          // (let out only toward his side, as far as there's room (the next futon, the wall, the stair's well): its other edge where it was)
+          cover.current.position.x += TWO.sd * (TWO.extra - TWO.extraHer) / 2 * TWO.k
+          cover.current.scale.x *= 1 + (TWO.extra + TWO.extraHer) / QUILT_W * TWO.k
+          cover.current.scale.y *= 1 + 0.35 * Math.sin(Math.PI * TWO.k)
+          cover.current.scale.z *= 1 + (TWO_QUILT_UP - 1) * TWO.k
+        }
+      }
     } else {
       // (sat on their cushion, turned to the table; settling onto it a moment)
       o.position.copy(spot)
@@ -330,6 +347,99 @@ const Resident = memo(function Resident({ m, k, marks, open, quilt, off }: { m: 
     </>
   )
 })
+
+/**
+ * (item 637, the owner's 「只要住宿是女生，好感度達到一定程度，在睡覺時間上樓有機率會恩愛」) the owner up here for the night with her (bar's
+ * NIGHT_WITH, as App settled it as the shop shut; Boss walked him out by the staff's door and up): lying on the other half of her futon, both
+ * a little turned to each other, under the one quilt; as he comes in under it, it lifts and settles over the two of them; a small heart
+ * rising over them now and then; the room's light a shade warmer, lower. Nothing more is shown. Gone again as he goes down (she wakes at
+ * eleven, or he's wanted downstairs).
+ */
+const TWO_ROLL = 0.12
+/** the quilt over the two of them: let out toward his side by as much as there's room for (at most TWO_EXTRA: his broad shoulders under
+ * it; at its own width his shoulder and arm came out at its side, as item 631's did through his own), drawn up a little less far (to their
+ * chests: their heads and shoulders on the pillows, seen from the room's front over its top edge) */
+const TWO_EXTRA = 0.36, TWO_QUILT_UP = 0.93
+/** and on her side, as she's moved over toward its edge: as far again, if there's room (her hand came out at its edge) */
+const TWO_EXTRA_HER = 0.12
+/** how far each is from the futon's middle: apart as the quilt's let out, closer where it can't be */
+const TWO_SIDE = [0.14, 0.19] as const
+/** how far over to her half she is (0..1, eased as he comes and goes); the side he's on (+1 her right, the room's +x), how far each lies
+ * from the futon's middle, how much the quilt's let out his way: the residents read it */
+const TWO = { k: 0, sd: 1, side: 0.19, extra: TWO_EXTRA, extraHer: TWO_EXTRA_HER }
+const HEART_GEO = (() => {
+  // (a heart's outline, two lobes and a point, a few steps a curve: flat, its triangles by earcut, not fanned from its middle)
+  const s = new THREE.Shape()
+  s.moveTo(0, -0.05)
+  s.bezierCurveTo(-0.012, -0.034, -0.05, -0.01, -0.05, 0.014)
+  s.bezierCurveTo(-0.05, 0.04, -0.022, 0.052, 0, 0.03)
+  s.bezierCurveTo(0.022, 0.052, 0.05, 0.04, 0.05, 0.014)
+  s.bezierCurveTo(0.05, -0.01, 0.012, -0.034, 0, -0.05)
+  return new THREE.ShapeGeometry(s, 4)
+})()
+const HEART_MATS = [0, 1, 2].map(() => new THREE.MeshBasicMaterial({ color: '#ff7a96', transparent: true, opacity: 0, depthWrite: false }))
+const HEART_EVERY = 2.6, HEART_RISE = 1.9
+/** the room's own warmth (its toon materials' glow) and the lamp's shade, by day and on the night he's up here (item 637) */
+const ROOM_GLOW = new THREE.Color('#2a1f14'), ROOM_GLOW_TWO = new THREE.Color('#42261f')
+const SHADE = new THREE.Color('#ffe6b8'), SHADE_TWO = new THREE.Color('#ffc9a0')
+const OwnerBeside = memo(function OwnerBeside({ living, marks, mats, wallX }: { living: readonly Living[]; marks: Marks; mats: THREE.Material[]; wallX: number }) {
+  const g = useRef<THREE.Group>(null), hearts = useRef<THREE.Group>(null)
+  const st = useRef({ k: 0, shown: false, warm: -1 })
+  useFrame(({ camera }, dt) => {
+    const o = g.current, hs = hearts.current
+    if (!o || !hs) return
+    const k = NIGHT_WITH.up && NIGHT_WITH.id ? living.findIndex((m) => m.id === NIGHT_WITH.id) : -1
+    const on = k >= 0 && dormDoing(getClock().minute) === 'sleep' && BEDS_LAID[k]
+    const s = st.current
+    s.k = Math.max(0, Math.min(1, s.k + (on ? 1 : -1) * dt / 0.9))
+    TWO.k = THREE.MathUtils.smoothstep(s.k, 0, 1)
+    const shown = s.k > 0.02 && k >= 0
+    if (o.visible !== shown) o.visible = shown
+    if (hs.visible !== (shown && s.k > 0.98)) hs.visible = shown && s.k > 0.98
+    // (the room a shade warmer while he's here: its materials' glow and the lamp's shade (colours only: no light comes or goes))
+    if (Math.abs(TWO.k - s.warm) > 0.01) {
+      s.warm = TWO.k
+      for (const mt of mats) {
+        const t = mt as THREE.MeshToonMaterial & THREE.MeshBasicMaterial
+        if (mt.name === 'DormLampShade') t.color.copy(SHADE).lerp(SHADE_TWO, TWO.k)
+        else if ((t as THREE.MeshToonMaterial).emissive) (t as THREE.MeshToonMaterial).emissive.copy(ROOM_GLOW).lerp(ROOM_GLOW_TWO, TWO.k)
+      }
+    }
+    if (!shown || k < 0) return
+    // (which side of her he's on, and how much the quilt can be let out that way: the room either side of her futon, short of the wall
+    // (the closet's shell), the stair's well, and the next futon if it's laid)
+    const spot = marks.beds[k]
+    Object.assign(TWO, bedFit(spot.x, QUILT_W / 2, wallX, STAIR.x - STAIR.w / 2, marks.beds.filter((_, j) => j !== k).map((b, j) => ({ x: b.x, laid: BEDS_LAID[j >= k ? j + 1 : j] })),
+      { most: TWO_EXTRA, her: TWO_EXTRA_HER, side: TWO_SIDE }))
+    // (on her futon's other half, lying as she does, turned a little to her; as he comes in under the quilt, a little low, rising to it)
+    const len = 0.95 * BOSS_FIG / 0.823
+    o.position.set(spot.x + TWO.sd * TWO.side, spot.y + 0.04 - 0.04 * (1 - TWO.k), spot.z + len)
+    o.rotation.set(-Math.PI / 2, -TWO.sd * TWO_ROLL, 0)
+    // (a small heart now and then, rising from between them, swelling a little, fading as it goes; turned to the eye)
+    const t = performance.now() / 1000
+    hs.children.forEach((h, i) => {
+      const u = ((t + i * (HEART_EVERY / 3)) % HEART_EVERY) / HEART_RISE
+      const m = HEART_MATS[i]
+      if (u > 1) { m.opacity = 0; return }
+      h.position.set(spot.x + TWO.sd * (TWO.extra - TWO.extraHer) / 4 + Math.sin(t * 1.3 + i * 2.1) * 0.05, spot.y + 0.32 + u * 0.42, spot.z + len * 0.55)
+      h.quaternion.copy(camera.quaternion)
+      h.scale.setScalar(0.7 + 0.5 * Math.sin(Math.PI * Math.min(1, u * 1.6)))
+      m.opacity = 0.85 * Math.sin(Math.PI * u)
+    })
+  })
+  return (
+    <>
+      <group ref={g} name="owner-upstairs" visible={false}>
+        <group scale={BOSS_FIG}><BossModel face="blink" /></group>
+      </group>
+      <group ref={hearts} visible={false}>
+        {HEART_MATS.map((m, i) => <mesh key={i} geometry={HEART_GEO} material={m} raycast={() => {}} renderOrder={4} />)}
+      </group>
+    </>
+  )
+})
+/** the owner's figure up here: the residents' (FIG_SCALE), as much again as he's drawn beside a server (GuestBar3D's OWNER_IN_STAFF) */
+const BOSS_FIG = FIG_SCALE * 1.021
 
 /** the bathroom's door slid the other way from wherever it is along its track (item 427), heard as it goes */
 function bathToggle() {
@@ -481,6 +591,8 @@ export function DormRoom({ crew = [], open = false, fallback, working }: { crew?
     <group ref={outer} position={DORM_AT} scale={DORM_SCALE}>
       <primitive object={root} />
       {living.map((m, k) => <Resident key={m.id} m={m} k={k} marks={marks} open={open} quilt={quilts[k % 2]} off={offToday(m.id)} />)}
+      {/* (the night the owner's up here with one of them (item 637)) */}
+      <OwnerBeside living={living} marks={marks} mats={mats} wallX={leftX} />
       {/* (what the view 二樓 looks at: over the table; its +z the room's open front, which the view faces) */}
       <group name="look-dorm" position={look} />
       {/* (the window's view, in depth (item 452)) */}
