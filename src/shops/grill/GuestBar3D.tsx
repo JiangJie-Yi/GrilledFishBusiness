@@ -99,7 +99,7 @@ import { RICE_FULL, SCOOP_S, SHAPE_EACH, TRAY_MAX, WASH_S, emptyKama, kamaTick, 
 import { WARM_TUB_HOLDS, keptWarm } from '@/game/takeout'
 import { MAKE_S, SOUP_BOWLS, emptyPot, heatNow, heatRate, potTick, setSoup, soupGoes, soupReady, takeBowl, topUpGoes } from '@/game/soup'
 import { RICE_BEATS, SOUP_BEATS, beatsLength } from '@/game/sides'
-import { SeatBowls, fillRice, fillSoup, ladleRest, leftOf, paddleRest, riceFillPose, soupFillPose, useSideProps, type FillAt, type FillPose, type WareAt } from './SideBowls'
+import { SeatBowls, fillRice, fillSoup, ladleRest, leftOf, riceFillPose, soupFillPose, useSideProps, type FillAt, type FillPose, type WareAt } from './SideBowls'
 import { addWares, cabinetAtStart, canFill, layPlace, leftAdded, noWares, takeForFill, wareCount, wareIntoWasher, wareOut, wareTrip, wareUrgent, wareWashNow, type Wares } from '@/game/ware'
 import { bottleClink, lightSwitchSound, plateClink, plateDownSound, scrubSound, slideDoorSound, stoolSound, washSplash } from './restroomSound'
 import { LAST_CALL, ON_DUTY, SHOP, clockIn } from '@/game/shopState'
@@ -5029,11 +5029,22 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     const clear = (p: THREE.Vector3) => onPrepTop(p) && (!other || p.clone().setY(0).distanceTo(other.clone().setY(0)) > or + 0.065)
     return spots.find(clear) ?? spots[0]
   }
+  /** the paddle as it stands in the holder on the cooker's side (item 618: Decor's DenkiNabe's `cooker-paddle`, part of the cooker): its
+   * grip and how it's turned, in the bar's frame */
+  const paddleAt = (): FillAt['paddle'] => {
+    marks.current.delete('cooker-paddle')
+    const o = markOf('cooker-paddle'), f = frame.current
+    if (!o || !f) return undefined
+    f.updateWorldMatrix(true, false)
+    o.updateWorldMatrix(true, false)
+    const grip = f.worldToLocal(o.getWorldPosition(new THREE.Vector3()))
+    const q = f.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(o.getWorldQuaternion(new THREE.Quaternion()))
+    return { grip, q }
+  }
   /** the cooker's places for filling a bowl of rice (SideBowls' FillAt) */
   const riceFillAt = (): FillAt => {
     const c = cookerAt(), p = potAt()
-    // (the paddle's holder kept clear of the pot's body, its rolled rim (item 253))
-    return { ...c, put: besideOf(c.top, c.r, c.right, c.face, c.low, p?.top ?? null, p?.outer ?? 0), keepOff: p ? [{ at: p.top, r: p.r * 1.06 }] : [] }
+    return { ...c, put: besideOf(c.top, c.r, c.right, c.face, c.low, p?.top ?? null, p?.outer ?? 0), paddle: paddleAt() }
   }
   /** the soup pot's, and where one stands at it: in front of it as one stands at the cooker */
   const soupFillAt = (): FillAt => {
@@ -5329,8 +5340,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     })
     if (WT.loose !== hadLoose || WT.loose > 0) { CHOPS_LOOSE.n = WT.loose; CHOPS_LOOSE.ver++ }
   }
-  /** the paddle's and the ladle's rests (hung on the cooker's handle, in the pot), looked at again a second at a time (moved in edit mode) */
-  const restsAt = useRef<{ at: number; paddle: { grip: THREE.Vector3; q: THREE.Quaternion } | null; ladle: { grip: THREE.Vector3; q: THREE.Quaternion } | null }>({ at: -1e9, paddle: null, ladle: null })
+  /** the ladle's rest (in the pot), looked at again a second at a time (moved in edit mode) (the paddle's is the cooker's own, item 618) */
+  const restsAt = useRef<{ at: number; ladle: { grip: THREE.Vector3; q: THREE.Quaternion } | null }>({ at: -1e9, ladle: null })
   /** what stands on the bar's top that a tokkuri mustn't be set into (item 177: at one place of each pair it stood in the soy pot and the
    * wasabi the two share): the shared condiments, the little baskets, the soy dishes and the chopsticks, each its box on the top (the bar's
    * frame, x and z), looked at again a second at a time (they're moved in edit mode) */
@@ -9825,13 +9836,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       const now = performance.now()
       if (now - restsAt.current.at > 1000 && STATION_OBJ.group) {
         restsAt.current.at = now
-        const R = riceFillAt(), S = soupFillAt()
-        const pr = paddleRest(R)
-        restsAt.current.paddle = pr
-        restsAt.current.ladle = ladleRest(S)
-        // (the paddle's holder where it stands in it (item 253))
-        side.holder.position.copy(pr.holder)
-        side.holder.visible = true
+        restsAt.current.ladle = ladleRest(soupFillAt())
       }
       let pose: FillPose | null = null
       if (j && j.W && (j.stage === 'rice' || j.stage === 'soup')) {
@@ -9917,9 +9922,14 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       if (riceAt) { side.chawan.position.copy(riceAt); fillRice(side.rice, j!.riceFill) }
       side.wan.visible = !!soupAt
       if (soupAt) { side.wan.position.copy(soupAt); fillSoup(side.soup, j!.soupFill) }
-      // (the paddle in the hand scooping, else hung on the cooker; the ladle likewise in the pot)
-      const paddle = pose && j?.stage === 'rice' ? pose.tool : restsAt.current.paddle
+      // (the paddle in the hand scooping; else it's the cooker's own, standing in the holder on its side (item 618: Decor's DenkiNabe draws it
+      // there): taken from it and put back in it at the very place and turn it stands, the cooker's hidden the very frame this one's shown
+      // and shown again the very frame it's put back, here, not each in its own frame's turn (never both of them, never neither); the ladle
+      // in the hand, else in the pot)
+      const paddle = pose && j?.stage === 'rice' && pose.tool.held ? pose.tool : null
       side.shamoji.visible = !!paddle
+      const restPaddle = markOf('cooker-paddle')
+      if (restPaddle && restPaddle.visible === !!paddle) restPaddle.visible = !paddle
       if (paddle) { side.shamoji.position.copy(paddle.grip); side.shamoji.quaternion.copy(paddle.q) }
       side.lump.visible = !!pose && j?.stage === 'rice' && pose.load > 0.02
       if (side.lump.visible) side.lump.scale.setScalar(Math.max(0.05, pose!.load))
@@ -10571,7 +10581,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       {given && <primitive object={side.soakPot} />}
       {/* (the dishes from the stove and the fryer, at the places and on their way (items 461, 469)) */}
       {given && <Suspense fallback={null}><KitchenDishes seat={seatDishes} moving={movingDishes} /></Suspense>}
-      {given && <><primitive object={side.chawan} /><primitive object={side.wan} /><primitive object={side.shamoji} /><primitive object={side.holder} /><primitive object={side.otama} /><primitive object={side.stream} /></>}
+      {given && <><primitive object={side.chawan} /><primitive object={side.wan} /><primitive object={side.shamoji} /><primitive object={side.otama} /><primitive object={side.stream} /></>}
       {given && seatSakes.map((k, i) => (
         <group key={i} position={k.at}><Tokkuri /><group position={k.cup}><SakeCup level={0.8} /></group></group>
       ))}

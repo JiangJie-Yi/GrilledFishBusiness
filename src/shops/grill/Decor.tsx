@@ -20,7 +20,8 @@ import { glowLeave, glowOnly } from '@/scene/hoverGlow'
 import { brushText, signTexture } from '@/scene/signFont'
 import { DISHES } from '@/data/menu'
 import { storageOf } from '@/data/storage'
-import { GRATING, ONIGIRI_TRAY, OWNER_GRILL, RICE, SOUP, SAKE, SAKE_TASTED, tasteSake, ALONG, askPantry, shutPantry, COOK_NOTCH, FIRE_SHIFT, GRILL_OFFSET, KITCHEN_DROP, LAY, handOver, nameOver, SUPPLIES, anyInStock, batchOf, DRINK_BACK } from './bar'
+import { GRATING, ONIGIRI_TRAY, OWNER_GRILL, RICE, SOUP, SAKE, SAKE_TASTED, tasteSake, ALONG, askPantry, shutPantry, COOK_NOTCH, FIRE_SHIFT, GRILL_OFFSET, KITCHEN_DROP, LAY, handOver, nameOver, SUPPLIES, anyInStock, batchOf, DRINK_BACK, GRILL_SCALE } from './bar'
+import { PADDLE_SCALE, usePaddleModel } from './SideBowls'
 import { ironSkewer } from './skewerShape'
 import { FREEZER_DEFAULT, FREEZER_MAX, FREEZER_MIN, driftTemp, stepTemp } from '@/game/freezer'
 import { setTip } from '@/scene/hoverTip'
@@ -1028,7 +1029,8 @@ function MisoPot() {
  * front), on a small stand beside the iron pot (the owner's: the rice for the rice balls is cooked in it, scooped from the open sack and
  * washed at the sink first, game/rice). While it cooks (bar.ts's RICE.kama) its lever is down and its lamp red, it steams from under its
  * lid and the lid lifts a little as it boils; done, the lever clicks up and the lamp goes amber (keeping warm) till the rice is scooped out
- * into the tub. Pointed at, it says how it's getting on.
+ * into the tub. Pointed at, it says how it's getting on. Its rice paddle stands in the holder clipped to its front right (item 618, the
+ * owner's 「打飯的飯勺請跟電鍋做一起」): part of it, moved and picked with it in the editor; taken out and put back by the one scooping.
  */
 const DENKI_URL = import.meta.env.BASE_URL + 'models/denkinabe.glb'
 useGLTF.preload(DENKI_URL)
@@ -1037,7 +1039,7 @@ useGLTF.preload(DENKI_URL)
 // (at the rice-ball counter's left end, beside the miso pot (the owner's, 2026-11-11), 1.1 from its middle: blender/warmer.py's board and
 // the rest moved right for it)
 // (moved left up to the miso pot, 5 cm clear of it (item 461, the owner's 「電鍋往左移，右邊加一個瓦斯爐灶」): its right freed for its rice
-// bowl's place and the gas stove (Stove.tsx); its paddle's holder behind it now (SideBowls' holderAt))
+// bowl's place and the gas stove (Stove.tsx); its paddle's holder behind it then (item 618: clipped to its front right now, part of it))
 const DENKI_AT = { along: 4.3, lay: 1.742 - 1.1 - 0.937 - 0.43 }
 const DENKI_SCALE = 1.45
 const DENKI_TOP = COUNTER_TOP
@@ -1106,8 +1108,21 @@ function DenkiNabe() {
       rm.geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2))
       rm.material = COOKER_RICE_MAT
     }
-    return { root: r, lid, lidY: lid.position.y, lidZ: lid.position.z, lever, leverY: lever.position.y, lamp, rice, riceY: rice.position.y }
+    // (its paddle's place in the holder on its front right (item 618, blender/denkinabe.py's DenkiPaddleTip and DenkiPaddleGrip): its grip
+    // there, pointing down through its tip, its face out from the cooker's middle (SideBowls' paddle: its grip at its origin, its blade out
+    // along +z, its face +y))
+    const tipAt = r.getObjectByName('DenkiPaddleTip')?.position, gripAt = r.getObjectByName('DenkiPaddleGrip')?.position
+    let rest: { grip: THREE.Vector3; q: THREE.Quaternion } | null = null
+    if (tipAt && gripAt) {
+      const dir = tipAt.clone().sub(gripAt).normalize()
+      const out = new THREE.Vector3(tipAt.x, 0, tipAt.z).normalize()
+      const face = out.addScaledVector(dir, -out.dot(dir)).normalize()
+      rest = { grip: gripAt.clone(), q: new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3().crossVectors(face, dir), face, dir)) }
+    }
+    return { root: r, lid, lidY: lid.position.y, lidZ: lid.position.z, lever, leverY: lever.position.y, lamp, rice, riceY: rice.position.y, rest }
   }, [gltf])
+  /** its paddle (item 618): SideBowls' own, as the hands' is drawn (GuestBar3D hides it the frame it shows theirs, out of the holder) */
+  const paddle = usePaddleModel()
   const steam = useRef<THREE.Group>(null)
   /** how much steam (item 242: the same faint thread whatever it was doing; opened on a pot of hot rice, nothing to see): a thread from its
    * vent keeping warm, a jet as it boils, the rice's own steam with the lid up, and a billow as it's first lifted */
@@ -1173,6 +1188,13 @@ function DenkiNabe() {
         onPointerOver={(e) => { e.stopPropagation(); hov.current = true; setTip({ title: '電鍋', hint: say() }) }}
         onPointerOut={() => { hov.current = false; setTip(null) }}>
         <primitive object={model.root} />
+        {/* (its paddle standing in the holder on its front right (item 618), at the hands' size (theirs is drawn PADDLE_SCALE in the bar's
+            frame, GRILL_SCALE; this group's DENKI_SCALE)) */}
+        {model.rest && (
+          <group name="cooker-paddle" position={model.rest.grip} quaternion={model.rest.q}>
+            <group scale={(PADDLE_SCALE * GRILL_SCALE) / DENKI_SCALE}><primitive object={paddle} /></group>
+          </group>
+        )}
         <group ref={steam} visible={false}>
           <Steam width={0.22} height={0.4} opacity={0.42} layers={2} level={steamLv} face />
         </group>

@@ -10,7 +10,6 @@ import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { inkModel } from '@/scene/inkHull'
 import { warmLater } from '@/scene/Prewarm'
-import { rimmedTray } from '@/scene/trayGeometry'
 import { GAME_SPEED } from '@/scene/speed'
 import { beatAt, fillAt, RICE_BEATS, SOUP_BEATS } from '@/game/sides'
 import { BOWL_LIFT } from '@/scene/bowlLift'
@@ -35,14 +34,11 @@ const CUP_R = 0.028 * LADLE_SCALE, CUP_H = 0.022 * LADLE_SCALE, HANDLE_T = 0.003
 const HANDLE_LIFT = Math.atan2(0.106, 0.185)
 /** how far round from the pot's open half's middle toward the one filling its handle lies as it rests in the pot (rad: past the lid's edge) */
 const LADLE_TURN = 0.52
-/** the paddle as made (blender/sidebowls.py): grip to its blade's tip, and half its blade's width, at the size it's drawn */
-const PADDLE_LEN = 0.094 * PADDLE_SCALE, PADDLE_HALF_W = 0.028 * PADDLE_SCALE
-/** the paddle's holder (しゃもじ立て, item 253, the owner's 「這個?」: the paddle hung beside the cooker from nothing, its blade's tip at the
- * counter's edge): a little indigo-glazed cup stood on the counter against the cooker's side, the paddle stood in it blade down; its
- * radius (its blade fits in it, a hair to spare), its height, how thick its wall and floor are */
-export const HOLDER_R = PADDLE_HALF_W + 0.01, HOLDER_H = 0.07, HOLDER_T = 0.005
-/** how far the paddle leans back toward the one filling as it stands in its holder (rad) */
-const PADDLE_LEAN = 0.2
+/** the paddle as made (blender/sidebowls.py): grip to its blade's tip, at the size it's drawn */
+const PADDLE_LEN = 0.094 * PADDLE_SCALE
+/** how much of its length it's drawn up along itself to come clear of the cooker's holder (item 618: blender/denkinabe.py's pocket has its
+ * lower 0.49 down in it) */
+const PADDLE_OUT = 0.55 * PADDLE_LEN
 /** how long a bowl lasts a customer eating it (ms at the shop's own pace, as fast again at x2: Roasting's SIDE_EAT_S, they get up after),
  * and how much is left when they're done */
 const EAT_MS = 12000
@@ -83,8 +79,6 @@ function dress(root: THREE.Object3D) {
 export type SideProps = {
   chawan: THREE.Group; rice: THREE.Object3D; wan: THREE.Group; soup: THREE.Object3D
   shamoji: THREE.Group; lump: THREE.Object3D; otama: THREE.Group; ladleSoup: THREE.Object3D; stream: THREE.Mesh
-  /** the paddle's holder by the cooker (item 253) */
-  holder: THREE.Group
   /** the soaking pot in the sink's basin (item 600): the cleared chopsticks and renge stood in it till they go in the washer */
   soakPot: THREE.Group
 }
@@ -108,22 +102,33 @@ export function useSideProps(): SideProps {
     const shamoji = group(part('Shamoji'), lump), otama = group(part('Otama'), ladleSoup)
     shamoji.scale.setScalar(PADDLE_SCALE)
     otama.scale.setScalar(LADLE_SCALE)
-    // (the paddle's holder (item 253): an indigo glaze against the terrazzo and the cooker's pastel green; 16 round, its floor closed by rungs)
-    const cupMesh = new THREE.Mesh(rimmedTray(HOLDER_R, HOLDER_H, HOLDER_T, 16), new THREE.MeshToonMaterial({ color: '#3b4a6b' }))
-    cupMesh.name = 'ShamojiHolder'
-    cupMesh.receiveShadow = true
-    const holder = group(cupMesh)
     const stream = new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0025, 1, 6, 1, true).translate(0, -0.5, 0),
       new THREE.MeshToonMaterial({ color: '#a8713a' }))
     const soakPot = group(part('SoakPot'))
-    for (const g of [chawan, wan, shamoji, otama, holder, soakPot]) {
+    for (const g of [chawan, wan, shamoji, otama, soakPot]) {
       inkModel(g, () => false, { width: 0.0012, weld: true })
       g.visible = false
       warmLater(g)
     }
     stream.visible = false
     warmLater(stream)
-    return { chawan, rice, wan, soup, shamoji, lump, otama, ladleSoup, stream, holder, soakPot }
+    return { chawan, rice, wan, soup, shamoji, lump, otama, ladleSoup, stream, soakPot }
+  }, [gltf])
+}
+/** the paddle alone, as the hands' is drawn (the same materials, the same line round it), its grip at its origin, its blade out along its +z:
+ * the one standing in the rice cooker's holder (item 618: Decor's DenkiNabe draws it there, at the hands' size; GuestBar3D's, in the hands,
+ * is shown only while it's out of the holder) */
+export function usePaddleModel() {
+  const gltf = useGLTF(SIDEBOWLS_URL) as unknown as { scene: THREE.Group }
+  return useMemo(() => {
+    const o = gltf.scene.getObjectByName('Shamoji')!.clone(true)
+    o.position.set(0, 0, 0)
+    o.rotation.set(0, 0, 0)
+    dress(o)
+    const g = new THREE.Group()
+    g.add(o)
+    inkModel(g, () => false, { width: 0.0012, weld: true })
+    return g
   }, [gltf])
 }
 
@@ -144,8 +149,9 @@ export type FillAt = { top: THREE.Vector3; face: THREE.Vector3; right: THREE.Vec
    * high its rolled rim stands (item 253: the ladle set by the narrowest, or the widest, went through its wall) */
   rimR?: (dir: THREE.Vector3) => number
   rimTop?: number
-  /** (the rice cooker) what stands beside it, the paddle's holder kept clear of: where, how wide (item 253) */
-  keepOff?: { at: THREE.Vector3; r: number }[] }
+  /** (the rice cooker) its paddle as it stands in the holder on the cooker's side (item 618: Decor's DenkiNabe's `cooker-paddle`): its grip
+   * and how it's turned */
+  paddle?: { grip: THREE.Vector3; q: THREE.Quaternion } }
 /** where a bowl's carried in front of one walking (GuestBar3D's: their hands out in front at a tray's height), from where they stand */
 const carryAt = (W: FillAt) => W.stand.clone().addScaledVector(W.face, 0.315).setY(W.stand.y + 0.3)
 /** a filling's pose at a moment: where each hand's to be, the bowl (shown or not, and how full), the tool's grip and how it's turned, what's
@@ -176,37 +182,19 @@ function along(dir: THREE.Vector3, ref: THREE.Vector3, roll: number) {
   return q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), roll))
 }
 
-/** where the paddle's holder stands (on the counter's top): against the cooker's side, on the side away from where the bowl's set down,
- * turned toward the one filling as far as the counter's front leaves room (the gap between the cooker and the miso pot there is widest
- * nearer the front); clear of what stands beside it (W.keepOff) (item 253) */
-export function holderAt(W: FillAt) {
-  // (item 461: the cooker moved left up to the miso pot, the gas stove at its right: its sides taken. Behind it, toward its right back
-  // corner, against the counter's back: its far side from the one filling (W.face points away from them), clear of it by a hair)
-  {
-    const d = W.r + HOLDER_R + 0.004
-    const p = W.top.clone().add(W.face.clone().multiplyScalar(0.7).addScaledVector(W.right, 0.71).normalize().multiplyScalar(d)).setY(W.low)
-    if (!(W.keepOff ?? []).some((o) => Math.hypot(p.x - o.at.x, p.z - o.at.z) < o.r + HOLDER_R + 0.01)) return p
-  }
-  const sd = W.put.clone().sub(W.top).dot(W.right) > 0 ? -1 : 1
-  const side = W.right.clone().multiplyScalar(sd), toward = W.face.clone().negate()
-  const d = W.r + HOLDER_R + 0.004
-  const at = (deg: number) => {
-    const a = (deg * Math.PI) / 180
-    return W.top.clone().addScaledVector(side, d * Math.cos(a)).addScaledVector(toward, d * Math.sin(a)).setY(W.low)
-  }
-  const clear = (p: THREE.Vector3) => !(W.keepOff ?? []).some((o) => Math.hypot(p.x - o.at.x, p.z - o.at.z) < o.r + HOLDER_R + 0.01)
-  return [35, 25, 45, 15, 0].map(at).find(clear) ?? at(35)
-}
-/** where the paddle stands in its holder (item 253: it hung beside the cooker from nothing): its blade's tip on the holder's floor a little
- * to the far side, leaning back toward the one filling, through the holder's middle; the grip a hand takes and how it's turned, its blade's
- * middle, which way it points (grip to tip), its face, and where its holder stands */
+/** where the paddle stands at rest (item 618, the owner's 「打飯的飯勺請跟電鍋做一起」: in the holder clipped to the rice cooker's front right,
+ * part of the cooker (Decor's DenkiNabe draws it there, W.paddle); item 253's indigo cup stood on the counter behind the cooker, drawn by
+ * itself): the grip a hand takes and how it's turned, its blade's middle, which way it points (grip to tip), its face. With no cooker's to
+ * go by, stood on the counter at the cooker's right */
 export function paddleRest(W: FillAt) {
-  const holder = holderAt(W)
-  const dir = W.face.clone().multiplyScalar(Math.sin(PADDLE_LEAN)).addScaledVector(UP, -Math.cos(PADDLE_LEAN))
-  const tip = holder.clone().addScaledVector(W.face, HOLDER_H * 0.5 * Math.tan(PADDLE_LEAN)).setY(W.low + HOLDER_T + 0.002)
-  const grip = tip.clone().addScaledVector(dir, -PADDLE_LEN)
-  const face = W.face.clone().negate()
-  return { grip, q: along(dir, face, 0), blade: grip.clone().addScaledVector(dir, BLADE), dir, face, holder }
+  if (W.paddle) {
+    const { grip, q } = W.paddle
+    const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(q), face = new THREE.Vector3(0, 1, 0).applyQuaternion(q)
+    return { grip: grip.clone(), q: q.clone(), blade: grip.clone().addScaledVector(dir, BLADE), dir, face }
+  }
+  const dir = UP.clone().negate(), face = W.right.clone()
+  const grip = W.top.clone().addScaledVector(W.right, W.r + 0.03).setY(W.low + 0.004 + PADDLE_LEN)
+  return { grip, q: along(dir, face, 0), blade: grip.clone().addScaledVector(dir, BLADE), dir, face }
 }
 /** which way the ladle's handle runs as it's held (level): back toward the one filling, a little to their right */
 const ladleBack = (W: FillAt) => W.face.clone().negate().addScaledVector(W.right, 0.35).normalize()
@@ -284,8 +272,8 @@ export function riceFillPose(W: FillAt, t: number): FillPose {
   const restL = carryAt(W).addScaledVector(r, -0.08), restR = carryAt(W).addScaledVector(r, 0.1)
   const hang = paddleRest(W)
   const held = { grip: hang.grip.clone(), q: hang.q.clone(), held: false }
-  // (its blade's middle just out of the holder, drawn up along its own length (its blade was through the holder's side, item 253))
-  const outOfHolder = hang.blade.clone().addScaledVector(hang.dir, -(HOLDER_H + 0.015))
+  // (its blade's middle drawn up along its own length till it's clear of the holder (its blade was through the holder's side, item 253))
+  const outOfHolder = hang.blade.clone().addScaledVector(hang.dir, -PADDLE_OUT)
   let left = restL, right = restR, bowl: THREE.Vector3 | null = B.clone(), lid = 1, load = 0, onKnob = false
   // (the paddle held: its blade's middle at `blade`, pointing along `dir`, its face toward `face`, rolled `roll`)
   const holdQ = (blade: THREE.Vector3, q: THREE.Quaternion) => {
