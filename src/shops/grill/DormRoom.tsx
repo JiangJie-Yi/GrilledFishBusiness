@@ -7,6 +7,7 @@ import { commuteOf } from '@/game/commute'
 import { CLIMB_S, downBeat, downLength, dormDoing, upBeat, upstairs } from '@/game/dormLife'
 import { bedFit } from '@/game/nightTogether'
 import { TV_FREE, nextChannel, pastimeOf, tvNow, tvSwitched, upstairsDoing, type TvHold } from '@/game/dormTv'
+import { businessDay, rainAt, weatherOf } from '@/game/weather'
 import { SHOP } from '@/game/shopState'
 import { toDorm } from '@/scene/floors'
 import { inkModel } from '@/scene/inkHull'
@@ -681,6 +682,10 @@ export function DormRoom({ crew = [], open = false, fallback, working }: { crew?
     if (alley.current && ALLEY) {
       alley.current.worldToLocal(ALLEY_CAM.copy(camera.position))
       ALLEY.mat.uniforms.uCam.value.copy(ALLEY_CAM)
+      // (item 623: the rain out there by the day's weather, eased on and off; its streaks on their own time)
+      const c = getClock(), u = ALLEY.mat.uniforms
+      u.uRain.value += (rainAt(weatherOf(businessDay(c.day, c.minute)), c.minute) - u.uRain.value) * Math.min(1, dt * 1.5)
+      u.uRainT.value += Math.min(dt, 0.1)
     }
     alleyTo()
     windowTo(bathWin)

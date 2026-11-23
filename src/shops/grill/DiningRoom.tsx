@@ -26,6 +26,9 @@ import { reflectStudio, useStudio } from '@/scene/studio'
 import { heard } from '@/scene/sfx'
 import { tick } from '@/scene/speed'
 import { DRINK_MAX, DRINK_MIN, driftDrinkTemp, servedWarm } from '@/game/fridgeTemp'
+import { businessDay, rainAt, weatherOf } from '@/game/weather'
+import { RAIN_GLSL, rainUniforms } from '@/scene/rainGlsl'
+import { getClock } from '@/ui/clockStore'
 import { ColdMist } from '@/scene/ColdMist'
 import { useGLTF } from '@react-three/drei'
 import { brushText, signTexture, SIGN_FONT } from '@/scene/signFont'
@@ -1381,6 +1384,8 @@ function Sudare() {
     s.dur = 0.35 + 1.1 * Math.abs(BLIND_FOOT[s.way] - s.from)
     blindSound(BLIND_FOOT[s.way] < s.from, 0.5, s.dur)
   }
+  // (dev: the blind let down or rolled up as a click would, for the probes (item 623's rain through the window))
+  useEffect(() => { if (import.meta.env?.DEV) Object.assign(window, { __blindGo: go }) })
   return (
     <group>
       <group position={parts.pivot}><group ref={swing}><group position={parts.pivot.clone().negate()}><primitive object={parts.r} /></group></group></group>
@@ -2345,13 +2350,14 @@ const ROUND_VIEW = (() => {
   const L = VIEW_LAYERS
   const mat = new THREE.ShaderMaterial({
     uniforms: { uSky: { value: layers.sky.t }, uFar: { value: layers.far.t }, uMid: { value: layers.mid.t }, uBack: { value: layers.back.t }, uNear: { value: layers.near.t },
-      uCam: { value: new THREE.Vector3(0, 0, 3) }, uTime: { value: 0 } },
+      uCam: { value: new THREE.Vector3(0, 0, 3) }, uTime: { value: 0 }, ...rainUniforms() },
     vertexShader: `varying vec3 vLocal;
 void main() { vLocal = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
     fragmentShader: `uniform sampler2D uSky, uFar, uMid, uBack, uNear;
 uniform vec3 uCam;
 uniform float uTime;
 varying vec3 vLocal;
+${RAIN_GLSL}
 vec4 layer(sampler2D t, vec2 xy, float H) { return texture2D(t, clamp(xy / (2.0 * H) + 0.5, 0.0, 1.0)); }
 // (along, as its picture wraps (repeating, or mirrored round); up and down held at its edges)
 vec4 layerOn(sampler2D t, vec2 xy, float H) { vec2 uv = xy / (2.0 * H) + 0.5; return texture2D(t, vec2(uv.x, clamp(uv.y, 0.002, 0.998))); }
@@ -2365,10 +2371,19 @@ void main() {
   vec3 air = c;
   vec4 f = layerOn(uFar, vLocal.xy + slope * ${L.far.d.toFixed(1)}, ${L.far.H.toFixed(2)}); c = mix(c, mix(f.rgb, air, 0.38), f.a);
   vec4 m = layerOn(uMid, vLocal.xy + slope * ${L.mid.d.toFixed(1)}, ${L.mid.H.toFixed(2)}); c = mix(c, mix(m.rgb, air, 0.14), m.a);
+  // (item 623: rain over the street, behind the bamboo: its veil far off, finer and fainter, and its streaks between the street and the
+  // bamboo; the street dulled under it)
+  if (uRain > 0.002) {
+    c = rainDull(c, uRain);
+    c += RAIN_INK * uRain * (0.16 * rainLayer(vLocal.xy + slope * 3.0, uRainT, vec2(0.05, 0.22), 1.9, 0.5, 0.012, 9.3)
+      + 0.34 * rainLayer(vLocal.xy + slope * 0.8, uRainT, vec2(0.035, 0.16), 2.6, 0.55, 0.006, 1.7));
+  }
   vec2 sway = vec2(sin(uTime * 0.9 + vLocal.y * 2.5) * 0.008 + sin(uTime * 2.3) * 0.002, 0.0) * (0.4 + vLocal.y / 0.8 + 0.5);
   vec2 swayB = vec2(sin(uTime * 0.7 + vLocal.y * 2.1 + 1.7) * 0.006 + sin(uTime * 1.9 + 0.6) * 0.0015, 0.0) * (0.4 + vLocal.y / 0.8 + 0.5);
   vec4 bb = layer(uBack, vLocal.xy + slope * ${L.back.d.toFixed(2)} + swayB, ${L.back.H.toFixed(2)}); c = mix(c, mix(bb.rgb, air, 0.06), bb.a);
   vec4 n = layer(uNear, vLocal.xy + slope * ${L.near.d.toFixed(1)} + sway, ${L.near.H.toFixed(2)}); c = mix(c, n.rgb, n.a);
+  // (the bamboo out in the wet too, a little duller)
+  if (uRain > 0.002) c = mix(c, rainDull(c, uRain), 0.4);
   gl_FragColor = vec4(c, 1.0);
   #include <colorspace_fragment>
 }`,
@@ -2409,6 +2424,8 @@ function RoundShoji() {
   const view = useRef<THREE.Mesh>(null)
   const sill = useRef<THREE.Mesh>(null)
   const st = useRef({ open: false, k: 0 })
+  // (dev: the shoji slid open or shut as a click would, for the probes (item 623's rain through the window))
+  useEffect(() => { if (import.meta.env?.DEV) Object.assign(window, { __roundShoji: (open: boolean) => { st.current.open = open } }) }, [])
   /** the window's frame, inverted, for cutting what's drawn to its round */
   const inv = useMemo(() => ({ value: new THREE.Matrix4() }), [])
   const round = useMemo(() => {
@@ -2454,6 +2471,12 @@ function RoundShoji() {
     // (where the eye is, in the window's own frame: the street's layers are looked through from there)
     if (view.current && ROUND_VIEW) ROUND_VIEW.uniforms.uCam.value.copy(view.current.worldToLocal(eye.copy(camera.position)))
     if (ROUND_VIEW) ROUND_VIEW.uniforms.uTime.value += Math.min(dt, 0.1)
+    // (item 623: the rain out there, by the day's weather, eased on and off; its streaks on the view's own time)
+    if (ROUND_VIEW) {
+      const c = getClock(), u = ROUND_VIEW.uniforms
+      u.uRain.value += (rainAt(weatherOf(businessDay(c.day, c.minute)), c.minute) - u.uRain.value) * Math.min(1, dt * 1.5)
+      u.uRainT.value = u.uTime.value
+    }
     // (the light under the sill: its part of the day's colour, eased)
     if (sill.current) {
       const want = SILL_LIGHT[skyNow()]

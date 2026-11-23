@@ -101,7 +101,9 @@ import { MAKE_S, SOUP_BOWLS, emptyPot, heatNow, heatRate, potTick, setSoup, soup
 import { RICE_BEATS, SOUP_BEATS, beatsLength } from '@/game/sides'
 import { SeatBowls, fillRice, fillSoup, ladleRest, leftOf, riceFillPose, soupFillPose, useSideProps, type FillAt, type FillPose, type WareAt } from './SideBowls'
 import { addWares, cabinetAtStart, canFill, layPlace, leftAdded, noWares, takeForFill, wareCount, wareIntoWasher, wareOut, wareTrip, wareUrgent, wareWashNow, type Wares } from '@/game/ware'
-import { bottleClink, lightSwitchSound, plateClink, plateDownSound, scrubSound, slideDoorSound, stoolSound, washSplash } from './restroomSound'
+import { bottleClink, lightSwitchSound, plateClink, plateDownSound, rainAmbience, scrubSound, slideDoorSound, stoolSound, washSplash } from './restroomSound'
+import { businessDay, rainAt, weatherOf } from '@/game/weather'
+import { FLOOR } from '@/scene/floors'
 import { LAST_CALL, ON_DUTY, SHOP, clockIn } from '@/game/shopState'
 import { flowerBuffs } from '@/game/shrineFlowers'
 import { murmur } from '@/game/fireSound'
@@ -1115,15 +1117,21 @@ const DOOR_LOOKS: Record<string, [string, string, number]> = {
   day: ['#ffffff', '#fff0d6', 0.34], dawn: ['#ffffff', '#ffd6c8', 0.16], dusk: ['#ffffff', '#ffb46e', 0.3], night: ['#ffffff', '#8fa6d8', 0.07],
 }
 let doorSky = ''
-function doorLight() {
+const DOOR_SKY_TINT = new THREE.Color(), DOOR_RAIN_TINT = new THREE.Color('#9fb0c4')
+/** how hard it's raining (item 623, game/weather), eased: the light through the way in greyer and less of it, the rain heard */
+const RAIN_NOW = { k: 0 }
+function doorLight(dt = 0) {
   const s = typeof document === 'undefined' ? 'day' : document.documentElement.dataset.sky ?? 'day'
   if (s !== doorSky) {
     doorSky = s
     const [, sc, so] = DOOR_LOOKS[s] ?? DOOR_LOOKS.day
-    DOOR_SPILL.color.set(sc)
+    DOOR_SKY_TINT.set(sc)
     doorSpillBase = so
   }
-  DOOR_SPILL.opacity = doorSpillBase * (DOOR_SHUT_LIGHT + (1 - DOOR_SHUT_LIGHT) * DOOR_OPEN.k)
+  const c = getClock()
+  RAIN_NOW.k += (rainAt(weatherOf(businessDay(c.day, c.minute)), c.minute) - RAIN_NOW.k) * Math.min(1, dt * 1.5)
+  DOOR_SPILL.color.copy(DOOR_SKY_TINT).lerp(DOOR_RAIN_TINT, 0.6 * RAIN_NOW.k)
+  DOOR_SPILL.opacity = doorSpillBase * (1 - 0.45 * RAIN_NOW.k) * (DOOR_SHUT_LIGHT + (1 - DOOR_SHUT_LIGHT) * DOOR_OPEN.k)
 }
 
 /**
@@ -1300,6 +1308,12 @@ const GenkanDoor = memo(GenkanDoorImpl)
 export const Entrance = memo(EntranceImpl, (a, b) => a.mark === b.mark && a.at.equals(b.at))
 function EntranceImpl({ at, mark }: { at: THREE.Vector3; mark: string }) {
   const lantern = mark === '聞野' ? '燒' : mark
+  // (the rain heard inside while it rains (item 623), let go with the shop)
+  const rainHum = useMemo(() => rainAmbience(), [])
+  useEffect(() => {
+    if (import.meta.env?.DEV) Object.assign(window, { __rainHum: rainHum, __rainNow: RAIN_NOW })
+    return () => rainHum.stop()
+  }, [rainHum])
   // (the grill's noren reads 烤魚, the shop's trade, with a fish on it; the other shops' name their own)
   const tex = useMemo(() => crestNorenTexture(mark), [mark])
   const panels = useRef<(THREE.Mesh | null)[]>([])
@@ -1356,7 +1370,9 @@ function EntranceImpl({ at, mark }: { at: THREE.Vector3; mark: string }) {
   useFrame(({ clock }, dt0) => {
     const t = clock.elapsedTime
     const dt = Math.min(dt0, 0.1)
-    doorLight()
+    doorLight(dt)
+    // (the rain heard inside (item 623): fuller with the way in's door open, a little more from up under the roof)
+    rainHum.set(RAIN_NOW.k, DOOR_OPEN.k, FLOOR.up ? 1 : 0)
     scan.now = t
     FIGURES.forEach(track)
     goers.forEach(forget)

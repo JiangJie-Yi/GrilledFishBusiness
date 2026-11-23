@@ -921,3 +921,65 @@ export function putInSound(at: THREE.Vector3, kind: 'veg' | 'coal' = 'veg') {
   k.start(t)
   ping(a, t, coal ? 900 + Math.random() * 250 : 120 + Math.random() * 50, coal ? 0.18 : 0.35, coal ? 0.05 : 0.07, o)
 }
+
+/**
+ * The rain heard from inside while it rains (item 623, game/weather): on the roof and the windows, a soft hiss (a loop of noise, low-passed:
+ * muffled through the walls) and now and then a drop ticking over it (a loop of sparse clicks, high-passed); fuller and brighter with the
+ * way in's door open, a little more up under the roof. `set(k, open, up)` each frame (k how hard it's raining, 0..1; only a change worth
+ * hearing is sent on), `stop()` to let it go. `at` a context of its own to make it in (a probe's offline one), else the game's.
+ */
+export function rainAmbience(at?: BaseAudioContext) {
+  let made: { a: BaseAudioContext; vol: GainNode; lp: BiquadFilterNode; tick: GainNode; srcs: AudioBufferSourceNode[]; all: AudioNode[] } | null = null
+  let sent = { k: -1, open: -1, up: -1 }
+  const make = () => {
+    const a = at ?? ctx()
+    if (!a) return null
+    const n = Math.floor(a.sampleRate * 3), hissB = a.createBuffer(1, n, a.sampleRate), h = hissB.getChannelData(0)
+    // (the hiss: noise a little smoothed (softer than white), its loop's ends faded into each other)
+    let last = 0
+    for (let i = 0; i < n; i++) { last = last * 0.55 + (Math.random() * 2 - 1) * 0.45; h[i] = last }
+    for (let i = 0; i < 2000; i++) { const w = i / 2000; h[i] = h[i] * w + h[n - 2000 + i] * (1 - w) }
+    const m = Math.floor(a.sampleRate * 4), tickB = a.createBuffer(1, m, a.sampleRate), d = tickB.getChannelData(0)
+    // (the drops: seventy short clicks over four seconds, each its own loudness)
+    for (let k = 0; k < 70; k++) {
+      const s = Math.floor(Math.random() * (m - 200)), g = 0.3 + 0.7 * Math.random()
+      for (let i = 0; i < 160; i++) d[s + i] += (Math.random() * 2 - 1) * g * Math.exp(-i / 22)
+    }
+    const hiss = a.createBufferSource(), ticks = a.createBufferSource()
+    hiss.buffer = hissB; hiss.loop = true
+    ticks.buffer = tickB; ticks.loop = true
+    const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 0.5
+    const hp = a.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2200
+    const tick = a.createGain(); tick.gain.value = 0.5
+    const vol = a.createGain(); vol.gain.value = 0
+    hiss.connect(lp).connect(vol)
+    ticks.connect(hp).connect(tick).connect(vol)
+    vol.connect(a.destination)
+    hiss.start(); ticks.start()
+    return { a, vol, lp, tick, srcs: [hiss, ticks], all: [hiss, ticks, lp, hp, tick, vol] as AudioNode[] }
+  }
+  return {
+    /** (dev, probes) whether it's made */
+    get live() { return made !== null },
+    set(k: number, open = 0, up = 0) {
+      if (Math.abs(k - sent.k) < 0.02 && Math.abs(open - sent.open) < 0.05 && Math.abs(up - sent.up) < 0.05) return
+      if (k < 0.01 && !made) return
+      made ??= make()
+      if (!made) return
+      sent = { k, open, up }
+      const t = made.a.currentTime
+      made.vol.gain.setTargetAtTime(0.12 * k * (1 + 0.4 * open + 0.4 * up), t, 0.4)
+      made.lp.frequency.setTargetAtTime(900 + 1400 * open, t, 0.2)
+      made.tick.gain.setTargetAtTime(0.35 + 0.5 * open, t, 0.2)
+    },
+    stop() {
+      if (!made) return
+      const m = made
+      made = null
+      sent = { k: -1, open: -1, up: -1 }
+      m.vol.gain.setTargetAtTime(0, m.a.currentTime, 0.1)
+      m.srcs[0].onended = () => { for (const x of m.all) x.disconnect() }
+      for (const s of m.srcs) s.stop(m.a.currentTime + 0.6)
+    },
+  }
+}

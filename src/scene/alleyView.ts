@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { RAIN_GLSL, rainUniforms } from './rainGlsl'
 
 /**
  * What's out of the upstairs window (item 452, the owner's, 2026-11-21: 「2樓窗外景色?」 over a shot of the window, a pale grey-white
@@ -162,12 +163,13 @@ export function makeAlleyView() {
   paint('day')
   const L = ALLEY_LAYERS
   const mat = new THREE.ShaderMaterial({
-    uniforms: { uSky: { value: layers.sky.t }, uFar: { value: layers.far.t }, uNear: { value: layers.near.t }, uCam: { value: new THREE.Vector3(0, 0, 3) } },
+    uniforms: { uSky: { value: layers.sky.t }, uFar: { value: layers.far.t }, uNear: { value: layers.near.t }, uCam: { value: new THREE.Vector3(0, 0, 3) }, ...rainUniforms() },
     vertexShader: `varying vec3 vLocal;
 void main() { vLocal = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
     fragmentShader: `uniform sampler2D uSky, uFar, uNear;
 uniform vec3 uCam;
 varying vec3 vLocal;
+${RAIN_GLSL}
 vec4 layerOn(sampler2D t, vec2 xy, float H) { vec2 uv = xy / (2.0 * H) + 0.5; return texture2D(t, vec2(uv.x, clamp(uv.y, 0.002, 0.998))); }
 void main() {
   // (the way the eye looks through this point of the window, out over the town: where it meets each layer; the far roofs hazed into the
@@ -177,7 +179,11 @@ void main() {
   vec3 c = layerOn(uSky, vLocal.xy + slope * ${L.sky.d.toFixed(1)}, ${L.sky.H.toFixed(2)}).rgb;
   vec3 air = c;
   vec4 f = layerOn(uFar, vLocal.xy + slope * ${L.far.d.toFixed(1)}, ${L.far.H.toFixed(2)}); c = mix(c, mix(f.rgb, air, 0.32), f.a);
+  // (item 623: the rain's veil over the town, the far roofs dulled under it)
+  if (uRain > 0.002) c = rainDull(c, uRain) + RAIN_INK * uRain * 0.16 * rainLayer(vLocal.xy + slope * 4.0, uRainT, vec2(0.06, 0.26), 1.9, 0.5, 0.014, 9.3);
   vec4 m = layerOn(uNear, vLocal.xy + slope * ${L.near.d.toFixed(1)}, ${L.near.H.toFixed(2)}); c = mix(c, mix(m.rgb, air, 0.05), m.a);
+  // (and its streaks close by, between the window and the neighbour's roof, the roof wet too)
+  if (uRain > 0.002) c = mix(c, rainDull(c, uRain), 0.5) + RAIN_INK * uRain * 0.34 * rainLayer(vLocal.xy + slope * 0.6, uRainT, vec2(0.04, 0.18), 2.6, 0.55, 0.007, 1.7);
   gl_FragColor = vec4(c, 1.0);
   #include <colorspace_fragment>
 }`,
