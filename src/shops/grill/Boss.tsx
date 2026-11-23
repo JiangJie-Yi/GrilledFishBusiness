@@ -1219,7 +1219,7 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     document.body.style.cursor = CURSOR_HOLD
     const move = (ev: PointerEvent) => { const c = carry.current; if (c) { c.px = ev.clientX; c.py = ev.clientY } }
     const up = () => {
-      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up)
       if (controls) controls.enabled = true
       GRABBING.on = false
       document.body.style.cursor = ''
@@ -1247,6 +1247,9 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
+    // (the pointer taken away (a touch turned into a scroll, the window left): let go of him there as if it were let up (item 643: he went
+    // on following the pointer till the next press and release))
+    window.addEventListener('pointercancel', up)
   }
   return (
     <group ref={mover} name="BossFollow">

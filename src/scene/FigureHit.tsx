@@ -1,7 +1,7 @@
 import { memo, useMemo, useRef } from 'react'
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
-import { whoOver } from './hoverTip'
+import { FIGURE_CURSOR, whoOver } from './hoverTip'
 import { glowOff, glowOn } from './hoverGlow'
 
 const BOX = new THREE.BoxGeometry(1, 1, 1)
@@ -43,9 +43,9 @@ function FigureHitImpl({ title, hint, onPointerDown, grabbable, cursor }: { titl
         const el = e.nativeEvent?.target as HTMLElement | null
         // (their own pointer over them (item 624), else the grabbing hand where they can be taken up)
         const own = cursor?.() ?? null
-        if (own && el?.style) { el.style.cursor = own; mine = el.style.cursor }
+        if (own && el?.style) { el.style.cursor = own; mine = el.style.cursor; FIGURE_CURSOR.cursor = mine }
         if (!grabbable?.()) return
-        if (!own && el?.style) { el.style.cursor = 'grab'; mine = 'grab' }
+        if (!own && el?.style) { el.style.cursor = 'grab'; mine = 'grab'; FIGURE_CURSOR.cursor = mine }
         glowOn(e.eventObject.parent)
       },
       onPointerOut: (e: ThreeEvent<PointerEvent>) => {
@@ -53,6 +53,7 @@ function FigureHitImpl({ title, hint, onPointerDown, grabbable, cursor }: { titl
         if (GRABBING.on) return
         const el = e.nativeEvent?.target as HTMLElement | null
         if (el?.style && mine && el.style.cursor === mine) el.style.cursor = ''
+        if (mine && FIGURE_CURSOR.cursor === mine) FIGURE_CURSOR.cursor = ''
         mine = ''
         glowOff(e.eventObject.parent)
       },

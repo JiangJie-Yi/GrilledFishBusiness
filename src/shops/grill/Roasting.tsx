@@ -91,7 +91,7 @@ import { AxisGizmo, focusCamera, useEditBox } from './Movable'
 import { ashMaterial, MODEL_LEN, MODEL_R, useBinchotan } from './binchotanModel'
 import { coalLayer, coalLook, type CoalLook } from './coalLayer'
 import { beginChange, commitOffsets, getEdit, moveTo, offsetOf, positionOf, registerMovable, scaleOf, settleOffset, useEditSel, type V3 } from './edit'
-import { setTip } from '@/scene/hoverTip'
+import { figureCursorOn, setTip } from '@/scene/hoverTip'
 import { slide as drawerSound } from './TillDesk'
 import { tissuePull } from './paperSound'
 import { reflectStudio, useStudio } from '@/scene/studio'
@@ -8613,7 +8613,8 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       // (what's under the pointer, named by a tag, for what isn't food or a tool (those have their own): a dish or the table's boxes, dragged about)
       // (only its own tag is cleared here: the scene's other things set theirs through the pointer events)
       if (!tool && !p && !soup && !dec && cont) { setTip(CONTAINER_TIP(cont, TRAY_SWAP.k > 0.5)); ownTip = true } else if (ownTip) { setTip(null); ownTip = false }
-      el.style.cursor = tool || dec ? 'grab' : p || soup ? 'pointer' : pickContainer() ? 'grab' : POINTER_HINT.hand ? 'pointer' : ''
+      // (a person under the pointer keeps their own (FigureHit, item 643: the owner's hand over him asleep, put back here on the next move))
+      if (!figureCursorOn(el)) el.style.cursor = tool || dec ? 'grab' : p || soup ? 'pointer' : pickContainer() ? 'grab' : POINTER_HINT.hand ? 'pointer' : ''
     }
     const onDown = (e: PointerEvent) => {
       down = { x: e.clientX, y: e.clientY }

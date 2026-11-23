@@ -14,7 +14,7 @@ import { BOX_SHEETS } from '@/game/tissues'
 import type { Use } from '@/game/utilities'
 import type { HearthRole } from '@/game/hearthGuard'
 import { glowLeave, glowOnly, HOVER } from '@/scene/hoverGlow'
-import { aimTip, setTip } from '@/scene/hoverTip'
+import { aimTip, figureCursorOn, setTip } from '@/scene/hoverTip'
 import { openingFloat, payCash, type DrawerCash, type Tab } from '@/game/till'
 import type { CalmKind } from '@/game/calm'
 import { LOW_FULL, RACK_FULL, type Dryer, type Drain } from '@/game/plates'
@@ -366,7 +366,8 @@ export const handOver = {
     aimTip(e)
     POINTER_HINT.hand++
     const el = e.nativeEvent.target as HTMLElement | null
-    if (el?.style) el.style.cursor = 'pointer'
+    // (not over a person stood in front of it with their own pointer (item 643))
+    if (el?.style && !figureCursorOn(el)) el.style.cursor = 'pointer'
   },
   onPointerOut: (e: { nativeEvent: Event; eventObject?: THREE.Object3D }) => {
     if (HOVER.paused) return

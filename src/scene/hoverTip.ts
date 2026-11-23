@@ -27,6 +27,12 @@ export const setTip = (t: Tip) => {
   subs.forEach((f) => f())
 }
 export const useTip = () => useSyncExternalStore((f) => { subs.add(f); return () => { subs.delete(f) } }, () => tip)
+/** the pointer a person under it put up over them (scene/FigureHit; item 643): what's behind them, and the kitchen's own pointer set on
+ * every move (Roasting), leave it be while it's still that one (the owner's hand over him asleep was put back to the plain arrow 13 ms after
+ * it was set, on the next move). By what it is, not a flag: let go of one carried off the pointer, it's put back plain and theirs again */
+export const FIGURE_CURSOR = { cursor: '' }
+/** whether the canvas's pointer is still the one a person put up over them */
+export const figureCursorOn = (el: HTMLElement | null) => !!el?.style && !!FIGURE_CURSOR.cursor && el.style.cursor === FIGURE_CURSOR.cursor
 /**
  * A person under the pointer (scene/FigureHit): their name tag; the pointer left the plain arrow (the owner's, 2026-11-12: whatever can only
  * be pointed at, not done anything with, keeps the default cursor: the staff and the owner can't be clicked; a customer who can be moved
