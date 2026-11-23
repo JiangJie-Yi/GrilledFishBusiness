@@ -18,8 +18,9 @@ export type Entry = { key: string; shop: string; name: string; ja: string; price
 
 /** most dishes (and sets) a menu holds */
 export const MENU_MAX = 40
-/** fewest on the menu before the shop can open */
-export const MENU_MIN: Record<string, number> = { grilledfish: 10 }
+/** fewest on the menu before the shop can open (item 617, the owner's: twenty, white rice and miso soup not counted, spread evenly over
+ * the four kinds: game/menuMix) */
+export const MENU_MIN: Record<string, number> = { grilledfish: 20 }
 
 /**
  * What a portion's seasoning costs, NT$, as in a Taiwanese stall: a pinch of salt next to nothing, a brush of soy

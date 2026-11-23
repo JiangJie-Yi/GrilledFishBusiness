@@ -5,6 +5,7 @@ import type { Dish } from '@/data/menu'
 import { findItem, MENU_MAX, MENU_MIN, partName, recipeKey, SEASON_NAME, signature, suggestPrice,
   type Entry, type Part, type Seasoning } from '@/data/recipes'
 import { starsOf } from '@/game/taste'
+import { menuKindName, menuMix } from '@/game/menuMix'
 import { Glyph, Stars } from './GameIcons'
 import { panelSound } from './uiSound'
 import { idealSteps, recipeSteps, timingTips } from '@/game/research'
@@ -100,6 +101,9 @@ export function Notebook({ dish, lang, notes, entries, onPublish, onUnpublish, o
   const onMenu = new Set(entries.map((e) => e.key))
   const full = entries.length >= MENU_MAX
   const min = MENU_MIN[dish.id] ?? 1
+  // (item 617: twenty counted, white rice and miso soup not among them, each of the four kinds its share)
+  const mix = menuMix(entries, min)
+  const shortSay = mix.short.map((s) => `${menuKindName(s.kind, lang)} ${s.need - s.have}`).join(lang === 'en' ? ', ' : '、')
   // (in English, made the menu's way from the food's English name: the dishes carry only their Chinese and Japanese)
   const enOf = (p: { id: string; dabs: Seasoning[]; name: string }) => {
     const item = findItem(dish, p.id)
@@ -139,11 +143,12 @@ export function Notebook({ dish, lang, notes, entries, onPublish, onUnpublish, o
     // (a tab of the office window: 廚房 beside 人事)
     <div className="nb-embedded" aria-label={t(lang, '廚房', '厨房', 'Kitchen')}>
           {/* how far the menu is from opening: a bar to the minimum, and what's left to do */}
-          <div className={`nb-progress${entries.length >= min ? ' is-ready' : ''}`}>
+          <div className={`nb-progress${mix.ok ? ' is-ready' : ''}`}>
             <span>{t(lang, `菜單 ${entries.length}/${MENU_MAX}`, `メニュー ${entries.length}/${MENU_MAX}`, `Menu ${entries.length}/${MENU_MAX}`)}</span>
-            <i><b style={{ width: `${Math.min(100, (entries.length / min) * 100)}%` }} /></i>
-            <small>{entries.length >= min ? t(lang, '可以營業了', '営業できます', 'Ready to open')
-              : t(lang, `至少 ${min} 樣才能開業`, `${min}品から開業できます`, `${min} dishes to open`)}</small>
+            <i><b style={{ width: `${Math.min(100, (mix.n / min) * 100)}%` }} /></i>
+            <small>{mix.ok ? t(lang, '可以營業了', '営業できます', 'Ready to open')
+              : mix.short.length ? t(lang, `還缺：${shortSay}`, `あと：${shortSay}`, `Short: ${shortSay}`)
+              : t(lang, `還要 ${min - mix.n} 樣（白飯味噌湯不算）`, `あと ${min - mix.n} 品`, `${min - mix.n} more to open`)}</small>
           </div>
           <nav className="nb-views" role="tablist">
             {([['tried', t(lang, '試菜', '試作', 'Tried'), recipes.length], ['menu', t(lang, '菜單', 'メニュー', 'Menu'), entries.length],

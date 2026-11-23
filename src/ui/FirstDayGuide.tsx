@@ -80,7 +80,7 @@ export function FirstDayGuide({ lang, shop, takings, onSkipTime, onDone }: Props
     hire: [t('找人來幫忙', '人を雇おう', 'Hire some help'),
       t('依序點發亮的地方：錢、人事、「一鍵徵人」', '光るところを順に：お金、人事、「おまかせ採用」', 'Click what glows in turn: money, Staff, then "Hire all"')],
     menu: [t('請二廚做一份菜單', '二番手にメニューを頼もう', 'Have your cook make a menu'),
-      t('依序點：廚房、料理研製、「一鍵生成菜單 10 道」', '順に：厨房、料理研究、「メニュー10品おまかせ」', 'In turn: Kitchen, Recipes, then "Make a 10-dish menu"')],
+      t('依序點：廚房、料理研製、「一鍵生成菜單 20 道」', '順に：厨房、料理研究、「メニュー20品おまかせ」', 'In turn: Kitchen, Recipes, then "Make a 20-dish menu"')],
     wait: [t('都準備好了，16:30 開店', '準備完了、開店は 16:30', 'All set: the shop opens at 16:30'),
       t('不想等的話，按下面的按鈕直接到傍晚', '待ちたくなければ、下のボタンで夕方へ', "Don't want to wait? Skip to the evening below")],
     open: [t('開店！', '開店！', 'Open up!'),

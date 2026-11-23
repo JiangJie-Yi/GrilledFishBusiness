@@ -153,7 +153,7 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  App.tsx
 
 - **加一道食材**：在 `data/menu.ts` 的店家 `items` 加一筆；成本比例加在 `game/economy.ts` 的 `COST_SHARE`；燒烤類要在 `game/taste.ts` 的 `PAIRING` 加上調味搭配（調味的最佳時機在 `TIMING`）；有特別菜名的話加在 `data/recipes.ts`（`SPECIAL` / `BREAD`）。燒烤的 3D 模型由 `blender/grilledfish.py` 產生。
 - **調整價格或成本**：`game/economy.ts`（`costOf`、`COST_SHARE`、`CAPITAL`、`SHOP_COST`）和 `data/recipes.ts` 的 `suggestPrice`、`SEASON_COST`。開店後手上是 NT$200,000（店主定的：資本 `CAPITAL` 30 萬 − 開業費用 `SHOP_COST` 10 萬；BDD `pricing`）。
-- **開店門檻和菜單上限**：`data/recipes.ts` 的 `MENU_MIN`、`MENU_MAX`。
+- **開店門檻和菜單上限**：`data/recipes.ts` 的 `MENU_MIN`、`MENU_MAX`；四類平均、白飯味噌湯不算的規則在 `game/menuMix.ts`（BDD `menu-mix`）。
 - **加一間店**：`data/menu.ts` 加一個 Dish，`src/shops/<新店>/` 放它的 3D，`App.tsx` 的 Scene 掛上去，`data/staff.ts`、`data/recipes.ts` 補上它的資料，並在 `tests/architecture.test.ts` 的 `ALLOWED` 加上新資料夾。
 （根莖蔬菜與大蔥、應徵者、排班制、員工編制的細節在 `docs/DETAILS.md` 同名的一節。）
 

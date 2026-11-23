@@ -26,7 +26,7 @@ export const GAME_GUIDE: GuidePage[] = [
       { icon: 'person', head: t('徵人', '採用', 'Hire'),
         text: t('點右上的錢（經營）→ 人事 →「一鍵徵人」。二廚、三廚、外場、收銀、倉儲各有各的工作。', '右上のお金（経営）→ 人事 →「おまかせ採用」。二番手、三番手、ホール、レジ、倉庫、それぞれに持ち場がある。', 'Click your money (Office), then Staff, then "Hire all". Cooks, servers, cashier and stock keeper each have their job.') },
       { icon: 'notes', head: t('菜單', '献立', 'Menu'),
-        text: t('經營 → 廚房 → 料理研製，請二廚做一份 10 道的菜單，或自己研發。菜單至少 10 道、最多 40 道。', '経営 → 厨房 → 料理研究で、二番手に10品の献立を頼むか、自分で考える。10品から40品まで。', 'Office, then Kitchen, then Recipes: have your cook make a 10-dish menu, or work out your own. 10 dishes at least, 40 at most.') },
+        text: t('經營 → 廚房 → 料理研製，請二廚做一份 20 道的菜單，或自己研發。菜單至少 20 道（白飯、味噌湯不算）、最多 40 道，烤魚、串燒・海鮮、烤蔬菜、飯物・小菜四類各至少 5 道。', '経営 → 厨房 → 料理研究で、二番手に20品の献立を頼むか、自分で考える。20品から40品まで（ご飯・味噌汁は数えない）、焼き魚・串焼き・焼き野菜・ご飯と一品の四種類を各5品以上。', 'Office, then Kitchen, then Recipes: have your cook make a 20-dish menu, or work out your own. 20 at least (rice and miso soup not counted), 40 at most, 5 or more of each kind: fish, skewers, vegetables, rice & sides.') },
       { icon: 'calendar', head: t('開店', '開店', 'Open'),
         text: t('營業時間 16:30～04:30。時間到，按右上的「閉」開店（變成「營」）。還早的話可以直接跳到 16:30。', '営業は 16:30～04:30。時間になったら右上の「閉」で開店（「営」になる）。早ければ 16:30 まで飛ばせる。', 'Open 16:30 to 04:30. When it\'s time, click "Off" top right to open (it turns "On"). Early? Skip to 16:30.') },
       { icon: 'refresh', head: t('自動營運', '自動運営', 'Auto-run'),

@@ -28,6 +28,7 @@ import { CashChip } from '@/ui/CashChip'
 import { fullHouse } from '@/game/fullHouse'
 import { bestOf, Notebook } from '@/ui/Notebook'
 import { findItem, MENU_MAX, MENU_MIN, oneOfEach, partEn, partName, recipeKey, SEASON_NAME, signature, type Entry, type Seasoning } from '@/data/recipes'
+import { menuKindName, menuMix, mixFirst } from '@/game/menuMix'
 import { idealSteps, trialIdeas } from '@/game/research'
 import { bestDabs, cookable, dishName, expectedTaste, understand } from '@/game/chefChat'
 import { CHEF_TALK } from '@/data/chefTalk'
@@ -2386,7 +2387,8 @@ export default function App() {
     })
     const made: { id: string; dabs: Seasoning[]; taste: number; name: string }[] = []
     // (they take turns, dish by dish)
-    made.push(...chefCook(d, chosen, n, cooks.map((ck) => ck.skill)))
+    // (item 617, the owner's 「要平均分類」: the kinds short of their share of the menu taken first, the rest after, each kind's best first)
+    made.push(...chefCook(d, mixFirst(chosen, entriesOf(d.id), MENU_MIN[d.id] ?? 1), n, cooks.map((ck) => ck.skill)))
     const room = MENU_MAX - entriesOf(d.id).length
     const up = made.slice(0, Math.max(0, room))
     if (up.length) setMenuBy((m) => {
@@ -3646,13 +3648,15 @@ export default function App() {
       say(T.autoRestock(order.cost, autoK()))
       return
     }
-    if (entriesOf(d.id).length < (MENU_MIN[d.id] ?? 1) && cooksNow(d).length) {
-      const { up, who } = makeMenu(d, 10)
+    // (item 617: twenty to open, white rice and miso soup not counted, each kind its share: as many made as it's short of)
+    const mix = menuMix(entriesOf(d.id), MENU_MIN[d.id] ?? 1)
+    if (!mix.ok && cooksNow(d).length) {
+      const { up, who } = makeMenu(d, Math.max(mix.min - mix.n, mix.short.reduce((s, x) => s + x.need - x.have, 0), 1))
       if (up.length) addTalk(d.id, 'chef', CHEF_TALK[lang].menuMade(up.map((m) => m.name), who))
       return
     }
     // (opened only in the shop's hours (16:30 to 04:30, the owner's): ready before, it waits for them)
-    if (entriesOf(d.id).length >= (MENU_MIN[d.id] ?? 1) && sellable(d) && inHours(getClock().minute)) {
+    if (mix.ok && sellable(d) && inHours(getClock().minute)) {
       setAi(true)
       say(T.autoOpen(autoK()))
     }
@@ -4278,8 +4282,10 @@ export default function App() {
         aria-label={UI[lang].tools} title={UI[lang].tools}><Glyph id={toolsOpen ? 'close' : 'menu'} size="1.1em" /></button>
       <button type="button" className={`ai-toggle${ai ? ' is-on' : ''}`} onClick={() => {
         // (opening with nothing a customer could order would only shut again at once: say what's missing instead)
-        if (!ai && entriesOf(dish.id).length < (MENU_MIN[dish.id] ?? 1)) {
-          say(UI[lang].menuShort(entriesOf(dish.id).length, MENU_MIN[dish.id] ?? 1))
+        // (item 617: twenty, white rice and miso soup not counted, each of the four kinds its share: said what's short, kind by kind)
+        const mix = menuMix(entriesOf(dish.id), MENU_MIN[dish.id] ?? 1)
+        if (!ai && !mix.ok) {
+          say(UI[lang].menuShort(mix.n, mix.min, mix.short.map((s) => `${menuKindName(s.kind, lang)} ${s.need - s.have}`).join(lang === 'en' ? ', ' : '、')))
           setOffice('book')
           return
         }
@@ -4379,7 +4385,9 @@ export default function App() {
       <HoverTip hidden={editOn} />
       {guide && !editOn && !flatGrill && (
         <FirstDayGuide lang={lang} takings={ledger.revenue}
-          shop={{ kinds: dish.items.filter((it) => (stock[it.id] ?? 0) > 0).length, cooks: cooksNow(dish).length, menu: entriesOf(dish.id).length,
+          // (the menu's step done when the menu can open (item 617): twenty counted and each kind its share)
+          shop={{ kinds: dish.items.filter((it) => (stock[it.id] ?? 0) > 0).length, cooks: cooksNow(dish).length,
+            menu: ((m) => (m.ok ? m.min : Math.min(m.n, m.min - 1)))(menuMix(entriesOf(dish.id), MENU_MIN[dish.id] ?? 1)),
             menuMin: MENU_MIN[dish.id] ?? 1, open: ai, inHours: guideHours, sold: ledger.revenue > 0 }}
           onSkipTime={() => setClock({ ...getClock(), minute: OPEN_AT })} onDone={guideDone} />
       )}
