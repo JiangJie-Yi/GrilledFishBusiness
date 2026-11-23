@@ -9142,7 +9142,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           w.phase = 'drop'
         }
       })
-      else if (w.phase === 'clearTake' && w.t > CLEAR_WIPE_AT + WIPE_S && laidAgain(w)) {
+      // (the clean pair laid as the wipe's last stroke ends (item 600): begun LAY_S before it, so clearing a place takes no longer than it did)
+      else if (w.phase === 'clearTake' && w.t > CLEAR_WIPE_AT + WIPE_S - LAY_S && laidAgain(w) && w.t > CLEAR_WIPE_AT + WIPE_S) {
         // (another dirty plate at this counter still to take: on along the aisle to it; or back in through their gate, across to the sink)
         const next = runs.current.find((x) => (w.carry ?? []).includes(x.key) && x.phase === 'dirty')
         if (next) {
