@@ -166,7 +166,8 @@ def rounded(a, b, rc, k=4):
 
 
 bm = bmesh.new()
-outer, inner = rounded(HOLD_A_, HOLD_B_, HOLD_RC), rounded(HOLD_A_ - HOLD_WALL, HOLD_B_ - HOLD_WALL, HOLD_RC - HOLD_WALL)
+# (three points to a corner, its tab only its four faces seen: a hundred triangles, a small thing's most)
+outer, inner = rounded(HOLD_A_, HOLD_B_, HOLD_RC, 3), rounded(HOLD_A_ - HOLD_WALL, HOLD_B_ - HOLD_WALL, HOLD_RC - HOLD_WALL, 3)
 ob = [bm.verts.new(held(u, w, HOLD_Y0)) for u, w in outer]
 ot = [bm.verts.new(held(u, w, HOLD_Y1)) for u, w in outer]
 it = [bm.verts.new(held(u, w, HOLD_Y1)) for u, w in inner]
@@ -180,11 +181,18 @@ for i in range(n_):
 ladder_fill(bm, ib)                                  # (its floor, inside)
 ladder_fill(bm, list(reversed(ob)))                  # (its foot)
 bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-# (the tab between its back and the body: from 4 mm in the body to 2 mm into its back's wall, mid-height)
-tab = [bm.verts.new(held(u, w, y)) for u in (-HOLD_A_ - HOLD_GAP - 0.004, -HOLD_A_ + 0.002) for w in (-0.02, 0.02) for y in (0.13, 0.17)]
-for f in ((0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)):
-    bm.faces.new([tab[k] for k in f])
-bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+# (the tab between its back and the body: from 4 mm in the body to 2 mm into its back's wall, mid-height; its ends are in the body and in
+# the wall, so only its top, its foot and its two sides, each facing out)
+tab = {(a, b, c): bm.verts.new(held(u, w, y)) for a, u in enumerate((-HOLD_A_ - HOLD_GAP - 0.004, -HOLD_A_ + 0.002))
+       for b, w in enumerate((-0.02, 0.02)) for c, y in enumerate((0.13, 0.17))}
+for quad, way in ((((0, 0, 1), (1, 0, 1), (1, 1, 1), (0, 1, 1)), Vector((0.0, 0.0, 1.0))),
+                  (((0, 0, 0), (0, 1, 0), (1, 1, 0), (1, 0, 0)), Vector((0.0, 0.0, -1.0))),
+                  (((0, 0, 0), (1, 0, 0), (1, 0, 1), (0, 0, 1)), P(-ALONG_.x, 0.0, -ALONG_.z)),
+                  (((0, 1, 0), (0, 1, 1), (1, 1, 1), (1, 1, 0)), P(ALONG_.x, 0.0, ALONG_.z))):
+    f = bm.faces.new([tab[k] for k in quad])
+    f.normal_update()
+    if f.normal.dot(way) < 0:
+        f.normal_flip()
 me_ = bpy.data.meshes.new("DenkiPaddleHolder")
 bm.to_mesh(me_)
 bm.free()
