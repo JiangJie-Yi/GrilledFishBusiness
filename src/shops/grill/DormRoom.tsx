@@ -617,11 +617,14 @@ export function DormRoom({ crew = [], open = false, fallback, working }: { crew?
     return { root: r, look: lk ? lk.position.clone() : new THREE.Vector3(0.15, 0.6, 0.1), marks: mk, pieces: ps, quilts: [byName('DormFutonBlue'), byName('DormFutonPink')],
       leftCut, leftX, bathDoor, bathX: bathDoor?.position.x ?? 0, bathCut, bathCutX, bathWin: byName('DormBathWindow') as THREE.MeshToonMaterial | null,
       mats: [...made.values(), halo],
-      tv: { g: tvCanvas.getContext('2d')!, tex: tvTex, box: tvBox, halo, last: -1, dark: false, heard: '' } }
+      tv: { g: tvCanvas.getContext('2d')!, tex: tvTex, box: tvBox, halo, last: -1, dark: false } }
   }, [gltf])
   // (what's on the television heard low across the room while it's on (items 612, 613), let go as the room's gone down from)
   const hum = useMemo(() => tvMurmur(), [])
-  useEffect(() => () => hum.stop(), [hum])
+  useEffect(() => {
+    if (import.meta.env.DEV) Object.assign(window, { __tvHum: { hum, tv } })
+    return () => hum.stop()
+  }, [hum, tv])
   const haloMesh = useRef<THREE.Mesh>(null)
   // (those living in: the cooks hired (the shop's own second cook when none is), two at most, the futons' and the cushions' number)
   // (the same list while it's the same people: a new array each time the scene's drawn)
@@ -707,8 +710,10 @@ export function DormRoom({ crew = [], open = false, fallback, working }: { crew?
       tv.last = t
       tv.dark = !DORM_TV.on && !busy
     }
-    const heard = DORM_TV.on ? String(DORM_TV.ch) : ''
-    if (heard !== tv.heard) { tv.heard = heard; hum.tune(DORM_TV.on ? DORM_TV.ch : null) }
+    // (what it's sounding checked against what it should every frame, not remembered as asked once: a context not running yet, or the sound
+    // let go by a remount's cleanup (React's second mount in development), made good the next frame)
+    const want = DORM_TV.on ? DORM_TV.ch : null
+    if (want !== hum.channel) hum.tune(want)
     // (the glow: the picture's colour (white a moment in the static), wavering a little as what's on does; eased up and away)
     const lit = DORM_TV.on && t - DORM_TV.onAt > 0.1
     const sky = SKY_GLOW[document.documentElement.dataset.sky ?? 'day'] ?? 1

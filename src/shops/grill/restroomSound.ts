@@ -844,7 +844,9 @@ const TV_HUM: readonly { kind: BiquadFilterType; f: number; q: number; syl: numb
  * offline one, to measure how loud it comes out), else the game's.
  */
 export function tvMurmur(at?: BaseAudioContext) {
-  let made: { a: BaseAudioContext; src: AudioBufferSourceNode; f: BiquadFilterNode; syl: OscillatorNode; phr: OscillatorNode; vol: GainNode } | null = null
+  let made: { a: BaseAudioContext; src: AudioBufferSourceNode; f: BiquadFilterNode; syl: OscillatorNode; phr: OscillatorNode; vol: GainNode; all: AudioNode[] } | null = null
+  /** the channel it's sounding (null: quiet, or not made: no context running yet, or let go) */
+  let cur: number | null = null
   const make = () => {
     const a = at ?? ctx()
     if (!a) return null
@@ -863,16 +865,22 @@ export function tvMurmur(at?: BaseAudioContext) {
     vol.gain.value = 0
     src.connect(f).connect(g1).connect(g2).connect(vol).connect(a.destination)
     src.start(); syl.start(); phr.start()
-    return { a, src, f, syl, phr, vol }
+    return { a, src, f, syl, phr, vol, all: [src, f, g1, g2, d1, d2, syl, phr, vol] }
   }
   return {
+    /** the channel it's sounding just now (null: quiet, not made, or let go): its owner tunes it again whenever this isn't what it wants
+     * (a context not running yet, or it let go by a remount's cleanup, are made good the next frame, not missed) */
+    get channel() { return made ? cur : null },
     /** to a channel (its number), or off (null) */
     tune(ch: number | null) {
-      if (ch === null && !made) return
+      if (ch === null) {
+        if (made) made.vol.gain.setTargetAtTime(0, made.a.currentTime, 0.06)
+        cur = null
+        return
+      }
       made ??= make()
       if (!made) return
       const t = made.a.currentTime
-      if (ch === null) { made.vol.gain.setTargetAtTime(0, t, 0.06); return }
       const p = TV_HUM[((ch % TV_HUM.length) + TV_HUM.length) % TV_HUM.length]
       made.f.type = p.kind
       made.f.frequency.setTargetAtTime(p.f, t, 0.05)
@@ -880,14 +888,17 @@ export function tvMurmur(at?: BaseAudioContext) {
       made.syl.frequency.setTargetAtTime(p.syl, t, 0.05)
       made.phr.frequency.setTargetAtTime(p.phr, t, 0.05)
       made.vol.gain.setTargetAtTime(p.gain, t, 0.15)
+      cur = ch
     },
     stop() {
       if (!made) return
       const m = made
       made = null
+      cur = null
       const t = m.a.currentTime
       m.vol.gain.setTargetAtTime(0, t, 0.05)
-      m.src.onended = () => m.vol.disconnect()
+      // (once it's quiet and stopped, every node of it let go of the others: nothing of it left in the context)
+      m.src.onended = () => { for (const n of m.all) n.disconnect() }
       for (const n of [m.src, m.syl, m.phr]) n.stop(t + 0.3)
     },
   }
