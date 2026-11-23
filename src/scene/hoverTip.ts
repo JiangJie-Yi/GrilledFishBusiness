@@ -19,7 +19,18 @@ export const aimTip = (e: { eventObject?: THREE.Object3D; camera?: THREE.Camera;
   TIP_AIM.camera = e.camera ?? null
   TIP_AIM.canvas = (e.nativeEvent?.target as HTMLElement | null) ?? null
 }
+/** a word said on a press or a letting go (a no, what came of it): kept up for a while over the tags the pointer's over puts up again every
+ * frame (item 642: the basin's own, refreshed each frame while the pointer's over the sink, went over "the basin's full" the frame it was
+ * said, never to be read); the pointer leaving, or another word said, takes it down as ever */
+let holdTill = 0
+export const sayTip = (t: NonNullable<Tip>, ms = 2500) => {
+  holdTill = 0
+  setTip(t)
+  holdTill = performance.now() + ms
+}
 export const setTip = (t: Tip) => {
+  if (t && holdTill && performance.now() < holdTill && !(t.title === tip?.title && t.hint === tip?.hint)) return
+  if (!t) holdTill = 0
   if (t && HOVER.paused) t = null
   if (!t) TIP_AIM.obj = null
   if (t?.title === tip?.title && t?.hint === tip?.hint && t?.warn === tip?.warn && t?.who === tip?.who) return
