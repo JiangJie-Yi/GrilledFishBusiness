@@ -525,7 +525,17 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
     ;(last.current ??= new THREE.Vector3()).copy(at)
     pace.current += (Math.min(1, step / 0.6) - pace.current) * Math.min(1, dt * 8)
     const walk = pace.current
-    if (!tall.current) { const b = new THREE.Box3().setFromObject(fig.root); if (!b.isEmpty()) tall.current = b.max.y - b.min.y }
+    // (how tall they stand: their body's own shape at rest, at the size they're drawn (item 596, the owner's 「符號變好大」: measured as the
+    // scene's box round them, it took their skinned mesh's own box, worked out once from its first pose and gone stale, 2.9 to 4.4 for a
+    // body 1.8 tall, and the emote over their head and the dust at their feet were sized by it, half again to twice too big))
+    if (!tall.current) {
+      const body = fig.root.children.find((c) => (c as THREE.SkinnedMesh).isSkinnedMesh) as THREE.SkinnedMesh | undefined
+      const geo = body?.geometry
+      if (geo) {
+        if (!geo.boundingBox) geo.computeBoundingBox()
+        tall.current = (geo.boundingBox!.max.y - geo.boundingBox!.min.y) * (fig.root.getWorldScale(EMOTE_SCALE).y || 1)
+      }
+    }
     // (not on the character viewer's turntable: its own little canvas, the puffs are the room's)
     if (tall.current && o.visible && !id.startsWith('viewer-')) footDust(steps.current, at, walk, tall.current, dt, 'staff')
     // (how they feel (item 381): not the character viewer's turntable, nor while they come and go through the door (faded))

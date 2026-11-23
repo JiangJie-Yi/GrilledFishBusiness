@@ -688,7 +688,14 @@ function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = nu
     if (kid && !tall.current) {
       const key = fig.mesh?.geometry?.attributes.position, sc = fig.root.getWorldScale(TALL_SCALE).y, known = key ? TALL_OF.get(key) : undefined
       if (known !== undefined) tall.current = known * sc
-      else { const bx = new THREE.Box3().setFromObject(fig.root); if (!bx.isEmpty()) { tall.current = bx.max.y - bx.min.y; if (key && sc > 0) TALL_OF.set(key, tall.current / sc) } }
+      // (their body's own shape at rest (item 596: the scene's box round them took the skinned mesh's own, stale from its first pose, a staff
+      // figure's 2.9 to 4.4 for a body 1.8 tall))
+      else if (fig.mesh?.geometry) {
+        const geo = fig.mesh.geometry
+        if (!geo.boundingBox) geo.computeBoundingBox()
+        tall.current = (geo.boundingBox!.max.y - geo.boundingBox!.min.y) * sc
+        if (key && sc > 0) TALL_OF.set(key, tall.current / sc)
+      }
     }
     // (not on the character viewer's turntable (`ground`): its own little canvas, the puffs are the room's)
     if ((tall.current || !kid) && going && !ground) footDust(steps.current, v3, walk, tall.current, dt, kid ? 'kid' : 'guest')
