@@ -1,5 +1,6 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { GUEST_FACES, LOOKS, guestFaceStrip, guestFrame, type FaceKind, type GuestFace } from './faceSheet'
+import { PHONE_OUT_S, phoneBeat, unit2, type PhoneAt, type PhoneBeat } from '@/game/phoneBeats'
 import { faceNow, newFaceLife, type FaceLife } from '@/game/faceLife'
 import { GAZE, LATE } from '@/game/shopState'
 /** (where one's looking at a thing in the room, worked out) */
@@ -345,14 +346,140 @@ function folkMaterial(outfit: THREE.Texture | null, face: THREE.Texture | null, 
   return { material: m, face: u.faceOffset }
 }
 
+// ---- (item 625, the owner's 「客人玩手機的樣子不太像，動畫品質要提升」) a customer on their phone (game/phoneBeats' beats), in the body's
+// frame: the phone in the left hand (+x, handR) before the chest, its screen up and back toward the face (it was held flat, its screen to
+// the floor, the hand still the whole while, the other hanging by them); the right hand (-x, handL) at the screen: swiping up it, tapping,
+// typing with the left's thumb by turns; taken out of the pocket (down to it first, up with a touch past where it stops) and put back
+const PH_HOLD = new THREE.Vector3(0.075, 0.43, 0.3)
+const PH_POCKET = new THREE.Vector3(0.24, 0.2, 0.14)
+/** the left hand's turn holding it; the phone's own turn from upright with it (its screen up and back toward the face), and in the pocket */
+const PH_TURN = -0.2
+const PH_TILT = 1.15
+const PH_TILT_POCKET = 0.15
+/** its screen's middle (for PH_HOLD and PH_TURN: the phone's part 0.055 up the hand and 0.02 out, its screen 5 mm out of that on its face),
+ * its way along toward its top and out of it */
+const PH_SCREEN = new THREE.Vector3(0.075, 0.4926, 0.307)
+const PH_UP = new THREE.Vector3(0, Math.cos(PH_TILT), Math.sin(PH_TILT))
+const PH_OUT = new THREE.Vector3(0, Math.sin(PH_TILT), -Math.cos(PH_TILT))
+/** the right hand's middle off the screen with its finger on it (the mitten's round) */
+const PH_FINGER = 0.04
+const PH_V = new THREE.Vector3(), PH_V2 = new THREE.Vector3()
+const phSm = (x: number) => { const k = Math.max(0, Math.min(1, x)); return k * k * (3 - 2 * k) }
+/** past where it's going and back (the follow-through) */
+const phBack = (x: number) => { const c = 1.6, k = Math.max(0, Math.min(1, x)) - 1; return 1 + (c + 1) * k * k * k + c * k * k }
+/** the right hand with its finger at `s` along the screen (-1 near its foot, 1 near its top) and `x` across it (-1 its edge on the right
+ * hand's side), lifted `lift` off it: the hand kept to the lower half and that edge, the screen seen past it (a mitten's as big as the
+ * screen) */
+const finger = (out: THREE.Vector3, s: number, x: number, lift: number) =>
+  out.copy(PH_SCREEN).addScaledVector(PH_UP, -0.02 + s * 0.022).add(PH_V.set(-0.012 + x * 0.014, 0, 0)).addScaledVector(PH_OUT, PH_FINGER + lift)
+/** a beat's pose: the hands' places written into `lp` (the right hand) and `rp` (the left, the phone in it); their turns, the phone's turn in
+ * the hand, how far it's out (1 shown, 0 in the pocket), the body's lean in over it and its bob (a laugh) */
+const PH_POSE = { lr: 0, rr: 0, tilt: PH_TILT - PH_TURN, shown: 1, lean: 0, bob: 0 }
+function phonePose(pb: { beat: PhoneBeat; k: number; len: number }, t: number, id: number, lp: THREE.Vector3, rp: THREE.Vector3) {
+  const r = PH_POSE
+  r.lr = -0.9; r.rr = PH_TURN; r.tilt = PH_TILT - PH_TURN; r.shown = 1; r.lean = 0.06; r.bob = 0
+  rp.copy(PH_HOLD)
+  const k = pb.k, at = k * pb.len
+  switch (pb.beat) {
+    case 'out':
+      lp.copy(REST.L)
+      r.lr = 0
+      r.lean = 0.06 * phSm((k - 0.3) / 0.7)
+      if (k < 0.3) {
+        // (down to the pocket for it first)
+        const e = phSm(k / 0.3)
+        rp.copy(REST.R).lerp(PH_POCKET, e)
+        r.rr = -0.6 * e
+        r.tilt = PH_TILT_POCKET
+        r.shown = 0
+      } else {
+        // (up before them with it, a touch past and back; the right hand coming to it as it gets there)
+        const e = phBack((k - 0.3) / 0.7)
+        rp.copy(PH_POCKET).lerp(PH_HOLD, e)
+        r.rr = -0.6 + (PH_TURN + 0.6) * e
+        r.tilt = PH_TILT_POCKET + (PH_TILT - PH_TURN - PH_TILT_POCKET) * phSm((k - 0.3) / 0.7)
+        if (k > 0.65) {
+          const c = phSm((k - 0.65) / 0.35)
+          lp.copy(REST.L).lerp(finger(PH_V2, -0.3, 0.2, 0.03), c)
+          r.lr = -0.9 * c
+        }
+      }
+      break
+    case 'away':
+      lp.copy(REST.L)
+      r.lr = 0
+      r.lean = 0.06 * (1 - phSm(k / 0.6))
+      if (k < 0.6) {
+        // (down to the pocket with it, quickening)
+        const e = phSm(k / 0.6) ** 1.4
+        rp.copy(PH_HOLD).lerp(PH_POCKET, e)
+        r.rr = PH_TURN + (-0.6 - PH_TURN) * e
+        r.tilt = PH_TILT - PH_TURN + (PH_TILT_POCKET - (PH_TILT - PH_TURN)) * e
+      } else {
+        const e = phSm((k - 0.6) / 0.4)
+        rp.copy(PH_POCKET).lerp(REST.R, e)
+        r.rr = -0.6 * (1 - e)
+        r.tilt = PH_TILT_POCKET
+        r.shown = 0
+      }
+      break
+    case 'scroll': {
+      // (a swipe up the screen (quick, easing off), off it, back down over it and on again; every third a pause over it, reading)
+      const P = 0.62, n = Math.floor(at / P), q = (at % P) / P
+      if (n % 3 === 2) finger(lp, -0.5, 0.1, 0.012)
+      else if (q < 0.45) finger(lp, -0.6 + 1.2 * (1 - (1 - q / 0.45) ** 2), 0.1, 0)
+      else if (q < 0.6) finger(lp, 0.6, 0.1, 0.012 * phSm((q - 0.45) / 0.15))
+      else finger(lp, 0.6 - 1.2 * phSm((q - 0.6) / 0.4), 0.1, 0.012 * (1 - phSm((q - 0.85) / 0.15)))
+      break
+    }
+    case 'read':
+      // (the finger off by the screen's edge, still; the eyes go over it (the head's))
+      finger(lp, -0.3, -0.9, 0.03)
+      break
+    case 'tap': {
+      // (three taps here and there: over the place, down onto it, up off it)
+      const n = Math.min(2, Math.floor(k * 3)), q = k * 3 - n
+      const press = q < 0.35 ? 0 : q < 0.5 ? phSm((q - 0.35) / 0.15) : q < 0.7 ? 1 - phSm((q - 0.5) / 0.2) : 0
+      finger(lp, (unit2(id, n * 3) - 0.5) * 1.4, (unit2(id, n * 3 + 1) - 0.5) * 1.2, 0.02 * (1 - press) - 0.003 * press)
+      break
+    }
+    case 'type': {
+      // (both thumbs going by turns: the right hand at the screen's foot, the left's thumb on it)
+      const a = Math.max(0, Math.sin(t * 17 + id)), b = Math.max(0, Math.sin(t * 17 + id + Math.PI))
+      finger(lp, -0.6, 0.6, 0.004 + 0.01 * a)
+      rp.addScaledVector(PH_OUT, 0.006 * b)
+      r.lean = 0.08
+      break
+    }
+    case 'up':
+      // (up from it a while: lowered a little, tipped back, the finger off it)
+      rp.y -= 0.035
+      rp.z -= 0.01
+      r.tilt -= 0.25
+      finger(lp, -0.4, -0.9, 0.035)
+      lp.y -= 0.035
+      r.lean = 0.02
+      break
+    case 'laugh': {
+      // (something funny on it: the finger off, the body shaking with the laugh, sitting back a little)
+      finger(lp, -0.4, -0.9, 0.04)
+      r.bob = k < 0.75 ? 0.01 * Math.abs(Math.sin(t * 19 + id)) * (1 - k / 0.75) : 0
+      r.lean = 0.02 - 0.03 * Math.sin(Math.PI * Math.min(1, k * 1.3))
+      break
+    }
+  }
+  return r
+}
+
 /** what's held in the hands, at rest in its part's own frame: the chopsticks, their bite, the phone (its screen lit), the briefcase */
 function heldShapes(briefcase: boolean): { part: (typeof FOLK_BONES)[number]; geo: THREE.BufferGeometry; colour?: string; flat?: boolean; inked?: boolean }[] {
   const at = (g: THREE.BufferGeometry, m: THREE.Matrix4) => { g.applyMatrix4(m); return g }
   const out: { part: (typeof FOLK_BONES)[number]; geo: THREE.BufferGeometry; colour?: string; flat?: boolean; inked?: boolean }[] = [
     { part: 'chop', geo: CHOP_GEO!.clone() },
     { part: 'bite', geo: BITE_GEO.clone(), colour: '#c8743a' },
-    { part: 'phone', geo: new THREE.BoxGeometry(0.06, 0.11, 0.009), colour: '#22252a' },
-    { part: 'phone', geo: at(new THREE.PlaneGeometry(0.052, 0.096), new THREE.Matrix4().makeTranslation(0, 0, -0.005).multiply(new THREE.Matrix4().makeRotationY(Math.PI))), colour: '#b8e2ff', flat: true },
+    // (item 625: a size bigger than it was, as their hands are: the right hand at its screen covered it all)
+    { part: 'phone', geo: new THREE.BoxGeometry(0.068, 0.125, 0.009), colour: '#22252a' },
+    { part: 'phone', geo: at(new THREE.PlaneGeometry(0.06, 0.11), new THREE.Matrix4().makeTranslation(0, 0, -0.005).multiply(new THREE.Matrix4().makeRotationY(Math.PI))), colour: '#b8e2ff', flat: true },
   ]
   if (briefcase) {
     // (as Person3D's Briefcase: its handle, its body (inked), two latches; in hand as it hangs, by the stool stood on its end)
@@ -396,7 +523,7 @@ function template(scene: THREE.Group, hair: string, acc: string[], briefcase: bo
   const chop = group('chop', handL)
   const bite = group('bite', chop, new THREE.Vector3(0, CHOP_LEN - CHOP_GRIP - 0.01, 0))
   bite.scale.set(1, 0.7, 0.8)
-  const phone = group('phone', handR, new THREE.Vector3(0, 0.05, 0.02))
+  const phone = group('phone', handR, new THREE.Vector3(0, 0.055, 0.02))
   phone.rotation.x = -0.3
   const carried = group('carried', handR, new THREE.Vector3(0, 0, 0.02))
   carried.rotation.z = Math.PI
@@ -590,7 +717,9 @@ function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = nu
   // (alone at the counter, passing the time one way and another, each their own pace)
   const spellOf = (t: number) => Math.floor((t + id * 9) / (12 + 18 * hash(id, 7)))
   const [spell, setSpell] = useState(() => spellOf(timeNow()))
-  const idle = (['look', 'phone', 'chin', 'phone', 'look', 'chin'] as const)[Math.floor(hash(id, spell) * 6)]
+  // (dev: every one of them at the same pastime, to see it played (window.__idleAs = 'phone'))
+  const asked = import.meta.env?.DEV ? (globalThis as { __idleAs?: string }).__idleAs : undefined
+  const idle = asked === 'look' || asked === 'phone' || asked === 'chin' ? asked : (['look', 'phone', 'chin', 'phone', 'look', 'chin'] as const)[Math.floor(hash(id, spell) * 6)]
   const showPhone = !walking && !eating && !talk && !pose && idle === 'phone'
   const last = useRef<number | null>(null)
   const served = useRef<{ was: boolean; at: number }>({ was: eating, at: -99 })
@@ -611,6 +740,13 @@ function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = nu
   /** up onto the stool or down off it under way: from what height to what, how far through (0..1) (item 242) */
   const sitMove = useRef<{ from: number; to: number; t: number } | null>(null)
   const exprNow = useRef<Expr | null>('idle')
+  /** (item 625) how far their phone's out (eased to nothing if they're interrupted at it), and how far they lean in over it */
+  const phoneShown = useRef(0)
+  const phoneLean = useRef(0)
+  /** when they last came to their phone (the spell's turned to it, or they've sat down, or stopped talking, part way through it) */
+  const phoneSince = useRef<number | null>(null)
+  /** their beat at it this frame (one object, written over each frame) */
+  const phoneAt = useRef<PhoneAt>({ beat: 'out', k: 0, n: -1, len: PHONE_OUT_S })
   const v3 = useMemo(() => new THREE.Vector3(), [])
   const chopDir = useMemo(() => new THREE.Vector3(), [])
   const chopQ = useMemo(() => new THREE.Quaternion(), [])
@@ -714,12 +850,25 @@ function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = nu
     const sipping = (sipK >= 0 && sipK < 1) || souping
     const sipCup = sipping && cup && !souping
     const ph = t * 9 + id
+    // (item 625: where they are with their phone through this spell at it (game/phoneBeats), and its pose; the body leaning in over it, a laugh
+    // shaking it)
+    const spellS = 12 + 18 * hash(id, 7), spellNow = Math.floor((t + id * 9) / spellS)
+    let pb = showPhone ? phoneBeat(id * 131 + spellNow, t + id * 9 - spellNow * spellS, spellS, phoneAt.current) : null
+    // (come to it part way through the spell (they've just sat down, or stopped talking): taken out of the pocket first all the same)
+    if (!showPhone) phoneSince.current = null
+    else if (phoneSince.current === null) phoneSince.current = t
+    if (pb && pb.beat !== 'out' && pb.beat !== 'away' && phoneSince.current !== null && t - phoneSince.current < PHONE_OUT_S) {
+      pb.beat = 'out'; pb.k = (t - phoneSince.current) / PHONE_OUT_S; pb.n = -1; pb.len = PHONE_OUT_S
+    }
+    // (dev: the beat on the phone's part, for the probes to find one at it)
+    if (import.meta.env?.DEV && fig.phone) fig.phone.userData.beat = pb ? pb.beat : null
+    phoneLean.current += ((pb ? (pb.beat === 'laugh' || pb.beat === 'up' || pb.beat === 'type' ? 0.04 : 0.06) : 0) - phoneLean.current) * follow(dt, 5)
     const b = fig.body
-    b.position.y = walk * Math.abs(Math.sin(ph)) * 0.035 + lift + hop
+    b.position.y = walk * Math.abs(Math.sin(ph)) * 0.035 + lift + hop + (pb?.beat === 'laugh' && pb.k < 0.75 ? 0.01 * Math.abs(Math.sin(t * 19 + id)) * (1 - pb.k / 0.75) : 0)
     b.rotation.z = walk * Math.sin(ph) * 0.07
     // (leaning in to reach their plate, if it's further than the arm goes (below))
     eatLean.current += ((eating && !walking ? leanWant.current : 0) - eatLean.current) * follow(dt, 4)
-    b.rotation.x = walk * 0.08 + eatLean.current
+    b.rotation.x = walk * 0.08 + eatLean.current + phoneLean.current
     // (talking to the one they came with: turned toward them)
     const turn = !walking && talk && !eating ? talk * 0.35 : 0
     b.rotation.y += (turn - b.rotation.y) * follow(dt, 4)
@@ -749,7 +898,15 @@ function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = nu
         const n = Math.floor((t + id * 3.1) / beat)
         yaw = (hash(id * 7 + n, 1) - 0.5) * 0.9
         pitch = (hash(id * 7 + n, 2) - 0.6) * 0.3
-        if (showPhone || eating) { pitch = -0.28 + (eating && hash(id * 7 + n, 3) > 0.7 ? 0.3 : 0); yaw *= 0.3 }
+        if (eating) { pitch = -0.28 + (hash(id * 7 + n, 3) > 0.7 ? 0.3 : 0); yaw *= 0.3 }
+        else if (pb) {
+          // (item 625: down at it, the eyes going over it (a small turn now and then); up from it a while, looking about; laughing, back a
+          // little; taking it out and putting it away, the head going down with it and up again)
+          if (pb.beat === 'up') { pitch = 0.02; yaw *= 0.8 }
+          else if (pb.beat === 'laugh') { pitch = -0.22 + 0.12 * Math.sin(Math.PI * Math.min(1, pb.k * 1.4)); yaw *= 0.2 }
+          else if (pb.beat === 'out' || pb.beat === 'away') { pitch = -0.42 * (pb.beat === 'out' ? phSm((pb.k - 0.4) / 0.6) : 1 - phSm(pb.k / 0.6)); yaw *= 0.3 }
+          else { pitch = pb.beat === 'type' ? -0.46 : -0.42; yaw = (hash(id * 13 + Math.floor(t * 1.7), 4) - 0.5) * 0.08 }
+        }
         // (eating: down at the food as they pick it up, up a little to meet it as it comes, level while they chew, a look about now and then)
         if (eating && !sipping) {
           pitch = bq < 0.3 ? -0.3 : bq < 0.6 ? -0.16 : -0.08 + (hash(id * 7 + n, 3) > 0.7 ? 0.2 : 0)
@@ -816,10 +973,12 @@ function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = nu
         lr = -0.7 - 0.6 * up
         rp.set(0.17, 0.31, 0.36)
         rr = -0.3
-      } else if (showPhone) {
-        // (in the left hand, held up in front)
-        rp.set(0.06, 0.44, 0.32)
-        rr = -1.1
+      } else if (pb) {
+        // (item 625: the phone in the left hand before the chest, the right at its screen, through the beat)
+        const pp = phonePose(pb, t, id, lp, rp)
+        lr = pp.lr
+        rr = pp.rr
+        if (fig.phone) fig.phone.rotation.x = pp.tilt
       } else if (!walking && idle === 'chin' && !talk && !pose) {
         rp.set(0.08, 0.5, 0.27)
         rr = -1.4
@@ -875,11 +1034,12 @@ function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = nu
       if (held && !eating && !sipping) { lp.set(-0.22, 0.34, 0.2); lr = -0.3 }
       if (heldRef.current) heldRef.current.visible = !!held && (heldShown ? heldShown() : true)
       // (closely, through a bite's or a sip's beats, which are eased themselves; more loosely from one thing to the next)
-      const kL = follow(dt, eating || sipping ? 24 : 10)
+      // (and closely through the phone's: a swipe or a tap is a fifth of a second)
+      const kL = follow(dt, eating || sipping ? 24 : pb ? 28 : 10), kR = follow(dt, souping ? 24 : pb ? 28 : 10)
       L.position.lerp(lp, kL)
-      Rh.position.lerp(rp, follow(dt, souping ? 24 : 10))
+      Rh.position.lerp(rp, kR)
       L.rotation.x += (lr - L.rotation.x) * kL
-      Rh.rotation.x += (rr - Rh.rotation.x) * follow(dt, souping ? 24 : 10)
+      Rh.rotation.x += (rr - Rh.rotation.x) * kR
       // (the bowl in their hands, from when they've hold of it till it's down again: midway between them, as they are, tipped with them)
       if (soupKey) {
         if (souping && soupK > 0.17 && soupK < 0.89) {
@@ -906,7 +1066,11 @@ function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = nu
       if (eating && !sipping && bq > 0.24 && bq < 0.52) fig.bite?.scale.set(1, 0.7, 0.8)
       else fig.bite?.scale.setScalar(0)
     }
-    fig.phone?.scale.setScalar(showPhone ? 1 : 0)
+    // (the phone: out of the pocket and back into it with the beats; taken from them part way (their food come, a word), put away quickly
+    // rather than gone in a frame)
+    phoneShown.current = pb ? (PH_POSE.shown > phoneShown.current ? Math.min(1, phoneShown.current + dt / 0.08) : PH_POSE.shown) : phoneShown.current * (1 - follow(dt, 14))
+    if (phoneShown.current < 0.02) phoneShown.current = 0
+    fig.phone?.scale.setScalar(phoneShown.current)
     fig.carried?.scale.setScalar(spec.briefcase && walking ? 1.4 : 0)
     // (by the stool while they sit: in the figure's frame, which is scaled to their size and lifted to the seat)
     if (fig.parked) {
@@ -939,7 +1103,9 @@ function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = nu
     // (their mood's face (the food just come, cross, sad, sleepy, chewing), through the face's life (game/faceLife, item 368): a blink at no
     // fixed beat that closes and opens, now and then twice; a new face through a blink; the mouth in syllables while a word's up, a laugh
     // between a delighted one's words; a glance aside now and then while they sit at ease, the eyes first where the head's turning)
-    const want: Expr = chewing ? 'chew' : joy ? 'happy' : mood === 'mad' || (f >= 0.7 && !eating) ? 'mad' : mood === 'sad' ? 'sad' : sleepy ? 'tired' : 'idle'
+    // (item 625: laughing at something on their phone, unless they're cross)
+    const phoneLaugh = pb?.beat === 'laugh' && pb.k < 0.8 && mood !== 'mad' && f < 0.55
+    const want: Expr = chewing ? 'chew' : joy ? 'happy' : phoneLaugh ? 'laugh' : mood === 'mad' || (f >= 0.7 && !eating) ? 'mad' : mood === 'sad' ? 'sad' : sleepy ? 'tired' : 'idle'
     const fl = (life.current ??= newFaceLife(id * 1.618 + 0.5, want, t))
     const yawNow = look.current.yaw
     const headTurn = dt > 0 ? (yawNow - headYaw.current) / dt : 0
