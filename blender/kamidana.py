@@ -991,17 +991,14 @@ hi.name = "KamiEbisuHigh"
 # 「惠比壽石像幫我回到前一版本」: as it was before item 552, which thinned it from a copy remade by voxels first, his back whole: it came out
 # rounder and duller, his outline broken up round the fish and his arm)
 lo = hi.copy(); lo.data = hi.data.copy(); bpy.context.collection.objects.link(lo)
-dc = lo.modifiers.new("d", "DECIMATE"); dc.ratio = 1800 / max(1, len(hi.data.polygons))
+# (item 610, the owner's, 2026-11-23: 「惠比壽的模型還沒修，能否回到一開始的版本，高模版本」: the fine carving itself, thinned only as far as
+# its look holds (EBISU_TRIS triangles), his back whole. Thinned to 1,800 (item 59) it came out with points and holes where the carving's folded
+# faces collapsed, and with his back taken off the ink's shell showed through it in black shards from the side (items 552, 584 tried other
+# ways round that and the owner said it still wasn't right). He's drawn only with the shrine's doors open (item 567), so his cost is paid
+# only then; the colour, the relief and the hollows' shadow still baked from the fine one, so his stone and his cuts read as before)
+EBISU_TRIS = 24000
+dc = lo.modifiers.new("d", "DECIMATE"); dc.ratio = EBISU_TRIS / max(1, sum(len(p.vertices) - 2 for p in hi.data.polygons))
 apply_mods(lo)
-# (his back never seen (the owner's, 2026-11-13, item 59: "the back can't be seen"): he sits in the shrine's middle bay, its back wall behind
-# him, its sides and roof round him, seen only through its doors. The faces turned away from the doors taken off, the front as fine as it
-# was; unwrapped after, the picture's all for what's seen)
-FRONT = Vector(P(-1, 0, 0))
-_bk = bmesh.new(); _bk.from_mesh(lo.data)
-# (only those turned well away (past 127 degrees from the doors): those nearer edge-on are kept, the ink's shell round him closes over them
-# and his outline stays whole (at -0.25 it broke up into slivers round his sides))
-bmesh.ops.delete(_bk, geom=[f for f in _bk.faces if f.normal.dot(FRONT) < -0.6], context="FACES")
-_bk.to_mesh(lo.data); _bk.free()
 lo.data.update()
 print("EBISU_LOW", len(lo.data.polygons), "faces", sum(len(p.vertices) - 2 for p in lo.data.polygons), "tris")
 bpy.ops.object.select_all(action="DESELECT"); lo.select_set(True); bpy.context.view_layer.objects.active = lo
@@ -1047,25 +1044,21 @@ def bake(kind, img, **kw):
 
 bake("NORMAL", img_n, normal_space="TANGENT")
 sc_.render.bake.use_pass_direct = False; sc_.render.bake.use_pass_indirect = False; sc_.render.bake.use_pass_color = True
-# (the face drawn in, dark in the carved lines, so it reads from across the room and not only up close in the relief: closed smiling eyes,
-# brows, the wide smile; and the fish's eye. Painted into his colour as it's baked (item 59): they were tubes over the carving, 644
-# triangles and their ink; made here only to be baked from, then taken away)
+# (the face drawn in dark lines over the carving, so it reads from across the room and not only up close in the relief: closed smiling eyes,
+# brows, the wide smile; and the fish's eye. Item 610 (the owner's: 「回到一開始的版本，高模版本」): tubes over the carving again, as he was
+# first made, with their ink round them: item 59 had painted them into his colour from tubes made only to be baked from, and on the fine
+# carving (its eyes and smile cut deep) the tubes stood in front of the cuts and baked faint)
 _lines = []
-# (drawn bolder and darker than the tubes were: those had their ink round them besides, and baked at their own width the face came out faint
-# and frowning)
-_lm = pbr("EbisuLineBake", lin("#161412"), rough=0.9)
+_lm = pbr("KamiEbisuLine", lin("#161412"), rough=0.9)
 for sz in (-1, 1):
-    _lines.append(ebtube(f"KamiEbisuEye{sz}", arcpts(sz * 0.006, 0.0675, 0.0072, 0.0024, x=FX - 0.0004), 0.0006 * 1.4, _lm, ring=6))
-    _lines.append(ebtube(f"KamiEbisuBrow{sz}", arcpts(sz * 0.0062, 0.0728, 0.0074, 0.0021, x=FX + 0.0008), 0.0005 * 1.3, _lm, ring=6))
-_lines.append(ebtube("KamiEbisuSmile", arcpts(0.0, 0.0576, 0.0118, 0.0034, up=False, x=FX + 0.0003), 0.0008 * 1.8, _lm, ring=6))
+    _lines.append(ebtube(f"KamiEbisuEye{sz}", arcpts(sz * 0.006, 0.0675, 0.0072, 0.0024, x=FX - 0.0004), 0.0006, _lm, ring=6))
+    _lines.append(ebtube(f"KamiEbisuBrow{sz}", arcpts(sz * 0.0062, 0.0728, 0.0074, 0.0021, x=FX + 0.0008), 0.0005, _lm, ring=6))
+_lines.append(ebtube("KamiEbisuSmile", arcpts(0.0, 0.0576, 0.0118, 0.0034, up=False, x=FX + 0.0003), 0.0008, _lm, ring=6))
 _lines.append(cyl("KamiEbisuTaiEye", 0.0016, 0.001, P(-0.027, 0.064, 0.018), _lm, rot=(0, math.pi / 2, 0), verts=10))
 bpy.ops.object.select_all(action="DESELECT")
-for _o in _lines + [hi]:
-    _o.select_set(True)
+hi.select_set(True)
 lo.select_set(True); bpy.context.view_layer.objects.active = lo
 bake("DIFFUSE", img_c, pass_filter={"COLOR"})
-for _o in _lines:
-    bpy.data.objects.remove(_o)
 bpy.ops.object.select_all(action="DESELECT"); hi.select_set(True); lo.select_set(True); bpy.context.view_layer.objects.active = lo
 bake("AO", img_a)
 # (the colour darkened where the shadows gather in the cuts and hollows, so they read as carved even under flat light)
@@ -1083,7 +1076,8 @@ bpy.data.objects.remove(hi)
 fig = lo
 fig.name = "KamiEbisuFigure"
 eb.append(fig)
-# (the face's lines and the fish's eye are in his colour now: baked in above)
+# (the face's lines and the fish's eye: tubes over the carving (item 610), made above)
+eb.extend(_lines)
 # (the rod: from his raised hand up past his shoulder, bending a little, its line hanging from the tip)
 # (the rod: upright in his right hand, from the rock up past his hat, a little bent; its line hanging from the tip)
 eb.append(ebtube("KamiEbisuRod", [(-0.019, 0.008, -0.025), (-0.019, 0.04, -0.025), (-0.017, 0.08, -0.026), (-0.012, 0.112, -0.027)], 0.0011, M["stone"], ring=7))
