@@ -5,6 +5,7 @@
 import { memo, useEffect, useLayoutEffect, useRef } from 'react'
 import { hhmm, nextSky, skyAt, type Sky } from '@/game/clock'
 import { isLate } from '@/game/hours'
+import { businessDay, rainAt, weatherOf } from '@/game/weather'
 import { tl, type Lang } from '@/data/i18n'
 import { setTip } from '@/scene/hoverTip'
 import { Glyph } from './GameIcons'
@@ -15,6 +16,11 @@ const NAMES: Record<Sky, [string, string, string]> = {
   dawn: ['清晨', '明け方', 'Dawn'], day: ['白天', '昼', 'Day'], dusk: ['黃昏', '夕暮れ', 'Dusk'], night: ['黑夜', '夜', 'Night'],
 }
 const AFTER: Record<Sky, Sky> = { dawn: 'day', day: 'dusk', dusk: 'night', night: 'dawn' }
+/** the weather's word (item 623, game/weather): clear, cloudy, a rain day's rain, a passing shower */
+const WX = { clear: ['晴', '晴れ', 'Clear'], cloudy: ['陰', '曇り', 'Cloudy'], rain: ['下雨', '雨', 'Rain'], shower: ['陣雨', 'にわか雨', 'Shower'] } as const
+/** a cloud over the part of the day's mark, at its foot to the right; the rain falling from it */
+const CLOUD = 'M7.2 13.4h6.1a2.1 2.1 0 0 0 .3-4.2 3.1 3.1 0 0 0-5.9-.4 2.3 2.3 0 0 0-.5 4.6Z'
+const RAIN = 'M8.3 14.5l-.6 1.2M10.7 14.5l-.6 1.2M13.1 14.5l-.6 1.2'
 const nameOf = (lang: Lang, s: Sky) => tl(lang, ...NAMES[s])
 
 /** rays round (x, y) from r0 out to r1, n of them over the turn from a0 to a1 */
@@ -41,8 +47,11 @@ function GameClockImpl({ lang }: { lang: Lang }) {
   const day = useClock((c) => c.day)
   const minute = useClock((c) => Math.floor(c.minute))
   const sky = skyAt(minute)
+  // (the day's weather (item 623): a cloud over the mark when it's cloudy, the rain from it while it rains; said in its name)
+  const w = weatherOf(businessDay(day, minute)), wet = rainAt(w, minute) > 0.15
+  const wx = WX[wet ? (w.sky === 'rain' ? 'rain' : 'shower') : w.sky]
   const hovered = useRef(false)
-  const tip = () => setTip({ title: nameOf(lang, sky), hint: tl(lang, `點一下換到${nameOf(lang, AFTER[sky])}`, `クリックで${nameOf(lang, AFTER[sky])}へ`, `Click for ${nameOf(lang, AFTER[sky]).toLowerCase()}`) })
+  const tip = () => setTip({ title: `${nameOf(lang, sky)}・${tl(lang, wx[0], wx[1], wx[2])}`, hint: tl(lang, `點一下換到${nameOf(lang, AFTER[sky])}`, `クリックで${nameOf(lang, AFTER[sky])}へ`, `Click for ${nameOf(lang, AFTER[sky]).toLowerCase()}`) })
   // (pressed with the pointer still on it: its label says what it is now)
   useEffect(() => { if (hovered.current) tip() })
   // (how wide it's drawn, on the page for what stands beside it in its row (ui/DayGoal, item 175: the day's target left of it))
@@ -56,9 +65,9 @@ function GameClockImpl({ lang }: { lang: Lang }) {
     <div ref={pill} className={`game-clock${sky === 'night' ? ' is-night' : ''}`} role="timer"
       aria-label={tl(lang, `第 ${day} 天 ${hhmm(minute)}`, `${day} 日目 ${hhmm(minute)}`, `Day ${day}, ${hhmm(minute)}`)}>
       <button type="button" className={`game-clock-sky is-${sky}`} onClick={() => setClock(nextSky(getClock()))}
-        aria-label={tl(lang, `${nameOf(lang, sky)}，換到${nameOf(lang, AFTER[sky])}`, `${nameOf(lang, sky)}、${nameOf(lang, AFTER[sky])}へ`, `${nameOf(lang, sky)}: go on to ${nameOf(lang, AFTER[sky]).toLowerCase()}`)}
+        aria-label={tl(lang, `${nameOf(lang, sky)}・${wx[0]}，換到${nameOf(lang, AFTER[sky])}`, `${nameOf(lang, sky)}・${wx[1]}、${nameOf(lang, AFTER[sky])}へ`, `${nameOf(lang, sky)}, ${wx[2].toLowerCase()}: go on to ${nameOf(lang, AFTER[sky]).toLowerCase()}`)}
         onPointerEnter={() => { hovered.current = true; tip() }} onPointerLeave={() => { hovered.current = false; setTip(null) }}>
-        <svg viewBox="0 0 16 16" aria-hidden="true"><SkyIcon sky={sky} /></svg>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><SkyIcon sky={sky} />{(wet || w.sky !== 'clear') && <path className="game-clock-cloud" d={CLOUD} />}{wet && <path className="game-clock-rain" d={RAIN} />}</svg>
       </button>
       <span className="game-clock-day">{tl(lang, `第 ${day} 天`, `${day} 日目`, `Day ${day}`)}</span>
       <span className="game-clock-time">{hhmm(minute)}</span>

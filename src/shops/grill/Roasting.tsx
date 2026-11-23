@@ -31,7 +31,8 @@ import { bakeable, colourVertices, homeCopy, StaticBatch, type BatchParts } from
 import { atlasModel } from '@/scene/atlasMerge'
 import { glowOnly } from '@/scene/hoverGlow'
 import { canCookByHand, modeOf, showsProgress } from '@/game/mode'
-import { FLOWS, flowOf, hourGap, wantOf, type FlowKind } from '@/game/flow'
+import { FLOWS, hourGap, wantOf, type FlowKind } from '@/game/flow'
+import { businessDay, flowFor, showerGap, weatherOf } from '@/game/weather'
 import { bedStick, COAL_MAX, COAL_PER_ADD, crumble, glowingFor, roomFor, surfaceY, type Lay, throwForce } from '@/game/coalPile'
 import { inkModel, isInk } from '@/scene/inkHull'
 import { BlobShadow } from '@/scene/BlobShadow'
@@ -7310,7 +7311,9 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
   const openedAt = useRef(0)
   useEffect(() => {
     if (!ai || !bar) return
-    flow.current = flowOf(OPENINGS.n++)
+    // (by the day's weather (item 623, game/weather): a rain day's trade the rainy one, a dry day's never)
+    const c = getClock()
+    flow.current = flowFor(OPENINGS.n++, weatherOf(businessDay(c.day, c.minute)).sky)
     openedAt.current = guestTime.current
     const t = window.setTimeout(() => onSay?.('chef', FLOWS[flow.current].say[lang]), 1500)
     return () => window.clearTimeout(t)
@@ -7856,7 +7859,7 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
     }
     // (no one more sat down in the last half hour before closing (game/hours' lastCall): takeaways only then, below)
     // (every stool taken, still one comes in if there's room on the bench to wait)
-    if (onOrder && !SHOP.closing && !LAST_CALL.on && comesIn(mood) && (seated.length < MAX_SEATED || (bar && BENCH.ids.length < BENCH_SEATS)) && guestClock.current > (7 + Math.random() * 6) * crowd * fl.gap(dayK) * hourGap(getClock().minute) / RATING_FLOW.more) {
+    if (onOrder && !SHOP.closing && !LAST_CALL.on && comesIn(mood) && (seated.length < MAX_SEATED || (bar && BENCH.ids.length < BENCH_SEATS)) && guestClock.current > (7 + Math.random() * 6) * crowd * fl.gap(dayK) * hourGap(getClock().minute) * showerGap(weatherOf(businessDay(getClock().day, getClock().minute)), getClock().minute) / RATING_FLOW.more) {
       guestClock.current = 0
       // (someone still getting up counts as there: the stool's not free till they've gone and their plate's cleared)
       const used = new Set(guests.current.filter((g) => g.state === 'waiting' || g.state === 'eating' || !g.cleared).map((g) => g.seat))

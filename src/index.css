@@ -693,6 +693,9 @@ body.be-tool .app > :not(.canvas-layer):not(.axis-widget) { display: none; }
 }
 .game-clock-sky.is-night svg { stroke: none; }
 .game-clock-sky .game-clock-arrow { fill: none; }
+/* (the day's weather over the mark (item 623): a pale cloud edged dark at its foot, the rain falling from it light blue) */
+.game-clock-sky .game-clock-cloud { fill: #e9eef4; stroke: rgb(18 22 30 / 0.85); stroke-width: 1; }
+.game-clock-sky .game-clock-rain { fill: none; stroke: #8fd0ff; stroke-width: 1.3; }
 .game-clock-sky:hover { background-color: rgb(255 255 255 / 0.16); }
 .game-clock-sky:hover svg { filter: drop-shadow(0 0 3px var(--sky-ink)); }
 .game-clock-sky:focus-visible { outline: 2px solid var(--sky-ink); outline-offset: 1px; }
