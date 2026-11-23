@@ -10,6 +10,7 @@ import { emptyPot, type Heat, type SoupPot } from '@/game/soup'
 import { fullStand } from '@/game/sakeStand'
 import { readTasted, taste } from '@/game/sakeTasting'
 import type { Gripe } from '@/game/reputation'
+import { DRINK_DEFAULT, DRINK_MAX, DRINK_MIN, stepDrinkTemp } from '@/game/fridgeTemp'
 import { BOX_SHEETS } from '@/game/tissues'
 import type { Use } from '@/game/utilities'
 import type { HearthRole } from '@/game/hearthGuard'
@@ -514,6 +515,30 @@ export const FRIDGE = { W: 0.86, H: 2.17, D: 0.75 }
 /** (each fridge: who's passing it, whether its stocker's at its back, its door left open, how far its back's doors are open; and whether the
  * player's slid its back's doors open from the stock room (item 614, the owner's 「是用拉門式的，這邊可以互動」)) */
 export const FRIDGE_STATE = [{ passing: 0, stocker: false, open: false, rear: 0, rearOpen: false }, { passing: 0, stocker: false, open: false, rear: 0, rearOpen: false }]
+/**
+ * (item 615, the owner's 「然後冰箱也有溫度可以調整，門開太久溫度會上升」) each drink fridge's thermostat (game/fridgeTemp): its setting (kept in
+ * the browser, `jgs-drinkfridge-temp-1`: not the drinks' own key), the inside's temperature as it drifts (DiningRoom's fridge keeps it), and
+ * when the setting was last pressed (its display shows the setting a moment); `ver` counts the presses, for the drinks' panel
+ */
+const DRINK_TEMP_KEY = 'jgs-drinkfridge-temp-1'
+export const DRINK_FRIDGE_TEMP = keep(import.meta.hot, 'DRINK_FRIDGE_TEMP', (() => {
+  let sets = [DRINK_DEFAULT, DRINK_DEFAULT]
+  try {
+    const v = JSON.parse(localStorage.getItem(DRINK_TEMP_KEY) ?? 'null')
+    if (Array.isArray(v) && v.length === 2 && v.every((x) => Number.isInteger(x) && x >= DRINK_MIN && x <= DRINK_MAX)) sets = v
+  } catch { /* (none kept) */ }
+  return { units: sets.map((s) => ({ set: s, now: s, shownAt: -1e9 })), ver: 0 }
+})())
+/** a press on a fridge's thermostat: colder (-1) or warmer (+1), a degree, kept */
+export function pressDrinkTemp(n: number, dir: 1 | -1) {
+  const u = DRINK_FRIDGE_TEMP.units[n]
+  if (!u) return
+  u.set = stepDrinkTemp(u.set, dir)
+  u.shownAt = performance.now()
+  DRINK_FRIDGE_TEMP.ver++
+  try { localStorage.setItem(DRINK_TEMP_KEY, JSON.stringify(DRINK_FRIDGE_TEMP.units.map((x) => x.set))) } catch { /* (not kept) */ }
+}
+if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __drinkTemp: DRINK_FRIDGE_TEMP })
 /** the stock room's noren: how many are passing through it just now (the stocker), its cloth swung aside by them */
 export const STORE_STATE = { passing: 0, push: 0 }
 if (import.meta.env?.DEV && typeof window !== 'undefined') (window as unknown as { __storeState?: typeof STORE_STATE }).__storeState = STORE_STATE

@@ -24,6 +24,8 @@ import { tapSound } from '@/scene/tapSound'
 import { CARD_CHARS, CORK_NOTES, paintOuting, paintWallSigns, SIGNS_PX, WALL_LEDGE, WALL_PIECES, WALL_SIGNS, type WallPiece } from './wallPhotos'
 import { reflectStudio, useStudio } from '@/scene/studio'
 import { heard } from '@/scene/sfx'
+import { tick } from '@/scene/speed'
+import { DRINK_MAX, DRINK_MIN, driftDrinkTemp, servedWarm } from '@/game/fridgeTemp'
 import { ColdMist } from '@/scene/ColdMist'
 import { useGLTF } from '@react-three/drei'
 import { brushText, signTexture, SIGN_FONT } from '@/scene/signFont'
@@ -31,7 +33,7 @@ import { BOSS_DRINK, BOSS_FX } from './Boss'
 import { CASE_SIZE, depthOf } from '@/game/drinkStock'
 import { CARTON_CASES, cartonStack } from '@/game/cartonStack'
 import { cartonMaterials } from './drinkCartons'
-import { GENKAN, STAFF_DOOR_HOLD, askPantry, SUPPLIES, fridgesOf, farOf, storeOf, STORE, STORE_STATE, WALL_OUT, FRIDGE_GAP, DRINK_BACK, setDrinkPanel, DRINKS, FRIDGE, FRIDGE_AT, FRIDGE_STATE, FRIDGE_STOCK, FRIDGE_UNITS,isCan, moveDrink, moveOut, tipOver, handOver, POINTER_HINT, pullOut, putBack, setShrineFlower, SHRINE_FLOWERS, tableHit, TOILETS, WC_ROOM, WC_SLIDE, WC_W, lampsAlong, nameOver, SPILLS, SHOP_MENU, type Counter, type DrinkId } from './bar'
+import { GENKAN, STAFF_DOOR_HOLD, DRINK_FRIDGE_TEMP, pressDrinkTemp, askPantry, SUPPLIES, fridgesOf, farOf, storeOf, STORE, STORE_STATE, WALL_OUT, FRIDGE_GAP, DRINK_BACK, setDrinkPanel, DRINKS, FRIDGE, FRIDGE_AT, FRIDGE_STATE, FRIDGE_STOCK, FRIDGE_UNITS,isCan, moveDrink, moveOut, tipOver, handOver, POINTER_HINT, pullOut, putBack, setShrineFlower, SHRINE_FLOWERS, tableHit, TOILETS, WC_ROOM, WC_SLIDE, WC_W, lampsAlong, nameOver, SPILLS, SHOP_MENU, type Counter, type DrinkId } from './bar'
 import { EditBlock, Movable } from './Movable'
 import { CatClock } from './CatClock'
 import { getEdit } from './edit'
@@ -7057,6 +7059,21 @@ export const FridgeDoor = memo(FridgeDoorImpl)
  * right end 2 mm short of the steel trim's outer edge */
 const REAR_SLIDE = 0.33
 const FRIDGE_DOOR_AT = new THREE.Vector3()
+/**
+ * (item 615) a drink fridge's thermostat display, in the header's strip over its doors at the right (blender/drinkfridge.py: the doors'
+ * opening to 1.90, the sign from 1.935): the inside's temperature in green on dark glass, red once it's too warm for a cold drink (game/
+ * fridgeTemp's WARM_AT), the setting with SET beside it just after a press; a left click colder, a right warmer, as the freezer's knob
+ */
+const TEMP_PANEL = { x: 0.3, y: 1.9175, w: 0.09, h: 0.03 }
+function drawDrinkTemp(g: CanvasRenderingContext2D, t: number, setting: boolean, warm: boolean) {
+  g.fillStyle = '#0e1612'; g.fillRect(0, 0, 256, 86)
+  g.fillStyle = warm && !setting ? '#ff6a5a' : '#5affb0'; g.textBaseline = 'middle'
+  g.font = 'bold 64px monospace'; g.textAlign = 'right'
+  g.fillText(`${t}`, setting ? 170 : 184, 47)
+  g.font = 'bold 30px monospace'; g.textAlign = 'left'
+  g.fillText('℃', setting ? 172 : 186, 36)
+  if (setting) { g.font = 'bold 22px monospace'; g.fillText('SET', 174, 70) }
+}
 function FridgeDoorImpl({ n = 0 }: { n?: number }) {
   const { W, D } = FRIDGE
   const { doors, doorRoot, home, rears, rearRoot, rearHome } = useFreezer(n)
@@ -7066,6 +7083,20 @@ function FridgeDoorImpl({ n = 0 }: { n?: number }) {
   // (its back's doors (item 554; item 535's hatch slid up, item 431's pair was the whole back): the outer slid across while the stocker
   // fills it from the stock room)
   const rear = useRef({ k: 0, sounded: false })
+  // (item 615) its thermostat's display: its own canvas, drawn again only when what it shows changes
+  const temp = useMemo(() => {
+    const c = document.createElement('canvas')
+    c.width = 256; c.height = 86
+    const tex = new THREE.CanvasTexture(c)
+    tex.colorSpace = THREE.SRGBColorSpace
+    return { g: c.getContext('2d')!, tex, last: '' }
+  }, [])
+  useEffect(() => () => temp.tex.dispose(), [temp])
+  const tempTip = () => {
+    const u = DRINK_FRIDGE_TEMP.units[n]
+    return { title: '飲料櫃溫度', hint: `現在 ${Math.round(u.now)}℃（設定 ${u.set}℃）${servedWarm(u.now) ? '｜太溫，拿出來的飲料不冰' : ''}｜左鍵調冷、右鍵調暖，${DRINK_MIN}～${DRINK_MAX}℃`, warn: servedWarm(u.now) }
+  }
+  const pressTemp = (dir: 1 | -1) => { pressDrinkTemp(n, dir); lightSwitchSound(dir < 0); setTip(tempTip()) }
   // (the door's state lives outside React: leave it shut when the shop's let go, so it doesn't come back open)
   useEffect(() => () => { FRIDGE_STATE[n].open = false; FRIDGE_STATE[n].passing = 0; FRIDGE_STATE[n].rearOpen = false }, [n])
   // (heard: its seal let go as it starts to swing open, a muffled knock as it swings shut (the owner's), as loud as it's near)
@@ -7091,6 +7122,18 @@ function FridgeDoorImpl({ n = 0 }: { n?: number }) {
     else if (!wantR && r.sounded && r.k < 0.04) { r.sounded = false; coolerDoorSound(false, near() * 0.6) }
     r.k += Math.sign(wantR - r.k) * Math.min(Math.abs(wantR - r.k), Math.min(dt, 0.1) * 2.2)
     FRIDGE_STATE[n].rear = r.k
+    // (item 615) the inside drifting: toward the room's air while a door's open (its front, its back's, a hand in it), back to its setting
+    // shut; the display showing it (or the setting, a moment after a press)
+    {
+      const u = DRINK_FRIDGE_TEMP.units[n]
+      if (u) {
+        u.now = driftDrinkTemp(u.now, u.set, want > 0 || r.k > 0.02, tick(dt))
+        const setting = performance.now() - u.shownAt < 2000, warm = servedWarm(u.now)
+        const shows = setting ? u.set : Math.round(u.now)
+        const key = `${shows}${setting}${warm}`
+        if (key !== temp.last) { temp.last = key; drawDrinkTemp(temp.g, shows, setting, warm); temp.tex.needsUpdate = true }
+      }
+    }
     {
       const q = r.k, h = rears[0], rest = h.userData.rest as THREE.Vector3 | undefined
       // (opening: eased out to its stop by four fifths of the way, then a rebound of a centimetre off it; shutting: eased in and out)
@@ -7103,6 +7146,15 @@ function FridgeDoorImpl({ n = 0 }: { n?: number }) {
     <group>
       {/* the model's own door, hung on its pivot (the glass and its frame), swung with the rest of the model's scale */}
       <group onClick={(ev) => { ev.stopPropagation(); if (getEdit().on) return; FRIDGE_STATE[n].open = !FRIDGE_STATE[n].open }} {...tipOver('飲料櫃', '點一下開關門')}><primitive object={doorRoot} /></group>
+      {/* (its thermostat's display over its doors (item 615): left click colder, right warmer) */}
+      <mesh position={[TEMP_PANEL.x, TEMP_PANEL.y, D / 2 + 0.004]}
+        onClick={(ev) => { ev.stopPropagation(); if (getEdit().on) return; pressTemp(-1) }}
+        onContextMenu={(ev) => { ev.stopPropagation(); ev.nativeEvent.preventDefault(); if (getEdit().on) return; pressTemp(1) }}
+        onPointerOver={(ev) => { ev.stopPropagation(); if (getEdit().on) return; handOver.onPointerOver(ev); setTip(tempTip()) }}
+        onPointerOut={(ev) => { handOver.onPointerOut(ev); setTip(null) }}>
+        <planeGeometry args={[TEMP_PANEL.w, TEMP_PANEL.h]} />
+        <meshBasicMaterial map={temp.tex} toneMapped={false} />
+      </mesh>
       {/* (its back's doors, in the stock room: slid open by a click, shut by another (item 614, the owner's 「是用拉門式的，這邊可以互動」); the
           stocker's own opening of them goes on as ever) */}
       <group onClick={(ev) => { ev.stopPropagation(); if (getEdit().on) return; FRIDGE_STATE[n].rearOpen = !FRIDGE_STATE[n].rearOpen }}

@@ -92,6 +92,12 @@ const REMARK: Record<Remark, [string, string, string][]> = {
     ['這個價錢吃不起', 'この値段は手が出ない', "Couldn't run to these prices"],
     ['CP 值太低', 'コスパが悪い', 'Poor value'],
   ],
+  // (item 615: a drink out of a fridge left open too long)
+  warm: [
+    ['飲料一點都不冰', '飲み物がぬるかった', 'The drink was warm'],
+    ['冰箱好像沒在冷，啤酒是溫的', '冷蔵庫が冷えていない、ビールがぬるい', "The fridge can't be working: warm beer"],
+    ['想喝冰的，結果拿到溫的', '冷たいのを期待したのにぬるい', 'Wanted something cold, got it lukewarm'],
+  ],
 }
 /** which of a remark's ways a visit says it: by who they were and how long they waited and how it tasted, so the same kind of visit isn't
  * always the same words */

@@ -7011,6 +7011,11 @@ body.be-tool .char-dock { right: calc(var(--bt-right) + 12px); top: calc(var(--b
   font: 600 12px/1.3 var(--brush);
   text-shadow: none;
 }
+/* (item 615: a drink fridge's figure too warm for a cold drink (its door left open), in red; its setting a degree either side of it, pills as it is) */
+.stock-panel .chiller-zone .chiller-zone-head i.is-warm { color: #b8321f; background: #ffe2dc; }
+.stock-panel .chiller-temp { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; letter-spacing: 0; }
+.stock-panel .chiller-temp-btn { display: inline-grid; place-items: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 999px; background: var(--pill); color: var(--ink); cursor: pointer; }
+.stock-panel .chiller-temp-btn:disabled { opacity: 0.35; cursor: default; }
 /* (each thing a card of the office's) */
 .stock-panel .chiller-bin,
 .stock-panel .chiller-bin.is-out {

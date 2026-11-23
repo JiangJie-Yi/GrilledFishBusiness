@@ -3,7 +3,8 @@
 // waited for it, and what put them out (no tissues at their place, a dirty toilet, the lights off, an upset stomach, nothing on the menu
 // they could have); the shop's stars are the recent visits' average, the newer counting more; and what each said.
 
-export type Gripe = 'wait' | 'tissue' | 'toilet' | 'dark' | 'sick' | 'nothing' | 'receipt' | 'dear'
+/** (`warm`: a drink out of a fridge left open too long, not cold (item 615, game/fridgeTemp)) */
+export type Gripe = 'wait' | 'tissue' | 'toilet' | 'dark' | 'sick' | 'nothing' | 'receipt' | 'dear' | 'warm'
 /** one customer's visit, as they leave: what they thought of what they ate (0..100, none if they ate nothing), how long they waited for
  * their first piece (seconds), whether they walked out, and what put them out; the game's day it was, and whether it's a review bought
  * (no customer behind it) */
@@ -11,7 +12,7 @@ export type Visit = { id: number; taste: number | null; waited: number; walkedOu
   /** whether they wrote a review of it (item 210: only some do; one kept before it was asked, as if they had) */
   wrote?: boolean }
 /** how much each kind of upset takes off a visit's satisfaction */
-export const GRIPE_COST: Record<Gripe, number> = { wait: 12, tissue: 8, toilet: 10, dark: 18, sick: 35, nothing: 25, receipt: 6, dear: 20 }
+export const GRIPE_COST: Record<Gripe, number> = { wait: 12, tissue: 8, toilet: 10, dark: 18, sick: 35, nothing: 25, receipt: 6, dear: 20, warm: 7 }
 /** how long a wait for the first piece is taken in good part (seconds); after that, a point off every six seconds, up to twenty */
 export const WAIT_OK = 90
 
@@ -64,7 +65,7 @@ const has = (v: Visit, g: Gripe) => v.gripes.includes(g)
 /** a visit's three sides (0..100): the food (what was eaten; none, nothing), the service (the wait, walking out (nothing at all), nothing to
  * be had, no receipt), the place (tissues, the toilet, the light, stomachs) */
 const foodScore = (v: Visit) => v.taste
-const serviceScore = (v: Visit) => (v.walkedOut ? 0 : clamp(100 - Math.min(60, Math.max(0, v.waited - 60) / 2) - (has(v, 'nothing') ? 30 : 0) - (has(v, 'receipt') ? 20 : 0), 0, 100))
+const serviceScore = (v: Visit) => (v.walkedOut ? 0 : clamp(100 - Math.min(60, Math.max(0, v.waited - 60) / 2) - (has(v, 'nothing') ? 30 : 0) - (has(v, 'receipt') ? 20 : 0) - (has(v, 'warm') ? 15 : 0), 0, 100))
 const placeScore = (v: Visit) => clamp(100 - (has(v, 'tissue') ? 25 : 0) - (has(v, 'toilet') ? 30 : 0) - (has(v, 'dark') ? 35 : 0) - (has(v, 'sick') ? 40 : 0), 0, 100)
 /** one visit's own stars, by the same weighing as the shop's; walked out without eating, one */
 export function visitStars(v: Visit) {

@@ -4,7 +4,33 @@ import { caseCost, CASE_SIZE, comingOf, drinkCounts, fillFromBack, orderCase } f
 import { getClock } from '@/ui/clockStore'
 import { FitLine } from '@/ui/FitLine'
 import { setTip } from '@/scene/hoverTip'
-import { DRINK_BACK, DRINK_COMING, DRINKS, FRIDGE_STOCK, FRIDGE_UNITS, placesOf, SHOP_PURSE, type DrinkId } from './bar'
+import { DRINK_BACK, DRINK_COMING, DRINK_FRIDGE_TEMP, DRINKS, FRIDGE_STOCK, FRIDGE_UNITS, placesOf, pressDrinkTemp, SHOP_PURSE, type DrinkId } from './bar'
+import { DRINK_MAX, DRINK_MIN, servedWarm } from '@/game/fridgeTemp'
+import { Glyph } from '@/ui/GameIcons'
+
+/** (item 615) a fridge's temperature as it is (game/fridgeTemp: it drifts outside React, read twice a second), red once it's too warm for
+ * a cold drink, and its setting a degree colder or warmer either side (as the display over its doors takes a left or a right click; the
+ * drinks' view doesn't reach up to that) */
+function LiveTemp({ n, lang }: { n: number; lang: Lang }) {
+  const read = () => { const u = DRINK_FRIDGE_TEMP.units[n]; return { t: Math.round(u?.now ?? 4), set: u?.set ?? 4 } }
+  const [s, setS] = useState(read)
+  useEffect(() => {
+    const id = window.setInterval(() => setS((was) => { const v = read(); return v.t === was.t && v.set === was.set ? was : v }), 500)
+    return () => window.clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [n])
+  const press = (dir: 1 | -1) => { pressDrinkTemp(n, dir); setS(read()) }
+  const set = tl(lang, `設定 ${s.set}°C`, `設定 ${s.set}°C`, `Set to ${s.set}°C`)
+  return (
+    <span className="chiller-temp">
+      <button type="button" className="chiller-temp-btn" disabled={s.set <= DRINK_MIN} onClick={() => press(-1)}
+        title={`${tl(lang, '調冷一度', '1度下げる', 'A degree colder')}（${set}）`}><Glyph id="minus" size={9} /></button>
+      <i className={servedWarm(s.t) ? 'is-warm' : undefined} title={servedWarm(s.t) ? `${set}｜${tl(lang, '太溫了：門開太久，拿出來的飲料不冰', 'ぬるい：扉の開けすぎ、出す飲み物が冷えていない', 'Too warm: the door was left open, drinks come out warm')}` : set}>{s.t}°C</i>
+      <button type="button" className="chiller-temp-btn" disabled={s.set >= DRINK_MAX} onClick={() => press(1)}
+        title={`${tl(lang, '調暖一度', '1度上げる', 'A degree warmer')}（${set}）`}><Glyph id="plus" size={9} /></button>
+    </span>
+  )
+}
 
 type Drink = (typeof DRINKS)[number]
 const HOMES = FRIDGE_UNITS.map((u) => u.shelves.map((sh) => sh.ids))
@@ -106,7 +132,7 @@ export function DrinkStockBody({ lang }: { lang: Lang }) {
       <div className="chiller-scroll">
         {FRIDGE_UNITS.map((unit, u) => (
           <section key={u} className={`chiller-zone ${u ? 'is-drinks-alcohol' : 'is-chilled'}`}>
-            <h3 className="chiller-zone-head"><span>{tl(lang, unit.sign[0], unit.sign[1], u ? 'Alcohol' : 'Drinks')}</span><i aria-hidden="true">4°C</i></h3>
+            <h3 className="chiller-zone-head"><span>{tl(lang, unit.sign[0], unit.sign[1], u ? 'Alcohol' : 'Drinks')}</span><LiveTemp n={u} lang={lang} /></h3>
             <div className="chiller-bins">
               {UNIT_DRINKS[u].map((id) => {
                 const d = drinkOf(id), c = counts[u][id] ?? { have: 0, places: 0, astray: 0 }, back = DRINK_BACK.back[id] ?? 0
