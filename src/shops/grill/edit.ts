@@ -387,6 +387,8 @@ const RELAIDS: [string, string[]][] = [
   ['jgs-edit-relaid-43', ['vegcrate', 'vegcrate2', 'vegbasket', 'till-omamori']],
   // (the bamboo basket by the hearth moved and made smaller, its new default (item 553): what was held for it by hand let go)
   ['jgs-edit-relaid-44', ['basket']],
+  // (the cork board and its notes moved under the shrine's shelf (item 616, the owner's 「留言板移駕到紅框區。」): what was kept for them dropped once)
+  ['jgs-edit-relaid-45', ['sign-cork', 'cork-thanks', 'cork-boss', 'cork-fish', 'cork-toast', 'cork-night', 'cork-crayon', 'cork-english', 'cork-bday', 'cork-saba', 'cork-stamps', 'cork-title']],
 ]
 const relaidDue = RELAIDS.filter(([k]) => { try { return !localStorage.getItem(k) } catch { return false } })
 const relaid = !relaidDue.length

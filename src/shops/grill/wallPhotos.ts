@@ -260,8 +260,8 @@ export function paintOuting(g: CanvasRenderingContext2D, W: number, H: number, z
  * everything taped up at its own slant, the plaster scribbled over all round it): a slim display ledge across the middle, the four Japanese
  * boards standing on it leaning back on the wall, tallest at the far end and stepping down toward the door; the two framed photographs
  * over it, each over the board under it, their tops and feet in line; the three Western ones (a black card, a polaroid, a wooden board) in a
- * column by the door on one line down, the board's top in line with the ledge's; the cork board with its notes under the ledge, in its
- * middle; nothing at a slant, the gaps alike. Seven boards no two alike (SIGN_PIECES). Every piece's picture on one canvas (WALL_SIGNS'
+ * column by the door on one line down, the board's top in line with the ledge's; the cork board with its notes under the shrine's shelf
+ * (item 616; it was under the ledge, in its middle); nothing at a slant, the gaps alike. Seven boards no two alike (SIGN_PIECES). Every piece's picture on one canvas (WALL_SIGNS'
  * places on it), for the pieces that carry them
  * (DiningRoom's WallSigns, each piece movable on its own, all one group). Its millimetres a unit.
  */
@@ -304,10 +304,13 @@ export const WALL_LEDGE = { id: 'sign-ledge', label: '展示層架', back0: 0.52
 /** the design (item 409): on the ledge, 3.5 cm apart, the tanzaku (its top at 1.62), the shikishi (1.55), the round one (1.48) and the
  * little gold one (1.45); the photographs over the shikishi and the round one, centred on them, 1.585 to 1.735; the column by the door (its
  * middle 0.40 back) the black card (its foot on the photographs' line), the polaroid and the wooden board (its top on the ledge's line); the
- * cork board under the ledge's middle, 0.95 to 1.25. Clear of the light switches (back 1.20 to 1.41, up 1.05 to 1.19), the shrine's shelf
+ * cork board under the shrine's shelf, between its brackets, 1.035 to 1.365 (item 616). Clear of the light switches (back 1.20 to 1.41, up 1.05 to 1.19), the shrine's shelf
  * (back 1.27 on, up 1.46 on), the exit sign (back 0.42 to 0.82, up 1.8 on) and the doorway (0.26 back) */
 export const WALL_PIECES: WallPiece[] = [
-  { id: 'sign-cork', label: '軟木留言板', back: 0.88, up: 1.1, t: 0.02, tilt: 0, layer: 0, rect: WALL_SIGNS.board, edge: WALL_SIGNS.wood },
+  // (item 616, the owner's 「留言板移駕到紅框區。」: under the shrine's shelf, its middle under the shrine's (back 1.98, its 1.48 to 2.49), its top
+  // 10 cm under the shelf's foot (up 1.46): 0.30 clear of the light switches (1.41), well over the bench under it (0.38); it was under the
+  // ledge, 0.88 back, 1.1 up)
+  { id: 'sign-cork', label: '軟木留言板', back: 1.984, up: 1.2, t: 0.02, tilt: 0, layer: 0, rect: WALL_SIGNS.board, edge: WALL_SIGNS.wood },
   { id: 'sign-photo0', label: '合照（名人來店）', back: 1.027, up: 1.66, t: 0.012, tilt: 0, layer: 0, rect: WALL_SIGNS.photos[0], edge: WALL_SIGNS.wood },
   { id: 'sign-photo1', label: '合照（開店紀念）', back: 0.792, up: 1.66, t: 0.012, tilt: 0, layer: 0, rect: WALL_SIGNS.photos[1], edge: WALL_SIGNS.wood },
   { id: 'sign-card1', label: '簽名色紙（黒川）', back: 1.027, up: 0, t: 0.004, tilt: 0, layer: 0, rect: WALL_SIGNS.signs[0], edge: WALL_SIGNS.gold, lean: true },
