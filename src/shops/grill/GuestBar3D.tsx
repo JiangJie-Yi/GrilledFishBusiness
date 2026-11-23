@@ -110,7 +110,7 @@ import { LINES } from '@/data/lines'
 import { looksOf, newRoll, openRoom, penaltyOf, visitRoom } from '@/game/restroom'
 import { platerFree } from '@/game/kitchenCrew'
 import { plateGoes } from '@/game/tray'
-import { WARE, SEAT_LEFT, CHOPS_USED, CHOPS_OFF, CHOPS_LOOSE } from './bar'
+import { WARE, SEAT_LEFT, CHOPS_USED, CHOPS_OFF, CHOPS_LOOSE, SEATS_UNCLEARED } from './bar'
 import { CALM_ASK, FUMING, DRAIN_KINDS, EAT_PHASE, PLATE_FACES, SEATS_SAT, DRAWER_KICK, TISSUE_REACH_MS, seatTurn, GRATING, ONIGIRI_TRAY, HAND_WASH, FIGURES, CARRIED, SOY_DISH_AT, FETCHER, FIRE_TEND, SKEWERS, SEAT_MOVE, SEAT_PULL, STOOL_TUCK, SHOE_CELLS, aisleCornerOf, aisleOf, DRAWER_HELD, SHOP_PURSE, STOCKER_WC, SUPPLIES, CHOPS_UP, FED, BENCH, BENCH_SEATS, BENCH_EACH, BENCH_PLACE, BENCH2_ALONG, TAKEOUT_STAND, STAND_AT, cashierIn, nameOver, gripe, setTissues, tissuesAt, meterWater, OWNER_OUT, OWNER_SPOT, OWNER_YAW, FIRE_SHIFT, KITCHEN_ROUTE, PATH_MAP, type PathRoute, SERVE_COUNTER, PLACE, SICK, SHRINE_FLOWERS, PLATING, READY_SLOTS, PLATE_STACK_ALONG, PLATE_STACK_ACROSS, readyAlong, PLATES_OUT, PLATER_OUT, DRYER, DRAIN, PLATE_COUNT, SINK_BIN, SEAT_STICKS, SEAT_BONES, WC_W, WC_ROOM, RICE, SOUP, SOUP_SEATS, SAKE, SAKE_SEATS, LOW_RACK, takeDrink, KITCHEN_DROP, kitchenOf, kitchenGatesOf, AISLE, FLOOR_FAR, FLOOR_NEAR, PLATES_SET, SINK, PILE, KITCHEN_FOLK, GENKAN, inGenkan, sauceSide, SEATS_TAKEN, SERVICE, BAR_GATES, TILL, TILL_CASH, anyInStock, batchOf, payIn, TILL_STATE, PLATE_RACK, billOf, GUEST_BILLS, DRINKS, yen, payOf, TAKEOUT, takeoutOf, POINTER_HINT, tipOver, TOILETS, WC_GRUMBLE, DRINK_BACK, FRIDGE, FRIDGE_AT, FRIDGE_STATE, isCan, FRIDGE_STOCK, placesOf, FRIDGE_UNITS, drinkFor, farOf, fridgesOf, storeOf, STORE, STORE_STATE, fridgeUnitOf, gateOf, toiletsOf, type DrinkId, platingOf, roomOf, alongPath, doorOf, wayInOf, doorAt, doorOutOf, DOOR_LANE, pathLength, pathTo, seatsOf, singleCounter, type Counter, SPILLS, IRONS, type Spill, genkanY, soapPlate, scrubDose, SAY_SEATED, BOWLS, RICE_SEATS, STAFF_DOOR_HOLD, sakeLeft, ownerAway, ownerFree, ownerBack, DRINK_COMING, KITCHEN } from './bar'
 import { BONES_GEO, HEAD_GEO } from './fishBones'
 import { arrivals, buyCase, caseCost, emptyFillable, emptyGaps, orderCase, restockRun } from '@/game/drinkStock'
@@ -5887,9 +5887,10 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     } else { r.glass = undefined; r.drink = undefined }
     if (waiters.current.length) { r.phase = 'dirty'; r.t = 0 } else { r.phase = 'clear'; r.t = -CLEAR_DELAY }
   }
-  /** (item 600) a customer still sat at their place with a bowl of rice or soup before them: their plate's left till they've gone */
-  const stillAt = (seat: number) => (BOWLS.setAt.has(`rice:${seat}`) || BOWLS.setAt.has(`soup:${seat}`))
-    && shownRef.current.some((x) => x.seat === seat && x.phase !== 'leave' && !x.leaving)
+  /** (item 600) a plate's customer still sat at it (finishing their rice or soup, a tissue to their mouth): it's left till they're up and gone,
+   * cleared then with their bowls and chopsticks in one trip (taken while they sat, the chopsticks after them were a second trip, and the
+   * place stood with a used pair on it meanwhile) */
+  const stillAt = (r: PlateRun) => r.guest >= 0 && shownRef.current.some((x) => x.id === r.guest && x.seat === r.seat && x.phase !== 'leave' && !x.leaving)
   /** (item 600) a place whose pair went with what was cleared laid again with a clean one from the cabinets; none clean, left bare (and kept
    * from being laid again here by someone clearing it: its pair's on their tray) */
   const relay = (seat: number) => {
@@ -7167,6 +7168,12 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     TILL_STATE.tablet = tabletActive(queue, TILL_STATE.k >= 0 && TILL_STATE.card)
     SEATS_TAKEN.clear()
     for (const x of shown) SEATS_TAKEN.add(x.seat)
+    // (and the places not cleared and laid again since their last customer: no one new sat at them meanwhile (item 600))
+    SEATS_UNCLEARED.clear()
+    for (const r of runs.current) if (r.phase === 'dirty' || (r.phase === 'clear' && r.t < 0)) SEATS_UNCLEARED.add(r.seat)
+    for (const n of CHOPS_OFF) SEATS_UNCLEARED.add(n)
+    for (const n of SEAT_LEFT.keys()) SEATS_UNCLEARED.add(n)
+    for (const x of waiters.current) if (x.phase === 'clearTake' && x.seat >= 0) SEATS_UNCLEARED.add(x.seat)
     SEATS_SAT.clear()
     for (const x of shown) if (x.phase === 'sit') SEATS_SAT.add(x.seat)
     // (and whose chopsticks are up off their rest, in their hand: those sat eating)
@@ -8746,7 +8753,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           const spoken = new Set(waiters.current.flatMap((x) => x.carry ?? []))
           // (not while its customer's still sat there with their rice or soup (item 600): their bowls and chopsticks cleared with it once
           // they've gone, one trip, not two)
-          const dirtyNow = runs.current.filter((r) => r.phase === 'dirty' && !spoken.has(r.key) && !stillAt(r.seat))
+          const dirtyNow = runs.current.filter((r) => r.phase === 'dirty' && !spoken.has(r.key) && !stillAt(r))
           // (the sink and the dryer one server's at a time)
           const atSink = waiters.current.some((x) => x !== w && (x.phase === 'washGo' || x.phase === 'wash' || x.phase === 'unloadGo' || x.phase === 'unloadTake'
             || x.phase === 'handGo' || x.phase === 'handwash' || x.phase === 'basketGo' || x.phase === 'basketTake' || x.phase === 'skSinkGo' || x.phase === 'skWash'))
@@ -9107,7 +9114,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         // evening nearly three of the eight seats stood with a dirty plate on them at any time, not to be sat at till it's cleared))
         const spoken = new Set(waiters.current.flatMap((x) => x.carry ?? []))
         const hereN = w.seat, here = seats[hereN]
-        const by = SHOP.leaving ? [] : onTheWay(here.counter, runs.current.filter((x) => x.phase === 'dirty' && !spoken.has(x.key) && !stillAt(x.seat))
+        const by = SHOP.leaving ? [] : onTheWay(here.counter, runs.current.filter((x) => x.phase === 'dirty' && !spoken.has(x.key) && !stillAt(x))
           .map((x) => ({ run: x, counter: seats[x.seat].counter, far: seats[x.seat].mid.distanceTo(here.mid) })))
         if (by.length) {
           w.carry = by.map((x) => x.run.key)

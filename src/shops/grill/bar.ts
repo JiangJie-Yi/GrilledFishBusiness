@@ -1122,6 +1122,10 @@ if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window,
  */
 // (the places' pairs taken out of the cabinets as the shop's laid out: GuestBar3D, as the day's set (the counters are made further down))
 export const WARE = keep(import.meta.hot, 'WARE', { cab: cabinetAtStart(0), sink: noWares(), washer: noWares(), out: noWares(), ver: 0 })
+/** the places not yet cleared and laid again since their last customer (item 600: what they left still there, the rest bare of a clean pair,
+ * a server clearing it): no one's seated at them till they are (GuestBar3D keeps it every frame; Roasting leaves them out as it seats people).
+ * A new customer sat down to the last one's used chopsticks, 6 of 28 in a rush, and had them taken up and wiped round from under them */
+export const SEATS_UNCLEARED = keep(import.meta.hot, 'SEATS_UNCLEARED', new Set<number>())
 /** each place's things left as its customer goes (Roasting, as it lets them go: their bowls, and their chopsticks if they ate), for GuestBar3D
  * to clear with their plate (or by themselves, a customer who had none) */
 export const SEAT_LEFT = keep(import.meta.hot, 'SEAT_LEFT', new Map<number, Wares>())

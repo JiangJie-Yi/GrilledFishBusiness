@@ -104,7 +104,7 @@ import { CREW_LOAD, GAZE, SHOP, STAFF_SAY, clockIn, idleTick, paceOfStaff, LATE,
 import { loadOf } from '@/game/crewMood'
 /** (where a customer's looking, worked out) */
 const GAZE_AT = new THREE.Vector3()
-import { aisleCornerOf, aisleOf, FIGURES, CARRIED, FED, EAT_PHASE, PLATE_FACES, SEATS_SAT, DRAWER_KICK, TISSUE_REACH_MS, SAY_SEATED, BOWLS, RICE_SEATS, SIDE_SALE, FIRE_TEND, SKEWERS, SEAT_MOVE, STAFF_DOOR_HOLD, CUBBY_KICK, seatLabel, CHOPS_UP, CHOPS_USED, CHOPS_OFF, CHOPS_LOOSE, SEAT_LEFT, GRIPES, gripe, CUBBY_OPEN, meterWater, KITCHEN_ROUTE, askPantry, shutPantry, SUPPLIES, PLACE, sharedAlong, SICK, LIP_H, PLATING, READY_SLOTS, readyAlong, PLATES_OUT, PLATER_OUT, OWNER_GRILL, FETCHER, SEAT_STICKS, SEAT_BONES, WHOLE_FISH, RICE, seatAlong, tipOver, ALONG, handOver, genkanY, ONIGIRI_TRAY, FLOOR_NEAR, staffWayOut, doorOutOf, inKitchen, alongPath, pathLength, drinkFor, type DrinkId, sauceSide, POINTER_HINT, PLATES_SET, SEATS_TAKEN, SERVICE, PANTRY, KITCHEN_FOLK, platingOf, BAR_GATES, gateCut, gateOf, type Gate, TILL, GRILL_BAR_TOP, GRILL_COUNTERS, GRILL_OFFSET, GRILL_SCALE, GRILL_SEATS, SIDE_PULL, FIRE_SHIFT, KITCHEN_DROP, LAY, toGrillScene, CUBBY, CUBBY2, CUBBY_FLOOR_Y, CUBBY_SHELF_Y, COOK_NOTCH, SOUS_NOTCH, nameOver, BAR_BASE_Z, SOY_DISH_AT, seatTurn, roomOf, type Counter } from './bar'
+import { aisleCornerOf, aisleOf, FIGURES, CARRIED, FED, EAT_PHASE, PLATE_FACES, SEATS_SAT, DRAWER_KICK, TISSUE_REACH_MS, SAY_SEATED, BOWLS, RICE_SEATS, SIDE_SALE, FIRE_TEND, SKEWERS, SEAT_MOVE, STAFF_DOOR_HOLD, CUBBY_KICK, seatLabel, CHOPS_UP, CHOPS_USED, CHOPS_OFF, CHOPS_LOOSE, SEAT_LEFT, SEATS_UNCLEARED, GRIPES, gripe, CUBBY_OPEN, meterWater, KITCHEN_ROUTE, askPantry, shutPantry, SUPPLIES, PLACE, sharedAlong, SICK, LIP_H, PLATING, READY_SLOTS, readyAlong, PLATES_OUT, PLATER_OUT, OWNER_GRILL, FETCHER, SEAT_STICKS, SEAT_BONES, WHOLE_FISH, RICE, seatAlong, tipOver, ALONG, handOver, genkanY, ONIGIRI_TRAY, FLOOR_NEAR, staffWayOut, doorOutOf, inKitchen, alongPath, pathLength, drinkFor, type DrinkId, sauceSide, POINTER_HINT, PLATES_SET, SEATS_TAKEN, SERVICE, PANTRY, KITCHEN_FOLK, platingOf, BAR_GATES, gateCut, gateOf, type Gate, TILL, GRILL_BAR_TOP, GRILL_COUNTERS, GRILL_OFFSET, GRILL_SCALE, GRILL_SEATS, SIDE_PULL, FIRE_SHIFT, KITCHEN_DROP, LAY, toGrillScene, CUBBY, CUBBY2, CUBBY_FLOOR_Y, CUBBY_SHELF_Y, COOK_NOTCH, SOUS_NOTCH, nameOver, BAR_BASE_Z, SOY_DISH_AT, seatTurn, roomOf, type Counter } from './bar'
 import { freshFactor, sickChance } from '@/game/freshness'
 import { warmLater } from '@/scene/Prewarm'
 import { NO_POINTER, zr } from '@/scene/htmlProps'
@@ -7796,6 +7796,8 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
     if (BENCH.ids.length) {
       const used = new Set(guests.current.filter((g) => g.state === 'waiting' || g.state === 'eating' || !g.cleared).map((g) => g.seat))
       for (const n of SEATS_TAKEN) used.add(n)
+      // (nor one not yet cleared and laid again since its last customer (item 600))
+      for (const n of SEATS_UNCLEARED) used.add(n)
       const seat = Array.from({ length: BAR_SEATS }, (_, n) => n).find((n) => !used.has(n))
       for (const id of [...BENCH.ids]) {
         // (or past their hour while they waited (data/guests' pastHour, item 377): a child, a high schooler, the old folk gone home, not sat down)
@@ -7833,8 +7835,10 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       guestClock.current = 0
       // (someone still getting up counts as there: the stool's not free till they've gone and their plate's cleared)
       const used = new Set(guests.current.filter((g) => g.state === 'waiting' || g.state === 'eating' || !g.cleared).map((g) => g.seat))
-      // (nor one the room still has somebody at: getting up and going, or away at the toilet)
+      // (nor one the room still has somebody at: getting up and going, or away at the toilet; nor one not yet cleared and laid again since its
+      // last customer (item 600: the next sat down to their used chopsticks))
       for (const n of SEATS_TAKEN) used.add(n)
+      for (const n of SEATS_UNCLEARED) used.add(n)
       const free = (n: number) => n < BAR_SEATS && !used.has(n)
       // now and then a couple comes in together, if two stools side by side on one counter are free: a young man and
       // a young woman (the next ids that are), sat next to each other
