@@ -2,7 +2,7 @@ import { memo, useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
-import { bakeable, keyOf } from './StaticBatch'
+import { bakeable, colourVertices, keyOf, plainShared } from './StaticBatch'
 import { HOVER, anyLit } from './hoverGlow'
 import { WORLD, giveBack, mergeAway, mergeState, takeOut, type WorldSpan } from './worldMerge'
 
@@ -146,10 +146,13 @@ export const WorldBatch = memo(function WorldBatch() {
       WORLD.builds++
       WORLD.out = 0
     }
-    const groups = new Map<string, { mat: THREE.Material; list: THREE.Mesh[]; cast: boolean; take: boolean; order: number; colours: boolean; root: THREE.Object3D; layers: number }>()
+    const groups = new Map<string, { mat: THREE.Material; list: THREE.Mesh[]; cast: boolean; take: boolean; order: number; colours: boolean; root: THREE.Object3D; layers: number; plain: boolean }>()
     for (const m of list) {
       if ((strikes.current.get(m) ?? 0) >= 2 || !mergeable(m) || !m.visible || !inRoom(m, scene)) continue
-      const mat = m.material as THREE.Material
+      // (a plain colour drawn with the material every plain colour drawn its way shares, its colour on its points (item 598): one draw a
+      // stretch for all of them, where each colour was its own)
+      const plain = plainShared(m.material as THREE.Material)
+      const mat = plain ?? (m.material as THREE.Material)
       const root = rootOf(m, scene)
       // (and, the room's own (not a wall's), by the stretch of the room it's in (CELL across, x and z), so a close view leaves the rest out)
       let cell = ''
@@ -158,8 +161,11 @@ export const WorldBatch = memo(function WorldBatch() {
         const c = CENTRE.copy(m.geometry.boundingSphere!.center).applyMatrix4(m.matrixWorld)
         cell = `${Math.floor(c.x / CELL)},${Math.floor(c.z / CELL)}`
       }
-      const key = `${keyOf(mat)}|${m.renderOrder}|${m.castShadow}|${m.receiveShadow}|${root.uuid}|${cell}|L${m.layers.mask}`
-      const g = groups.get(key) ?? { mat, list: [], cast: m.castShadow, take: m.receiveShadow, order: m.renderOrder, colours: !!(mat as THREE.MeshToonMaterial).vertexColors, root, layers: m.layers.mask }
+      // (an ink hull's width left out of its look (item 598): each one's pushed out by its own as it's baked, the merged one drawn with none;
+      // apart by width, the ink was 38 of the room's draws)
+      const look = isHull(mat) ? keyOf(mat).replace(/\|uWidth=[^|]*/, '') : keyOf(mat)
+      const key = `${look}|${m.renderOrder}|${m.castShadow}|${m.receiveShadow}|${root.uuid}|${cell}|L${m.layers.mask}`
+      const g = groups.get(key) ?? { mat, list: [], cast: m.castShadow, take: m.receiveShadow, order: m.renderOrder, colours: !!(mat as THREE.MeshToonMaterial).vertexColors, root, layers: m.layers.mask, plain: !!plain }
       g.list.push(m)
       groups.set(key, g)
     }
@@ -189,12 +195,17 @@ export const WorldBatch = memo(function WorldBatch() {
       // (in its root's frame: under the wall it's on, it goes where the wall goes)
       g.root.updateWorldMatrix(true, false)
       const toRoot = g.root === scene ? null : new THREE.Matrix4().copy(g.root.matrixWorld).invert()
-      // (an ink hull pushed out as its shader would, in its own units, and drawn with no width of its own)
-      const push = pushOf(g.mat)
+      // (an ink hull pushed out as its shader would, each by its own width in its own units, and drawn with no width of its own)
+      const hull = isHull(g.mat)
       const geos = g.list.map((m) => {
         m.updateWorldMatrix(true, false)
+        const push = pushOf(m.material as THREE.Material)
         const own = push ? pushedOut(m.geometry, push) : m.geometry
         const x = bakeable(own, toRoot ? new THREE.Matrix4().multiplyMatrices(toRoot, m.matrixWorld) : m.matrixWorld)
+        // (a plain colour's on its points; the shared material's already plain colours have theirs)
+        // (asked of each mesh, not its look's first: a look begun by a piece already on the shared material (plainColours) took the plain
+        // colours after it as white (the room's rim, a book under the till, the first try))
+        if (!(m.material as THREE.MeshToonMaterial).vertexColors && plainShared(m.material as THREE.Material)) colourVertices(x, (m.material as THREE.MeshToonMaterial).color)
         // (colours on the points only where the material reads them (white where it does and they've none): mismatched, they won't merge)
         if (!g.colours && x.attributes.color) x.deleteAttribute('color')
         if (g.colours && !x.attributes.color) x.setAttribute('color', new THREE.BufferAttribute(new Float32Array(x.attributes.position.count * 3).fill(1), 3))
@@ -206,7 +217,7 @@ export const WorldBatch = memo(function WorldBatch() {
       if (!geo) continue
       // (its normals, UVs and colours let go of once they're on the graphics card: only its positions are written again (a part drawn in))
       for (const k of ['normal', 'uv', 'color']) (geo.attributes[k] as THREE.BufferAttribute | undefined)?.onUpload(function (this: THREE.BufferAttribute) { (this as unknown as { array: unknown }).array = null })
-      const mesh = new THREE.Mesh(geo, push ? flatInk(g.mat) : g.mat)
+      const mesh = new THREE.Mesh(geo, hull ? flatInk(g.mat) : g.mat)
       mesh.name = 'world-batch'
       mesh.castShadow = g.cast
       mesh.receiveShadow = g.take
@@ -221,7 +232,7 @@ export const WorldBatch = memo(function WorldBatch() {
       let from = 0
       g.list.forEach((m, i) => {
         const n = counts[i]
-        const span: WorldSpan = { mesh, from, n, src: m, toRoot, push }
+        const span: WorldSpan = { mesh, from, n, src: m, toRoot, push: pushOf(m.material as THREE.Material) }
         from += n
         const mat = m.material as THREE.Material
         watch.push({ m, at: m.matrixWorld.clone(), mat, colour: hexOf(mat, 'color'), glow: hexOf(mat, 'emissive'), geo: m.geometry, ver: (m.geometry.attributes.position as THREE.BufferAttribute).version, layers: m.layers.mask })
