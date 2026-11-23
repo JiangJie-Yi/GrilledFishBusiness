@@ -9027,7 +9027,10 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       }
       if (wiping) {
         const st = seats[w.seat], c = counters[st.counter], p = (w.t - CLEAR_WIPE_AT) / WIPE_S
-        const stand = st.mid.clone().addScaledVector(c.lay, -WIPE_STAND[1]).addScaledVector(c.along, WIPE_STAND[0]).setY(w.pos.y)
+        // (along the bar where they stand beside it (besideAlong, item 591), in toward it only: wiped from WIPE_STAND's 0.34 along when they
+        // stood at 0.45 or the end seat's other side, a step in that's a fifth of a second covered as much as 0.79 of the bar along it, a
+        // jump of 0.67 to 0.89 m a frame (the Tester's dayaudit, clearTake))
+        const stand = st.mid.clone().addScaledVector(c.lay, -WIPE_STAND[1]).addScaledVector(c.along, besideAlong[w.seat] ?? WIPE_STAND[0]).setY(w.pos.y)
         const yaw = Math.atan2(c.lay.x, c.lay.z)
         const k = Math.min(1, p / 0.15, (1 - p) / 0.15)
         wipeAt = { p: stand, yaw, k: k * k * (3 - 2 * k) }
