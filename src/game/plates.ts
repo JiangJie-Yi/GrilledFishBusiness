@@ -168,7 +168,9 @@ export function nextChore({ duty, serve, dirty, sink, rack, dryer, drain = NO_DR
   // (a kind of bowl or the chopsticks with none clean left, some of it in the sink or the washer (`out`): the dishes' server sees to it first,
   // before carrying food, the floor's server carrying it meanwhile (the Tester's, item 600: all the rice bowls in the sink, they came back
   // in 67 s, both servers carrying food all the while); one server alone still carries the food first)
-  if (duty === 'dish' && wares?.out) {
+  // (and with one running low (wares.urgent: a few clean left): six washed and put back, they were used again while the other eighteen waited,
+  // the dishes' server off carrying food and skewers (the Tester's, item 600: all the rice bowls thrown in the sink, none back in 150 s))
+  if (duty === 'dish' && (wares?.out || wares?.urgent)) {
     if (dried) return 'unload'
     if (washNow(Math.max(1, sink), 0, dryer)) return 'wash'
   }
@@ -181,7 +183,9 @@ export function nextChore({ duty, serve, dirty, sink, rack, dryer, drain = NO_DR
   if (skewers === 'urgent') return 'skewers'
   // (someone waiting for a seat and a place uncleared: cleared first by whoever's free (item 600: a place is sat at only once it's cleared, and
   // with the dishes' server left to their washing a rush let 12% fewer through, the floor's server carrying food, the places standing empty))
-  if (seatWait && dirty > 0) return 'clear'
+  // (but not the dishes' server with a kind of bowl or the chopsticks running low to wash: the floor's server clears, they wash (the Tester's:
+  // everything thrown in the sink, the soup bowls came back in 102 s, not 39, the dishes' server off clearing places for the bench))
+  if (seatWait && dirty > 0 && !(dish && wares?.urgent)) return 'clear'
   // (the washer takes the sink's bowls and cutlery with its plates, or for themselves once there's a batch of them (game/ware's wareWashNow))
   if (dish && (washNow(sink, bare ? 0 : rack, dryer) || (!!wares?.wash && washNow(1, 0, dryer)))) return 'wash'
   if (dish && handNow(sink, rack, dryer, drain)) return 'handwash'

@@ -116,6 +116,9 @@ feature('管洗碗的也照顧碗與餐具', () => {
     const out = { sink: 6, wash: true, washer: 0, urgent: true, out: true }
     then('有菜要端：管洗碗的還是先去洗', () => { expect(nextChore({ ...base, serve: true, wares: out })).toBe('wash') })
     and('洗碗機裡洗好了：先拿出來', () => { expect(nextChore({ ...base, serve: true, dryer: { n: 0, left: 0 }, wares: { ...out, sink: 0, washer: 6 } })).toBe('unload') })
+    and('快用完（剩幾個，還沒到一個都不剩）也一樣：不然洗好的幾個又被用掉，水槽裡的一直沒人洗', () => {
+      expect(nextChore({ ...base, serve: true, wares: { ...out, out: false } })).toBe('wash')
+    })
     but('管外場的：照樣先端菜', () => { expect(nextChore({ ...base, duty: 'floor', serve: true, wares: out })).toBe('serve') })
     but('只有一位外場：先端菜', () => { expect(nextChore({ ...base, duty: 'all', serve: true, wares: out })).toBe('serve') })
   })
@@ -124,6 +127,10 @@ feature('管洗碗的也照顧碗與餐具', () => {
     and('管外場的：照樣去收', () => { expect(nextChore({ ...base, duty: 'floor', dirty: 1, seatWait: true })).toBe('clear') })
     but('有菜要端：先端', () => { expect(nextChore({ ...base, serve: true, dirty: 1, seatWait: true })).toBe('serve') })
     but('沒人在等：管洗碗的照舊先洗', () => { expect(nextChore({ ...base, sink: 5, dirty: 1 })).toBe('wash') })
+    but('管洗碗的手上有快用完的碗筷要洗：先洗，收位子交給管外場的', () => {
+      expect(nextChore({ ...base, sink: 5, dirty: 1, seatWait: true, wares: { sink: 4, wash: true, washer: 0, urgent: true } })).toBe('wash')
+      expect(nextChore({ ...base, duty: 'floor', dirty: 1, seatWait: true, wares: { sink: 4, wash: true, washer: 0, urgent: true } })).toBe('clear')
+    })
   })
   scenario('盤子的流程不變（沒有碗與餐具時）', ({ then }) => {
     then('盤子 5 個：洗', () => { expect(nextChore({ ...base, sink: 5 })).toBe('wash') })
