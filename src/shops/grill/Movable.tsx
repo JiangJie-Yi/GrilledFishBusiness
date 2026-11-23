@@ -148,6 +148,32 @@ function letterTex(name: string, color: string) {
   LETTERS.set(name, t)
   return t
 }
+/** scratch for the axes' letters (AxisLetter) */
+const LETTER_POS = new THREE.Vector3(), LETTER_SC = new THREE.Vector3(), LETTER_Q = new THREE.Quaternion(), LETTER_S = new THREE.Vector3(),
+  LETTER_M = new THREE.Matrix4(), LETTER_INV = new THREE.Matrix4()
+/**
+ * An axis's letter at `at` in its axis's group, facing the camera upright and round, `size` across as its group draws it (item 609, the
+ * owner's 「XYZ請用正面」: a sprite in the axis's turned group, under a piece sized unevenly, took its size from the turned and stretched
+ * frame: X's and Z's discs came out squashed and their letters askew). Its world place worked out each frame, unturned, evenly sized.
+ */
+function AxisLetter({ name, color, at, size }: { name: string; color: string; at: V3; size: number }) {
+  const ref = useRef<THREE.Sprite>(null)
+  useFrame(() => {
+    const s = ref.current, p = s?.parent
+    if (!s || !p) return
+    p.updateWorldMatrix(true, false)
+    LETTER_POS.set(at[0], at[1], at[2]).applyMatrix4(p.matrixWorld)
+    LETTER_SC.setFromMatrixScale(p.matrixWorld)
+    const k = size * (LETTER_SC.x + LETTER_SC.y + LETTER_SC.z) / 3
+    LETTER_M.compose(LETTER_POS, LETTER_Q.identity(), LETTER_S.set(k, k, 1))
+    s.matrix.copy(LETTER_INV.copy(p.matrixWorld).invert()).multiply(LETTER_M)
+  })
+  return (
+    <sprite ref={ref} matrixAutoUpdate={false} renderOrder={1002} userData={{ editHandle: true, gizmo: false }}>
+      <spriteMaterial map={letterTex(name, color)} depthTest={false} transparent />
+    </sprite>
+  )
+}
 const AXES = [
   { v: [1, 0, 0] as V3, color: '#ff3b30', rot: [0, 0, -Math.PI / 2] as V3, name: 'X' },
   { v: [0, 1, 0] as V3, color: '#34c759', rot: [0, 0, 0] as V3, name: 'Y' },
@@ -678,9 +704,7 @@ export function AxisGizmo({ id, at, theta = 0, own, pivotGroup, tilt }: { id: st
               <torusGeometry args={[L * 0.8, L * 0.05, 4, 64]} />
               <meshBasicMaterial transparent opacity={0} depthWrite={false} depthTest={false} colorWrite={false} />
             </mesh>
-            <sprite position={[L * 0.8, 0, 0]} scale={[L * 0.2, L * 0.2, 1]} renderOrder={1002} userData={{ editHandle: true, gizmo: false }}>
-              <spriteMaterial map={letterTex(a.name, a.color)} depthTest={false} transparent />
-            </sprite>
+            <AxisLetter name={a.name} color={a.color} at={[L * 0.8, 0, 0]} size={L * 0.2} />
           </group>
         ))}
       </group>
@@ -703,9 +727,7 @@ export function AxisGizmo({ id, at, theta = 0, own, pivotGroup, tilt }: { id: st
               <boxGeometry args={[L * 0.3, L * 0.3, L * 0.3]} />
               <meshBasicMaterial transparent opacity={0} depthWrite={false} depthTest={false} />
             </mesh>
-            <sprite position-y={L * 1.12} scale={[L * 0.2, L * 0.2, 1]} renderOrder={1002} userData={{ editHandle: true, gizmo: false }}>
-              <spriteMaterial map={letterTex(a.name, a.color)} depthTest={false} transparent />
-            </sprite>
+            <AxisLetter name={a.name} color={a.color} at={[0, L * 1.12, 0]} size={L * 0.2} />
           </group>
         ))}
         {/* (and the box in the middle, as Maya has it, to scale all three together: orange, as the move handles' middle box, an unseen larger one round
@@ -733,10 +755,8 @@ export function AxisGizmo({ id, at, theta = 0, own, pivotGroup, tilt }: { id: st
             <coneGeometry args={[L * 0.07, L * 0.2, 12]} />
             <meshBasicMaterial color={a.color} depthTest={false} />
           </mesh>
-          {/* (the axis's letter, set a little past its tip, always facing the camera) */}
-          <sprite position-y={L * 1.12} scale={[L * 0.2, L * 0.2, 1]} renderOrder={1002} userData={{ editHandle: true, gizmo: false }}>
-            <spriteMaterial map={letterTex(a.name, a.color)} depthTest={false} transparent />
-          </sprite>
+          {/* (the axis's letter, set a little past its tip, always facing the camera upright and round (item 609)) */}
+          <AxisLetter name={a.name} color={a.color} at={[0, L * 1.12, 0]} size={L * 0.2} />
           {/* (a fatter, unseen one round it, so it's easy to take hold of) */}
           <mesh position-y={L * 0.5} renderOrder={1001} userData={{ editHandle: true, gizmo: true }}>
             <cylinderGeometry args={[L * 0.09, L * 0.09, L, 8]} />
