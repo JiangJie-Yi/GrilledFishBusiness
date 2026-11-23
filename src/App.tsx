@@ -391,13 +391,7 @@ function usePhone() {
 /** how big (its bounding sphere's radius, in the world) a piece must be to cast a shadow: the plates, bottles, cups and little things on
  * the tables cast none (too small to show in a map spanning the shop), so the shadow maps draw a fraction of the meshes (three's shadow pass
  * tests layers against the view's camera, not the light's, so this is done by castShadow) */
-// (item 598, the owner's 「面數跟 Draw calls 都太高」: 0.3 to 0.45: each shadow picture drew some 262 casters, about 50 of them pieces under
-// 0.45 (a fish on the grill, the knives, the coal sack, the water bucket, the lanterns' parts) whose shadows are a few of the map's pixels)
-const CASTER_R = 0.45
-/** (and the shrine's own pieces as small as before (the shrine, its cups, its vases, its shelf): their shadows on each other, the shelf and the wall are part of its look, the
-// view onto it lost them at 0.45) */
-const SHRINE_CASTER_R = 0.3
-const onShrine = (o: THREE.Object3D) => { for (let p: THREE.Object3D | null = o; p; p = p.parent) if (/^(altar|shrine|vase)/.test(p.userData?.editId ?? '')) return true; return false }
+const CASTER_R = 0.3
 
 // (item 374: drawn again only as its own props change: it does its work in its frames and effects, and was drawn again with every redraw
 // of the page or the scene, about three times a second, for nothing)
@@ -432,7 +426,7 @@ const ShadowPacer = memo(function ShadowPacer() {
         if (!g.boundingSphere) g.computeBoundingSphere()
         m.getWorldScale(v)
         const r = (g.boundingSphere?.radius ?? 0) * Math.max(v.x, v.y, v.z)
-        if (r < (onShrine(m) ? SHRINE_CASTER_R : CASTER_R)) m.castShadow = false
+        if (r < CASTER_R) m.castShadow = false
       })
     }
     // (upstairs the shop isn't drawn, nor its shadows (item 457): its map kept as it was, drawn again once it's come back down to)
