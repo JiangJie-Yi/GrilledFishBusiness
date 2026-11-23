@@ -5,6 +5,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { bakeable, colourVertices, keyOf, plainShared } from './StaticBatch'
 import { HOVER, anyLit } from './hoverGlow'
 import { WORLD, giveBack, mergeAway, mergeState, takeOut, type WorldSpan } from './worldMerge'
+import { paused } from './speed'
 
 /** how often (ms) the room's meshes are looked over for what's kept still (the same place at two looks running) */
 const LOOK_MS = 1200
@@ -12,6 +13,9 @@ const LOOK_MS = 1200
  * whole by itself: what's taken out is drawn by itself, as before the merge; made again whole only as the editor's shut) */
 const ADD_MIN = 24
 const ADD_MS = 3000
+/** (item 598) how long a piece must have kept still to be added to what's merged once it's made: the plates, bowls and food set down for a
+// while were merged after 2.4 s and taken out again as they were picked up, the merge growing all the while the shop was open */
+const SETTLED_MS = 30_000
 /** (item 523, the owner's 「先啟用整間合併」) by default the whole room merged, a look at a time, by stretches of the room (CELL 3, 6 since item 529): the
  * overview 1,587 draws to 1,119 (the ink lines alone merged, as before, about 1,400), the close views 20 to 30% fewer, their triangles about as
  * unmerged (one mesh a look for the whole room, `?world=1`, drew fewer still, 888, but two to three times the close views' triangles: the merge
@@ -122,6 +126,8 @@ export const WorldBatch = memo(function WorldBatch() {
   /** what's merged: its meshes (`base` of them as it was made, the rest added since) and what's watched */
   const built = useRef<{ meshes: THREE.Mesh[]; watch: Watch[]; base: number } | null>(null)
   const seen = useRef(new Map<THREE.Mesh, THREE.Matrix4>())
+  /** since when each has kept still where it is */
+  const since = useRef(new Map<THREE.Mesh, number>())
   const lastLook = useRef(0)
   const madeAt = useRef(0)
   const mountedAt = useRef(performance.now())
@@ -268,20 +274,37 @@ export const WorldBatch = memo(function WorldBatch() {
     if (now - lastLook.current < LOOK_MS) return
     lastLook.current = now
     const was = seen.current, next = new Map<THREE.Mesh, THREE.Matrix4>(), keep: THREE.Mesh[] = []
+    const wasSince = since.current, nextSince = new Map<THREE.Mesh, number>()
     scene.traverseVisible((o) => {
       if (!mergeable(o)) return
       const at = was.get(o)
       if (at && sameAt(at, o.matrixWorld)) keep.push(o)
-      next.set(o, at && sameAt(at, o.matrixWorld) ? at : o.matrixWorld.clone())
+      const still = !!at && sameAt(at, o.matrixWorld)
+      next.set(o, still ? at : o.matrixWorld.clone())
+      nextSince.set(o, still ? (wasSince.get(o) ?? now) : now)
     })
     seen.current = next
+    since.current = nextSince
     // (come into the room and kept still since it was made (the room still loading, a piece put down): merged on their own and added to it, what's
     // merged left as it is (made again whole each time, it was made thirteen times in its first two minutes as the room loaded, each a hitch:
     // every piece in the room baked again); made again whole only once what's added has come to half as many meshes as it was made with)
-    if (b && !WORLD.dirty && keep.length >= ADD_MIN && now - madeAt.current > ADD_MS && !anyLit()) { build(keep, true); madeAt.current = now; return }
+    // (added only what's kept still a while (SETTLED_MS): not what's only set down a moment)
+    const settled = b ? keep.filter((o) => now - (nextSince.get(o) ?? now) >= SETTLED_MS) : keep
+    if (b && !WORLD.dirty && settled.length >= ADD_MIN && now - madeAt.current > ADD_MS && !anyLit()) { build(settled, true); madeAt.current = now; return }
+    // ---- grown too far from what it was made as: made again whole (item 598, the Tester window's three days: what came in and kept still
+    // since was added as merges of its own and never folded back, and what was taken out stayed in the old merges drawn in to a point, so the
+    // room's merge grew some 44 meshes a day (227 to 315 in three), the draws some 200 a day, the frames 60 to 54; the line above always said
+    // "made again whole once what's added has come to half", but nothing did). Made again once what's added is a fifth of what it was made
+    // with while the game stands still (the day's summary: the hitch of making it unseen), or half of it whatever; or a quarter taken out,
+    // only while it stands still (taken out goes on all the time while the shop runs: a first try made it again five times in four minutes,
+    // the room unmerged meanwhile, 1,800 draws)
+    if (b && !WORLD.dirty) {
+      const added = b.meshes.length - b.base
+      if (added >= b.base * 0.5 || (paused() && (added >= b.base * 0.2 || WORLD.out >= b.watch.length * 0.25))) { WORLD.dirty = true; WORLD.changedAt = now }
+    }
     // ---- to be made again (a quarter taken out, much new, the editor left): given back first, and made again once what's given back has kept
     // still through two looks (looked at while merged, it was hidden, and none of it counted as still)
-    if (b && WORLD.dirty) { undo.current(); seen.current = new Map(); return }
+    if (b && WORLD.dirty) { undo.current(); seen.current = new Map(); since.current = new Map(); return }
     // ---- made once something's kept still and nothing's lit by the pointer just now
     // (the first time not before the room's mostly in: two hundred kept still, or twenty seconds on)
     if (!b && keep.length > 1 && (keep.length >= 200 || now - mountedAt.current > 20_000) && !anyLit()) { build(keep); madeAt.current = now }
