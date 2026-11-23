@@ -4612,14 +4612,19 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
    * the two customers; at 0.24 (their body 0.22 round) they stood against the customer's own stool, 5 to 6 cm into it, their tray over its
    * seat as they turned to the plate (tests/e2e/sinkin.mjs). At least where it was, at most BESIDE_MOST (the counter's last seat: no stool
    * past it) */
+  // (the counter's end seat, no stool past it: the other side, between it and the one before (the Tester's: stood past the door's end seat,
+  // a server's body went 12 cm into the cats' stand there, in the narrow way beside it))
   const besideAlong = useMemo(() => seats.map((st) => {
-    let gap = Infinity
+    let next = Infinity, before = Infinity
     for (const o of seats) {
       if (o === st || o.counter !== st.counter) continue
       const d = o.stool.clone().sub(st.stool).dot(st.along)
-      if (d > 0.05 && d < gap) gap = d
+      if (d > 0.05 && d < next) next = d
+      if (d < -0.05 && -d < before) before = -d
     }
-    return gap === Infinity ? BESIDE_MOST : THREE.MathUtils.clamp(gap / 2, BESIDE_LEAST, BESIDE_MOST)
+    if (next !== Infinity) return THREE.MathUtils.clamp(next / 2, BESIDE_LEAST, BESIDE_MOST)
+    if (before !== Infinity) return -THREE.MathUtils.clamp(before / 2, BESIDE_LEAST, BESIDE_MOST)
+    return BESIDE_LEAST
   }), [seats])
   /** beside a customer, where a server stands to set their plate down: between them and the next one along, in toward the bar */
   const besideSeat = (n: number) => {

@@ -45,9 +45,10 @@ const MOUTH_OVER = 0.035
  * hand at its body is, and of the one at its neck: on the side toward the one pouring as it stands, and as it's tipped over, under its body
  * (holding it up) and on top of its neck (steadying it), so the hands show from every side (behind it, from across the counter, they were
  * hidden). Out from the axis by the bottle's own round there (blender/sakestand.py's 1.8-litre bottle: 0.052 at its body, 0.017 up its
- * neck; 0.04 at 0.72, its shoulder) and a mitten's thickness, a little into it for a grip (item 591: at 0.052 and 0.03 the hands' middles
- * were on its glass and inside its shoulder, half the mitten through it, 5 to 7.5 cm in the world) */
-const HOLD_FOOT = 0.12, HOLD_NECK = 0.84, HOLD_BODY = 0.082, HOLD_TOP = 0.047
+ * neck; 0.04 at 0.72, its shoulder) and a mitten's thickness (0.03), a little into it for a grip (item 591: at 0.052 and 0.03 the hands'
+ * middles were on its glass and inside its shoulder, half the mitten through it, 5 to 7.5 cm in the world); at its neck, a thin one, the
+ * mitten round it (0.035: at 0.047, its round and a whole mitten, the hand stood off the neck a hand's width, the Tester's 6.6 to 17 cm) */
+const HOLD_FOOT = 0.12, HOLD_NECK = 0.84, HOLD_BODY = 0.082, HOLD_TOP = 0.035
 
 /** the live station, for GuestBar3D to move: its group (the counter's frame), the bottle (its foot at its origin, `q0` its own turn, `h` how
  * tall it is), its sake, the stream */
