@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef } from 'react'
-import { BOSS_BED, FLOOR_CHECK, FUTON } from '@/shops/grill/bar'
+import { BOSS_BED, FLOOR_CHECK, FUTON, SEATS_SAT, seatsOf } from '@/shops/grill/bar'
 import { useGLTF } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import { keepOut } from '@/game/kitchen/hearthGuard'
@@ -230,6 +230,8 @@ type BedFinds = { door: THREE.Object3D | null; fridge: THREE.Object3D | null
 /** (item 652, the Tester window's) one of the people, the root of them and all they have on them: a customer's own (`guest`), a server's
  * or a cook's (`staffId`, `broom`), the owner's (BossFollow), the kitchen's people, those waiting on the bench and the takeaway's (FIGURES);
  * and what hangs on a bone (a hat, a phone, an umbrella) */
+/** (dev: `__bossWay.seated.on = false` to see his way home made as it was, past those sat at the bar (item 659a)) */
+const SEATED_WAY = { on: true }
 const isFolk = (o: THREE.Object3D) => (o as THREE.Bone).isBone || o.userData.guest !== undefined || o.userData.staffId !== undefined
   || o.userData.broom !== undefined || o.name === 'BossFollow' || FIGURES.has(o)
 /** (item 652) not on the floor as furniture: one of the people or on them (a map made with them in it kept each where they stood as it was
@@ -392,6 +394,9 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
     // (they move), so where he'd come down is kept clear of them as they are as he's let go: one of 39 drops onto a person came down on them,
     // 0.00 to 0.05 m from their middle. Clear: his half and theirs)
     const FOLK_CLEAR = 0.5
+    // (those sat at the bar, who don't step aside, kept off in the room: his half and a body leaning back off its stool (item 659a); a square
+    // that near costs him as much as walking 0.6 m)
+    const SEATED_CLEAR = 0.45, SEATED_COST = 6
     // (where he's let down kept further off: his half and theirs, from their body's middle (the Tester window's: a customer sat back at the bar
     // has their body 18 cm off their place; with the soft shades no longer pushing every spot out, he came down on them, 0.5 from their place))
     const DROP_CLEAR = 0.6
@@ -413,6 +418,20 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
         if (!o.parent || !o.visible || o.name === 'BossFollow') continue
         bodyOf(o).getWorldPosition(w)
         out.push(w.x, w.z)
+      }
+      return out
+    }
+    /** the customers sat at the bar just now (bar's SEATS_SAT: on their stools, not away at the toilet or the fridge): each one's body where
+     * it is (the world's x, z), the figures near a stool that's sat on; `stoolAt` a stool's place (the bar's frame) into the world */
+    const seatedNow = (stoolAt: (v: THREE.Vector3) => THREE.Vector3 | null): number[] => {
+      if (!SEATED_WAY.on || !SEATS_SAT.size) return []
+      const seats = seatsOf(GRILL_COUNTERS)
+      const stools = [...SEATS_SAT].map((k) => seats[k] && stoolAt(seats[k].stool)).filter((v): v is THREE.Vector3 => !!v)
+      const out: number[] = [], w = new THREE.Vector3()
+      for (const [o] of FIGURES) {
+        if (!o.parent || !o.visible || o.userData.guest === undefined) continue
+        bodyOf(o).getWorldPosition(w)
+        if (stools.some((s) => Math.hypot(s.x - w.x, s.z - w.z) < 0.6)) out.push(w.x, w.z)
       }
       return out
     }
@@ -649,7 +668,7 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
     /** a way across the room's floor on the shop's map (item 652, the Tester window's: from by the till, straight to the aisle he went through
      * it): from `a` to `b` (the world's), on the free squares, eight ways from each (A*), then drawn straight where nothing's between (the
      * corners it turns at); the end's own square taken, from the nearest free one; null with no map yet or no way */
-    const roomWay = (a: THREE.Vector3, b: THREE.Vector3): THREE.Vector3[] | null => {
+    const roomWay = (a: THREE.Vector3, b: THREE.Vector3, avoid?: number[] | null): THREE.Vector3[] | null => {
       const wk = walk
       if (!wk) return null
       const { f, n, W, free } = wk
@@ -657,6 +676,23 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
       const goal = nearestFree(wk, end[0], end[1], 6)
       if (!goal) return null
       const [ib, jb] = goal
+      // (round those not stepping aside for him (item 659a, the Tester window's: customers sat at the bar; his way, made on the map with no one
+      // on it, cut past the bar's end seats 0.12 m from them): the squares within SEATED_CLEAR of each (`avoid`: their bodies, the world's x, z)
+      // marked once, dearer to walk through (SEATED_COST a square, so he goes round if there's a way round, and past them only if there's none),
+      // and no straight line drawn across them)
+      let heavy: Uint8Array | null = null
+      if (avoid?.length) {
+        heavy = new Uint8Array(W * W)
+        const R = SEATED_CLEAR / WALK_STEP, Rc = Math.ceil(R), q = new THREE.Vector3()
+        for (let k = 0; k < avoid.length; k += 2) {
+          const [ci, cj] = wk.ij(q.set(avoid[k], a.y, avoid[k + 1]))
+          for (let dj = -Rc; dj <= Rc; dj++) for (let di = -Rc; di <= Rc; di++) {
+            const i = ci + di, j = cj + dj
+            if (Math.hypot(di, dj) > R || i < -n || i > n || j < -n || j > n) continue
+            heavy[(j + n) * W + (i + n)] = 1
+          }
+        }
+      }
       // (A*: a heap of the squares to look at by how far they've come and how far there is to go)
       const cost = new Float32Array(W * W).fill(Infinity), from = new Int32Array(W * W).fill(-1)
       const heap: [number, number][] = []
@@ -677,7 +713,7 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
           const i2 = i + di, j2 = j + dj
           if (!free(i2, j2)) continue
           if (di && dj && (!free(i + di, j) || !free(i, j + dj))) continue
-          const k2 = key(i2, j2), c2 = cost[k] + (di && dj ? Math.SQRT2 : 1)
+          const k2 = key(i2, j2), c2 = cost[k] + (di && dj ? Math.SQRT2 : 1) + (heavy?.[k2] ? SEATED_COST : 0)
           if (c2 >= cost[k2]) continue
           cost[k2] = c2; from[k2] = k
           push(k2, c2 + Math.hypot(ib - i2, jb - j2))
@@ -690,7 +726,10 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
       // (straight where nothing's between: from each corner, on to the furthest square it can see)
       const sees = (p: [number, number], q: [number, number]) => {
         const steps = Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) * 2)
-        for (let k = 1; k < steps; k++) if (!free(Math.round(p[0] + ((q[0] - p[0]) * k) / steps), Math.round(p[1] + ((q[1] - p[1]) * k) / steps))) return false
+        for (let k = 1; k < steps; k++) {
+          const i = Math.round(p[0] + ((q[0] - p[0]) * k) / steps), j = Math.round(p[1] + ((q[1] - p[1]) * k) / steps)
+          if (!free(i, j) || heavy?.[key(i, j)]) return false
+        }
         return true
       }
       const out: THREE.Vector3[] = [a.clone()]
@@ -704,7 +743,7 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
       out.push(b.clone())
       return out
     }
-    if (import.meta.env.DEV) Object.assign(window, { __bossWay: { roomWay, map: () => shopMap, walk: () => walk } })
+    if (import.meta.env.DEV) Object.assign(window, { __bossWay: { roomWay, map: () => shopMap, walk: () => walk, seated: SEATED_WAY, seatedNow: () => seatedNow((v) => (ref.current ? ref.current.localToWorld(fromBar(v).setY(0)) : null)) } })
     BOSS_BED.home = (fromGrill, toGrill) => {
       const route = KITCHEN_ROUTE.route
       if (!route) return null
@@ -804,11 +843,13 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
       const world = (v: THREE.Vector3) => (g ? g.localToWorld(onFloor(v)) : null)
       const barOf = (w: THREE.Vector3) => (g ? toBar(g.worldToLocal(w.clone())).setY(0) : w)
       let path: THREE.Vector3[] | null = null, pathCost = Infinity
+      // (the customers sat at the bar kept off in the room's part (item 659a): they don't step aside for him)
+      const sat = seatedNow((v) => world(v))
       for (let k = 0; k < Math.min(cs.length, BAR_GATES.length); k++) {
         const c = cs[k], mid = gateOf(c, BAR_GATES[k]).mid.setY(0)
         const lane = mid.clone().addScaledVector(c.lay, -aisleOf(c)), out = mid.clone().addScaledVector(c.lay, -0.5), inn = mid.clone().addScaledVector(c.lay, 0.45)
         const wa = world(P), wb = world(lane)
-        const across = wa && wb ? roomWay(wa, wb) : null
+        const across = wa && wb ? roomWay(wa, wb, sat) : null
         const to = across ? across.slice(1).map(barOf) : near === k || !corner ? [onAisle(c, P), lane] : [onAisle(cs[near], P), corner, lane]
         const way = aside([P, ...to, out, inn, ...route(inn, H).slice(1)], to.length + 1)
         const cost = lengthOf(way) + PASS_COST * through(way, to.length + 1)
