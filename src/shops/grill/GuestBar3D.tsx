@@ -25,6 +25,9 @@ import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { homeCopy, StaticBatch, mergeByMaterial } from '@/scene/StaticBatch'
 import { warmLater } from '@/scene/Prewarm'
+import { COAT_OFF_S, COAT_ON_S, STAND_SLOTS as UMB_SLOTS, UMB_CLOSE_AT, UMB_IN_S, coatOf, coatOffBeat, coatOnBeat, freeSlot, gearOf, newCoatPose, newUmbPose, umbInBeat,
+  umbOutBeat, umbOutS, umbrellaOf } from '@/game/rainGear'
+import { KASA_FLOOR, ROD_TIP, TIP_END, canopyScale, coatPictures, rainMats, rainWarmGroup, standCanopyColour, useKasa, type GearAt } from '@/scene/rainGear3D'
 import { FloorPiece } from '@/scene/FloorPiece'
 import { QUALITY } from '@/scene/quality'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
@@ -101,6 +104,7 @@ import { MAKE_S, SOUP_BOWLS, emptyPot, heatNow, heatRate, potTick, setSoup, soup
 import { RICE_BEATS, SOUP_BEATS, beatsLength } from '@/game/sides'
 import { SeatBowls, fillRice, fillSoup, ladleRest, leftOf, riceFillPose, soupFillPose, useSideProps, type FillAt, type FillPose, type WareAt } from './SideBowls'
 import { addWares, cabinetAtStart, canFill, layPlace, leftAdded, noWares, takeForFill, wareCount, wareIntoWasher, wareOut, wareTrip, wareUrgent, wareWashNow, type Wares } from '@/game/ware'
+import { coatSound, umbrellaSound } from './restroomSound'
 import { bottleClink, lightSwitchSound, plateClink, plateDownSound, rainAmbience, scrubSound, slideDoorSound, stoolSound, washSplash } from './restroomSound'
 import { businessDay, rainAt, weatherOf } from '@/game/weather'
 import { FLOOR } from '@/scene/floors'
@@ -1511,6 +1515,9 @@ function EntranceImpl({ at, mark }: { at: THREE.Vector3; mark: string }) {
         <ShoeVases />
       </group>
       </Movable>
+      {/* (item 623, part three: the umbrella stand out on the step before the fixed leaf, the customers' umbrellas stood in it while they're in) */}
+      <Movable id="kasatate" label="傘架" ground={KASA_AT[1]}><group position={KASA_AT}><KasaStand /></group></Movable>
+      <RainGearWarm />
       <group position-x={DX}>
       {/* (the street's light out through the doorway, facing in only; and the day spilling in on the genkan's stones (item 306)) */}
       {/* (past the door, nothing: the street that stood out there (items 360, 386) taken away, item 397 (the owner's 「戶外景拿掉好了」): from out
@@ -3704,6 +3711,13 @@ type Shown = { id: number; seat: number; phase: 'enter' | 'sit' | 'leave' | 'wcG
   fade?: number
   /** going out of the door: how long (s) they've been fading */
   fadeT?: number
+  /** (item 623, part three) what they came in with against the rain (decided as they're put in, by the weather then), its colours; their
+   * umbrella's place in the stand out by the door (-1 none yet) and whether it stands there; their raincoat off (folded, with them); going
+   * out, how long they've been at the stand (s) and whether it's raining as they go; what their figure's told of it each frame */
+  gear?: 'umbrella' | 'coat' | null; umbC?: number; coatC?: number; umbSlot?: number; umbIn?: boolean; coatOff?: boolean
+  outT?: number; outWet?: boolean; gearAt?: GearAt
+  /** (item 623) the last of their door moment's sounds played (closed, shaken; taken out, opened), so each plays once */
+  umbSaid?: number
   /** in the house's slippers (inside, past the genkan's step), or their own shoes */
   slippers?: boolean
   /** the height they were last shown at (item 410: eased up and down the sliding door's steps) */
@@ -3767,6 +3781,113 @@ const withPause = (d: number, at: number, hold: number) => (d < at ? d : d < at 
  * A customer's moment at the genkan's step (`f` 0..1 through it; outside it, nothing): turned to the shoe cupboard, a little bow; their
  * cubby (by their seat) opened a moment, their shoes put in it coming in (`entering`), taken out of it going
  */
+// ---- (item 623, part three; the owner's 「進來的客人會穿雨衣或帶雨傘」) the rain's things: an umbrella closed at the door and stood in the
+// stand out on the step before the fixed leaf (Japanese shops keep theirs out by the door: the genkan inside is the takeaways' and the till's
+// queue's, and its way in the customers' own), taken out and opened going; a raincoat taken off at the genkan's step and folded, carried to
+// the stool and set down by it, put on again going. game/rainGear's rules and beats, scene/rainGear3D's shapes and materials.
+/** where the stand stands (the doorway's frame, look-door's): on the second stone step, before the fixed leaf, clear of the way in */
+const KASA_AT: [number, number, number] = [-0.36, -0.341, 0.698]
+/** the stand's places (its own frame, its foot's middle): five round the jar's inside leant out a little and one in its middle, their points
+ * on its floor; three leant against its outside, their points on the step, to its two sides (the step's too shallow before and behind it):
+ * each its rod's and its furled canopy's placing, and where its grip is (the hand's place putting it in or taking it out) */
+const SLOT = (() => {
+  const Y = new THREE.Vector3(0, 1, 0), ONE = new THREE.Vector3(1, 1, 1), furl = canopyScale(0, new THREE.Vector3())
+  const rod: THREE.Matrix4[] = [], canopy: THREE.Matrix4[] = [], grip: THREE.Vector3[] = []
+  const add = (point: THREE.Vector3, up: THREE.Vector3, twist: number) => {
+    // (the rod's +y runs from the grip down to the point: its grip TIP_END up the umbrella from its point)
+    const g = point.clone().addScaledVector(up, TIP_END)
+    const q = new THREE.Quaternion().setFromUnitVectors(Y, up.clone().negate()).multiply(new THREE.Quaternion().setFromAxisAngle(Y, twist))
+    rod.push(new THREE.Matrix4().compose(g, q, ONE))
+    canopy.push(new THREE.Matrix4().compose(g.clone().addScaledVector(up, -ROD_TIP), q, furl))
+    grip.push(g)
+  }
+  for (let k = 0; k < 5; k++) {
+    const a = 0.3 + (2 * Math.PI * k) / 5, lean = 0.09
+    add(new THREE.Vector3(0.018 * Math.cos(a), KASA_FLOOR, 0.018 * Math.sin(a)), new THREE.Vector3(Math.sin(lean) * Math.cos(a), Math.cos(lean), Math.sin(lean) * Math.sin(a)), a + Math.PI)
+  }
+  add(new THREE.Vector3(0, KASA_FLOOR, 0), Y.clone(), 1.2)
+  for (const [a, r] of [[0, 0.14], [Math.PI, 0.14], [0.5, 0.15]]) {
+    const lean = 0.2
+    add(new THREE.Vector3(r * Math.cos(a), 0.003, r * Math.sin(a)), new THREE.Vector3(-Math.sin(lean) * Math.cos(a), Math.cos(lean), -Math.sin(lean) * Math.sin(a)), a)
+  }
+  return { rod, canopy, grip }
+})()
+/** what's in the stand (each place's umbrella's colour, -1 none: the customers' own, worked out again each frame from those in), its own
+ * frame in the world (the stand's, each frame), and how many times what's in it has changed */
+const UMB_STAND = { colours: new Int8Array(UMB_SLOTS).fill(-1), now: new Int8Array(UMB_SLOTS), ver: 0, frame: new THREE.Matrix4(), ready: false }
+/** a place's grip in the world (the stand drawn: its frame known) */
+if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __umbStand: UMB_STAND })
+const standGrip = (slot: number, out: THREE.Vector3) => out.copy(SLOT.grip[Math.max(0, Math.min(UMB_SLOTS - 1, slot))]).applyMatrix4(UMB_STAND.frame)
+/** what a customer brings in against the rain, as they're put in (none for one called off the bench: they came in before) */
+function gearFor(id: number): Pick<Shown, 'gear' | 'umbC' | 'coatC' | 'umbSlot'> {
+  const g = gearOf(id, RAIN_NOW.k, folkSpec(id).briefcase)
+  return g ? { gear: g, umbC: umbrellaOf(id), coatC: coatOf(id, kindOf(id).kind === 'kid'), umbSlot: -1 } : {}
+}
+/** a customer's rain things for their figure this frame, written over (made once each) */
+const gearAtOf = (s: Shown) => (s.gearAt ??= { umb: -1, pose: newUmbPose(), standAt: null, coat: -1, worn: false, coatPose: null, bundle: 0 })
+const COAT_POSE = new Map<number, ReturnType<typeof newCoatPose>>()
+const GEAR_P = new THREE.Vector3(), GEAR_Q = new THREE.Vector3()
+/**
+ * The umbrella stand out on the step (blender/kasatate.py's KasaStand, a Shigaraki jar in namako blue) and the umbrellas stood in it: one
+ * set of instances for their furled canopies (each its own colour) and one for their rods, as many as stand there; all of it there from the
+ * shop's load (the stand empty on a dry day, as shops leave theirs out), its programs warmed then; nothing of it casts a shadow.
+ */
+const KasaStand = memo(function KasaStand() {
+  const kasa = useKasa()
+  const jar = useRef<THREE.Group>(null)
+  const parts = useMemo(() => {
+    const m = rainMats()
+    const canopies = new THREE.InstancedMesh(kasa.canopy, m.standCanopy, UMB_SLOTS), rods = new THREE.InstancedMesh(kasa.rod, m.rod, UMB_SLOTS)
+    const c = new THREE.Color('#ffffff')
+    for (let i = 0; i < UMB_SLOTS; i++) { canopies.setColorAt(i, c); canopies.setMatrixAt(i, SLOT.canopy[i]); rods.setMatrixAt(i, SLOT.rod[i]) }
+    canopies.count = 0; rods.count = 0
+    for (const x of [canopies, rods]) { x.castShadow = false; x.frustumCulled = false }
+    return { canopies, rods }
+  }, [kasa])
+  useEffect(() => () => { parts.canopies.dispose(); parts.rods.dispose() }, [parts])
+  useEffect(() => { if (jar.current) inkModel(jar.current) }, [])
+  const seen = useRef(-1)
+  const col = useMemo(() => new THREE.Color(), [])
+  useFrame(() => {
+    const j = jar.current
+    if (!j) return
+    j.updateWorldMatrix(true, false)
+    UMB_STAND.frame.copy(j.matrixWorld)
+    UMB_STAND.ready = true
+    if (seen.current === UMB_STAND.ver) return
+    seen.current = UMB_STAND.ver
+    // (the umbrellas in it, each at its place in its colour)
+    let n = 0
+    for (let i = 0; i < UMB_SLOTS; i++) {
+      const c = UMB_STAND.colours[i]
+      if (c < 0) continue
+      parts.canopies.setMatrixAt(n, SLOT.canopy[i]); parts.rods.setMatrixAt(n, SLOT.rod[i])
+      parts.canopies.setColorAt(n, standCanopyColour(c, col))
+      n++
+    }
+    parts.canopies.count = n; parts.rods.count = n
+    parts.canopies.instanceMatrix.needsUpdate = true; parts.rods.instanceMatrix.needsUpdate = true
+    if (parts.canopies.instanceColor) parts.canopies.instanceColor.needsUpdate = true
+  })
+  return (
+    <group ref={jar}>
+      <mesh geometry={kasa.stand} material={rainMats().stand} />
+      <primitive object={parts.canopies} />
+      <primitive object={parts.rods} />
+    </group>
+  )
+})
+/** the rain things' programs made as the shop loads (scene/Prewarm), and the raincoats' pictures sent to the card: never while it's open */
+function RainGearWarm() {
+  const kasa = useKasa()
+  const gl = useThree((st) => st.gl)
+  useEffect(() => {
+    warmLater(rainWarmGroup(kasa))
+    for (const t of coatPictures() ?? []) gl.initTexture(t)
+  }, [kasa, gl])
+  return null
+}
+
 function shoeStep(s: Shown, g: THREE.Object3D | undefined, f: number, entering: boolean) {
   if (!g) return
   if (f < 0 || f > 1) { g.rotation.x = 0; return }
@@ -6785,7 +6906,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           const from = benchFrom.current.get(g.id) ?? (BENCH.up.has(g.id) ? sitters.current.get(g.id)?.pos.clone() : undefined)
           if (from) benchFrom.current.delete(g.id)
           const shod = benchShoesIn.current.delete(g.id)
-          if (seat !== undefined) next = [...next, from ? { id: g.id, seat, phase: 'enter', t: 0, from, welcomed: true, ...(shod ? { shoesIn: true } : {}) } : { id: g.id, seat, phase: 'enter', t: 0 }]
+          if (seat !== undefined) next = [...next, from ? { id: g.id, seat, phase: 'enter', t: 0, from, welcomed: true, ...(shod ? { shoesIn: true } : {}) } : { id: g.id, seat, phase: 'enter', t: 0, ...gearFor(g.id) }]
         }
       }
       return next
@@ -6900,14 +7021,18 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         // (stopping at the genkan's step a moment, to step out of their shoes and up into slippers)
         const v = SPEED * walkSpeedOf(kindOf(s.id).kind), raw0 = Math.max(0, (s.t - (s.stepHold ?? 0)) * v)
         // (stood out on the step at the sliding door while it's slid open (item 410), then in; one off the bench is in already)
-        const raw = s.from || !doorLead.len ? raw0 : withPause(raw0, 0, DOOR_WAIT_S * v)
+        // (item 623: with an umbrella, the moment at the door is its closing and standing in the stand (UMB_IN_S))
+        const umbIn = s.gear === 'umbrella' && !s.from && !!doorLead.len
+        const raw = s.from || !doorLead.len ? raw0 : withPause(raw0, 0, (umbIn ? UMB_IN_S : DOOR_WAIT_S) * v)
+        // (and with a raincoat, the stop at the step its taking off first (COAT_OFF_S), then the shoes)
+        const coatS = s.gear === 'coat' ? COAT_OFF_S : 0
         // (behind their stool they stop, pull it out, step up onto it (the owner's), then sit and slide in with it)
         const stand = len - STOOL_STAND
         // (the genkan's step one at a time (item 414): someone else on it changing their shoes, they wait a body's length back, that time
         // out of their walk)
         const stepD = stepAt(path)
-        if (!s.from && waitsForStep(STEP_TURN, s.id, raw, stepD, stepD + SHOES_S * v, QUEUE_GAP)) s.stepHold = (s.stepHold ?? 0) + tick(dt)
-        const d = Math.min(stand, withPause(raw, stepD, SHOES_S * v))
+        if (!s.from && waitsForStep(STEP_TURN, s.id, raw, stepD, stepD + (SHOES_S + coatS) * v, QUEUE_GAP)) s.stepHold = (s.stepHold ?? 0) + tick(dt)
+        const d = Math.min(stand, withPause(raw, stepD, (SHOES_S + coatS) * v))
         const { p, dir } = alongPath(path, d)
         if (d >= stand) {
           s.pullT = (s.pullT ?? 0) + dt
@@ -6931,8 +7056,57 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           s.welcomed = true
           crewWelcome(lang)
         }
+        // (item 623, part three: at the door with an umbrella: closed, turned over, shaken, turned to the stand and stood in it, turned back;
+        // the beat's own clock the time they've been shown, its place in the stand taken as the hand goes out to it)
+        if (umbIn && g) {
+          const bt = s.t - (s.stepHold ?? 0), ga = gearAtOf(s)
+          if (bt <= UMB_IN_S) {
+            const pose = umbInBeat(bt, ga.pose)
+            ga.umb = s.umbC ?? 0
+            if (pose.reach > 0 && (s.umbSlot ?? -1) < 0) {
+              const used = Array.from({ length: UMB_SLOTS }, (_, i) => shown.some((o) => o !== s && o.umbSlot === i))
+              const f = freeSlot(used)
+              s.umbSlot = f >= 0 ? f : UMB_SLOTS - 1
+            }
+            ga.standAt = UMB_STAND.ready && (s.umbSlot ?? -1) >= 0 ? standGrip(s.umbSlot!, ga.standAt ?? new THREE.Vector3()) : null
+            if (pose.inStand && !s.umbIn) { s.umbIn = true; if (ga.standAt) umbrellaSound(ga.standAt, 'in') }
+            // (its sounds once each: closed, shaken)
+            const at = g.getWorldPosition(GEAR_P)
+            if ((s.umbSaid ?? 0) < 1 && bt >= UMB_CLOSE_AT) { s.umbSaid = 1; umbrellaSound(at, 'close') }
+            if ((s.umbSaid ?? 0) < 2 && bt >= UMB_CLOSE_AT + 0.85) { s.umbSaid = 2; umbrellaSound(at, 'shake') }
+            // (turned to the stand as they go to it, a step toward it as the hand goes out (its mouth a little past their arm))
+            if (ga.standAt && g.parent && pose.turn > 0) {
+              const st = g.parent.worldToLocal(GEAR_Q.copy(ga.standAt))
+              const ty = Math.atan2(st.x - g.position.x, st.z - g.position.z)
+              const by = Math.atan2(Math.sin(ty - g.rotation.y), Math.cos(ty - g.rotation.y))
+              g.rotation.y += by * pose.turn
+              const far = Math.hypot(st.x - g.position.x, st.z - g.position.z)
+              if (far > 1e-4) g.position.addScaledVector(GEAR_Q.set(st.x - g.position.x, 0, st.z - g.position.z).divideScalar(far), Math.max(0, far - 0.42) * 0.6 * pose.reach)
+            }
+          } else ga.umb = -1
+        }
+        // (with a raincoat: at the step it's taken off first: the hands to its collar, shrugged off, folded, into the left hand; then the shoes)
+        const into = (raw - stepAt(path)) / v
+        if (coatS > 0) {
+          const ga = gearAtOf(s)
+          ga.coat = s.coatC ?? 0
+          if (into >= 0 && into <= COAT_OFF_S && !s.from) {
+            const pose = COAT_POSE.get(s.id) ?? newCoatPose()
+            COAT_POSE.set(s.id, pose)
+            coatOffBeat(into, pose)
+            ga.coatPose = pose
+            if (!pose.worn && !s.coatOff) { s.coatOff = true; if (g) coatSound(g.getWorldPosition(GEAR_P)) }
+            ga.bundle = pose.bundle
+          } else {
+            ga.coatPose = null
+            if (into > COAT_OFF_S) s.coatOff = true
+            ga.bundle = s.coatOff ? 2 : 0
+            COAT_POSE.delete(s.id)
+          }
+          ga.worn = !s.coatOff
+        }
         // (at the step: their shoes off and into a cubby of the cupboard, turned to it, a little bow)
-        shoeStep(s, g, (raw - stepAt(path)) / (SHOES_S * v), true)
+        shoeStep(s, g, (into - coatS) / SHOES_S, true)
         s.slippers = d > stepAt(path)
         if (d >= stand && (s.pullT ?? 0) >= STOOL_PULL_S + STOOL_STEP_S) {
           s.phase = 'sit'
@@ -7177,7 +7351,9 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         // (item 410) it's the step first, their shoes on, then the till down in the genkan, then the sliding door; the till's stop was taken
         // first, as it had come first, and they paid stood at the step, 1.5 from the till, 6.8 s on it. Where each begins in the walk's own
         // terms (`raw`, the time stood at the stops in it): its place along it, and the stops before it)
-        const shoeAt = lp.len - stepAt(lp.path), shoeHold = SHOES_S * v, payHold = payD ? PAY_S * v : 0
+        // (item 623: with a raincoat off, the stop at the step its putting on after the shoes (COAT_ON_S))
+        const coatS = s.gear === 'coat' && s.coatOff ? COAT_ON_S : 0
+        const shoeAt = lp.len - stepAt(lp.path), shoeHold = (SHOES_S + coatS) * v, payHold = payD ? PAY_S * v : 0
         const payFirst = payAt <= shoeAt
         const payRaw = payAt + (payFirst ? 0 : shoeHold), shoeRaw = shoeAt + (payFirst ? payHold : 0)
         // (no cashier sat at the till: they wait at it, a server called round to ring them up (item 203: the register took their money by itself),
@@ -7218,7 +7394,45 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         g?.position.copy(p)
         if (g) g.rotation.y = s.t < 0.8 ? st.yaw : turnToward(g.rotation.y, Math.atan2(-dir.x, -dir.z), dt * 1.5)
         // (at the step on the way out: their shoes out of their cubby and on)
-        shoeStep(s, g, (raw - shoeRaw) / shoeHold, false)
+        shoeStep(s, g, (raw - shoeRaw) / (SHOES_S * v), false)
+        // (item 623, part three: then the raincoat: out of the left hand, shaken open, arms into it, the collar set)
+        if (s.gear === 'coat') {
+          const ga = gearAtOf(s), intoC = (raw - shoeRaw) / v - SHOES_S
+          ga.coat = s.coatC ?? 0
+          if (coatS > 0 && intoC >= 0 && intoC <= COAT_ON_S) {
+            const pose = COAT_POSE.get(s.id) ?? newCoatPose()
+            COAT_POSE.set(s.id, pose)
+            coatOnBeat(intoC, pose)
+            ga.coatPose = pose
+            if (pose.worn && s.coatOff) { s.coatOff = false; if (g) coatSound(g.getWorldPosition(GEAR_P)) }
+            ga.bundle = pose.bundle
+          } else {
+            ga.coatPose = null
+            if (intoC > COAT_ON_S) s.coatOff = false
+            ga.bundle = s.coatOff ? 2 : 0
+            COAT_POSE.delete(s.id)
+          }
+          ga.worn = !s.coatOff
+        }
+        // (and their umbrella out of the stand at the door: turned to it, taken out, raining opened over them, dry held furled; then they go)
+        if (s.gear === 'umbrella' && (s.umbIn || s.outT !== undefined) && g && d >= lp.len - 0.005) {
+          const ga = gearAtOf(s)
+          if (s.outT === undefined) { s.outT = 0; s.outWet = RAIN_NOW.k > 0.15 }
+          else s.outT += tick(dt)
+          const pose = umbOutBeat(s.outT, !!s.outWet, ga.pose)
+          ga.umb = s.umbC ?? 0
+          ga.standAt = UMB_STAND.ready && (s.umbSlot ?? -1) >= 0 ? standGrip(s.umbSlot!, ga.standAt ?? new THREE.Vector3()) : null
+          if (!pose.inStand && s.umbIn) { s.umbIn = false; if (ga.standAt) umbrellaSound(ga.standAt, 'out') }
+          if (s.outWet && (s.umbSaid ?? 0) < 3 && s.outT >= 1.45) { s.umbSaid = 3; umbrellaSound(g.getWorldPosition(GEAR_P), 'open') }
+          if (ga.standAt && g.parent && pose.turn > 0) {
+            const st = g.parent.worldToLocal(GEAR_Q.copy(ga.standAt))
+            const ty = Math.atan2(st.x - g.position.x, st.z - g.position.z)
+            const by = Math.atan2(Math.sin(ty - g.rotation.y), Math.cos(ty - g.rotation.y))
+            g.rotation.y += by * pose.turn
+            const far = Math.hypot(st.x - g.position.x, st.z - g.position.z)
+            if (far > 1e-4) g.position.addScaledVector(GEAR_Q.set(st.x - g.position.x, 0, st.z - g.position.z).divideScalar(far), Math.max(0, far - 0.42) * 0.6 * pose.reach)
+          }
+        }
         // (at the till, facing it: the register's reading follows what they owe)
         // (waiting to pay: on the way out and not yet past the till)
         if (payD && raw < payRaw + payHold) queue++
@@ -7249,10 +7463,13 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         // (let go at its end, a long stride at ×2 left them a third seen, a blink out of sight))
         // (past the sliding door they fade, down its step (item 410): over the last 0.3, not the last 0.9, which began in front of it)
         const leaveFade = doorLead.len ? 0.3 : 0.9
-        if (lp.len - d < leaveFade) s.fadeT = (s.fadeT ?? 0) + dt
+        // (item 623: not while they're at the stand taking their umbrella: they fade once they've it in hand, open or furled)
+        const atStand = s.gear === 'umbrella' && (s.umbIn || (s.outT !== undefined && s.outT < umbOutS(!!s.outWet)))
+        if (atStand) s.fadeT = 0
+        else if (lp.len - d < leaveFade) s.fadeT = (s.fadeT ?? 0) + dt
         s.fade = Math.max(0, Math.min(1, Math.max((lp.len - d) / leaveFade, 1 - (s.fadeT ?? 0) / FADE_S)))
         // (and if they've somehow not got out in all the time it can take, they're gone all the same)
-        if ((d >= lp.len && s.fade <= 0) || raw > lp.len + (PAY_S + SHOES_S + DOOR_SLIDE_S + 8) * v) done.push(s.id)
+        if ((d >= lp.len && s.fade <= 0) || raw > lp.len + (PAY_S + SHOES_S + COAT_ON_S + DOOR_SLIDE_S + 2 + 8) * v) done.push(s.id)
       }
       // (their stool where it's been moved to by hand: sat on it there, and stepped up to it and away from it there)
       const mk = SEAT_MARKS.get(s.seat), fr = frame.current
@@ -7300,6 +7517,15 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         s.shownY = was === undefined || s.t <= tick(dt) * 1.5 ? ty : was + Math.max(-most, Math.min(most, ty - was))
         g.position.y = s.shownY
       }
+    }
+    // (item 623, part three: what stands in the umbrella stand, from those in: each one's whose umbrella's in it, at its place)
+    {
+      const now = UMB_STAND.now
+      now.fill(-1)
+      for (const s of shown) if (s.umbIn && (s.umbSlot ?? -1) >= 0) now[s.umbSlot!] = s.umbC ?? 0
+      let changed = false
+      for (let i = 0; i < UMB_SLOTS; i++) if (now[i] !== UMB_STAND.colours[i]) { UMB_STAND.colours[i] = now[i]; changed = true }
+      if (changed) UMB_STAND.ver++
     }
     // (the register and the money follow what's being paid: each dish rung up in turn, the total, the note laid on the tray, the drawer out and
     // the note put in it, the change worked out and set on the tray, the drawer shut, the change taken)
@@ -11277,6 +11503,7 @@ function PersonClockImpl({ s, eating, clock, talk, mood, plateOf, drinkOf, soupO
   const atFridge = s.phase === 'wcIn' && s.wc?.who === 'drink'
   // (their own boundary: a customer still loading shows nothing a moment, never blanks the shop round them)
   return <Suspense fallback={null}><FolkFigure id={s.id} eating={eating} walking={s.phase !== 'sit' && !s.wcSit} still={() => !!s.still} clock={clock} talk={talk} mood={mood}
+    gear={() => s.gearAt ?? null} gearScale={1 / (FOLK_FIT * folkSpec(s.id).size * PEOPLE_SCALE)}
     fade={() => s.fade ?? 1} slippers={() => s.slippers ?? true} pose={atFridge ? 'Fetch' : s.phase === 'wcWash' ? 'Wash' : s.phase === 'sit' && s.wipeAt ? 'Wipe' : undefined} fit={FOLK_FIT}
     held={inHand} heldShown={() => s.phase === 'wcBack' || (s.phase === 'wcGo' && s.wc?.who === 'drink') || (sipK() >= 0.2 && sipK() < 0.86)} cup={cup}
     sip={() => (s.phase === 'sit' && s.drink ? sipK() : -1)} drinkAt={() => (s.drink ? drinkOf(s.seat, cup) : null)} bite={() => EAT_PHASE.get(s.id)}

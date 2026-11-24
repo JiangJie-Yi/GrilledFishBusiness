@@ -22,6 +22,8 @@ import { cloth } from './patterns'
 import type { Mood } from './people'
 import { warmLater } from './Prewarm'
 import { crownOf, puffBurst } from './angerPuffs'
+import { VINYL } from '@/game/rainGear'
+import { ROD_TIP, canopyScale, coatPictures, rainMats, useKasa, type GearAt } from './rainGear3D'
 
 /*
  * A customer in the boss's style (blender/folk.py: public/models/folk.glb): an Overcooked cook's big round head on a short plump body, no
@@ -358,6 +360,17 @@ function folkMaterial(outfit: THREE.Texture | null, face: THREE.Texture | null, 
 /** the phone's middle from the left hand's (its own frame: across, up it, out of its back; its screen's on the -z face) */
 const PH_GRIP = new THREE.Vector3(-0.024, 0.035, -0.032)
 const PH_HOLD = new THREE.Vector3(0.099, 0.444, 0.29)
+// ---- (item 623, part three) the rain's things in the hands, in the body's frame: the umbrella in the right hand (handL) up at the side of
+// the head while it's open over them (its shaft leant in over the head); furled and turned over, tip down, at the shoulder; out to the
+// stand, high over it (UMB_LIFT: its point clear of the rim), then down into it. The raincoat: both hands to its collar, spread out and back
+// as it's shrugged off (or on), together in front folding it
+const UMB_OVER = new THREE.Vector3(-0.27, 0.86, 0.12), UMB_CARRY = new THREE.Vector3(-0.26, 0.58, 0.16), UMB_LIFT = 0.3
+const COAT_AT = {
+  collarL: new THREE.Vector3(-0.12, 0.55, 0.24), collarR: new THREE.Vector3(0.12, 0.55, 0.24),
+  spreadL: new THREE.Vector3(-0.38, 0.47, -0.06), spreadR: new THREE.Vector3(0.38, 0.47, -0.06),
+  foldL: new THREE.Vector3(-0.06, 0.38, 0.32), foldR: new THREE.Vector3(0.06, 0.38, 0.32),
+}
+const GEAR_V = new THREE.Vector3()
 const PH_POCKET = new THREE.Vector3(0.24, 0.2, 0.14)
 /** the left hand's turn holding it; the phone's own turn from upright with it (its screen up and back toward the face), and in the pocket */
 const PH_TURN = -0.2
@@ -622,7 +635,7 @@ function FolkWarmImpl() {
  */
 // (item 374: drawn again only when its own props change: what it does frame by frame it reads through its callbacks)
 export const FolkFigure = memo(FolkFigureImpl)
-function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = null, fade, pose, held, fit = 1, ground = false, plate, sip, drinkAt, heldShown, cup = false, bite, soup, soupAt, soupKey, fume }: {
+function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = null, fade, pose, held, fit = 1, ground = false, plate, sip, drinkAt, heldShown, cup = false, bite, soup, soupAt, soupKey, fume, gear, gearScale = 1 }: {
   id: number; eating: boolean; walking: boolean; still?: () => boolean; clock?: { current: number }; talk?: number; mood?: Mood | null
   fade?: () => number; slippers?: () => boolean; pose?: string; held?: ReactNode; fit?: number
   /** (sat eating) where their food is, in the world: their plate's middle, for the chopsticks to come down on */
@@ -648,7 +661,11 @@ function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = nu
   bite?: () => number | undefined
   /** stood on the floor, not sat on a stool's seat, when not walking (the character viewer's turntable: there's no stool there, and sat
    * at the seat's height over it they floated, the briefcase set down by them on the floor) */
-  ground?: boolean }) {
+  ground?: boolean
+  /** (item 623, part three) their things against the rain this frame (scene/rainGear3D's GearAt: the umbrella and its pose, the raincoat,
+   * the folded coat), and how the bar's units go into the figure's (the umbrella's and the coat's sizes are the bar's) */
+  gear?: () => GearAt | null
+  gearScale?: number }) {
   const gltf = useGLTF(URL) as unknown as { scene: THREE.Group }
   const pictures = usePictures()
   const spec = useMemo(() => folkSpec(id), [id])
@@ -674,6 +691,7 @@ function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = nu
     const { material, face } = folkMaterial(pictures.get(spec.outfit) ?? null, pictures.get(faceKey(spec)) ?? null,
       spec.acc.includes('shawl') ? cloth('knit', '#8a6a9a', [6, 2]) : null)
     m.material = material
+    clothes.current = { mat: material, outfit: pictures.get(spec.outfit) ?? null }
     fig.face = face
     const src = m.geometry
     const g = new THREE.BufferGeometry()
@@ -696,10 +714,35 @@ function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = nu
       g.dispose()
       material.dispose()
       fig.face = null
+      clothes.current = null
     }
   }, [fig, spec, pictures])
 
   const heldRef = useRef<THREE.Group>(null)
+  /** (item 623, part three) their material and their clothes' picture (the raincoat's put in its place while they wear one) */
+  const clothes = useRef<{ mat: THREE.MeshToonMaterial; outfit: THREE.Texture | null } | null>(null)
+  const kasa = useKasa()
+  /** the umbrella (its rod, its canopy on a pivot at the rod's tip, scaled about it to furl it) and the folded coat: their own meshes of the
+   * shared shapes and materials, hidden till there's one; none casts a shadow */
+  const rain = useMemo(() => {
+    const m = rainMats()
+    const root = new THREE.Group(), pivot = new THREE.Group()
+    const rod = new THREE.Mesh(kasa.rod, m.rod), canopy = new THREE.Mesh(kasa.canopy, m.canopy[0]), bundle = new THREE.Mesh(kasa.bundle, m.bundle[0])
+    pivot.position.y = ROD_TIP
+    pivot.add(canopy)
+    root.add(rod, pivot)
+    // (none casts a shadow; and none is faded with the figure (their materials are everyone's: a fade's dithering set on one would be on
+    // them all, and compile anew): shown only once the figure's half there)
+    for (const x of [rod, canopy, bundle]) { x.castShadow = false; x.userData.rainGear = true }
+    root.visible = false
+    bundle.visible = false
+    return { root, pivot, canopy, bundle }
+  }, [kasa])
+  useEffect(() => {
+    fig.handL?.add(rain.root)
+    fig.root.add(rain.bundle)
+    return () => { rain.root.removeFromParent(); rain.bundle.removeFromParent() }
+  }, [fig, rain])
   // (the anger mark and the steam: on the head, made with the figure, shown as they get cross (item 347))
   const fx = useMemo(() => {
     const g = new THREE.Group()
@@ -765,7 +808,7 @@ function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = nu
     faded.current = f
     fig.root.traverse((o) => {
       const m = o as THREE.Mesh
-      if (!m.isMesh) return
+      if (!m.isMesh || m.userData.rainGear) return
       const mat = m.material as THREE.Material
       // (their outline: thinned with them as they fade, to nothing (hidden at once as a fade began, it was gone in a blink before the rest of
       // them, the owner saw them vanish); its material's shared, so its width is set just for their draw and put back after)
@@ -942,6 +985,8 @@ function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = nu
     }
     // (the hands: swinging as they walk; at the table, the left on the bar and the chopsticks from the plate to the mouth in the right; the phone
     // up in the left; the chin on the left hand; reaching into the fridge; a drink held in the right)
+    // (item 623, part three: their rain things this frame, if any)
+    const ga = gear?.() ?? null
     const L = fig.handL, Rh = fig.handR
     // (their food, in the body's frame)
     const where = eating && !walking && !sipping ? plate?.() : null
@@ -1041,9 +1086,29 @@ function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = nu
       }
       if (held && !eating && !sipping) { lp.set(-0.22, 0.34, 0.2); lr = -0.3 }
       if (heldRef.current) heldRef.current.visible = !!held && (heldShown ? heldShown() : true)
+      // (item 623, part three: an umbrella at the door: up by the head open, at the shoulder furled and turned over, shaken, out to the stand
+      // high over it and down into it (or out of it); a raincoat at the step: the hands at its collar, spread as it's shrugged, folding it)
+      if (ga && ga.umb >= 0) {
+        const p = ga.pose, fl = p.flip * p.flip * (3 - 2 * p.flip)
+        lp.copy(UMB_OVER).lerp(UMB_CARRY, fl)
+        lp.y -= 0.035 * p.shake
+        if (p.reach > 0 && ga.standAt) {
+          fig.body.worldToLocal(GEAR_V.copy(ga.standAt))
+          GEAR_V.y += UMB_LIFT * p.lift
+          lp.lerp(GEAR_V, p.reach)
+        }
+        lr = 0
+      }
+      if (ga && ga.coat >= 0 && ga.coatPose) {
+        const c = ga.coatPose
+        lp.lerp(COAT_AT.collarL, c.collar).lerp(COAT_AT.spreadL, c.spread).lerp(COAT_AT.foldL, c.fold)
+        rp.lerp(COAT_AT.collarR, c.collar).lerp(COAT_AT.spreadR, c.spread).lerp(COAT_AT.foldR, c.fold)
+        lr = rr = -0.6 * Math.max(c.collar, c.fold)
+      }
       // (closely, through a bite's or a sip's beats, which are eased themselves; more loosely from one thing to the next)
       // (and closely through the phone's: a swipe or a tap is a fifth of a second)
-      const kL = follow(dt, eating || sipping ? 24 : pb ? 28 : 10), kR = follow(dt, souping ? 24 : pb ? 28 : 10)
+      const gearOn = !!ga && (ga.umb >= 0 || !!ga.coatPose)
+      const kL = follow(dt, eating || sipping ? 24 : pb ? 28 : gearOn ? 16 : 10), kR = follow(dt, souping ? 24 : pb ? 28 : gearOn ? 16 : 10)
       L.position.lerp(lp, kL)
       Rh.position.lerp(rp, kR)
       L.rotation.x += (lr - L.rotation.x) * kL
@@ -1057,6 +1122,52 @@ function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = nu
           b.getWorldQuaternion(lifted.q).multiply(BOWL_TIP.setFromAxisAngle(X_AXIS, L.rotation.x * 0.8))
           BOWL_LIFT.set(soupKey, lifted)
         } else BOWL_LIFT.delete(soupKey)
+      }
+    }
+    // (item 623, part three: the umbrella in the right hand, as open as it is, turned over as it is; the clear one see-through while it's
+    // open; hidden as it stands in the stand)
+    {
+      const showUmb = !!ga && ga.umb >= 0 && !ga.pose.inStand && faded.current > 0.5
+      if (rain.root.visible !== showUmb) rain.root.visible = showUmb
+      if (showUmb && ga) {
+        const p = ga.pose, fl = p.flip * p.flip * (3 - 2 * p.flip), m = rainMats()
+        rain.root.scale.setScalar(gearScale)
+        rain.root.rotation.set(Math.PI * fl + 0.12 * (1 - fl), 0, -0.32 * (1 - fl))
+        canopyScale(p.open, rain.pivot.scale)
+        const mat = ga.umb === VINYL && p.open > 0.3 ? m.vinylOpen : m.canopy[ga.umb]
+        if (rain.canopy.material !== mat) rain.canopy.material = mat
+      }
+      // (the folded raincoat: between the hands as it's folded, then in the left hand while they walk, on the floor by the stool while they sit)
+      const showCoat = !!ga && ga.coat >= 0 && ga.bundle > 0 && faded.current > 0.5
+      if (rain.bundle.visible !== showCoat) rain.bundle.visible = showCoat
+      if (showCoat && ga && L && Rh) {
+        const m = rainMats(), kk = fit * spec.size
+        if (rain.bundle.material !== m.bundle[ga.coat]) rain.bundle.material = m.bundle[ga.coat]
+        rain.bundle.scale.setScalar(gearScale)
+        if (ga.bundle === 1) {
+          GEAR_V.copy(L.position).add(Rh.position).multiplyScalar(0.5)
+          GEAR_V.z += 0.03
+          fig.root.worldToLocal(fig.body.localToWorld(GEAR_V))
+          rain.bundle.position.copy(GEAR_V)
+          rain.bundle.rotation.set(0, 0, 0)
+        } else if (walking) {
+          GEAR_V.copy(Rh.position)
+          GEAR_V.y -= 0.07
+          GEAR_V.z += 0.02
+          fig.root.worldToLocal(fig.body.localToWorld(GEAR_V))
+          rain.bundle.position.copy(GEAR_V)
+          rain.bundle.rotation.set(0, 0, Math.PI / 2)
+        } else {
+          const lift = lifted.current ?? (ground ? 0 : SEAT)
+          rain.bundle.position.set(0.22 / kk, -lift / kk + 0.0225 * gearScale, 0.12 / kk)
+          rain.bundle.rotation.set(0, 0.4, 0)
+        }
+      }
+      // (the raincoat on: its picture over their clothes' while they wear it)
+      const cl = clothes.current
+      if (cl) {
+        const want = ga && ga.coat >= 0 && ga.worn ? coatPictures()?.[ga.coat] ?? cl.outfit : cl.outfit
+        if (want && cl.mat.map !== want) cl.mat.map = want
       }
     }
     // (what's in their hands, shown by its part of the one mesh being its size, hidden by its being nothing)

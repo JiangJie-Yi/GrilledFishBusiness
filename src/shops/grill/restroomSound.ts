@@ -935,6 +935,74 @@ export function putInSound(at: THREE.Vector3, kind: 'veg' | 'coal' = 'veg') {
 }
 
 /**
+ * An umbrella at the shop's door (item 623, part three): closed (a sweep of cloth falling, the runner's click as it goes), opened (a sweep up
+ * and the canopy snapped taut, the runner's click), shaken (two wet flaps and a scatter of drops), put in the stand (its ferrule's knock on
+ * the jar's floor, hollow, a rattle against the rim), taken out (a scrape up the rim and a softer knock). Where it's done, as heard there.
+ */
+export function umbrellaSound(at: THREE.Vector3, kind: 'close' | 'open' | 'shake' | 'in' | 'out') {
+  const a = ctx()
+  const { near, pan } = heard(at)
+  if (!a || near < 0.02 || !gate(`umb${kind}${at.x.toFixed(1)}${at.z.toFixed(1)}`, 150)) return
+  const t = a.currentTime
+  if (kind === 'close' || kind === 'open') {
+    const o = out(a, 0.1 * near, pan), up = kind === 'open'
+    const k = noise(a, 0.3, (x) => (up ? Math.min(1, x * 3) * (1 - x) ** 0.5 : (1 - x) ** 1.6), 0.55, { key: up ? 'umbOpen' : 'umbClose', ways: 3 })
+    const f = a.createBiquadFilter()
+    f.type = 'bandpass'; f.Q.value = 0.8
+    f.frequency.setValueAtTime(up ? 500 : 1700, t); f.frequency.linearRampToValueAtTime(up ? 1900 : 450, t + 0.3)
+    k.connect(f).connect(o)
+    k.start(t)
+    ping(a, up ? t + 0.27 : t + 0.01, 2500 + Math.random() * 300, 0.22, 0.03, o, 'triangle')
+    // (opened: the cloth snapped taut, a low thump of it)
+    if (up) ping(a, t + 0.26, 150 + Math.random() * 30, 0.45, 0.11, o)
+  } else if (kind === 'shake') {
+    const o = out(a, 0.08 * near, pan)
+    for (const dt of [0, 0.17]) {
+      const k = noise(a, 0.08, (x) => (1 - x) ** 2, 0.35, { key: 'umbFlap', ways: 3 })
+      const f = a.createBiquadFilter()
+      f.type = 'lowpass'; f.frequency.value = 1300
+      k.connect(f).connect(o)
+      k.start(t + dt)
+    }
+    // (the drops thrown off it: little ticks, high, here and there over half a second)
+    for (let i = 0; i < 7; i++) ping(a, t + 0.05 + Math.random() * 0.45, 3000 + Math.random() * 2500, 0.05 + Math.random() * 0.05, 0.015, o)
+  } else if (kind === 'in') {
+    const o = out(a, 0.14 * near, pan)
+    // (the ferrule down on the jar's floor: hollow, the jar ringing a moment; then the shaft against the rim)
+    ping(a, t, 380 + Math.random() * 40, 0.5, 0.16, o)
+    ping(a, t, 960 + Math.random() * 80, 0.18, 0.09, o)
+    ping(a, t + 0.09, 1500 + Math.random() * 200, 0.12, 0.05, o, 'triangle')
+    const k = noise(a, 0.06, (x) => (1 - x) ** 2, 0.2, { key: 'umbRattle', ways: 3 })
+    const f = a.createBiquadFilter()
+    f.type = 'highpass'; f.frequency.value = 1800
+    k.connect(f).connect(o)
+    k.start(t + 0.08)
+  } else {
+    const o = out(a, 0.1 * near, pan)
+    const k = noise(a, 0.2, (x) => Math.sin(Math.PI * x), 0.3, { key: 'umbScrape', ways: 3 })
+    const f = a.createBiquadFilter()
+    f.type = 'bandpass'; f.Q.value = 2
+    f.frequency.setValueAtTime(900, t); f.frequency.linearRampToValueAtTime(1700, t + 0.2)
+    k.connect(f).connect(o)
+    k.start(t)
+    ping(a, t + 0.2, 520 + Math.random() * 60, 0.2, 0.08, o)
+  }
+}
+
+/** a raincoat taken off or put on (item 623, part three): its nylon rustling, crumpled about, a few seconds' worth in under a second */
+export function coatSound(at: THREE.Vector3) {
+  const a = ctx()
+  const { near, pan } = heard(at)
+  if (!a || near < 0.02 || !gate(`coat${at.x.toFixed(1)}${at.z.toFixed(1)}`, 300)) return
+  const t = a.currentTime, o = out(a, 0.07 * near, pan)
+  const k = noise(a, 0.6, (x) => (0.4 + 0.6 * Math.abs(Math.sin(x * 23))) * Math.sin(Math.PI * x) ** 0.5, 0.15, { key: 'coatRustle', ways: 3 })
+  const f = a.createBiquadFilter()
+  f.type = 'bandpass'; f.frequency.value = 2800; f.Q.value = 0.7
+  k.connect(f).connect(o)
+  k.start(t)
+}
+
+/**
  * The rain heard from inside while it rains (item 623, game/weather): on the roof and the windows, a soft hiss (a loop of noise, low-passed:
  * muffled through the walls) and now and then a drop ticking over it (a loop of sparse clicks, high-passed); fuller and brighter with the
  * way in's door open, a little more up under the roof. `set(k, open, up)` each frame (k how hard it's raining, 0..1; only a change worth
