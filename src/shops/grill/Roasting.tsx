@@ -4520,7 +4520,7 @@ type FloorMap = ReturnType<typeof floorMap>
 /** where the futon lies clear on a map, its middle at (u, v) and its length's way (du, dv) one of the room's four: the futon and a hand's
  * margin clear and in the shop on the one floor, and the spot before its foot he steps up from; and nothing of it in `keepOut` (the map's
  * rectangles: before a door) */
-function futonFits(f: FloorMap, u: number, v: number, du: number, dv: number, keepOut: [number, number, number, number][] = []) {
+function futonFits(f: FloorMap, u: number, v: number, du: number, dv: number, keepOut: [number, number, number, number][] = [], tall: FloorMap | null = null) {
   const half = FUTON.L * GRILL_SCALE / 2, wide = FUTON.W * GRILL_SCALE / 2 + 0.06
   const eu = du ? half + 0.06 : wide, ev = dv ? half + 0.06 : wide
   if (f.taken(u - eu, u + eu, v - ev, v + ev)) return null
@@ -4528,6 +4528,12 @@ function futonFits(f: FloorMap, u: number, v: number, du: number, dv: number, ke
   const bu = u + du * (half + 0.8), bv = v + dv * (half + 0.8)
   if (f.taken(bu - 0.15, bu + 0.15, bv - 0.15, bv + 0.15)) return null
   const m = f.at(u, v), before = f.at(bu, bv)
+  // (and that spot clear up to his height (the shop's map, his: item 652, the Tester window's: laid by the side counter, he stood up to fold it
+  // under its top, 1.2 m up, and through a stool's seat going back)
+  if (tall) {
+    const q = before.clone().sub(tall.at(0, 0)), tu = q.dot(tall.U), tv = q.dot(tall.V)
+    if (tall.taken(tu - 0.15, tu + 0.15, tv - 0.15, tv + 0.15)) return null
+  }
   const corners = [-1, 1].flatMap((su) => [-1, 1].map((sv) => f.at(u + su * eu, v + sv * ev)))
   if (![m, ...corners, before].every(f.inRoom)) return null
   const lv = f.level(m)
@@ -4567,6 +4573,10 @@ function bedFinds(scene: THREE.Object3D): BedFinds {
     // service, pushed out by their width as they're kept (scene/WorldBatch's pushedOut), as they're not drawn alone: the room's map a few
     // squares fuller merged than not round the women's toilet (item 545), and their triangles as many again as the pieces')
     if (([] as THREE.Material[]).concat(m.material).every(isInk)) return
+    // (nor what's drawn see-through over what's there and not in the depth: the soft shades on the floor round every piece's foot (scene's
+    // ContactShades, made again 2.5 s and 9 s in, its points not the same twice), a glow: the Tester window's (item 652): the shades marked
+    // the floor a hand round the tables' edges, and the same let-go came down somewhere else each time the page was loaded)
+    if (m.name === 'contact-shades' || ([] as THREE.Material[]).concat(m.material).every((x) => x.transparent && !x.depthWrite)) return
     if (offTheFloor(m)) return
     f.meshes.push(m)
   })
@@ -4622,7 +4632,7 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
           for (let k = 0; k < ways.length; k++) {
             const score = Math.hypot(u, v) + k * 0.15
             if (score >= bestScore) continue
-            const fit = futonFits(f, u, v, ways[k][0], ways[k][1], keepOut)
+            const fit = futonFits(f, u, v, ways[k][0], ways[k][1], keepOut, shopMap)
             if (fit) { best = fit; bestScore = score }
           }
         }
@@ -4637,7 +4647,14 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
       const c0 = GRILL_COUNTERS[0], gate = gateOf(c0, BAR_GATES[0]).mid
       const aisle = [gate.clone().addScaledVector(c0.lay, -aisleOf(c0)), aisleCornerOf(GRILL_COUNTERS, GRILL_COUNTERS[1])]
       const before = beforeW ? bar(beforeW).setY(0) : foot.clone().addScaledVector(along, -0.4)
-      const viaFirst = [...head0, onFloor(out[1]), ...aisle.map(onFloor), onFloor(before), onFloor(foot)]
+      // (from the aisle to the spot before the futon round all that's there on the shop's map, made (roomWay, A*), else straight: item 652,
+      // the Tester window's: the futon laid by the side counter, straight from the aisle's corner went through its stools and under its top)
+      const roundTo = (from: THREE.Vector3) => {
+        const a = g.localToWorld(onFloor(from)), b = g.localToWorld(onFloor(before))
+        const w = roomWay(a, b)
+        return w ? w.slice(1, -1).map((p) => onFloor(bar(p).setY(0))) : []
+      }
+      const viaFirst = [...head0, onFloor(out[1]), ...aisle.map(onFloor), ...roundTo(aisle[aisle.length - 1]), onFloor(before), onFloor(foot)]
       // (out by whichever of the bar's two gates is the shorter way to it (item 632, the owner's 「我發現老闆會先到員工專用門在回來，動線條一
       // 下」: it was always the first counter's gate, round the far side of the kitchen to it and back the length of the aisle, 24.6 to a futon
       // 9 away; the side counter's gate's by it)
@@ -4650,7 +4667,7 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
         // the stools along the side counter)
         const in1 = g1.clone().addScaledVector(c1.lay, 0.45), out1 = g1.clone().addScaledVector(c1.lay, -0.5), aisle1 = g1.clone().addScaledVector(c1.lay, -aisleOf(c1))
         const across1 = KITCHEN_ROUTE.route(toBar(fromGrill), in1)
-        const viaSide = [fromGrill.clone(), ...across1.slice(1).map((v) => onFloor(v)), onFloor(out1), onFloor(aisle1), onFloor(before), onFloor(foot)]
+        const viaSide = [fromGrill.clone(), ...across1.slice(1).map((v) => onFloor(v)), onFloor(out1), onFloor(aisle1), ...roundTo(aisle1), onFloor(before), onFloor(foot)]
         if (lengthOf(viaSide) < lengthOf(viaFirst) - 0.3) path = viaSide
       }
       // (the staff's door, and the floor just inside the room before it: his way up the stair to the room upstairs (item 637))
