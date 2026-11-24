@@ -4410,6 +4410,22 @@ function futonFits(f: FloorMap, u: number, v: number, du: number, dv: number, ke
 type BedFinds = { door: THREE.Object3D | null; fridge: THREE.Object3D | null
   /** the meshes a floor map looks at: drawn, not people (skinned) or many at once (instanced), not the futon, not unseen */
   meshes: THREE.Mesh[] }
+/** (item 652, the Tester window's) one of the people, the root of them and all they have on them: a customer's own (`guest`), a server's
+ * or a cook's (`staffId`, `broom`), the owner's (BossFollow), the kitchen's people, those waiting on the bench and the takeaway's (FIGURES);
+ * and what hangs on a bone (a hat, a phone, an umbrella) */
+const isFolk = (o: THREE.Object3D) => (o as THREE.Bone).isBone || o.userData.guest !== undefined || o.userData.staffId !== undefined
+  || o.userData.broom !== undefined || o.name === 'BossFollow' || FIGURES.has(o)
+/** (item 652) not on the floor as furniture: one of the people or on them (a map made with them in it kept each where they stood as it was
+ * made: the owner's own 9 meshes, the staff's 65, the customers' 55 open, the owner let go by one put down where they'd stood, the Tester
+ * window's), or in a group put away (a server not on tonight, their tray at their place); a wall hidden while the camera's round behind it is
+ * there all the same */
+const offTheFloor = (m: THREE.Object3D) => {
+  for (let q: THREE.Object3D | null = m; q; q = q.parent) {
+    if (isFolk(q)) return true
+    if (q !== m && !q.visible && !q.userData.hideRoot) return true
+  }
+  return false
+}
 function bedFinds(scene: THREE.Object3D): BedFinds {
   const f: BedFinds = { door: null, fridge: null, meshes: [] }
   scene.traverse((q) => {
@@ -4423,6 +4439,7 @@ function bedFinds(scene: THREE.Object3D): BedFinds {
     // service, pushed out by their width as they're kept (scene/WorldBatch's pushedOut), as they're not drawn alone: the room's map a few
     // squares fuller merged than not round the women's toilet (item 545), and their triangles as many again as the pieces')
     if (([] as THREE.Material[]).concat(m.material).every(isInk)) return
+    if (offTheFloor(m)) return
     f.meshes.push(m)
   })
   return f
@@ -4543,6 +4560,23 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
       const [a2, l2] = keepOut(al, la, 'owner', HEARTH_ZONES)
       return a2 !== al || l2 !== la
     }
+    // (item 652, the Tester window's: the people where they're drawn now (the world's, on the floor), but him: the map has none of them
+    // (they move), so where he'd come down is kept clear of them as they are as he's let go: one of 39 drops onto a person came down on them,
+    // 0.00 to 0.05 m from their middle. Clear: his half and theirs)
+    const FOLK_CLEAR = 0.5
+    const folkNow = () => {
+      const out: number[] = [], w = new THREE.Vector3()
+      for (const [o] of FIGURES) {
+        if (!o.parent || !o.visible || o.name === 'BossFollow') continue
+        o.getWorldPosition(w)
+        out.push(w.x, w.z)
+      }
+      return out
+    }
+    const onFolk = (w: THREE.Vector3, folk: number[], clear = FOLK_CLEAR) => {
+      for (let k = 0; k < folk.length; k += 2) if (Math.hypot(folk[k] - w.x, folk[k + 1] - w.z) < clear) return true
+      return false
+    }
     const unguard = (w: THREE.Vector3, t: THREE.Object3D | null) => {
       if (!t) return w
       const q = t.worldToLocal(w.clone()), al = q.dot(ALONG), la = q.dot(LAY)
@@ -4556,12 +4590,14 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
     const pick = (f: FloorMap, from: THREE.Vector3, g: THREE.Object3D) => {
       const bar = (w: THREE.Vector3) => toBar(g.worldToLocal(w.clone()))
       const onFloor = (v: THREE.Vector3) => { const q = fromBar(v); return q.setY(floorAt(q)) }
-      const t = tableOf()
+      const t = tableOf(), folk = folkNow()
       const d0 = from.clone().sub(f.at(0, 0)), u0 = d0.dot(f.U), v0 = d0.dot(f.V)
       for (const [du, dv] of RING) {
         const u = u0 + du, v = v0 + dv
         if (f.taken(u - BOSS_FEET, u + BOSS_FEET, v - BOSS_FEET, v + BOSS_FEET)) continue
         const w = f.at(u, v)
+        // (not on one of the people)
+        if (onFolk(w, folk)) continue
         const corners = [-1, 1].flatMap((su) => [-1, 1].map((sv) => f.at(u + su * BOSS_FEET, v + sv * BOSS_FEET)))
         if (![w, ...corners].every(f.inRoom) || inGenkan(GRILL_COUNTERS, bar(w))) continue
         const lv = f.level(w)
@@ -4628,17 +4664,9 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
       // there. Only then: in the editor the room's merge is let go of (scene/WorldBatch), each piece's own meshes there to name it by; and
       // what's drawn and solid only, not the editor's handles, an unseen hit box, a glow; the kitchen's floor a step up, looked at from it)
       if (!ed.on || !ed.paths) { walkMap(); return }
-      // (nor what's in a group put away (a server not on tonight, their tray at their place: 5 of the kitchen's ways went "through" it), but
-      // a wall hidden while the camera's behind it; nor what people have on them: hung on a bone (a phone, an umbrella), a server's or a
-      // cook's own (a tray, a plate): they're not furniture)
-      const kept = (m: THREE.Object3D) => {
-        for (let q = m.parent; q; q = q.parent) {
-          if (!q.visible && !q.userData.hideRoot) return false
-          if ((q as THREE.Bone).isBone || q.userData.broom !== undefined || FIGURES.has(q)) return false
-        }
-        return true
-      }
-      const solid = meshesNow().filter((m) => !m.userData.editHandle && kept(m)
+      // (people, what's on them and what's put away are left out of every map (bedFinds' offTheFloor: a server not on tonight, their tray
+      // at their place, 5 of the kitchen's ways went "through" it))
+      const solid = meshesNow().filter((m) => !m.userData.editHandle
         && !([] as THREE.Material[]).concat(m.material).every((x) => !x.visible || !x.colorWrite || x.opacity <= 0.02 || x.blending === THREE.AdditiveBlending))
       const kr = kitchenOf(GRILL_COUNTERS)
       const kdy = g.localToWorld(new THREE.Vector3(0, GRILL_OFFSET.y - KITCHEN_DROP, 0)).y - g.localToWorld(new THREE.Vector3(0, GRILL_OFFSET.y, 0)).y
@@ -4678,7 +4706,10 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
     const unwarm = whenWarm(() => idleThen(buildShopMap))
     const unsub = subscribeEdit(() => {
       dropMeshes = null; shopMap = null; walk = null; mapJob++
+      // (the map of what a way goes through let go of with its functions, the dev check's too: its squares' meshes (a quarter of a megabyte)
+      // kept by nothing once the paths' map is put away (the Optimization window's))
       FLOOR_CHECK.inSomething = null; FLOOR_CHECK.pieceAt = null; FLOOR_CHECK.ver++
+      if (import.meta.env.DEV) Object.assign(FLOOR_CHECK, { meshAt: null })
       cancelAnimationFrame(mapRaf); window.clearTimeout(mapLater)
       // (in the editor at once, a step a frame: the page isn't idle while it's drawn, and the ways' crossings waited 2 s for it (item 629))
       mapLater = getEdit().on ? window.setTimeout(buildShopMap, 300) : window.setTimeout(() => idleThen(buildShopMap), 600)
@@ -4693,8 +4724,12 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
       // (the shop's map made: at once)
       if (shopMap) { done(pick(shopMap, p, g)); return () => {} }
       // (not yet (just loaded, or edit mode's just changed something): down where he's held (out of the table's guard), nothing gone through
-      // for it (the Optimization window's))
-      done(g.worldToLocal(p.clone()))
+      // for it (the Optimization window's); there only on the shop's floor, not in the genkan, not on one of the people, or back to his place
+      // (the Tester window's: asked before the map was made, the genkan, the street and the kitchen's far corner, he'd have stood there))
+      const b = toBar(g.worldToLocal(p.clone())).setY(0), c0 = GRILL_COUNTERS[0], rm = roomOf(GRILL_COUNTERS)
+      const al = b.clone().sub(c0.at).dot(c0.along), ly = b.clone().sub(c0.at).dot(c0.lay)
+      const onShop = al > rm.along[0] + 0.1 && al < rm.along[1] - 0.1 && ly > rm.lay[0] + 0.1 && ly < rm.lay[1] - 0.1
+      done(onShop && !inGenkan(GRILL_COUNTERS, b) && !onFolk(p, folkNow()) ? g.worldToLocal(p.clone()) : null)
       return () => {}
     }
     /** the room's floor for his walking, on the shop's map: squares of 10 cm, each free if his body (a little narrower than where he'd stand:
@@ -4815,7 +4850,81 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
       if (!route) return null
       const onFloor = (v: THREE.Vector3) => { const q = fromBar(v); return q.setY(floorAt(q)) }
       const cs = GRILL_COUNTERS, P = toBar(fromGrill).setY(0), H = toBar(toGrill).setY(0)
-      if (inKitchen(cs, P)) return [fromGrill.clone(), ...route(P, H).slice(1).map(onFloor)]
+      // (item 652, the Tester window's: round the kitchen's people where they stand (past the gate he went through the server at their post,
+      // 7 runs in 9, and through a cook at his station): where his way goes within FOLK_CLEAR of one, two corners put in beside them on
+      // whichever side's free on the shop's map (and out of the table's guard), as far out as there's room for, a little if no more; and of
+      // the two gates' ways, the one that goes through none of them, the other's walk up to PASS_COST longer; the bar's frame)
+      const g0 = ref.current, wk0 = walk, t0 = tableOf(), clear = FOLK_CLEAR / GRILL_SCALE, PASS_COST = 3
+      // (the kitchen's people where they stand (not by his place: he stands in among them at the table))
+      const folk: THREE.Vector3[] = []
+      if (g0) {
+        const fw = folkNow()
+        for (let k = 0; k < fw.length; k += 2) {
+          const q = toBar(g0.worldToLocal(new THREE.Vector3(fw[k], 0, fw[k + 1]))).setY(0)
+          if (inKitchen(cs, q) && q.distanceTo(H) > clear) folk.push(q)
+        }
+      }
+      const aside = (pts: THREE.Vector3[], from: number) => {
+        if (!g0 || !wk0 || !folk.length) return pts
+        const freeAt = (v: THREE.Vector3) => { const w = g0.localToWorld(onFloor(v)); const [i, j] = wk0.ij(w); return wk0.free(i, j) && !guarded(w, t0) }
+        // (a line clear on the map; but within `ends` of an end that's on the way already (the gate's mouth, his notch at the table: not
+        // free squares for his walking, and walked through all the same))
+        const clearLine = (a: THREE.Vector3, b: THREE.Vector3, endA = 0, endB = 0) => {
+          const L = a.distanceTo(b), n = Math.max(1, Math.ceil(L / 0.04))
+          for (let k = 0; k <= n; k++) {
+            const d = (L * k) / n
+            if (d < endA || L - d < endB) continue
+            if (!freeAt(a.clone().lerp(b, k / n))) return false
+          }
+          return true
+        }
+        // (each leg from where the way's got to: the first of them along it (past its start, not yet gone round) gone round, and on from
+        // there; each of them once)
+        const out = pts.slice(0, from + 1), done = new Set<THREE.Vector3>()
+        let s = from + 1
+        for (let n = 0; s < pts.length && n < 64; n++) {
+          const a = out[out.length - 1], b = pts[s], ab = b.clone().sub(a), len = ab.length()
+          let round: THREE.Vector3[] | null = null
+          if (len > 1e-6) {
+            const t = ab.clone().divideScalar(len), nrm = new THREE.Vector3(-t.z, 0, t.x)
+            let best: { q: THREE.Vector3; k: number; e: number } | null = null
+            for (const q of folk) {
+              if (done.has(q)) continue
+              const k = q.clone().sub(a).dot(t), e = q.clone().sub(a).dot(nrm)
+              if (k < 0.02 || k > len || Math.abs(e) >= clear) continue
+              if (!best || k < best.k) best = { q, k, e }
+            }
+            if (best) {
+              done.add(best.q)
+              const at = a.clone().addScaledVector(t, best.k)
+              for (const frac of [1, 0.75, 0.55]) {
+                for (const sd of best.e >= 0 ? [-1, 1] : [1, -1]) {
+                  // (the way that far from them, on that side of them)
+                  const off = best.e + sd * clear * frac
+                  const c1 = at.clone().addScaledVector(t, -Math.min(clear, best.k * 0.5)).addScaledVector(nrm, off)
+                  const c2 = at.clone().addScaledVector(t, Math.min(clear, (len - best.k) * 0.5)).addScaledVector(nrm, off)
+                  if (clearLine(a, c1, 0.1) && clearLine(c1, c2) && clearLine(c2, b, 0, 0.1)) { round = [c1, c2]; break }
+                }
+                if (round) break
+              }
+            }
+          }
+          if (round) out.push(...round)
+          else { out.push(b); s++ }
+        }
+        for (; s < pts.length; s++) out.push(pts[s])
+        return out
+      }
+      /** how many of them a way goes through still (a body's width or less from it, past `from`) */
+      const through = (pts: THREE.Vector3[], from: number) => folk.filter((q) => {
+        for (let i = Math.max(1, from + 1); i < pts.length; i++) {
+          const a = pts[i - 1], ab = pts[i].clone().sub(a), L2 = ab.lengthSq()
+          const k = L2 ? Math.max(0, Math.min(1, q.clone().sub(a).dot(ab) / L2)) : 0
+          if (a.clone().addScaledVector(ab, k).distanceTo(q) < clear * 0.6) return true
+        }
+        return false
+      }).length
+      if (inKitchen(cs, P)) return [fromGrill.clone(), ...aside([P, ...route(P, H).slice(1)], 0).slice(1).map(onFloor)]
       // (out in the room: square onto the aisle he's by (the first counter's or the side counter's, whichever's nearer), along it (round the
       // corner where the two meet, if the gate's on the other), out to the gate, in through it, and across the kitchen to his place; the
       // place on the aisle kept to its length, from where the two aisles meet to the counter's end (the Tester window's: from by the genkan,
@@ -4834,19 +4943,20 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
       const g = ref.current
       const world = (v: THREE.Vector3) => (g ? g.localToWorld(onFloor(v)) : null)
       const barOf = (w: THREE.Vector3) => (g ? toBar(g.worldToLocal(w.clone())).setY(0) : w)
-      let path: THREE.Vector3[] | null = null
+      let path: THREE.Vector3[] | null = null, pathCost = Infinity
       for (let k = 0; k < Math.min(cs.length, BAR_GATES.length); k++) {
         const c = cs[k], mid = gateOf(c, BAR_GATES[k]).mid.setY(0)
         const lane = mid.clone().addScaledVector(c.lay, -aisleOf(c)), out = mid.clone().addScaledVector(c.lay, -0.5), inn = mid.clone().addScaledVector(c.lay, 0.45)
         const wa = world(P), wb = world(lane)
         const across = wa && wb ? roomWay(wa, wb) : null
         const to = across ? across.slice(1).map(barOf) : near === k || !corner ? [onAisle(c, P), lane] : [onAisle(cs[near], P), corner, lane]
-        const way = [P, ...to, out, inn, ...route(inn, H).slice(1)]
-        if (!path || lengthOf(way) < lengthOf(path)) path = way
+        const way = aside([P, ...to, out, inn, ...route(inn, H).slice(1)], to.length + 1)
+        const cost = lengthOf(way) + PASS_COST * through(way, to.length + 1)
+        if (!path || cost < pathCost) { path = way; pathCost = cost }
       }
       return path ? [fromGrill.clone(), ...path.slice(1).map(onFloor)] : null
     }
-    return () => { BOSS_BED.way = null; BOSS_BED.frame = null; BOSS_BED.drop = null; BOSS_BED.home = null; unsub(); unwarm(); mapJob++; cancelAnimationFrame(mapRaf); window.clearTimeout(mapLater); FLOOR_CHECK.inSomething = null; FLOOR_CHECK.pieceAt = null }
+    return () => { BOSS_BED.way = null; BOSS_BED.frame = null; BOSS_BED.drop = null; BOSS_BED.home = null; unsub(); unwarm(); mapJob++; cancelAnimationFrame(mapRaf); window.clearTimeout(mapLater); FLOOR_CHECK.inSomething = null; FLOOR_CHECK.pieceAt = null; if (import.meta.env.DEV) Object.assign(FLOOR_CHECK, { meshAt: null }) }
   }, [scene])
   return <group ref={ref} />
 })
