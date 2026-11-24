@@ -2824,6 +2824,23 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       return null
     }
 
+    // (the crate's charcoal, the fan and the skewer holder (userData.decor), the plates, dishes, boxes and baskets (userData.container): found
+    // by one walk of the whole scene and kept, not walked for on every pointer move (three or four walks a move, some 2 ms of 3.5 in
+    // research); walked again once one of them has left the scene, or a second on, so one mounted since is taken in)
+    const tagged = { at: -1e9, decor: [] as THREE.Object3D[], container: [] as THREE.Object3D[] }
+    const inWorld = (o: THREE.Object3D) => { let p: THREE.Object3D | null = o; while (p && p !== world) p = p.parent; return p === world }
+    const taggedNow = () => {
+      const now = performance.now()
+      if (now - tagged.at < 1000 && tagged.decor.every(inWorld) && tagged.container.every(inWorld)) return tagged
+      tagged.at = now
+      tagged.decor.length = 0
+      tagged.container.length = 0
+      world.traverse((o) => {
+        if (typeof o.userData.decor === 'string') tagged.decor.push(o)
+        if (typeof o.userData.container === 'string') tagged.container.push(o)
+      })
+      return tagged
+    }
     let down: { x: number; y: number } | null = null
     let ownTip = false
     // (only what this lit is put out here: the glow is shared, and the till's drawers, the shrine and the rest light their own through the pointer events)
@@ -2856,8 +2873,8 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       let lit: THREE.Object3D | null = null
       if (tool) lit = tool.node
       else if (soup) lit = soup
-      else if (dec) world.traverse((o) => { if (!lit && o.userData.decor === dec) lit = o })
-      else if (cont) world.traverse((o) => { if (!lit && o.userData.container === cont) lit = o })
+      else if (dec) lit = taggedNow().decor.find((o) => o.userData.decor === dec) ?? null
+      else if (cont) lit = taggedNow().container.find((o) => o.userData.container === cont) ?? null
       if (lit || ownGlow) { glowOnly(lit); ownGlow = !!lit }
       // (what's under the pointer, named by a tag, for what isn't food or a tool (those have their own): a dish or the table's boxes, dragged about)
       // (only its own tag is cleared here: the scene's other things set theirs through the pointer events)
@@ -2971,9 +2988,7 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
     const pickDecor = () => {
       // (the crate's charcoal and the fan are only taken up by hand while researching, as the food and the tools are)
       if (!byHandRef.current) return null
-      const groups: THREE.Object3D[] = []
-      world.traverse((o) => { if (typeof o.userData.decor === 'string') groups.push(o) })
-      const hit = raycaster.intersectObjects(groups, true)[0]
+      const hit = raycaster.intersectObjects(taggedNow().decor, true)[0]
       for (let o: THREE.Object3D | null = hit?.object ?? null; o; o = o.parent) {
         if (typeof o.userData.decor === 'string') {
           const d = o.userData.decor as 'charcoal' | 'fan' | 'skewer'
@@ -3072,9 +3087,7 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
     /** the plate / dish / basket under the pointer, by the container key its group carries */
     const pickContainer = () => {
       if (!DRAG_PIECES || !byHandRef.current) return null
-      const groups: THREE.Object3D[] = []
-      world.traverse((o) => { if (typeof o.userData.container === 'string') groups.push(o) })
-      for (const hit of raycaster.intersectObjects(groups, true)) {
+      for (const hit of raycaster.intersectObjects(taggedNow().container, true)) {
         for (let o: THREE.Object3D | null = hit.object; o; o = o.parent) {
           if (typeof o.userData.container === 'string') return o.userData.container as string
         }
@@ -3093,8 +3106,7 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       for (const { mat, was } of lit) mat.emissive.copy(was)
       lit.length = 0
       if (!key) return
-      const roots: THREE.Object3D[] = []
-      world.traverse((o) => { if (o.userData.container === key) roots.push(o) })
+      const roots = taggedNow().container.filter((o) => o.userData.container === key)
       for (const b of carriers[key] ?? []) roots.push(b.node)
       const seen = new Set<THREE.Material>()
       for (const r of roots) r.traverse((o) => {
