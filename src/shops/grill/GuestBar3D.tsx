@@ -5969,8 +5969,10 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     PATH_MAP.routes = [...pathsMap.current.staff, ...live, ...guestWays]
     // (item 629, the owner's 「動線看一下，編輯器應表明避免穿越傢俱」: each way's stretches that go through something at a body's middle height,
     // and what they go through, for the map to draw red and name)
+    // (kept as they were while the floor's check is made again (just after a piece is moved): not gone for a moment and back, their tags with
+    // them (the Tester window's))
     const tc = performance.now()
-    PATH_MAP.cross = crossingsOf(PATH_MAP.routes)
+    if (FLOOR_CHECK.inSomething) PATH_MAP.cross = crossingsOf(PATH_MAP.routes)
     if (import.meta.env.DEV) Object.assign(window, { __crossMs: performance.now() - tc })
     // (the places named on the floor: the staff's own and where they go, the door, each seat at its way's end)
     PATH_MAP.places = [...placesNow(), ...(guestWays.length ? [{ key: 'door', at: guestWays[0].pts[0] }] : []), ...guestWays.map((g) => ({ key: g.to, at: g.pts[g.pts.length - 1] }))]
@@ -10239,7 +10241,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       }
     }
     // (the paths' map, while it's shown in edit mode (item 168))
-    { const e = getEdit(); if (e.on && e.paths) mapPaths(performance.now()) }
+    // (the ways' crossings let go of with the paths' map put away (the Tester window's: 8 kept, not drawn))
+    { const e = getEdit(); if (e.on && e.paths) mapPaths(performance.now()); else if (PATH_MAP.cross.length) PATH_MAP.cross = [] }
     SINK.dirty = dirty.current
     PILE.n = pileLeft(PILE.n, dirty.current)
     // (the counter's stack only ever the bottom of the dirty plates: those washed off the top come from the basin first, then from it)

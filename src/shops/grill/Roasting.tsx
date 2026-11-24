@@ -4704,7 +4704,15 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
       else mapLater = window.setTimeout(f, 200)
     }
     const unwarm = whenWarm(() => idleThen(buildShopMap))
+    // (made again only when what's on the floor may have changed: a piece moved, turned, sized, grouped, hidden; edit mode or the paths'
+    // map shown or put away; not as a tool's picked or a piece selected (the Tester window's (item 629): each of those made both maps again,
+    // twice over, and the ways' "through" tags went missing now and then). The edit state's parts are replaced whole when they change)
+    const floorSig = () => { const e = getEdit(); return [e.on, e.paths, e.offsets, e.rotations, e.scales, e.groups, e.pivots, e.hidden] as const }
+    let lastSig = floorSig()
     const unsub = subscribeEdit(() => {
+      const sig = floorSig()
+      if (sig.every((v, k) => v === lastSig[k])) return
+      lastSig = sig
       dropMeshes = null; shopMap = null; walk = null; mapJob++
       // (the map of what a way goes through let go of with its functions, the dev check's too: its squares' meshes (a quarter of a megabyte)
       // kept by nothing once the paths' map is put away (the Optimization window's))
