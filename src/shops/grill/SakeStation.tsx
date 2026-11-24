@@ -1,7 +1,7 @@
 import { memo, useMemo } from 'react'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
-import { useStudio } from '@/scene/studio'
+import { useStudio } from '@/scene/render/studio'
 import { dressSake, STREAM_GEO, STREAM_MAT } from './Decor'
 import { SakeCup } from './dining/cups'
 import { TOKKURI_H } from './Tokkuri'

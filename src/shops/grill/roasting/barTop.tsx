@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
-import { normalFromHeight } from '@/scene/normalFromHeight'
+import { normalFromHeight } from '@/scene/render/normalFromHeight'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { LIP_H, ALONG, BAR_GATES, gateCut, type Gate, GRILL_COUNTERS, SIDE_PULL, LAY, type Counter } from '@/shops/grill/bar'
 import { BAR_TOP } from './barPlaces'

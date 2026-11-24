@@ -1,6 +1,6 @@
-import { normalizeRenderer } from '@/scene/materialNormalize'
+import { normalizeRenderer } from '@/scene/render/materialNormalize'
 import * as THREE from 'three'
-import { QUALITY } from '@/scene/quality'
+import { QUALITY } from '@/scene/render/quality'
 
 /**
  * The renderer, asking for less each time if the browser won't give a WebGL context: first the usual, then

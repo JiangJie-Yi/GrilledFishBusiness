@@ -2,13 +2,13 @@ import { useMemo } from 'react'
 import { useGLTF } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { inkModel } from '@/scene/inkHull'
-import { plainColours, mergeByMaterial } from '@/scene/StaticBatch'
+import { inkModel } from '@/scene/render/inkHull'
+import { plainColours, mergeByMaterial } from '@/scene/render/StaticBatch'
 import { TILL_STATE, tipOver } from './bar'
 import { getEdit } from './edit'
 import type { Lang } from '@/data/i18n'
 import { drawGlyph } from '@/ui/art/glyphs'
-import { sharedAudio } from '@/scene/sfx'
+import { sharedAudio } from '@/scene/interact/sfx'
 
 /**
  * The till's order tablet on its stand, from blender/ipad.py, in the frame the till had it (the stand's middle at the origin, the screen

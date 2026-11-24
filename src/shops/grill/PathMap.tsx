@@ -9,11 +9,11 @@
 // the places and the people named on the floor; the way or the person the editor's list points at (PATH_MAP.hot) bright, the rest faint.
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Html } from '@/scene/Html'
+import { Html } from '@/scene/interact/Html'
 import * as THREE from 'three'
 import { PATH_MAP, type PathRoute } from './bar'
 import { editWords, pieceLabel, useEditSel } from './edit'
-import { NO_POINTER, zr } from '@/scene/htmlProps'
+import { NO_POINTER, zr } from '@/scene/interact/htmlProps'
 
 /** each person's colour on the map (item 189): the servers blue, violet, teal; the owner amber; the plater pink; the customers green */
 const WHO_COLOR: Record<string, string> = { 'server-0': '#3d9bff', 'server-1': '#a970ff', 'server-2': '#2ec4c4', 'server-3': '#7fb2ff', owner: '#ff9f1c',

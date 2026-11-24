@@ -66,7 +66,7 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  app/  ←  App.tsx
 |---|---|---|
 | `src/data/` | 靜態資料：菜單與食材（`menu.ts`）、菜名與調味（`recipes.ts`）、員工（`staff.ts`、`chefs.ts`）、客人（`guests.ts`）、台詞（`lines.ts`）、介面文字（`i18n.ts`） | 只能引用 data |
 | `src/game/` | **純邏輯**（不碰 React 和 three），照領域分子資料夾（第 604 項）：`money/` 錢與帳（`economy.ts` 成本與定價、`till`、`daySummary`）、`kitchen/` 廚房與火（`taste.ts` 口味與評分、`research.ts` 研發、`fireTend`、`chefFlow`、`mode`）、`stock/` 庫存（`lots`、`drinkStock`、`freshness`）、`service/` 盤子與水槽（`plates`、`tray`、`sinkPile`）、`guests/` 客人（`stay`、`flow`、`reputation`、`takeout`）、`staff/` 員工（`hiring`、`shifts`、`commute`、`dormLife`）、`world/` 時間天氣燈（`clock`、`hours`、`weather`、`roomLights`、`shopState`）、`system/` 裝置與效能（`device`、`gpuTier`、`resume`）、`play/` 新手引導；共用型別 `types.ts` 在根 | data |
-| `src/scene/` | 各店共用的 3D 元件：`Dish`、`Steam`、`OpeningSpot`、裝置等級（`quality.ts`）、shader | data、game |
+| `src/scene/` | 各店共用的 3D 元件，分子資料夾（第 604 項）：`people/` 人物（`FolkFigure`、`StaffFigure`、表情 `faceSheet`）、`render/` 繪製與效能（`StaticBatch`、`WorldBatch`、`Prewarm`、裝置等級 `quality`、`studio`、`AnchoredLight`、`flatGate`、`ktx2`）、`effects/` 煙霧水滴影子（`Steam`、`BlobShadow`）、`interact/` 指標與提示（`hoverGlow`、`hoverTip`、`Html`、`sfx`）、`props/` 共用的擺設元件（`Dish`、`OpeningSpot`、`FloorPiece`）、`kit/` 小工具（`sameProps`、`steadyProps`、`hot`、`speed`）、`shaders/` | data、game |
 | `src/ui/` | 2D 介面，分子資料夾（第 604 項）：`panels/` 面板（菜單 `Menu`、辦公室 `Office`、收銀 `TillPanel`、評價 `Reputation`…）、`hud/` 畫面上常駐的（時鐘 `GameClock`、現金、今日目標、視角提示…）、`screens/` 整頁畫面（歡迎頁、載入、打烊結算、手機暫不開放…）、`art/` 圖示與插畫（`glyphs`、`GameIcons`、頭像、食物圖）、`kit/` 共用的 store 與小工具（`clockStore`、`uiSound`、`useDrag`、`FitLine`）、`admin/` 後台 | data、game、scene |
 | `src/shops/grill/` | 烤魚店的 3D 與互動（Roasting、吧台、客人、收銀櫃…） | data、game、scene、ui |
 | `src/app/` | App 組起來用的部分（第 604 項從 `App.tsx` 搬出）：場景 `Scene.tsx`、場景裡的小元件 `sceneParts.tsx`（視角攝影機、影子、地板…）、鏡頭 `camera.ts`、光 `lighting.ts`、渲染器 `renderer.ts`、存檔的鍵 `keys.ts`、日誌 `chatLog.tsx`、時刻 `timing.ts`、菜與供品 `dishes.ts`、共用的 hook `hooks.ts` | 全部 |
@@ -103,7 +103,7 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  app/  ←  App.tsx
 | `node tests/e2e/alloc.mjs` | 開店時誰在製造垃圾（記憶體配置取樣）：開店、全員到齊、×2，跑 `WARM`（預設 60 秒）後取樣 `SPAN`（預設 30 秒），列出每秒配置幾 MB 與配置最多的函式（含呼叫者）。`BASE=http://localhost:4173`（`npx vite preview`）量正式版：dev 模式光 JSX 就多好幾倍；`DEEP=<函式名>` 再列出那個函式配置最多的五條完整呼叫路徑（12 層，找出是誰叫 three 打射線之類） |
 | `node tests/e2e/soak.mjs` | 長時間營業會不會越來越卡：開店後每 `SAMPLE`（預設 60 秒）記一行 JSON：回收後的 JS heap、array buffer、FPS、最差的一格、繪製次數、三角面、GPU 的幾何／貼圖／程式數（`MINUTES` 預設 20）；每個數字都應該持平。`BASE=` 同上量正式版 |
 | `node tests/e2e/redraws.mjs` | 開店時誰在重畫、為什麼：開店、全員到齊、×2，`WARM`（預設 45 秒）後量 `SPAN`（預設 30 秒）的每一次 React 提交，列出每個元件每秒重畫幾次，以及原因：哪幾個 props 變了（「a new object, same values」＝父層重畫時順便被帶著，自己什麼都沒變，該 memo），或自己的哪個 state 變了（以宣告它的那一行標出）。用 dev server（名稱才看得到）；`SRC=1` 沒名字的元件附上原始碼的開頭，分得出是哪一個（例如 drei 的 `Html`） |
-| `__triTop(n, 'piece'\|'mesh')`（dev console） | 三角面排行：照擺設（最近的 Movable id，沒有就最近的具名群組）列出畫出來的三角面最多的前 n 名（模型與描線分開、網格數、實例數）與全場總數、繪製數（不含陰影；`scene/triProfiler.ts`） |
+| `__triTop(n, 'piece'\|'mesh')`（dev console） | 三角面排行：照擺設（最近的 Movable id，沒有就最近的具名群組）列出畫出來的三角面最多的前 n 名（模型與描線分開、網格數、實例數）與全場總數、繪製數（不含陰影；`scene/render/triProfiler.ts`） |
 | `npm run bench` | 性能測試（`tests/e2e/bench.mjs`，需先開 dev server；真顯示卡、1920×1080）：總覽穩定後的繪製次數、三角面、幾何、貼圖、著色程式、回收後的 JS heap；接著依序切 1～9、0 號視角（每個停 `HOLD`，預設 1 秒）、關燈再開燈、進出開發者模式，記錄平均 FPS、1% Low、最差一格（另算不含開發者模式的）、巡航前後 heap 差，與最慢的幾格發生在哪一步；寫成 Markdown 表格（`OUT`，預設 `bench.md`）與同名 .json，`BEFORE=<舊的 .json>` 並排比較 |
 | `npm run build` | 型別檢查＋建置 |
 | `npm run lint` | oxlint |
@@ -191,15 +191,15 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  app/  ←  App.tsx
 
 ### 效能守則（摘要；每一條的來龍去脈與量法在 `docs/DETAILS.md` 的「效能（改東西時要守的）」）
 
-- 著色程式要少：新材質用標準的 toon／standard／basic，不要為小差別各寫一個 shader（`scene/materialNormalize.ts` 讓同一種材質共用程式）。
-- 營業中不編新的著色程式：營業中才出現、或執行中才換材質設定的東西，載入時就要在場景裡，或用 `warmLater` 登記樣板（`scene/Prewarm.tsx`）。
-- 不用 transmission；不用 `visible` 開關燈、執行中不增減燈（燈掛在 `scene/AnchoredLight.tsx`）。
+- 著色程式要少：新材質用標準的 toon／standard／basic，不要為小差別各寫一個 shader（`scene/render/materialNormalize.ts` 讓同一種材質共用程式）。
+- 營業中不編新的著色程式：營業中才出現、或執行中才換材質設定的東西，載入時就要在場景裡，或用 `warmLater` 登記樣板（`scene/render/Prewarm.tsx`）。
+- 不用 transmission；不用 `visible` 開關燈、執行中不增減燈（燈掛在 `scene/render/AnchoredLight.tsx`）。
 - 執行中新建的幾何體、材質、貼圖一定要釋放或共用（模組層級共用，或在 effect 的清理裡 `dispose()`；人物複本用 `releaseFigure`）。
 - 不會動的零件依材質合併（`StaticBatch`、`mergeByMaterial`、素色零件 `plainColours`、偶爾才動的 `homeCopy`）；合併後沒有滑鼠事件，要能點的放一個看不見的感應方塊。
 - 不要對整個場景打射線；蒙皮人物算射線很貴。
-- 常被重畫的父層底下，重的子元件要 `memo`，props 要穩定（`scene/sameProps.ts`）；狀態沒變就回傳原物件。每格跑的迴圈不要 new 東西。
+- 常被重畫的父層底下，重的子元件要 `memo`，props 要穩定（`scene/kit/sameProps.ts`）；狀態沒變就回傳原物件。每格跑的迴圈不要 new 東西。
 - 畫布濾鏡整層套一次，不要在很多筆之前設。
-- 模組層的監聽器、計時器用 `scene/hot.ts` 的 `replaces`，熱更新才不會疊一份。
+- 模組層的監聽器、計時器用 `scene/kit/hot.ts` 的 `replaces`，熱更新才不會疊一份。
 - 量法：`npm run bench`、`tests/e2e/perf.mjs`、`soak.mjs`、`redraws.mjs`、`alloc.mjs`（見上面「指令」）。
 
 ### React useEffect 規範（店主定的，2026-11-21）
@@ -215,7 +215,7 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  app/  ←  App.tsx
 
 ## 慣例
 
-- **網頁只用完整的 3D，手機暫不開放**（店主要的；`game/system/device.ts`，BDD `device`）：手機（尺寸或裝置，App 的 `usePhone`）只顯示「暫不開放」（`ui/screens/PhoneClosed`），不跑任何 3D（以前的 2D 手機版第 188 項拿掉了；寬不到 600、高不到 500 一定是這張卡片，所以那些尺寸的 CSS 也一起拿掉）；電腦與平板是完整的 3D。**手機一開頁就不下載任何 3D 模型**（`scene/flatGate.ts`，`main.tsx` 最先 import：一開頁就是手機時，`useGLTF.preload`、`useLoader.preload` 什麼都不做；以前手機沒有 3D 畫面卻在背景下載了 54 個模型）。檢查：`tests/e2e/_device.mjs`（在 git 外：電腦、手機尺寸、手機裝置、平板各開一次，印出有沒有 3D 畫面、下載了哪些模型）。
+- **網頁只用完整的 3D，手機暫不開放**（店主要的；`game/system/device.ts`，BDD `device`）：手機（尺寸或裝置，App 的 `usePhone`）只顯示「暫不開放」（`ui/screens/PhoneClosed`），不跑任何 3D（以前的 2D 手機版第 188 項拿掉了；寬不到 600、高不到 500 一定是這張卡片，所以那些尺寸的 CSS 也一起拿掉）；電腦與平板是完整的 3D。**手機一開頁就不下載任何 3D 模型**（`scene/render/flatGate.ts`，`main.tsx` 最先 import：一開頁就是手機時，`useGLTF.preload`、`useLoader.preload` 什麼都不做；以前手機沒有 3D 畫面卻在背景下載了 54 個模型）。檢查：`tests/e2e/_device.mjs`（在 git 外：電腦、手機尺寸、手機裝置、平板各開一次，印出有沒有 3D 畫面、下載了哪些模型）。
 - 程式註解用英文，風格跟周圍一致；介面文字中日雙語（`data/i18n.ts`、`data/lines.ts`）。
 
 ## 節省 token 的做法

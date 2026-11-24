@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { warmLater } from './Prewarm'
+import { warmLater } from '@/scene/render/Prewarm'
 
 /**
  * Anger's steam, a cartoon's (item 534, the owner's 「氣餔餔應該是有點像爆炸一團團煙的感覺」: it was three soft white dots rising one

@@ -1,6 +1,6 @@
-import { shopPicture } from '@/scene/flatGate'
+import { shopPicture } from '@/scene/render/flatGate'
 import * as THREE from 'three'
-import { reflectStudio } from '@/scene/studio'
+import { reflectStudio } from '@/scene/render/studio'
 import { forPhone } from '@/shops/grill/ware'
 import { ALONG, FLOOR_NEAR, GRILL_COUNTERS, LAY, toGrillScene } from '@/shops/grill/bar'
 import { COOK_TABLE } from './kitchen'

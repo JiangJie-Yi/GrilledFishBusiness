@@ -1,7 +1,7 @@
 import { memo, useEffect, useState } from 'react'
-import { Html } from '@/scene/Html'
+import { Html } from '@/scene/interact/Html'
 import { BOARD_SLOTS } from '@/game/kitchen/fireSlots'
-import { NO_POINTER, zr } from '@/scene/htmlProps'
+import { NO_POINTER, zr } from '@/scene/interact/htmlProps'
 import { Wisp } from './piece'
 
 /** the tray for raw food waiting to go on the fire: a row of sticks across it, side by side, BOARD_SLOTS of them (the owner's, 2026-11-10:

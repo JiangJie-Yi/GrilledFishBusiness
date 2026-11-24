@@ -1,6 +1,6 @@
 import * as THREE from 'three'
-import { replaces } from './hot'
-import { whenDrawn } from './flatGate'
+import { replaces } from '@/scene/kit/hot'
+import { whenDrawn } from '@/scene/render/flatGate'
 
 /**
  * The shop's lettering: Zen Antique, a retro Mincho with the pen's swell in every stroke (index.html asks for it in a

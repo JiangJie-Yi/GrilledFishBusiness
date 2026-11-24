@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { reflectStudio } from '@/scene/studio'
+import { reflectStudio } from '@/scene/render/studio'
 
 /**
  * The beckoning cats' own touches (items 429, 432, the owner's, 2026-11-21: 「鈴鐺須做好，增加一些米克斯斑紋，硬幣加厚」「這招財貓的金幣背後有點怪」):

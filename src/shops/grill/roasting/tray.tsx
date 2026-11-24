@@ -1,7 +1,7 @@
 import { memo, useMemo } from 'react'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
-import { sameProps } from '@/scene/sameProps'
+import { sameProps } from '@/scene/kit/sameProps'
 import { BOARD_SLOTS } from '@/game/kitchen/fireSlots'
 import { FREEZER } from '@/shops/grill/Decor'
 import { BOARD } from '@/shops/grill/bar'

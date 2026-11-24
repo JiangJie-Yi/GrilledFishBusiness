@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import * as THREE from 'three'
-import { inkModel } from '@/scene/inkHull'
-import { reflectStudio } from '@/scene/studio'
+import { inkModel } from '@/scene/render/inkHull'
+import { reflectStudio } from '@/scene/render/studio'
 import { useGLTF } from '@react-three/drei'
 import { canvasTex } from './base'
 

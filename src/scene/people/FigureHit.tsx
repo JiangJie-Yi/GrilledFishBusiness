@@ -1,8 +1,8 @@
 import { memo, useMemo, useRef } from 'react'
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
-import { FIGURE_CURSOR, whoOver } from './hoverTip'
-import { glowOff, glowOn } from './hoverGlow'
+import { FIGURE_CURSOR, whoOver } from '@/scene/interact/hoverTip'
+import { glowOff, glowOn } from '@/scene/interact/hoverGlow'
 
 const BOX = new THREE.BoxGeometry(1, 1, 1)
 const INV = new THREE.Matrix4()

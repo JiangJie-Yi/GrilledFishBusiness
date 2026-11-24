@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { reflectStudio } from '@/scene/studio'
+import { reflectStudio } from '@/scene/render/studio'
 import { DRINKS, type DrinkId } from '@/shops/grill/bar'
 import { canvasTex } from './base'
 import { formOf, soju, KIND_OF } from './drinkKinds'

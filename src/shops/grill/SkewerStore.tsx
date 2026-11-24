@@ -1,7 +1,7 @@
 import { memo, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { aimTip, setTip } from '@/scene/hoverTip'
+import { aimTip, setTip } from '@/scene/interact/hoverTip'
 import { SKEWER_POOL } from '@/game/kitchen/skewers'
 import { tl, type Lang } from '@/data/i18n'
 import { PULLED, SKEWERS } from './bar'

@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef } from 'react'
 import { getBgmOff, useBgmOff } from '@/ui/kit/bgmStore'
-import { sfxMuted, useSfxMuted } from '@/scene/sfx'
+import { sfxMuted, useSfxMuted } from '@/scene/interact/sfx'
 
 /**
  * The shop's background music, looped quietly, from public/music/ (LateNightTavern.mp3, the owner's; it was IzakayaNight.mp3; failing that,

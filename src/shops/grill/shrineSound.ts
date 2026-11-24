@@ -3,7 +3,7 @@
 // soft dry brush and a few faint ticks through a hinoki panel's resonances, a knock as they stop or meet).
 
 import * as THREE from 'three'
-import { sharedAudio } from '@/scene/sfx'
+import { sharedAudio } from '@/scene/interact/sfx'
 
 // (the game's one context (item 576): the doors' first opening made one of its own, 32 ms of that frame)
 const ctx = () => sharedAudio()

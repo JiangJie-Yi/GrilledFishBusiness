@@ -4,9 +4,9 @@
 import { useMemo } from 'react'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
-import { inkModel } from '@/scene/inkHull'
-import { plainColours, mergeByMaterial } from '@/scene/StaticBatch'
-import { brushText, SIGN_FONT, signTexture } from '@/scene/signFont'
+import { inkModel } from '@/scene/render/inkHull'
+import { plainColours, mergeByMaterial } from '@/scene/render/StaticBatch'
+import { brushText, SIGN_FONT, signTexture } from '@/scene/props/signFont'
 import { nameOver } from './bar'
 
 const URL = import.meta.env.BASE_URL + 'models/omamori.glb'

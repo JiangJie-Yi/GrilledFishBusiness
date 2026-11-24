@@ -84,7 +84,7 @@
 - **光影：不烘直接光（不用 Combined、不用無光照的 `MeshBasicMaterial`）**。店內的燈會開關（固定規則 2～4：玄關兩個開關各管一條線路、廁所另有開關、門口燈籠開店時自動點亮），也有晝夜。把開燈時的光影烘死在貼圖上，關燈後畫面就錯了。所以用規範的第二種：分開烘 Base Color（AO 乘進去）與 Normal。材質維持卡通材質，照店內即時的燈光打光，描線照舊。
 - **ORM**：本專案的木頭、布、灰泥都是卡通材質，沒有粗糙度與金屬度，所以不用 ORM。金屬（神棚的金件等）是 `MeshPhysicalMaterial`，要反射攝影棚，留在自己的材質，不進圖集。
 - **圖集**：同一區的靜態低模，主 UV 重排（或加第二組 UV），打包進一張 2048（區域小就用 1024；長寬可以不同，例如 1024×512），邊距至少 8 px，防止滲色。原本重複鋪的貼圖（木紋、樹皮）先烘進圖集。
-- **合併**：本專案每件擺設都是一個 `Movable`，開發者模式要能各自移動、存位置，所以不在 Blender 裡把不同擺設合成一個網格。同一個模型檔裡的靜態零件，照舊在匯出前合併（例：`kamidana.py` 的 `merge_kids`）。「一區一次繪製」靠執行時的合併達成：`StaticBatch`、`mergeByMaterial`，以及全場合併 `scene/WorldBatch.tsx`（`worldMerge.ts`）會照材質把共用同一張圖集的擺設併成一份。所以同一區的靜態擺設要共用同一個材質，也就是同一張圖集。
+- **合併**：本專案每件擺設都是一個 `Movable`，開發者模式要能各自移動、存位置，所以不在 Blender 裡把不同擺設合成一個網格。同一個模型檔裡的靜態零件，照舊在匯出前合併（例：`kamidana.py` 的 `merge_kids`）。「一區一次繪製」靠執行時的合併達成：`StaticBatch`、`mergeByMaterial`，以及全場合併 `scene/render/WorldBatch.tsx`（`worldMerge.ts`）會照材質把共用同一張圖集的擺設併成一份。所以同一區的靜態擺設要共用同一個材質，也就是同一張圖集。
 - **不能進圖集的**：金屬（要反射）、透明或鏤空（`alphaTest`、雙面）、發光（燈籠的紙）、會換貼圖的東西。這些各自一份，數量盡量少。
 
 ### 四、匯出檢查在本專案
@@ -95,8 +95,8 @@
   - Blender 腳本照舊輸出 WebP 到 `public/models`，不用改。
   - `npm run build` 在 `dist/` 裡，把 `scripts/ktx2-models.mjs` 的 `KTX2_MODELS` 名單上的模型轉成 KTX2（Basis Universal）。`public/models` 不會被改寫。
   - 顏色圖用 ETC1S，品質 128。法線圖也用 ETC1S，開法線模式，品質 255。UASTC 試過：凹凸只細一點點，檔案卻是 WebP 的 5 倍（石階 874 KB → 2.3 MB；ETC1S 866 KB，近拍一樣）。
-  - 顯示卡上：一張 1024 的圖連 mipmap，RGBA 是 5.3 MB，壓縮後 1.3 MB。中、低畫質再由 `scene/textureCap.ts` 拿掉最上面一層 mipmap。全場合計 high 883 → 739 MB、medium 414 → 349 MB。
-  - **能加進名單的條件**：這個模型的圖，沒有程式讀它的像素。加之前先搜尋這個模型在哪裡載入、那裡有沒有 `drawImage`、`getImageData`、`.image` 讀它的圖。不能轉的例子：`scene/atlasMerge` 合進圖集的人物與鍋子、貓的毛色、臉、器皿的釉、米袋的印字、火床的地面（`scorchEarth`）。
+  - 顯示卡上：一張 1024 的圖連 mipmap，RGBA 是 5.3 MB，壓縮後 1.3 MB。中、低畫質再由 `scene/render/textureCap.ts` 拿掉最上面一層 mipmap。全場合計 high 883 → 739 MB、medium 414 → 349 MB。
+  - **能加進名單的條件**：這個模型的圖，沒有程式讀它的像素。加之前先搜尋這個模型在哪裡載入、那裡有沒有 `drawImage`、`getImageData`、`.image` 讀它的圖。不能轉的例子：`scene/render/atlasMerge` 合進圖集的人物與鍋子、貓的毛色、臉、器皿的釉、米袋的印字、火床的地面（`scorchEarth`）。
   - 可以只轉一部分的圖，照圖名用 `only`、`skip`（例：`produce.glb` 跳過要染色、印字的袋子布）。
   - 轉了以後，在遊戲裡近拍檢查（`tests/e2e/_ktx2shot.mjs`，在 git 外）。細字要特別看，例：御神酒壺的標籤。
   - 代價：建置多約 95 秒（GitHub Actions 也是）；`public/basis/` 放 three 的轉碼器（585 KB），只有載到 KTX2 的圖時才下載。

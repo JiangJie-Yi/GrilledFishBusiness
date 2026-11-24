@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { replaces } from '@/scene/hot'
-import { sharedAudio } from '@/scene/sfx'
+import { replaces } from '@/scene/kit/hot'
+import { sharedAudio } from '@/scene/interact/sfx'
 
 // The interface's own sounds, made on the spot with WebAudio (no recordings; the owner's: every panel heard as it opens and as it shuts): a
 // soft papery swish, a band of noise sweeping up as the panel comes out and down as it goes back, and a light wooden tick as it settles.

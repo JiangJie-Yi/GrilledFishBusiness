@@ -1,7 +1,7 @@
 import { memo, useMemo } from 'react'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
-import { brushText, signTexture } from '@/scene/signFont'
+import { brushText, signTexture } from '@/scene/props/signFont'
 import { forPhone } from '@/shops/grill/ware'
 import { LAY_DIR, TRASH_R, TRASH_H } from './tuning'
 

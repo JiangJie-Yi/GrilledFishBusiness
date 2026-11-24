@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { brushText, followSign, signTexture } from '@/scene/signFont'
+import { brushText, followSign, signTexture } from '@/scene/props/signFont'
 import { WC_W } from '@/shops/grill/bar'
 import { PEOPLE_SCALE, STAFF_SCALE } from './staffPoses'
 

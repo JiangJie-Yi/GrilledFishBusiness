@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import type { CrewEmote } from '@/game/staff/crewMood'
-import { warmLater } from './Prewarm'
+import { warmLater } from '@/scene/render/Prewarm'
 import { puffBurst } from './angerPuffs'
 
 /**

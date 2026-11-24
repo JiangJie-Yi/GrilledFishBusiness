@@ -6,7 +6,7 @@
 // right by where it is on screen).
 import * as THREE from 'three'
 import { useSyncExternalStore } from 'react'
-import { replaces } from './hot'
+import { replaces } from '@/scene/kit/hot'
 
 const KEY = 'jgs-sfx-muted-1'
 let muted = false

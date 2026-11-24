@@ -1,4 +1,4 @@
-import { sharedAudio } from '@/scene/sfx'
+import { sharedAudio } from '@/scene/interact/sfx'
 
 /**
  * A stick of charcoal dropped on the heap: a dull, dry clatter, not a ring. A woody knock (noise through a mid band, gone in a few hundredths of

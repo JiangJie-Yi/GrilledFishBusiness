@@ -11,10 +11,10 @@ import { PER_CABINET } from '@/game/service/tableware'
 import { getEdit } from './edit'
 import { coolerDoorSound } from './restroomSound'
 import { LOW_FULL, RACK_FULL } from '@/game/service/plates'
-import { aimTip, setTip } from '@/scene/hoverTip'
-import { HOVER } from '@/scene/hoverGlow'
+import { aimTip, setTip } from '@/scene/interact/hoverTip'
+import { HOVER } from '@/scene/interact/hoverGlow'
 import { wareGeometry } from './ware'
-import { mergeByMaterial, StaticBatch } from '@/scene/StaticBatch'
+import { mergeByMaterial, StaticBatch } from '@/scene/render/StaticBatch'
 import { roundGlaze } from './wareGlazes'
 /** how many of the round plates' designs the racks show: each is one instanced mesh, so five, as the racks had (item 278: all eight of the
  * glazes made it six draws more); the plates at the places show all eight */

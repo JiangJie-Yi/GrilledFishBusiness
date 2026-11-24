@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
-import { mergeByMaterial } from '@/scene/StaticBatch'
-import { inkModel } from '@/scene/inkHull'
+import { mergeByMaterial } from '@/scene/render/StaticBatch'
+import { inkModel } from '@/scene/render/inkHull'
 import { BAKE_COATS, coatPicture, SUZU_MAT, suzuAt, thicken } from './catCoat'
 
 /**

@@ -3,8 +3,8 @@
 // unlitShade: grey-white by day, a dim grey by night), by the time of day (the page's data-theme), followed as either changes.
 import * as THREE from 'three'
 import { unlitShade } from '@/game/world/roomLights'
-import { getLights, onLights } from '@/scene/lightsStore'
-import { replaces } from '@/scene/hot'
+import { getLights, onLights } from '@/scene/render/lightsStore'
+import { replaces } from '@/scene/kit/hot'
 
 type Shade = { m: THREE.MeshBasicMaterial; lit: THREE.Color; litMap: THREE.Texture | null; offMap: THREE.Texture | null; dim: number }
 const SHADES: Shade[] = []

@@ -1,8 +1,8 @@
 // The owner tasting: the crunch of each bite and the soft munching between, made on the spot with WebAudio (no recordings), each a little
 // different from the last so a run of them doesn't drone.
 
-import { replaces } from '@/scene/hot'
-import { sharedAudio } from '@/scene/sfx'
+import { replaces } from '@/scene/kit/hot'
+import { sharedAudio } from '@/scene/interact/sfx'
 
 let ac: AudioContext | null = null
 function ctx() {

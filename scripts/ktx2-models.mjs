@@ -1,6 +1,6 @@
 // The models' pictures turned into KTX2 (Basis Universal), so the graphics card holds them compressed (item 571, the owner's go-ahead to
 // download the encoder): a 1024 picture is 5.3 MB on the card as RGBA with its mipmaps and 1.3 MB compressed (BC7 on a PC, ASTC or ETC2 on
-// a phone or a Mac: the transcoder in public/basis picks), and on medium and low a quarter of that again (scene/textureCap leaves out its top
+// a phone or a Mac: the transcoder in public/basis picks), and on medium and low a quarter of that again (scene/render/textureCap leaves out its top
 // levels). Every picture ETC1S, the normal maps in its normal-map mode at the top quality (UASTC kept their bumps a hair finer but made the
 // file five times the WebP: the stone steps 874 KB to 2.3 MB; ETC1S 866 KB, and the same close up in the game).
 //
@@ -8,9 +8,9 @@
 //   node scripts/ktx2-models.mjs <model.glb…> [--out <dir>]   any model, copies to --out (public/models-ktx2 by default), to look at first
 //
 // public/models (the Blender scripts' output) is never written: the build converts its copies in dist/. Only the models listed: a model
-// whose pictures the game reads back (scene/atlasMerge for the figures and a dish's pots, the cats' coats, faces, the ware's glazes, the
+// whose pictures the game reads back (scene/render/atlasMerge for the figures and a dish's pots, the cats' coats, faces, the ware's glazes, the
 // rice sacks' print…) can't have them compressed. Before adding one, search the code for where it's loaded and whether anything there
-// draws its pictures (drawImage, getImageData, .image) or copies them (texture.clone(): a compressed picture's levels are let go of once it's on the card, scene/ktx2, so a copy made after would be empty), and look at it close up in the game (tests/e2e/_ktx2shot.mjs, outside git).
+// draws its pictures (drawImage, getImageData, .image) or copies them (texture.clone(): a compressed picture's levels are let go of once it's on the card, scene/render/ktx2, so a copy made after would be empty), and look at it close up in the game (tests/e2e/_ktx2shot.mjs, outside git).
 import { writeFile, mkdir, stat } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'

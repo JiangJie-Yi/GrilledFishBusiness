@@ -9,9 +9,9 @@
 // up (天地無用), the recycling marks; on each end a die-cut handhole, the name, the best-before and lot inked on; the top its flaps' seam and
 // an inspection stamp. The board's flutes, its crushed edges, its creases and the handholes in a normal map.
 import * as THREE from 'three'
-import { signTexture, SIGN_FONT } from '@/scene/signFont'
-import { normalFromHeight } from '@/scene/normalFromHeight'
-import { reflectStudio } from '@/scene/studio'
+import { signTexture, SIGN_FONT } from '@/scene/props/signFont'
+import { normalFromHeight } from '@/scene/render/normalFromHeight'
+import { reflectStudio } from '@/scene/render/studio'
 import type { DrinkId } from './bar'
 
 /** the print's layout (blender/drinkcartons.py's PX, TW, TH, SIDE_X, END_X, ROW0, ROW, TOP_X, TOP_Y): pixels from its top left */

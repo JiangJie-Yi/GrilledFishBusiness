@@ -1,9 +1,9 @@
 import { memo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { TRAY_AT as HELD_AT, SweepBroom, ownerSweepPose, floorWipePose, OWNER_BEND } from '@/scene/StaffFigure'
+import { TRAY_AT as HELD_AT, SweepBroom, ownerSweepPose, floorWipePose, OWNER_BEND } from '@/scene/people/StaffFigure'
 import { BossModel, drawnCentre } from '@/shops/grill/Boss'
-import { tick } from '@/scene/speed'
+import { tick } from '@/scene/kit/speed'
 import { OWNER_IN_STAFF, OWNER_HAND, OWNER_BONE, OWNER_TRAY_GEO } from './staffPoses'
 
 /** the owner out serving (no server hired): his figure with a rock and a bob as he walks, and a lacquered tray held in front */

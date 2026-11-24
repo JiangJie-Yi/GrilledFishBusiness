@@ -4,11 +4,11 @@ import { EDIT_TEXT } from '@/data/editText'
 import type { Lang } from '@/data/i18n'
 import { Glyph } from '@/ui/art/GameIcons'
 import { useProgress } from '@react-three/drei'
-import { laterPending, laterSeen, sceneDrawn } from '@/scene/Later'
+import { laterPending, laterSeen, sceneDrawn } from '@/scene/render/Later'
 import { VERSION, versionText } from '@/data/credits'
 import { panelSound } from '@/ui/kit/uiSound'
 import { PathLegend } from './PathLegend'
-import { ADMIN_URL } from '@/scene/toolPage'
+import { ADMIN_URL } from '@/scene/interact/toolPage'
 import { discardEdit, dissolveGroup, frameSelected, freezeSelected, getCharHidden, hideSelected, isDirty, makeGroup, playGame, redo, resetAll, saveEdit,
   resetAllPivots, resetPivot, select, selectedName, setCharHidden, setPaths, setShade, SHADES, showHidden, subscribeEdit, undo, useEditSel } from './edit'
 

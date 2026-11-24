@@ -1,6 +1,6 @@
 // The iron skewers' sounds, synthesised as they're heard (no sound files): one pushed through the food on the board, one laid in the used
 // skewers' tray, a handful dropped back into the holder
-import { sharedAudio } from '@/scene/sfx'
+import { sharedAudio } from '@/scene/interact/sfx'
 let audio: AudioContext | null = null
 
 /** a stretch of shaped noise: a few of each kind (`key`) made as they're first wanted, then one of them picked at random (item 374: fresh noise

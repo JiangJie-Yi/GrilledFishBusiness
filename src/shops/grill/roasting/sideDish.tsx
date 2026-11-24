@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import * as THREE from 'three'
-import { sameProps } from '@/scene/sameProps'
+import { sameProps } from '@/scene/kit/sameProps'
 import { PLUM_WARE, wareGeometry } from '@/shops/grill/ware'
 import { DISH_R, wareOnce } from './tools'
 

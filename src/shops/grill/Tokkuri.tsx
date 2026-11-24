@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import * as THREE from 'three'
-import { warmLater } from '@/scene/Prewarm'
+import { warmLater } from '@/scene/render/Prewarm'
 
 /**
  * A tokkuri of sake (item 89): white porcelain, round in the body, its neck drawn in and its lip turned out, an indigo band round its

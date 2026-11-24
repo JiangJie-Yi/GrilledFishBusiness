@@ -3,8 +3,8 @@
 // (a bed of bright, busy noise, little spits flaring out of it). It starts with the first sound the player allows (a click), and quietens
 // while the view is somewhere else in the shop (`near` 0..1).
 
-import { replaces } from '@/scene/hot'
-import { sharedAudio } from '@/scene/sfx'
+import { replaces } from '@/scene/kit/hot'
+import { sharedAudio } from '@/scene/interact/sfx'
 
 let ac: AudioContext | null = null
 let out: GainNode | null = null

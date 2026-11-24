@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
-import { shopPicture } from '@/scene/flatGate'
-import { signTexture } from '@/scene/signFont'
+import { shopPicture } from '@/scene/render/flatGate'
+import { signTexture } from '@/scene/props/signFont'
 
 /**
  * The customers' side of the room, behind the aisle: a wall of cream plaster over a dark wooden wainscot, a frieze of

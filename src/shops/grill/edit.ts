@@ -10,12 +10,12 @@ import { EDIT_TEXT, pieceName } from '@/data/editText'
 import type { Lang } from '@/data/i18n'
 import { VIEW_SPOTS } from '@/data/views'
 import { applyGroup, AREA_REACH, areasOf, chainOf, isStill, leavesOf, parentOf, ROOM_TURN, undoGroup, viewOf, within, type ViewCam } from '@/game/system/editGroups'
-import { glowOnly, HOVER } from '@/scene/hoverGlow'
-import { setTip } from '@/scene/hoverTip'
+import { glowOnly, HOVER } from '@/scene/interact/hoverGlow'
+import { setTip } from '@/scene/interact/hoverTip'
 import { GRILL_SEATS } from './bar'
-import { replaces } from '@/scene/hot'
+import { replaces } from '@/scene/kit/hot'
 import { glyphSvg, type GlyphId } from '@/ui/art/glyphs'
-import { EDITOR_URL, GAME_URL, TOOL_PAGE } from '@/scene/toolPage'
+import { EDITOR_URL, GAME_URL, TOOL_PAGE } from '@/scene/interact/toolPage'
 /** a drawn icon (ui/glyphs) put in front of a button's or label's words, never an emoji or a symbol (the owner's) */
 const withGlyph = (el: HTMLElement, id: GlyphId, text = '', size = 12) => { el.innerHTML = glyphSvg(id, size); if (text) el.append(' ' + text) }
 

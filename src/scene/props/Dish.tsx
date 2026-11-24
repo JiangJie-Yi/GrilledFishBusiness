@@ -1,12 +1,12 @@
 import { memo, useEffect, useMemo, useRef } from 'react'
-import { BASE_MATERIAL } from './baseMaterial'
+import { BASE_MATERIAL } from '@/scene/render/baseMaterial'
 import { useGLTF } from '@react-three/drei'
 import { useFrame, type ThreeElements } from '@react-three/fiber'
 import * as THREE from 'three'
-import { alike } from './steadyProps'
+import { alike } from '@/scene/kit/steadyProps'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { CopyLayout } from '@/data/menu'
-import { reflectStudio, useStudio } from './studio'
+import { reflectStudio, useStudio } from '@/scene/render/studio'
 
 const INK = new THREE.Color('#3b2a20')
 export const OUTLINE_WIDTH = 0.007

@@ -7,9 +7,9 @@ import { hhmm, nextSky, skyAt, type Sky } from '@/game/world/clock'
 import { isLate } from '@/game/world/hours'
 import { businessDay, rainAt, weatherOf } from '@/game/world/weather'
 import { tl, type Lang } from '@/data/i18n'
-import { setTip } from '@/scene/hoverTip'
+import { setTip } from '@/scene/interact/hoverTip'
 import { Glyph } from '@/ui/art/GameIcons'
-import { setSfxMuted, useSfxMuted } from '@/scene/sfx'
+import { setSfxMuted, useSfxMuted } from '@/scene/interact/sfx'
 import { getClock, setClock, useClock } from '@/ui/kit/clockStore'
 
 const NAMES: Record<Sky, [string, string, string]> = {

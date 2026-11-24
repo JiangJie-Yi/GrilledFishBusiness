@@ -1,8 +1,8 @@
 import * as THREE from 'three'
-import { getLights, onLights } from '@/scene/lightsStore'
+import { getLights, onLights } from '@/scene/render/lightsStore'
 import { lampGlow } from '@/game/world/roomLights'
 import type { Sky } from '@/game/world/clock'
-import { replaces } from '@/scene/hot'
+import { replaces } from '@/scene/kit/hot'
 
 /**
  * The lamps' painted light (their halos and the pools they throw) by the time of day: faint by day, when the room's lit anyway; full and

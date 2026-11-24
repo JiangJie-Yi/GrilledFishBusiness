@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useState } from 'react'
 import { showsFlat } from '@/game/system/device'
-import { MOBILE } from '@/scene/flatGate'
+import { MOBILE } from '@/scene/render/flatGate'
 import { skyAt, themeOf, type Sky } from '@/game/world/clock'
 import { getClock } from '@/ui/kit/clockStore'
 

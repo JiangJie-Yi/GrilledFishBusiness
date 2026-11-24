@@ -2,7 +2,7 @@ import { memo, useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
-import { warmLater } from './Prewarm'
+import { warmLater } from '@/scene/render/Prewarm'
 
 /**
  * What a press or a squeeze gives out, seen (item 289, the owner's, 2026-11-17: 「按一下要有東西出來捏!」, the washroom's hand soap and the sink's

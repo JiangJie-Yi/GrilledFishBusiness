@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import * as THREE from 'three'
 import { feature, scenario } from './bdd'
-import { cameraOneOf } from '@/scene/camera1'
+import { cameraOneOf } from '@/scene/interact/camera1'
 
 const home = new THREE.Vector3(3, 2, 4), target = new THREE.Vector3(0, 0.5, 0)
 

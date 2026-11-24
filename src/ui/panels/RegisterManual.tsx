@@ -4,7 +4,7 @@ import { REGISTER_MANUAL } from '@/data/registerManual'
 import { tl } from '@/data/i18n'
 import { usePanelSound } from '@/ui/kit/uiSound'
 import { Glyph } from '@/ui/art/GameIcons'
-import { sharedAudio } from '@/scene/sfx'
+import { sharedAudio } from '@/scene/interact/sfx'
 
 /** whether the register's manual is open (opened by clicking the booklet under the till) */
 let open = false

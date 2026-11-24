@@ -8,8 +8,8 @@
 // a blur, so it's a mesh of its own on the hand's node, drawn only while it's shown: a draw while they fan, none else).
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
-import { signTexture } from './signFont'
-import { inkTogether } from './inkHull'
+import { signTexture } from '@/scene/props/signFont'
+import { inkTogether } from '@/scene/render/inkHull'
 
 export const UCHIWA_URL = import.meta.env.BASE_URL + 'models/uchiwa.glb'
 

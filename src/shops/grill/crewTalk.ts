@@ -17,7 +17,7 @@ import type { Role } from '@/data/staff'
 import { pairKey } from '@/game/staff/affinity'
 import { ATMOS, CREW_ROLES, moodFor, ON_DUTY, STAFF_TALK } from '@/game/world/shopState'
 import { talkPart } from '@/game/staff/talkTime'
-import { replaces } from '@/scene/hot'
+import { replaces } from '@/scene/kit/hot'
 
 /** those in the shop and at work just now, the owner first */
 export const inShop = () => ['owner', ...[...ON_DUTY.in.keys()].filter((id) => !ON_DUTY.out.has(id))]

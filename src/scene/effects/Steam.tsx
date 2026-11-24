@@ -2,7 +2,7 @@ import { memo, useLayoutEffect, useMemo, useRef, useState, type RefObject } from
 import { useFrame, type ThreeElements } from '@react-three/fiber'
 import * as THREE from 'three'
 import { snoise as noise } from '@/scene/shaders/noise'
-import { sameProps } from './sameProps'
+import { sameProps } from '@/scene/kit/sameProps'
 
 const vertexShader = /* glsl */ `
 uniform float uTime;

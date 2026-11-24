@@ -2,8 +2,8 @@
 // peanut, shichimi), a wet dab for the pastes and sauces, a squeeze for the lemon; each pitched a little differently from the last, so a run
 // of them doesn't drone; and while a powder's sprinkled, a faint patter of grains between the dabs.
 
-import { replaces } from '@/scene/hot'
-import { sharedAudio } from '@/scene/sfx'
+import { replaces } from '@/scene/kit/hot'
+import { sharedAudio } from '@/scene/interact/sfx'
 
 let ac: AudioContext | null = null
 function ctx() {

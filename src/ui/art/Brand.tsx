@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef } from 'react'
 import type { Lang } from '@/data/i18n'
 import { tl } from '@/data/i18n'
-import { setTip } from '@/scene/hoverTip'
+import { setTip } from '@/scene/interact/hoverTip'
 
 // the shop's name: 聞野 日式烤魚 ("smelt from out in the fields"), on a vermilion lacquered board cut like a fish
 const NAMES: Record<string, Record<Lang, { main: string; sub: string }>> = {

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { inkTogether } from '@/scene/inkHull'
+import { inkTogether } from '@/scene/render/inkHull'
 import { CARD_CHARS, CORK_NOTES, paintWallSigns, SIGNS_PX, WALL_LEDGE, WALL_PIECES, WALL_SIGNS, type WallPiece } from '@/shops/grill/wallPhotos'
-import { signTexture } from '@/scene/signFont'
+import { signTexture } from '@/scene/props/signFont'
 import { nameOver } from '@/shops/grill/bar'
 import { Movable } from '@/shops/grill/Movable'
 

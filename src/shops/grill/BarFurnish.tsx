@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
-import { reflectStudio } from '@/scene/studio'
+import { reflectStudio } from '@/scene/render/studio'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
-import { inkModel } from '@/scene/inkHull'
+import { inkModel } from '@/scene/render/inkHull'
 
 /**
  * The bar stool (blender/stools.py), the till's two seats (blender/tillstools.py) and the potted bamboo (blender/barfurnish.py): drawn in the room's toon light, with

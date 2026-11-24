@@ -7,9 +7,9 @@
 import { memo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { reflectStudio, useStudio } from '@/scene/studio'
-import { warmLater } from '@/scene/Prewarm'
-import { NO_RAY } from '@/scene/pickable'
+import { reflectStudio, useStudio } from '@/scene/render/studio'
+import { warmLater } from '@/scene/render/Prewarm'
+import { NO_RAY } from '@/scene/interact/pickable'
 import { pieceLeft, shardsOf, sweepOrder } from '@/game/service/spills'
 import { SPILLS } from './bar'
 

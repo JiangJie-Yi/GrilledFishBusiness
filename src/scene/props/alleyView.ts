@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { RAIN_GLSL, rainUniforms } from './rainGlsl'
+import { RAIN_GLSL, rainUniforms } from '@/scene/effects/rainGlsl'
 
 /**
  * What's out of the upstairs window (item 452, the owner's, 2026-11-21: 「2樓窗外景色?」 over a shot of the window, a pale grey-white

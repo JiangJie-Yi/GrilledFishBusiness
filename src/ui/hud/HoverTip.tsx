@@ -1,6 +1,6 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { TIP_AIM, useTip } from '@/scene/hoverTip'
+import { TIP_AIM, useTip } from '@/scene/interact/hoverTip'
 import { Glyph } from '@/ui/art/GameIcons'
 import { tipIn } from '@/data/tipText'
 

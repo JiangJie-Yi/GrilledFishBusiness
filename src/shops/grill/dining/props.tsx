@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
-import { inkModel } from '@/scene/inkHull'
+import { inkModel } from '@/scene/render/inkHull'
 import { useGLTF } from '@react-three/drei'
 import { nameOver } from '@/shops/grill/bar'
 

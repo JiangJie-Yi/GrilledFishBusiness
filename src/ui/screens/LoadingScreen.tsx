@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import { useProgress } from '@react-three/drei'
 import { GrillingFish } from '@/ui/art/GrillingFish'
-import { laterPending, laterSeen, sceneDrawn } from '@/scene/Later'
+import { laterPending, laterSeen, sceneDrawn } from '@/scene/render/Later'
 import { LOADING_LINES, lineStep } from '@/data/loadingLines'
 import { loadingPct, loadingStep } from '@/game/system/loadingCreep'
 

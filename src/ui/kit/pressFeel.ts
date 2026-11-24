@@ -3,8 +3,8 @@
 // sinks further than a big one, as a finger covers more of it; a whole card (bigger than a button) doesn't. Done here for every one with the
 // page's own animations, not in each button's CSS: most of them carry transitions of their own, which a shared rule can't join (it would
 // override them, or go unseen). With reduced motion asked for, a press dims instead of sinking.
-import { replaces } from '@/scene/hot'
-import { tapSound } from '@/scene/tapSound'
+import { replaces } from '@/scene/kit/hot'
+import { tapSound } from '@/scene/interact/tapSound'
 
 /** what can be pressed */
 const PRESSABLE = 'button, [role="button"], a[href], summary, label[for], select, .brand'

@@ -2,11 +2,11 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
-import { homeCopy, mergeByMaterial, plainColours } from '@/scene/StaticBatch'
-import { inkModel } from '@/scene/inkHull'
-import { reflectStudio, useStudio } from '@/scene/studio'
+import { homeCopy, mergeByMaterial, plainColours } from '@/scene/render/StaticBatch'
+import { inkModel } from '@/scene/render/inkHull'
+import { reflectStudio, useStudio } from '@/scene/render/studio'
 import { TILL_STATE, yen } from './bar'
-import { sharedAudio } from '@/scene/sfx'
+import { sharedAudio } from '@/scene/interact/sfx'
 
 /**
  * The small things on the till's counter, from blender/tilldesk.py: the pen cup, the receipt printer, the card reader, the service bell, the

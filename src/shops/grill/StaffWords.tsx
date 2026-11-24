@@ -3,12 +3,12 @@
 // page root, so none are kept about between times).
 import { memo, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { Html } from '@/scene/Html'
+import { Html } from '@/scene/interact/Html'
 import * as THREE from 'three'
 import { SPEAKERS, STAFF_IDLE, STAFF_TALK, STAFF_TIRED, type StaffWord } from '@/game/world/shopState'
 import { activityOf } from '@/data/staff'
 import { Glyph } from '@/ui/art/GameIcons'
-import { setTip } from '@/scene/hoverTip'
+import { setTip } from '@/scene/interact/hoverTip'
 
 const STYLE = { pointerEvents: 'none' } as const
 const Z = [21, 11]

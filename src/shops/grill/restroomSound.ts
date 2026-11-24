@@ -4,8 +4,8 @@
 // a while to cover what's done; a tap's handle turned, the light switch's tick, the cold cabinets' doors.
 
 import * as THREE from 'three'
-import { replaces } from '@/scene/hot'
-import { gate, heard, sharedAudio } from '@/scene/sfx'
+import { replaces } from '@/scene/kit/hot'
+import { gate, heard, sharedAudio } from '@/scene/interact/sfx'
 
 let ac: AudioContext | null = null
 function ctx() {

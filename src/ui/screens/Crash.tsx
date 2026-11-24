@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
-import { webglReport } from '@/scene/quality'
+import { webglReport } from '@/scene/render/quality'
 
 /**
  * Catches an error anywhere below it so a crash on some phone doesn't wipe the whole page blank: it shows what

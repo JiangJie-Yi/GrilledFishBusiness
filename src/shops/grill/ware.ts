@@ -1,7 +1,7 @@
 // The shop's tableware, painted: one set of 染付 (indigo on cream) for every plate and dish at the grill — the big
 // plate, the side dishes and the customers' plates at the bar — and the lathe shape with its picture laid flat.
 import * as THREE from 'three'
-import { QUALITY } from '@/scene/quality'
+import { QUALITY } from '@/scene/render/quality'
 
 /** phones have little GPU memory: the big painted textures are drawn at full size, then handed over at half */
 export function forPhone(c: HTMLCanvasElement) {

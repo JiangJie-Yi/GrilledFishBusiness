@@ -2,9 +2,9 @@ import { memo, useEffect, useMemo } from 'react'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
-import { StaticBatch, mergeByMaterial } from '@/scene/StaticBatch'
-import { FloorPiece } from '@/scene/FloorPiece'
-import { inkModel } from '@/scene/inkHull'
+import { StaticBatch, mergeByMaterial } from '@/scene/render/StaticBatch'
+import { FloorPiece } from '@/scene/props/FloorPiece'
+import { inkModel } from '@/scene/render/inkHull'
 import { WC_W, WC_ROOM, kitchenOf, kitchenGatesOf, FLOOR_FAR, FLOOR_NEAR, GENKAN, storeOf, STORE, toiletsOf, roomOf, type Counter } from '@/shops/grill/bar'
 
 /**

@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { rimmedTray } from '@/scene/trayGeometry'
+import { rimmedTray } from '@/scene/people/trayGeometry'
 import { SERVE_TOP, newStationPose } from '@/shops/grill/SakeStation'
 import { RICE_BEATS, SOUP_BEATS, beatsLength } from '@/game/kitchen/sides'
 

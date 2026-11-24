@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { mergeByMaterial } from '@/scene/StaticBatch'
-import { inkModel } from '@/scene/inkHull'
+import { mergeByMaterial } from '@/scene/render/StaticBatch'
+import { inkModel } from '@/scene/render/inkHull'
 import { useGLTF } from '@react-three/drei'
 import { handOver } from '@/shops/grill/bar'
 import { getEdit } from '@/shops/grill/edit'
-import { setTip } from '@/scene/hoverTip'
+import { setTip } from '@/scene/interact/hoverTip'
 import { getBgmOff, setBgmOff, useBgmOff } from '@/ui/kit/bgmStore'
-import { useSfxMuted } from '@/scene/sfx'
+import { useSfxMuted } from '@/scene/interact/sfx'
 import { MusicNotes } from './crates'
 
 /**

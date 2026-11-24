@@ -3,9 +3,9 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { bakeable, colourVertices, keyOf, plainShared } from './StaticBatch'
-import { HOVER, anyLit } from './hoverGlow'
+import { HOVER, anyLit } from '@/scene/interact/hoverGlow'
 import { WORLD, giveBack, mergeAway, mergeState, takeOut, type WorldSpan } from './worldMerge'
-import { paused } from './speed'
+import { paused } from '@/scene/kit/speed'
 
 /** how often (ms) the room's meshes are looked over for what's kept still (the same place at two looks running) */
 const LOOK_MS = 1200

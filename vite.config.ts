@@ -60,7 +60,7 @@ function gameVersion() {
 
 /** each model's, picture's and light's content hash (item 478, the owner's 「本地端 and GitHub 上，兩者怎差這麼多?」): GitHub Pages lets a
  * browser keep what it fetched for ten minutes, and the site's files are at the same addresses build after build, so a model changed and
- * pushed was seen as it was (the beckoning cats' coats, taken off, still on there). scene/assetVersions puts each one's hash on its address:
+ * pushed was seen as it was (the beckoning cats' coats, taken off, still on there). scene/render/assetVersions puts each one's hash on its address:
  * only what's changed is fetched anew. Built only (the dev server's files are always fresh) */
 function assetHashes(): Record<string, string> {
   const root = fileURLToPath(new URL('./public', import.meta.url))
@@ -84,11 +84,11 @@ export default defineConfig(({ command, isPreview }) => ({
   base: command === 'build' || isPreview ? `/${REPO}/` : '/',
   plugins: [react(), blenderBridge()],
   // (the game's version, shown on the about tab: up 0.01 with every push to main, gameVersion above)
-  // (and, built, each model's and picture's content hash: scene/assetVersions)
+  // (and, built, each model's and picture's content hash: scene/render/assetVersions)
   define: { __GAME_VERSION__: JSON.stringify(gameVersion()), __ASSET_HASH__: JSON.stringify(command === 'build' ? assetHashes() : {}) },
   // (the same alias as tsconfig.app.json's paths)
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
-  // (two pages: the game, and the shop's editor (item 178, scene/toolPage.ts))
+  // (two pages: the game, and the shop's editor (item 178, scene/interact/toolPage.ts))
   build: { rollupOptions: { input: { main: fileURLToPath(new URL('./index.html', import.meta.url)), editor: fileURLToPath(new URL('./editor.html', import.meta.url)), admin: fileURLToPath(new URL('./admin.html', import.meta.url)) } } },
   server: {
     // the bridge rewrites this file constantly; don't reload the page for it

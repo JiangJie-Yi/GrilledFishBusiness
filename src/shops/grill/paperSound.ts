@@ -1,5 +1,5 @@
 // A tissue pulled from its box: a soft papery whisk, synthesised as it's heard (no sound files)
-import { sharedAudio } from '@/scene/sfx'
+import { sharedAudio } from '@/scene/interact/sfx'
 let audio: AudioContext | null = null
 
 /** the sheet drawn up out of the slot: a short breath of filtered noise rising in pitch, and the faint snap as it comes free */

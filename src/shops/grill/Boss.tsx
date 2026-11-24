@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useFrame, useLoader, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
-import { Html } from '@/scene/Html'
+import { Html } from '@/scene/interact/Html'
 import * as THREE from 'three'
-import { bakeable } from '@/scene/StaticBatch'
+import { bakeable } from '@/scene/render/StaticBatch'
 import { OUTFIT_DEFAULT, colourOf, getOutfit, outfitKey, recolourPixels, subscribeOutfit, type Dye, type Outfit } from '@/game/staff/bossOutfit'
 import { OUTFIT_PARTS, type OutfitPart } from '@/data/bossOutfit'
-import { atlasModel, repaintPatch } from '@/scene/atlasMerge'
-import { airbrush, gradientMap } from '@/scene/Person3D'
-import { cloneFigure, paintable, releaseFigure, rigidFigure, type SkinPiece } from '@/scene/rigidSkin'
+import { atlasModel, repaintPatch } from '@/scene/render/atlasMerge'
+import { airbrush, gradientMap } from '@/scene/people/Person3D'
+import { cloneFigure, paintable, releaseFigure, rigidFigure, type SkinPiece } from '@/scene/people/rigidSkin'
 import { getEdit } from './edit'
 import type { Lang } from '@/data/i18n'
 import { bedLineText, bossLineText, cashLineText, drinkLineText, lineIn, munchLineText, phoneLine, nextBossLine, tasteLineText, tasteVerdict, verdictLineText, type BossSituation } from '@/data/bossLines'
@@ -19,10 +19,10 @@ import { gulpSound } from './chewSound'
 import { BOSS_BED, FIGURES, FRIDGE_STOCK, FUTON, KITCHEN_FOLK, NIGHT_WITH, OWNER_GRILL, OWNER_OUT, STAFF_DOOR_HOLD, type DrinkId } from './bar'
 import { dormDoing } from '@/game/staff/dormLife'
 import { BOSS_BODY, bossWorn, layBeat, riseBeat, sleepsDown, wakesUp } from '@/game/staff/bossStamina'
-import { footDust, newSteps } from '@/scene/DustPuffs'
+import { footDust, newSteps } from '@/scene/effects/DustPuffs'
 const FEET = new THREE.Vector3()
 import { RUSH, SPEAKERS, STAFF_TALK } from '@/game/world/shopState'
-import { FigureHit, GRABBING } from '@/scene/FigureHit'
+import { FigureHit, GRABBING } from '@/scene/people/FigureHit'
 import { glyphCursor } from '@/ui/art/glyphs'
 import { Glyph } from '@/ui/art/GameIcons'
 /** the skin's own colour on a figure (its BossSkin material's) */
@@ -44,12 +44,12 @@ const CURSOR_SHAKE = glyphCursor('handShake', [8, 8]), CURSOR_GRAB = glyphCursor
 const STIR_MS = 2600, CARRY_UP = 0.16
 /** (item 652) how near his round's line (his frame) he must come down to be on his round from there, not put somewhere off it */
 const ON_ROUND = 0.1
-import { crewFaceSheet, crewFrame, faceRange, markFace, ownShape, setFace, squash as jelly, type CrewFace } from '@/scene/faceSheet'
+import { crewFaceSheet, crewFrame, faceRange, markFace, ownShape, setFace, squash as jelly, type CrewFace } from '@/scene/people/faceSheet'
 import { faceNow, newFaceLife, type FaceLife } from '@/game/staff/faceLife'
 import { turnEase } from './commuteWalk'
-import { NO_POINTER, zr } from '@/scene/htmlProps'
-import { warmLater } from '@/scene/Prewarm'
-import { UCHIWA_URL, uchiwaInHand } from '@/scene/uchiwa'
+import { NO_POINTER, zr } from '@/scene/interact/htmlProps'
+import { warmLater } from '@/scene/render/Prewarm'
+import { UCHIWA_URL, uchiwaInHand } from '@/scene/people/uchiwa'
 
 /**
  * The owner (blender/boss.py): an Overcooked 2 cook (a big round head on a short plump body rounding off underneath, floating mitten

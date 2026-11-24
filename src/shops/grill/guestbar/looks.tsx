@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
-import { warmLater } from '@/scene/Prewarm'
+import { warmLater } from '@/scene/render/Prewarm'
 
 /**
  * A takeaway: in a kraft paper bag (KraftBag, below), in a server's hands, on the stand behind the till, in the cashier's; and in the

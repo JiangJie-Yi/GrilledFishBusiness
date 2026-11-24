@@ -1,6 +1,6 @@
 import * as THREE from 'three'
-import { replaces } from './hot'
-import { lift, mergedAway, mergeState } from './worldMerge'
+import { replaces } from '@/scene/kit/hot'
+import { lift, mergedAway, mergeState } from '@/scene/render/worldMerge'
 import { tapSound } from './tapSound'
 
 /**
