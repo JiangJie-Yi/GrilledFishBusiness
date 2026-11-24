@@ -9,7 +9,8 @@ Its top level with the cook table's, the takeaways' boxes packed and waiting on 
 
 - node "ServeCounter": the table. Low-poly: boxes and a few 8-sided culms; its top's, its doors' and its ends' split bamboo strips as
   they are (item 621: each strip three faces, a V between it and the next), their nodes, fibres and the shade of their hollows in their
-  pictures; a square indigo cloth (item 622) laid over the middle of its top, its front and back hanging over the edges' culms.
+  pictures; an indigo cloth over the whole of its top (items 622, 679), round its edges' culms and hanging past them on all four sides,
+  its corners hanging lower; 七宝 (shippo) on it inside a pale double line.
 - node "ServeCounterTop": an empty at the middle of its top (what's set on it stands there).
 - node "ServeCounterFront": an empty on the floor before its front (+z) middle, where one stands to take from it.
 
@@ -153,16 +154,7 @@ def wood_picture(base_, dark, rings, seed_):
 
 
 top_wood = wood_picture((0.86, 0.72, 0.52), (0.68, 0.52, 0.34), 16, 4031)
-# ---- the cloth (item 622, the owner's 「然後上面鋪一層藍色的方巾」): indigo cotton, its weave (fine threads both ways), the dye a little
-# uneven (paler in soft patches, as hand-dyed indigo is), a pale double line round it a little in from its hems; one picture over all of it
-seed(622)
-cloth = np.ones((N, N, 3), np.float32) * np.array((0.15, 0.29, 0.55), np.float32)[None, None, :]
-cloth = mix(cloth, (0.24, 0.4, 0.66), smooth(0.55, 0.85, fbm(N, 6, 6, 4)) * 0.4)
-weave = 0.92 + 0.08 * (0.5 + 0.5 * np.sin(u * N * math.pi * 0.5)) * (0.5 + 0.5 * np.sin(v * N * math.pi * 0.5))
-cloth = cloth * weave[..., None]
-edge = np.minimum(np.minimum(u, 1 - u), np.minimum(v, 1 - v))
-for e0 in (0.045, 0.062):
-    cloth = mix(cloth, (0.86, 0.88, 0.86), np.exp(-((edge - e0) / 0.0035) ** 2) * 0.85)
+# (the cloth's picture is made with it, below: its size is the cloth's)
 # (a mid brown: darker it went black in the kitchen's shade)
 frame_wood = wood_picture((0.54, 0.35, 0.2), (0.38, 0.24, 0.13), 12, 4032)
 M = {
@@ -172,7 +164,6 @@ M = {
                  nrm=image("servecounter_split_nrm", to_normal(h_split, 12.0).astype(np.float32), data=True), nrm_strength=1.0, rough=0.55),
     "top": pbr("ServeTopWood", (1, 1, 1), tex=image("servecounter_top", np.clip(top_wood, 0, 1).astype(np.float32)), rough=0.5),
     "frame": pbr("ServeFrameWood", (1, 1, 1), tex=image("servecounter_frame", np.clip(frame_wood, 0, 1).astype(np.float32)), rough=0.55),
-    "cloth": pbr("ServeCloth", (1, 1, 1), tex=image("servecounter_cloth", np.clip(cloth, 0, 1).astype(np.float32)), rough=0.9),
 }
 parts = []
 
@@ -428,68 +419,154 @@ for d_, (x0, x1, zz) in enumerate(((-ix, -ix + DW, zf - 0.012), (ix - DW, ix, zf
     print("SERVE_DOOR", nm, "slides", round(DW - 0.04, 4))
 
 
-# ---- the cloth (item 622, the owner's 「然後上面鋪一層藍色的方巾」): a square of indigo cotton, CLOTH wide and deep, 3 mm thick, laid over the
-# middle of the top where the takeaway's box waits (the bowls to its left, the sake to its right, either only partly on it): over the
-# strips' crowns half a millimetre clear, over the edges' culms at its front and back and hanging a little way down past them, a hair out
-# from them and a touch further at its hems; its top 0.5 mm under SERVE_TOP, what's set on it standing on it. Low-poly: its fold across
-# in seven bands, three along; the dye's picture once over all of it, its pale lines round it a little in from its hems
-CLOTH, CLOTH_T, CLOTH_X = 0.42, 0.003, -0.025
-cy, cz, cr = H - 0.004 + 0.0005, D / 2 - ER, ER + 0.0005     # its foot over the crowns (H - 0.004); the edges' culms' middle line, round
-cy_c = H - TT / 2 - 0.002                                                              # (the culms' middles' height)
-drop = (CLOTH - 2 * cz - math.pi * cr) / 2                                             # how far it hangs below the culms' middles
-fold = [(-(cz + cr + 0.0015), cy_c - drop), (-(cz + cr), cy_c), (-(cz + cr * 0.7071), cy_c + cr * 0.7071), (-cz, cy),
-        (cz, cy), (cz + cr * 0.7071, cy_c + cr * 0.7071), (cz + cr, cy_c), (cz + cr + 0.0015, cy_c - drop)]
-# (its outward way at each point of its fold: up over the top, out over the culms' round, out at the hanging parts)
-outw = [(-1.0, 0.0), (-1.0, 0.0), (-0.7071, 0.7071), (0.0, 1.0), (0.0, 1.0), (0.7071, 0.7071), (1.0, 0.0), (1.0, 0.0)]
-alongs = [0.0]
-for (z0, y0), (z1, y1) in zip(fold, fold[1:]):
-    alongs.append(alongs[-1] + math.hypot(z1 - z0, y1 - y0))
-XS = [CLOTH_X - CLOTH / 2 + CLOTH * i / 3 for i in range(4)]
+# ---- the cloth (item 622, the owner's 「然後上面鋪一層藍色的方巾」; item 679, the owner's 「膳檯的方巾要蓋住整面，然後有些花紋」): indigo
+# cotton over the whole of the top, 3 mm thick: over the strips' crowns and the culms' tops half a millimetre clear, round the edges' culms
+# at its front and back, and at its ends round a little out from the end culms (the front and back culms run on past them, their cut ends
+# square: a round on the end culms' line went through those ends' corners), hanging a little way down past them on all four sides, a hair
+# out from them and a touch further at its hems. At each corner the cloth left over hangs lower: its hems come down to a point a little out
+# from the corner, over the last few centimetres (as a cloth bigger than a table hangs there). Its top 0.5 mm under SERVE_TOP: everything
+# set on the counter (the bowls, the takeaway's box, the sake) stands on it, none half on it (item 622's cloth was 0.42 wide in the middle).
+# Low-poly: one grid over all of it, each way a hem, the culm's side and its round in two to where it lies flat, a line in from each corner
+# (the dip comes down over it), the flat between; its underside only under its hang (the rest lies on the top and the culms, unseen); its
+# hems thin to nothing (no strip round them). Its picture once over all of it at its true size, about a millimetre a pixel (cloth_picture)
+CLOTH_T = 0.003
+XE, ZE = L / 2 - ER + 0.0045, D / 2 - ER           # where it lies flat to: x the end culms' middles and 4.5 mm out; z the edges' culms' middles
+cy, cr = H - 0.004 + 0.0005, ER + 0.0005           # its foot over the crowns (H - 0.004); its round over the culms
+cy_c = H - TT / 2 - 0.002                          # the culms' middles' height
+DROP = 0.022                                       # its hems below the culms' middles (as item 622's: 2.2 cm)
+DIP, DIP_OUT, DIP_LEN = 0.012, 0.003, 0.06         # a corner's point that much lower and out; its hems come down to it over that length
+IN = 0.04                                          # the line in from each corner of where it lies flat
+# (its profile over an edge from its hem in: out from the edge's middle line, height; and its outward way there (out, up))
+prof = [(cr + 0.0015, cy_c - DROP), (cr, cy_c), (cr * 0.7071, cy_c + cr * 0.7071), (0.0, cy)]
+outw = [(1.0, 0.0), (1.0, 0.0), (0.7071, 0.7071), (0.0, 1.0)]
+arc = [0.0]
+for (o0, y0), (o1, y1) in zip(prof, prof[1:]):
+    arc.append(arc[-1] + math.hypot(o1 - o0, y1 - y0))
+S = arc[-1]                                        # how much of it goes over each edge, hem to flat
+WC, DC = 2 * S + 2 * XE, 2 * S + 2 * ZE            # its size laid out flat
+
+
+def cloth_marks(E):
+    """its lines across one way, from one hem to the other: (side -1/0/1, profile index or None where it lies flat, the place that way if
+    flat, its place on the cloth from that way's first hem)"""
+    out = [(-1, k, None, arc[k]) for k in range(4)]
+    out += [(0, None, -(E - IN), S + IN), (0, None, E - IN, S + 2 * E - IN)]
+    out += [(1, k, None, 2 * S + 2 * E - arc[k]) for k in (3, 2, 1, 0)]
+    return out
+
+
+def cloth_picture(W=1024):
+    """its picture at its true size (WC by DC, about a millimetre a pixel): indigo, the dye a little uneven (paler in soft patches, as hand-
+    dyed indigo is), its weave; inside, 七宝 (shippo): rings of 3.6 cm in rows, every other ring a ring's radius over and up, each overlapping
+    its four slant neighbours; the lens two share a paler indigo, so the four lenses round each point where four rings meet make a four-
+    petalled flower, a white dot at its heart, the dark between them four-pointed stars, a pale line round every ring; a pale double line
+    round it a little in from its hems, the hems' band plain. (At the counter's usual distance, 3 mm a pixel, smaller rings ran into a grey
+    lattice; at 3.6 cm the petals and the stars stay apart)"""
+    HP = int(round(W * DC / WC / 4)) * 4
+    col = np.arange(W, dtype=np.float32)[None, :].repeat(HP, 0)
+    row = np.arange(HP, dtype=np.float32)[:, None].repeat(W, 1)
+    X, Y = (col + 0.5) / W * WC, (row + 0.5) / HP * DC
+    seed(622)
+    pic = np.ones((HP, W, 3), np.float32) * np.array((0.15, 0.29, 0.55), np.float32)[None, None, :]
+    # (the noise's square cut to the picture's rows: 15 by 6 of its cells, about 7 cm each way)
+    pic = mix(pic, (0.24, 0.4, 0.66), smooth(0.55, 0.85, fbm(W, 15, 6, 4)[np.arange(HP) * W // HP]) * 0.4)
+    R = 0.036
+    dx, dy = X - WC / 2, Y - DC / 2
+    qa = np.hypot(dx - np.round(dx / (2 * R)) * 2 * R, dy - np.round(dy / (2 * R)) * 2 * R)
+    qb = np.hypot(dx - R - np.round((dx - R) / (2 * R)) * 2 * R, dy - R - np.round((dy - R) / (2 * R)) * 2 * R)
+    lens = smooth(-0.0006, 0.0006, R - qa) * smooth(-0.0006, 0.0006, R - qb)
+    line = 1 - smooth(0.0007, 0.0014, np.minimum(np.abs(qa - R), np.abs(qb - R)))
+    # (the flowers' hearts: the points a ring's radius apart whose two counts add up odd)
+    fx, fy = np.floor(dx / R), np.floor(dy / R)
+    heart = np.full(dx.shape, 9.0, np.float32)
+    for ox in (0, 1):
+        for oy in (0, 1):
+            ax, ay = fx + ox, fy + oy
+            heart = np.where(((ax + ay) % 2) != 0, np.minimum(heart, np.hypot(dx - ax * R, dy - ay * R)), heart)
+    dot = 1 - smooth(0.0022, 0.003, heart)
+    edge = np.minimum(np.minimum(X, WC - X), np.minimum(Y, DC - Y))
+    field = smooth(0.032, 0.034, edge)
+    pic = mix(pic, (0.6, 0.72, 0.88), lens * field * 0.42)
+    pic = mix(pic, (0.84, 0.88, 0.92), line * field * 0.7)
+    pic = mix(pic, (0.94, 0.95, 0.93), dot * field * 0.9)
+    weave = 0.92 + 0.08 * (0.5 + 0.5 * np.sin((col + 0.5) * math.pi * 0.5)) * (0.5 + 0.5 * np.sin((row + 0.5) * math.pi * 0.5))
+    pic = pic * weave[..., None]
+    for e0 in (0.0189, 0.026):
+        pic = mix(pic, (0.86, 0.88, 0.86), np.exp(-((edge - e0) / 0.00147) ** 2) * 0.85)
+    return np.clip(pic, 0, 1).astype(np.float32)
+
+
+cloth_pic = cloth_picture()
+M["cloth"] = pbr("ServeCloth", (1, 1, 1), tex=image("servecounter_cloth", cloth_pic), rough=0.9)
+CX, CZ = cloth_marks(XE), cloth_marks(ZE)
+
+
+def cloth_point(mx, mz):
+    """a point of it at the lines `mx` (across x) and `mz` (across z): its foot, its outward way, whether it's on a hem. Where both are over
+    an edge (a corner), as low as the lower of the two; its hems near a corner come down to the corner's point and out"""
+    def one(m, E):
+        sgn, k, flat, _ = m
+        if k is None:
+            return flat, cy, (0.0, 1.0), False
+        off, y = prof[k]
+        return sgn * (E + off), y, outw[k], k == 0
+    x, yx, nx, hx = one(mx, XE)
+    z, yz, nz, hz = one(mz, ZE)
+    sx, sz = mx[0], mz[0]
+    y = min(yx, yz)
+    if yx < yz - 1e-6:
+        n = Vector((sx * nx[0], nx[1], 0.0))
+    elif yz < yx - 1e-6:
+        n = Vector((0.0, nz[1], sz * nz[0]))
+    else:
+        n = Vector((sx * nx[0], (nx[1] + nz[1]) / 2, sz * nz[0]))
+    n.normalize()
+    if hx or hz:
+        # (how far along its hem from the corner: an end's hem runs along z, the front's and back's along x)
+        s = 0.0 if (hx and hz) else (ZE + prof[0][0] - abs(z)) if hx else (XE + prof[0][0] - abs(x))
+        k = max(0.0, 1 - s / DIP_LEN) ** 2
+        y -= DIP * k
+        if hx:
+            x += sx * DIP_OUT * k
+        if hz:
+            z += sz * DIP_OUT * k
+    return Vector((x, y, z)), n, (hx or hz)
+
+
 bm = bmesh.new()
 uvl = bm.loops.layers.uv.new("UVMap")
-# (its hems a little out of true, as cloth hangs: the hanging parts' points nudged out and down a few millimetres, each its own way)
-wob = np.random.default_rng(622)
+lo, hi, nrm = {}, {}, {}
+for i, mx in enumerate(CX):
+    for j, mz in enumerate(CZ):
+        f, n, hem = cloth_point(mx, mz)
+        t = f + n * CLOTH_T
+        hi[i, j] = bm.verts.new(P(t.x, t.y, t.z))
+        # (its hems thin to nothing: the underside meets the top there)
+        lo[i, j] = hi[i, j] if hem else bm.verts.new(P(f.x, f.y, f.z))
+        nrm[i, j] = n
+UVS = {(i, j): (CX[i][3] / WC, CZ[j][3] / DC) for i in range(len(CX)) for j in range(len(CZ))}
 
 
-def cloth_foot(i, j):
-    """a point of its underside: across at XS[i], round its fold at fold[j]; its hems nudged out and down a little, its corners hanging
-    lower and further out than the middle of its hems (as a square of cloth over an edge hangs)"""
-    z, y = fold[j]
-    if j in (0, len(fold) - 1):
-        corner = i in (0, 3)
-        z += math.copysign(0.002 * wob.random() + (0.004 if corner else 0.0), z)
-        y -= 0.003 * wob.random() + (0.007 if corner else 0.0)
-    return (XS[i], y, z)
-
-
-foot = [[cloth_foot(i, j) for j in range(len(fold))] for i in range(4)]
-lo = [[bm.verts.new(P(*foot[i][j])) for j in range(len(fold))] for i in range(4)]
-hi = [[bm.verts.new(P(foot[i][j][0], foot[i][j][1] + outw[j][1] * CLOTH_T, foot[i][j][2] + outw[j][0] * CLOTH_T)) for j in range(len(fold))] for i in range(4)]
-
-
-def cloth_face(vs, uvs):
-    f = bm.faces.new(vs)
-    for loop, uv in zip(f.loops, uvs):
-        loop[uvl].uv = uv
+def cloth_face(keys, verts, way):
+    """a face of it through `verts` (at the grid's `keys`), turned to face `way` (the game's frame)"""
+    f = bm.faces.new(verts)
+    for loop, key in zip(f.loops, keys):
+        loop[uvl].uv = UVS[key]
+    f.normal_update()
+    if f.normal.dot(P(way.x, way.y, way.z)) < 0:
+        f.normal_flip()
     return f
 
 
-U = lambda i: (XS[i] - XS[0]) / CLOTH
-V = lambda j: alongs[j] / alongs[-1]
-for i in range(3):
-    for j in range(len(fold) - 1):
-        cloth_face([hi[i][j], hi[i + 1][j], hi[i + 1][j + 1], hi[i][j + 1]], [(U(i), V(j)), (U(i + 1), V(j)), (U(i + 1), V(j + 1)), (U(i), V(j + 1))])
-        cloth_face([lo[i][j + 1], lo[i + 1][j + 1], lo[i + 1][j], lo[i][j]], [(U(i), V(j + 1)), (U(i + 1), V(j + 1)), (U(i + 1), V(j)), (U(i), V(j))])
-# (its edges: its two sides along the fold, its two hems)
-for i, flip in ((0, False), (3, True)):
-    for j in range(len(fold) - 1):
-        vs = [lo[i][j], lo[i][j + 1], hi[i][j + 1], hi[i][j]]
-        cloth_face(list(reversed(vs)) if flip else vs, [(U(i), V(j)), (U(i), V(j + 1)), (U(i), V(j + 1)), (U(i), V(j))])
-for j, flip in ((0, True), (len(fold) - 1, False)):
-    for i in range(3):
-        vs = [lo[i][j], lo[i + 1][j], hi[i + 1][j], hi[i][j]]
-        cloth_face(list(reversed(vs)) if flip else vs, [(U(i), V(j)), (U(i + 1), V(j)), (U(i + 1), V(j)), (U(i), V(j))])
-bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+last, lastz = len(CX) - 1, len(CZ) - 1
+for i in range(len(CX) - 1):
+    for j in range(len(CZ) - 1):
+        keys = [(i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1)]
+        way = sum((nrm[k] for k in keys), Vector())
+        cloth_face(keys, [hi[k] for k in keys], way)
+        # (the underside: under its hang only, the band from the culms' sides to the hems all round)
+        if i in (0, last - 1) or j in (0, lastz - 1):
+            cloth_face(keys, [lo[k] for k in keys], -way)
 me = bpy.data.meshes.new("ServeCloth")
 bm.to_mesh(me)
 bm.free()
@@ -499,7 +576,8 @@ cloth_o.data.materials.append(M["cloth"])
 for p_ in cloth_o.data.polygons:
     p_.use_smooth = False
 parts.append(cloth_o)
-print("SERVE_CLOTH_FACES", len(me.polygons), "top", round(cy + CLOTH_T, 4), "drop", round(drop, 4))
+print("SERVE_CLOTH_FACES", len(me.polygons), "tris", sum(len(p.vertices) - 2 for p in me.polygons), "top", round(cy + CLOTH_T, 4),
+      "flat", round(WC, 4), round(DC, 4), "picture", cloth_pic.shape[1], cloth_pic.shape[0], "drop", DROP)
 
 # (one node of it all, its own name; the marks)
 bpy.ops.object.select_all(action="DESELECT")
