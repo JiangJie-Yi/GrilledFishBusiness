@@ -110,7 +110,7 @@ export function DaySummary({ s, day, hours, goal, goalMade, streak = 0, broke = 
               <FitLine>{goalMade || s.revenue >= goal
                 ? t(`今日目標 ${nt(goal)} 達成${streak > 1 ? `・連續 ${streak} 天` : ''}・明天客人 +${Math.round(goalBonus(Math.max(1, streak)) * 100)}%`,
                   `今日の目標 ${nt(goal)} 達成${streak > 1 ? `・${streak} 日連続` : ''}・明日の客 +${Math.round(goalBonus(Math.max(1, streak)) * 100)}%`,
-                  `Today's target ${nt(goal)} made${streak > 1 ? ` · ${streak} days running` : ''} · tomorrow +${Math.round(goalBonus(Math.max(1, streak)) * 100)}% customers`)
+                  `Target ${nt(goal)} made${streak > 1 ? ` · ${streak} days running` : ''} · tomorrow +${Math.round(goalBonus(Math.max(1, streak)) * 100)}%`)
                 : t(`今日目標 ${nt(goal)}，還差 ${nt(goal - s.revenue)}${broke ? '・連續達標中斷' : ''}`, `今日の目標 ${nt(goal)}、あと ${nt(goal - s.revenue)}${broke ? '・連続達成が途切れた' : ''}`,
                   `Today's target ${nt(goal)}: ${nt(goal - s.revenue)} short${broke ? ' · the run is broken' : ''}`)}</FitLine>
             </p>

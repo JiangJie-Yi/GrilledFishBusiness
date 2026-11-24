@@ -3716,6 +3716,8 @@ type Shown = { id: number; seat: number; phase: 'enter' | 'sit' | 'leave' | 'wcG
    * out, how long they've been at the stand (s) and whether it's raining as they go; what their figure's told of it each frame */
   gear?: 'umbrella' | 'coat' | null; umbC?: number; coatC?: number; umbSlot?: number; umbIn?: boolean; coatOff?: boolean
   outT?: number; outWet?: boolean; gearAt?: GearAt
+  /** (item 623) going out, whether they'll put their raincoat on at the step: fixed as they set off */
+  coatLeave?: boolean
   /** (item 623) the last of their door moment's sounds played (closed, shaken; taken out, opened), so each plays once */
   umbSaid?: number
   /** in the house's slippers (inside, past the genkan's step), or their own shoes */
@@ -7021,6 +7023,11 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         // (stopping at the genkan's step a moment, to step out of their shoes and up into slippers)
         const v = SPEED * walkSpeedOf(kindOf(s.id).kind), raw0 = Math.max(0, (s.t - (s.stepHold ?? 0)) * v)
         // (stood out on the step at the sliding door while it's slid open (item 410), then in; one off the bench is in already)
+        // (item 623: one still out at the door ahead of them (an umbrella being closed and stood in the stand: three times the door's usual
+        // moment), the next one in not there yet: kept unseen, their walk not begun, till that one's in (the Tester window's: on a rain day the
+        // next one in was put down in the first, 31 times in three minutes))
+        if (!s.from && doorLead.len && s.t < 0.5 && shown.some((o) => o !== s && o.phase === 'enter' && !o.from && (o.t > s.t || (o.t === s.t && o.id < s.id))
+          && o.t - (o.stepHold ?? 0) < (o.gear === 'umbrella' ? UMB_IN_S : DOOR_WAIT_S) + 0.4)) { s.t = 0; s.stepHold = 0 }
         // (item 623: with an umbrella, the moment at the door is its closing and standing in the stand (UMB_IN_S))
         const umbIn = s.gear === 'umbrella' && !s.from && !!doorLead.len
         const raw = s.from || !doorLead.len ? raw0 : withPause(raw0, 0, (umbIn ? UMB_IN_S : DOOR_WAIT_S) * v)
@@ -7351,8 +7358,11 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         // (item 410) it's the step first, their shoes on, then the till down in the genkan, then the sliding door; the till's stop was taken
         // first, as it had come first, and they paid stood at the step, 1.5 from the till, 6.8 s on it. Where each begins in the walk's own
         // terms (`raw`, the time stood at the stops in it): its place along it, and the stops before it)
-        // (item 623: with a raincoat off, the stop at the step its putting on after the shoes (COAT_ON_S))
-        const coatS = s.gear === 'coat' && s.coatOff ? COAT_ON_S : 0
+        // (item 623: with a raincoat off, the stop at the step its putting on after the shoes (COAT_ON_S): whether, fixed as they set off (the
+        // Tester window's: asked each frame, it was gone the moment the coat was on, the stop that much shorter, and they were a stride and a
+        // half on in a frame, 1 m)
+        s.coatLeave ??= s.gear === 'coat' && !!s.coatOff
+        const coatS = s.coatLeave ? COAT_ON_S : 0
         const shoeAt = lp.len - stepAt(lp.path), shoeHold = (SHOES_S + coatS) * v, payHold = payD ? PAY_S * v : 0
         const payFirst = payAt <= shoeAt
         const payRaw = payAt + (payFirst ? 0 : shoeHold), shoeRaw = shoeAt + (payFirst ? payHold : 0)
