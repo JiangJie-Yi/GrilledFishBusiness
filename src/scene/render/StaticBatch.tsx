@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { isDummyMap, isFlatNormal } from './materialNormalize'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { mergeState } from './worldMerge'
+import { treeLater, treeRaycast } from './rayTree'
 
 /*
  * Things that never move, drawn as a handful of meshes instead of hundreds. Its children are built as usual (each a
@@ -197,6 +198,16 @@ export function StaticBatch({ children, parts, plain = false }: { children: Reac
     // (the originals, hidden, aren't drawn; nor need their places be worked out again every frame: thousands of them, in all the batches)
     const own = h.updateMatrixWorld
     h.updateMatrixWorld = () => {}
+    // (and the pointer's rays through them by a box tree each, made when the page is idle (scene/render/rayTree, item 579: every pointer
+    // event tried their triangles one by one, 2.6 to 3.0 ms over the whole room); the same hits as three's own; only those on three's own
+    // raycast: one made to take none keeps its own)
+    const treed: THREE.Mesh[] = []
+    h.traverse((m) => {
+      if (!(m instanceof THREE.Mesh) || m instanceof THREE.SkinnedMesh || m instanceof THREE.InstancedMesh || m.raycast !== THREE.Mesh.prototype.raycast) return
+      m.raycast = treeRaycast
+      treeLater(m.geometry)
+      treed.push(m)
+    })
     // (a part hidden: its vertices all drawn in to one point, so its triangles cover nothing (and cast nothing); shown, put back from
     // how they were made; only its own stretch of the buffer sent again, not the whole batch merged over)
     const kept = new Map<THREE.Mesh, Float32Array>()
@@ -228,6 +239,7 @@ export function StaticBatch({ children, parts, plain = false }: { children: Reac
       h.visible = true
       h.userData.drawnElsewhere = false
       h.updateMatrixWorld = own
+      for (const m of treed) if (m.raycast === treeRaycast) delete (m as { raycast?: unknown }).raycast
     }
   }, [parts, plain])
   return (
