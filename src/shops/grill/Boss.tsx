@@ -1324,10 +1324,14 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
       c.until = performance.now() + 260
       // (down where he's held first; where he's to stand worked out over the next few frames (the Optimization window's: done as he was let
       // go it held that frame, 32 ms here, some 130 on a slower laptop), and he steps over to it if it isn't there)
+      // (from where he's drawn, not where the pointer had him: held over the cook table, its guard draws him at its edge (HearthGuard), and
+      // slid on from inside it he went through it, the guard's nearest edge turning over on the way, 0.3 to 0.4 m in a frame (the Tester
+      // window's))
+      const mv = mover.current, fr = BOSS_BED.frame
+      if (mv) { st.current.x = mv.position.x; st.current.z = mv.position.z }
       c.to = [st.current.x, st.current.z]
       // (stood there meanwhile, not off on his round's walk from it)
       away.current = { since: performance.now(), stay: 60 }
-      const mv = mover.current, fr = BOSS_BED.frame
       const ask = mv?.parent && fr ? fr.worldToLocal(mv.getWorldPosition(new THREE.Vector3())) : null
       const token = ++dropToken.current
       const settle = (spot: THREE.Vector3 | null) => {
@@ -1339,7 +1343,10 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
         if (spot && m2?.parent && f2) { const q = m2.parent.worldToLocal(f2.localToWorld(spot)); to = [q.x, q.z] }
         else setSay({ text: pick3('欸欸，放不下去啦。', 'おいおい、そこには立てんよ。', "Hey now, I can't stand there."), key: Date.now() })
         const s2 = st.current
-        if (Math.hypot(to[0] - s2.x, to[1] - s2.z) > 0.005) carry.current = { on: false, px: c.px, py: c.py, from: c.from, to, until: performance.now() + 260 }
+        // (down beside where he was let go over something, in the landing's quarter second, as he comes down (walked out of it, he was in the
+        // serving counter a while); nowhere to stand near, back where he was as quickly, as a thing put where it can't go springs back)
+        const over = Math.hypot(to[0] - s2.x, to[1] - s2.z)
+        if (over > 0.005) carry.current = { on: false, px: c.px, py: c.py, from: c.from, to, until: performance.now() + 260 }
         // (on his round's line where he's come down (his place to the aisle's mouth, and along the aisle), he's on his round from there; off
         // it, he's been put somewhere: he stays a while, then finds his way back)
         const segs: [number, number, number, number][] = []

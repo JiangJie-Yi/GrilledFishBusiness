@@ -4222,13 +4222,16 @@ const NotchStep = memo(function NotchStep({ id = 'notchstep', label = '木台階
  * clear of the square passed by; a triangle within one square marked as that square, as its edges would: two maps took 60 to 70 ms, the
  * frame he set off in held that long)
  */
-/** (floorMap's scratch: a mesh's points, each worked out once: in the world, then across the map in squares (item 543)) */
-let FLOOR_PTS = new Float64Array(5 * 4096), FLOOR_SEEN = new Int32Array(4096), FLOOR_STAMP = 0
+/** (floorMap's scratch: a mesh's points, each worked out once: in the world, then across the map in squares (item 543); each map its own
+ * (item 652: one made a step at a time, inside a mesh too, while another's made all at once)) */
 // (`top`: how high over the floor what stands there is looked at: a futon's 60 cm; one stood up there, his height (item 652: put down under
 // the bar's overhanging top, he stood through it))
 // (made a mesh at a step (item 652, the Optimization window's: the boss's drop map is some 340 thousand points, 32 ms here and some 130 on a
 // slower laptop in one frame; stepped, a few milliseconds a frame); floorMap below makes it all at once, as the futon's way wants it)
 function* floorMapSteps(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vector3, floorY: number, R = 4.5, top = 0.6) {
+  let FLOOR_PTS = new Float64Array(5 * 4096), FLOOR_SEEN = new Int32Array(4096), FLOOR_STAMP = 0
+  // (a step given back every so many points or triangles, inside a mesh too: one big merged mesh was 30 ms in a step)
+  let work = 0
   g.updateWorldMatrix(true, false)
   const c = GRILL_COUNTERS[0]
   const dirOf = (d: THREE.Vector3) => { const o = g.localToWorld(fromBar(c.at.clone())), t = g.localToWorld(fromBar(c.at.clone().add(d))); return t.sub(o).setY(0).normalize() }
@@ -4277,6 +4280,7 @@ function* floorMapSteps(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vecto
     for (let i = 0; i < n; i++) {
       const x = plain ? arr[3 * i] : pos.getX(i), y = plain ? arr[3 * i + 1] : pos.getY(i), z = plain ? arr[3 * i + 2] : pos.getZ(i)
       P[5 * i + 1] = (e[1] * x + e[5] * y + e[9] * z + e[13]) * wOf(x, y, z)
+      if (++work >= 8192) { work = 0; yield }
     }
     const fill = (i: number) => {
       if (seen[i] === stamp) return
@@ -4290,6 +4294,7 @@ function* floorMapSteps(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vecto
     }
     const idx = m.geometry.index, ix = idx?.array, cnt = idx ? idx.count : n
     for (let t = 0; t + 2 < cnt; t += 3) {
+      if (++work >= 8192) { work = 0; yield }
       const ia = ix ? ix[t] : t, ib = ix ? ix[t + 1] : t + 1, ic = ix ? ix[t + 2] : t + 2
       const a = 5 * ia, b = 5 * ib, d = 5 * ic
       const y0 = Math.min(P[a + 1], P[b + 1], P[d + 1]), y1 = Math.max(P[a + 1], P[b + 1], P[d + 1])
@@ -4483,40 +4488,238 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
     RING.sort((a, b) => Math.hypot(a[0], a[1]) - Math.hypot(b[0], b[1]))
     // (and the meshes the map looks at found once, again only once edit mode's changed something, or a minute on (a crate's come since))
     let dropMeshes: THREE.Mesh[] | null = null, dropFound = 0
-    const unsub = subscribeEdit(() => { dropMeshes = null })
+    const meshesNow = () => {
+      if (!dropMeshes || performance.now() - dropFound > 60000) { dropMeshes = bedFinds(scene).meshes; dropFound = performance.now() }
+      return dropMeshes.filter((q) => q.parent)
+    }
+    // (the cook table's guard (HearthGuard's, game/hearthGuard): where the owner mayn't stand at it, his notch his own; a point (the world's)
+    // put out of it as the guard would draw him there (the Tester window's: let go over it, he was drawn at its edge, and slid from there
+    // through it to where he'd stand, the guard's nearest edge flipped over in a frame: 0.7 m at a stroke))
+    const GQ = new THREE.Vector3()
+    const tableOf = () => scene.getObjectByName('cook-table-c0')?.parent ?? null
+    const guarded = (w: THREE.Vector3, t: THREE.Object3D | null) => {
+      if (!t) return false
+      const q = t.worldToLocal(GQ.copy(w)), al = q.dot(ALONG), la = q.dot(LAY)
+      const [a2, l2] = keepOut(al, la, 'owner', HEARTH_ZONES)
+      return a2 !== al || l2 !== la
+    }
+    const unguard = (w: THREE.Vector3, t: THREE.Object3D | null) => {
+      if (!t) return w
+      const q = t.worldToLocal(w.clone()), al = q.dot(ALONG), la = q.dot(LAY)
+      const [a2, l2] = keepOut(al, la, 'owner', HEARTH_ZONES)
+      if (a2 === al && l2 === la) return w
+      return t.localToWorld(q.addScaledVector(ALONG, a2 - al).addScaledVector(LAY, l2 - la))
+    }
+    /** where on a map he'd come down, from `from` (the world's, out of the table's guard already): the nearest place round it he'd stand
+     * clear at (his body's square clear of all that's there up to his height, in the shop, not in the genkan, on one floor), clear of the
+     * table's guard and with his way over to it clear of it too; in the grill's frame on the floor, or null */
+    const pick = (f: FloorMap, from: THREE.Vector3, g: THREE.Object3D) => {
+      const bar = (w: THREE.Vector3) => toBar(g.worldToLocal(w.clone()))
+      const onFloor = (v: THREE.Vector3) => { const q = fromBar(v); return q.setY(floorAt(q)) }
+      const t = tableOf()
+      const d0 = from.clone().sub(f.at(0, 0)), u0 = d0.dot(f.U), v0 = d0.dot(f.V)
+      for (const [du, dv] of RING) {
+        const u = u0 + du, v = v0 + dv
+        if (f.taken(u - BOSS_FEET, u + BOSS_FEET, v - BOSS_FEET, v + BOSS_FEET)) continue
+        const w = f.at(u, v)
+        const corners = [-1, 1].flatMap((su) => [-1, 1].map((sv) => f.at(u + su * BOSS_FEET, v + sv * BOSS_FEET)))
+        if (![w, ...corners].every(f.inRoom) || inGenkan(GRILL_COUNTERS, bar(w))) continue
+        const lv = f.level(w)
+        if (!corners.every((q) => f.level(q) === lv)) continue
+        // (not at the table, nor his way over to it across it)
+        if (guarded(w, t)) continue
+        // (on the room's floor, only where he can walk home from (a corner shut in by the till's things: the nearest place out of it))
+        if (!lv && walk && walk.f === f && walk.reach) {
+          const [wi, wj] = walk.ij(w)
+          if (wi < -walk.n || wi > walk.n || wj < -walk.n || wj > walk.n || !walk.reach[(wj + walk.n) * walk.W + (wi + walk.n)]) continue
+        }
+        const steps = Math.ceil(Math.hypot(du, dv) / 0.08)
+        let across = false
+        for (let k = 1; k < steps && !across; k++) across = guarded(f.at(u0 + (du * k) / steps, v0 + (dv * k) / steps), t)
+        if (across) continue
+        return onFloor(bar(w).setY(0))
+      }
+      return null
+    }
+    // (item 652, the Tester window's: the map of the shop's whole floor made once a while after it's drawn, a few milliseconds a frame (and
+    // again after edit mode's changed something), so where he's to come down is known the moment he's let go: worked out then, round where
+    // he was let go, he stood there a quarter to half a second (some seconds on a slower laptop), in the serving counter or the low rack)
+    let shopMap: FloorMap | null = null, mapJob = 0, mapRaf = 0, mapLater = 0
+    const buildShopMap = () => {
+      const g = ref.current
+      if (!g) return
+      const job = ++mapJob
+      g.updateWorldMatrix(true, false)
+      const c0 = GRILL_COUNTERS[0], rm = roomOf(GRILL_COUNTERS)
+      const mid = c0.at.clone().addScaledVector(c0.along, (rm.along[0] + rm.along[1]) / 2).addScaledVector(c0.lay, (rm.lay[0] + rm.lay[1]) / 2).setY(0)
+      const q = fromBar(mid)
+      // (on the room's floor (the kitchen's is a step up on it: in the band), out over the whole room's floor)
+      const centre = g.localToWorld(q.setY(GRILL_OFFSET.y))
+      const R = (Math.max(rm.along[1] - rm.along[0], rm.lay[1] - rm.lay[0]) / 2 + 0.4) * GRILL_SCALE
+      const mapStart = performance.now()
+      const it = floorMapSteps(meshesNow(), g, centre, centre.y, R, BOSS_TALL)
+      const step = () => {
+        if (job !== mapJob) return
+        const t = performance.now()
+        let r = it.next()
+        while (!r.done && performance.now() - t < 3) r = it.next()
+        if (!r.done) { mapRaf = requestAnimationFrame(step); return }
+        shopMap = r.value
+        // (and its walking squares, and the room's floor that's reachable from the gates, the frame after)
+        mapRaf = requestAnimationFrame(() => {
+          if (job !== mapJob || !shopMap || !ref.current) return
+          const t1 = performance.now()
+          const wk = makeWalk(shopMap, ref.current)
+          wk.reach = reachOf(wk, ref.current)
+          walk = wk
+          if (import.meta.env.DEV) Object.assign(window, { __mapTimes: { start: mapStart, made: t1, reachMs: performance.now() - t1 } })
+        })
+      }
+      mapRaf = requestAnimationFrame(step)
+    }
+    // (once the page has done loading: its first seconds are its own pictures and programs)
+    mapLater = window.setTimeout(buildShopMap, 6000)
+    const unsub = subscribeEdit(() => {
+      dropMeshes = null; shopMap = null; walk = null; mapJob++
+      cancelAnimationFrame(mapRaf); window.clearTimeout(mapLater)
+      mapLater = window.setTimeout(buildShopMap, 1500)
+    })
     BOSS_BED.drop = (atGrill, done) => {
       const g = ref.current
       if (!g) { done(null); return () => {} }
       g.updateWorldMatrix(true, false)
-      const bar = (w: THREE.Vector3) => toBar(g.worldToLocal(w.clone()))
       const onFloor = (v: THREE.Vector3) => { const q = fromBar(v); return q.setY(floorAt(q)) }
-      const p = g.localToWorld(onFloor(toBar(atGrill).setY(0)))
-      if (!dropMeshes || performance.now() - dropFound > 60000) { dropMeshes = bedFinds(scene).meshes; dropFound = performance.now() }
-      const it = floorMapSteps(dropMeshes.filter((q) => q.parent), g, p, p.y, REACH + 0.4, BOSS_TALL)
+      // (out of the table's guard first, where it would draw him)
+      const p = unguard(g.localToWorld(onFloor(toBar(atGrill).setY(0))), tableOf())
+      // (the shop's map made: at once)
+      if (shopMap) { done(pick(shopMap, p, g)); return () => {} }
+      // (not yet (just loaded, or edit mode's just changed something): a map round him, a few milliseconds a frame)
+      const it = floorMapSteps(meshesNow(), g, p, p.y, REACH + 0.4, BOSS_TALL)
       let raf = 0, live = true
       const step = () => {
         if (!live) return
-        // (a few milliseconds of it a frame, till it's made)
         const t = performance.now()
         let r = it.next()
         while (!r.done && performance.now() - t < 3) r = it.next()
         if (!r.done) { raf = requestAnimationFrame(step); return }
-        const f = r.value
-        for (const [u, v] of RING) {
-          if (f.taken(u - BOSS_FEET, u + BOSS_FEET, v - BOSS_FEET, v + BOSS_FEET)) continue
-          const w = f.at(u, v)
-          const corners = [-1, 1].flatMap((su) => [-1, 1].map((sv) => f.at(u + su * BOSS_FEET, v + sv * BOSS_FEET)))
-          if (![w, ...corners].every(f.inRoom) || inGenkan(GRILL_COUNTERS, bar(w))) continue
-          const lv = f.level(w)
-          if (!corners.every((q) => f.level(q) === lv)) continue
-          done(onFloor(bar(w).setY(0)))
-          return
-        }
-        done(null)
+        done(pick(r.value, p, g))
       }
       raf = requestAnimationFrame(step)
       return () => { live = false; cancelAnimationFrame(raf) }
     }
+    /** the room's floor for his walking, on the shop's map: squares of 10 cm, each free if his body (a little narrower than where he'd stand:
+     * he goes past things) is clear there, in the room, not in the genkan; worked out as asked and kept; and those he can walk to from the
+     * bar's gates (a corner shut in by the till's counter, its stools and the takeaway stand isn't) */
+    type Walk = { f: FloorMap; n: number; W: number; free: (i: number, j: number) => boolean; ij: (w: THREE.Vector3) => [number, number]; reach: Int8Array | null }
+    const WALK_STEP = 0.1
+    const makeWalk = (f: FloorMap, g: THREE.Object3D): Walk => {
+      const H = BOSS_FEET * 0.8, n = Math.floor((f.R - H) / WALK_STEP), W = 2 * n + 1
+      const o = f.at(0, 0), memo = new Int8Array(W * W)
+      const free = (i: number, j: number) => {
+        if (i < -n || i > n || j < -n || j > n) return false
+        const k = (j + n) * W + (i + n)
+        if (memo[k]) return memo[k] > 0
+        const u = i * WALK_STEP, v = j * WALK_STEP, w = f.at(u, v)
+        const ok = !f.taken(u - H, u + H, v - H, v + H) && f.inRoom(w) && !inGenkan(GRILL_COUNTERS, toBar(g.worldToLocal(w)))
+        memo[k] = ok ? 1 : -1
+        return ok
+      }
+      const ij = (w: THREE.Vector3): [number, number] => { const d = w.clone().sub(o); return [Math.round(d.dot(f.U) / WALK_STEP), Math.round(d.dot(f.V) / WALK_STEP)] }
+      return { f, n, W, free, ij, reach: null }
+    }
+    /** the nearest free square to one, within `r` squares (null if none) */
+    const nearestFree = (wk: Walk, i0: number, j0: number, r: number): [number, number] | null => {
+      if (wk.free(i0, j0)) return [i0, j0]
+      let best = Infinity, at: [number, number] | null = null
+      for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) {
+        const d = Math.hypot(di, dj)
+        if (d < best && wk.free(i0 + di, j0 + dj)) { best = d; at = [i0 + di, j0 + dj] }
+      }
+      return at
+    }
+    /** the room's floor he can walk to from the bar's gates (out in the aisle before each): spread out square by square from them */
+    const reachOf = (wk: Walk, g: THREE.Object3D) => {
+      const onFloor = (v: THREE.Vector3) => { const q = fromBar(v); return q.setY(floorAt(q)) }
+      const reach = new Int8Array(wk.W * wk.W), queue: number[] = []
+      for (let k = 0; k < Math.min(GRILL_COUNTERS.length, BAR_GATES.length); k++) {
+        const c = GRILL_COUNTERS[k], lane = gateOf(c, BAR_GATES[k]).mid.setY(0).addScaledVector(c.lay, -aisleOf(c))
+        const [i0, j0] = wk.ij(g.localToWorld(onFloor(lane)))
+        const at = nearestFree(wk, i0, j0, 6)
+        if (at) { const key = (at[1] + wk.n) * wk.W + (at[0] + wk.n); if (!reach[key]) { reach[key] = 1; queue.push(key) } }
+      }
+      while (queue.length) {
+        const key = queue.pop()!, i = (key % wk.W) - wk.n, j = Math.floor(key / wk.W) - wk.n
+        for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+          const i2 = i + di, j2 = j + dj
+          if (!wk.free(i2, j2)) continue
+          const k2 = (j2 + wk.n) * wk.W + (i2 + wk.n)
+          if (reach[k2]) continue
+          reach[k2] = 1
+          queue.push(k2)
+        }
+      }
+      return reach
+    }
+    let walk: Walk | null = null
+    /** a way across the room's floor on the shop's map (item 652, the Tester window's: from by the till, straight to the aisle he went through
+     * it): from `a` to `b` (the world's), on the free squares, eight ways from each (A*), then drawn straight where nothing's between (the
+     * corners it turns at); the end's own square taken, from the nearest free one; null with no map yet or no way */
+    const roomWay = (a: THREE.Vector3, b: THREE.Vector3): THREE.Vector3[] | null => {
+      const wk = walk
+      if (!wk) return null
+      const { f, n, W, free } = wk
+      const [ia, ja] = wk.ij(a), end = wk.ij(b)
+      const goal = nearestFree(wk, end[0], end[1], 6)
+      if (!goal) return null
+      const [ib, jb] = goal
+      // (A*: a heap of the squares to look at by how far they've come and how far there is to go)
+      const cost = new Float32Array(W * W).fill(Infinity), from = new Int32Array(W * W).fill(-1)
+      const heap: [number, number][] = []
+      const push = (k: number, pr: number) => { heap.push([pr, k]); let c = heap.length - 1; while (c > 0) { const pp = (c - 1) >> 1; if (heap[pp][0] <= heap[c][0]) break; [heap[pp], heap[c]] = [heap[c], heap[pp]]; c = pp } }
+      const pop = () => { const top = heap[0], last = heap.pop()!; if (heap.length) { heap[0] = last; let c = 0; for (;;) { const l = 2 * c + 1, r = l + 1; let m = c; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === c) break; [heap[m], heap[c]] = [heap[c], heap[m]]; c = m } } return top[1] }
+      const key = (i: number, j: number) => (j + n) * W + (i + n)
+      const ka = key(ia, ja), kb = key(ib, jb)
+      cost[ka] = 0
+      push(ka, Math.hypot(ib - ia, jb - ja))
+      let found = false, looked = 0
+      while (heap.length && looked < 60000) {
+        const k = pop()
+        looked++
+        if (k === kb) { found = true; break }
+        const i = (k % W) - n, j = Math.floor(k / W) - n
+        for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+          if (!di && !dj) continue
+          const i2 = i + di, j2 = j + dj
+          if (!free(i2, j2)) continue
+          if (di && dj && (!free(i + di, j) || !free(i, j + dj))) continue
+          const k2 = key(i2, j2), c2 = cost[k] + (di && dj ? Math.SQRT2 : 1)
+          if (c2 >= cost[k2]) continue
+          cost[k2] = c2; from[k2] = k
+          push(k2, c2 + Math.hypot(ib - i2, jb - j2))
+        }
+      }
+      if (!found) return null
+      const cells: [number, number][] = []
+      for (let k = kb; k >= 0; k = from[k]) cells.push([(k % W) - n, Math.floor(k / W) - n])
+      cells.reverse()
+      // (straight where nothing's between: from each corner, on to the furthest square it can see)
+      const sees = (p: [number, number], q: [number, number]) => {
+        const steps = Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) * 2)
+        for (let k = 1; k < steps; k++) if (!free(Math.round(p[0] + ((q[0] - p[0]) * k) / steps), Math.round(p[1] + ((q[1] - p[1]) * k) / steps))) return false
+        return true
+      }
+      const out: THREE.Vector3[] = [a.clone()]
+      let at = 0
+      while (at < cells.length - 1) {
+        let next = at + 1
+        for (let k = cells.length - 1; k > at + 1; k--) if (sees(cells[at], cells[k])) { next = k; break }
+        out.push(f.at(cells[next][0] * WALK_STEP, cells[next][1] * WALK_STEP))
+        at = next
+      }
+      out.push(b.clone())
+      return out
+    }
+    if (import.meta.env.DEV) Object.assign(window, { __bossWay: { roomWay, map: () => shopMap, walk: () => walk } })
     BOSS_BED.home = (fromGrill, toGrill) => {
       const route = KITCHEN_ROUTE.route
       if (!route) return null
@@ -4524,23 +4727,36 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
       const cs = GRILL_COUNTERS, P = toBar(fromGrill).setY(0), H = toBar(toGrill).setY(0)
       if (inKitchen(cs, P)) return [fromGrill.clone(), ...route(P, H).slice(1).map(onFloor)]
       // (out in the room: square onto the aisle he's by (the first counter's or the side counter's, whichever's nearer), along it (round the
-      // corner where the two meet, if the gate's on the other), out to the gate, in through it, and across the kitchen to his place)
-      const onAisle = (c: Counter, q: THREE.Vector3) => c.at.clone().addScaledVector(c.along, q.clone().sub(c.at).dot(c.along)).addScaledVector(c.lay, -aisleOf(c)).setY(0)
+      // corner where the two meet, if the gate's on the other), out to the gate, in through it, and across the kitchen to his place; the
+      // place on the aisle kept to its length, from where the two aisles meet to the counter's end (the Tester window's: from by the genkan,
+      // square onto the first counter's aisle was out past its end at the front door, the doorway's guard pulling him 1.6 m in a frame))
+      const corner = cs.length > 1 ? aisleCornerOf(cs, cs[1]).setY(0) : null
+      const onAisle = (c: Counter, q: THREE.Vector3) => {
+        const tc = corner ? corner.clone().sub(c.at).dot(c.along) : -c.length / 2
+        const lo = Math.min(tc, -c.length / 2), hi = Math.max(tc, c.length / 2)
+        const t = Math.max(lo, Math.min(hi, q.clone().sub(c.at).dot(c.along)))
+        return c.at.clone().addScaledVector(c.along, t).addScaledVector(c.lay, -aisleOf(c)).setY(0)
+      }
       const off = (c: Counter) => Math.abs(P.clone().sub(c.at).dot(c.lay) + aisleOf(c))
       const near = cs.length > 1 && off(cs[1]) < off(cs[0]) ? 1 : 0
-      const corner = cs.length > 1 ? aisleCornerOf(cs, cs[1]).setY(0) : null
       const lengthOf = (pts: THREE.Vector3[]) => pts.slice(1).reduce((n, q, i) => n + q.distanceTo(pts[i]), 0)
+      // (the room's part on the shop's map when it's made, round all that's there; else square onto the aisle and along it)
+      const g = ref.current
+      const world = (v: THREE.Vector3) => (g ? g.localToWorld(onFloor(v)) : null)
+      const barOf = (w: THREE.Vector3) => (g ? toBar(g.worldToLocal(w.clone())).setY(0) : w)
       let path: THREE.Vector3[] | null = null
       for (let k = 0; k < Math.min(cs.length, BAR_GATES.length); k++) {
         const c = cs[k], mid = gateOf(c, BAR_GATES[k]).mid.setY(0)
         const lane = mid.clone().addScaledVector(c.lay, -aisleOf(c)), out = mid.clone().addScaledVector(c.lay, -0.5), inn = mid.clone().addScaledVector(c.lay, 0.45)
-        const to = near === k || !corner ? [onAisle(c, P)] : [onAisle(cs[near], P), corner]
-        const way = [P, ...to, lane, out, inn, ...route(inn, H).slice(1)]
+        const wa = world(P), wb = world(lane)
+        const across = wa && wb ? roomWay(wa, wb) : null
+        const to = across ? across.slice(1).map(barOf) : near === k || !corner ? [onAisle(c, P), lane] : [onAisle(cs[near], P), corner, lane]
+        const way = [P, ...to, out, inn, ...route(inn, H).slice(1)]
         if (!path || lengthOf(way) < lengthOf(path)) path = way
       }
       return path ? [fromGrill.clone(), ...path.slice(1).map(onFloor)] : null
     }
-    return () => { BOSS_BED.way = null; BOSS_BED.frame = null; BOSS_BED.drop = null; BOSS_BED.home = null; unsub() }
+    return () => { BOSS_BED.way = null; BOSS_BED.frame = null; BOSS_BED.drop = null; BOSS_BED.home = null; unsub(); mapJob++; cancelAnimationFrame(mapRaf); window.clearTimeout(mapLater) }
   }, [scene])
   return <group ref={ref} />
 })
