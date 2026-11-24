@@ -60,6 +60,7 @@
 - three.js（@react-three/fiber、@react-three/drei），卡通著色與描邊
 - 3D 模型都由 `blender/*.py` 腳本產生（Blender 5.2），只有招財貓與飲料冷藏櫃是外部模型（見 Credits）
 - 遊戲規則是純邏輯（`src/game/`），以 BDD 情境測試（`tests/bdd/`）
+- 程式碼照領域分資料夾：遊戲規則 `src/game/`（錢、廚房、庫存、盤子水槽、客人、員工、時間天氣、裝置、新手引導）、共用 3D `src/scene/`、介面 `src/ui/`、店面 `src/shops/grill/`、組裝 `src/app/`、樣式 `src/styles/`；依賴只能單向（`tests/architecture.test.ts` 檢查）
 - 音效（炭火、門、水、收銀機……）都由 Web Audio 即時合成
 - 效能：不會動的零件依材質合併、素色零件共用一個材質（顏色寫在頂點上）、人物是一個剛性蒙皮網格加一條描線（每人 2 次繪製）、重複的小東西用 InstancedMesh、著色程式在載入時預先編譯
 - 版本：`package.json` 的 `gameVersion`（目前 0.01，遊戲裡店家評價的「關於」頁可以看到）；交接與待辦見 `HANDOFF.md`
