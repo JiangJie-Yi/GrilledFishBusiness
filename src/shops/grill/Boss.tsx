@@ -41,7 +41,9 @@ const pick3 = (zh: string, ja: string, en: string) => { const l = document.docum
 const CURSOR_SHAKE = glyphCursor('handShake', [8, 8]), CURSOR_GRAB = glyphCursor('handOpen', [8, 8]), CURSOR_HOLD = glyphCursor('handFist', [8, 8])
 /** (item 624) how long he stirs, woken with nothing to get up for, before he's off again (ms); (item 635) how high he's held off the floor
  * as he's carried (his parent's units); how near his round's line he must be let down to stand there (else he's put back where he was) */
-const STIR_MS = 2600, CARRY_UP = 0.16, SNAP_TO_ROUND = 0.45
+const STIR_MS = 2600, CARRY_UP = 0.16
+/** (item 652) how near his round's line (his frame) he must come down to be on his round from there, not put somewhere off it */
+const ON_ROUND = 0.1
 import { crewFaceSheet, crewFrame, faceRange, markFace, ownShape, setFace, squash as jelly, type CrewFace } from '@/scene/faceSheet'
 import { faceNow, newFaceLife, type FaceLife } from '@/game/faceLife'
 import { turnEase } from './commuteWalk'
@@ -177,7 +179,9 @@ const WALK_SPEED = 0.9
 type BedTrip = { phase: 'off' | 'go' | 'lay' | 'sleep' | 'rise' | 'back' | 'up' | 'upstairs'; pts: THREE.Vector3[]; len: number; d: number; t: number
   foot: THREE.Vector3; feet: THREE.Vector3; off: THREE.Vector3; head: THREE.Vector3; bar: number; lie: number
   /** (item 624) shaken awake with nothing to get up for: till when he stirs, sits up a little and lies down again; till when he's shaken */
-  stir?: number; shake?: number }
+  stir?: number; shake?: number
+  /** (item 652) the way back being walked is from where the player put him down, not from his futon: he can be taken up again on it */
+  home?: boolean }
 /** (item 624) how far he lifts, stirring (0 lying .. 0.08: a stir under the quilt, not a sit up through it, item 631): and down over STIR_MS */
 const stirUp = (bd: BedTrip) => { const left = (bd.stir ?? 0) - performance.now(); if (left <= 0) return 0; const k = 1 - left / STIR_MS; return 0.08 * Math.sin(Math.PI * k) }
 /** scratch for carrying him (item 635): the pointer on the screen, its ray, the floor's plane, where it meets */
@@ -564,6 +568,9 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
   /** (item 635, the owner's 「老闆可以用滑鼠左鍵拖曳」) him carried by the pointer: where it is, where he was taken from (his parent's frame);
    * let go, where he's settling to and till when */
   const carry = useRef<{ on: boolean; px: number; py: number; from: [number, number]; to: [number, number]; until: number } | null>(null)
+  /** (item 652) put down off his round's line by the player: since when (performance.now()), how long he stays there before going back of
+   * his own accord (sooner if he's wanted: the shop open, a taste or a drink for him, bed) */
+  const away = useRef<{ since: number; stay: number } | null>(null)
   const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null
   // (asleep on it: the Zz over him)
   const [asleep, setAsleep] = useState(false)
@@ -681,7 +688,8 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     // (the shop opening or shutting: he starts his round over, from his place)
     const shutting = SHOP_WAS.open && !open
     SHOP_WAS.open = open
-    if (openRef.current !== open) { openRef.current = open; s.phase = 0; s.t = 0; s.x = 0; s.z = 0 }
+    if (openRef.current !== open) { openRef.current = open; s.phase = 0; s.t = 0; s.x = 0; s.z = 0; away.current = null }
+    if (edit) away.current = null
     // ---- (item 444) the nights he's worn out, as the shop's shut: off to the stair's foot by the staff's door, his futon down there, in under
     // it, asleep; up again rested, or wanted (the shop opening, the player at his fire), the futon folded and taken off, back to his fire
     const bd = bed.current, ff = BOSS_BED.futon
@@ -696,7 +704,7 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     // NIGHT_WITH, settled as the shop shut): not to his futon but out by the staff's door and up the stair to her, once that night, worn out
     // or not; the room upstairs draws him by her while he's up there; down again and back to his fire as she wakes (eleven: game/dormLife),
     // or wanted (the shop opening, the player come to his fire)
-    if (bd.phase === 'off' && !edit && !open && m.parent && NIGHT_WITH.id && NIGHT_WITH.day !== nightGone.current && BOSS_BED.way && BOSS_BED.frame
+    if (bd.phase === 'off' && !edit && !open && !away.current && m.parent && NIGHT_WITH.id && NIGHT_WITH.day !== nightGone.current && BOSS_BED.way && BOSS_BED.frame
       && dormDoing(getClock().minute) === 'sleep') {
       const frame = BOSS_BED.frame
       const w = BOSS_BED.way(frame.worldToLocal(m.getWorldPosition(new THREE.Vector3())))
@@ -712,7 +720,26 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
         BOSS_BODY.bed = 'going'; BOSS_BODY.since = performance.now()
       }
     }
-    if (bd.phase === 'off' && !edit && !open && m.parent && BOSS_BED.way && BOSS_BED.frame && ((shutting && sleepsDown(BOSS_BODY.fatigue)) || TO_BED.now)) {
+    // (item 652: put down away from his place, he goes home when it's time for something (the shop open, a taste or a drink for him, bed), or
+    // once he's stood there a while: his way back across the kitchen, or in from the room through the bar's gate (BOSS_BED.home), walked as
+    // his way back from his futon is; till then he stands where he was put, at what he can do anywhere)
+    if (away.current && bd.phase === 'off' && !edit && !carry.current && m.parent && BOSS_BED.frame) {
+      const wanted = open || !!(BOSS_TASTE.at ?? BOSS_DRINK.at) || TO_BED.now || (shutting && sleepsDown(BOSS_BODY.fatigue))
+      // (wanted, he's off after a moment's look round (he's come down where he was put first); else once he's stood there a while)
+      if (performance.now() - away.current.since > (wanted ? 1500 : away.current.stay * 1000)) {
+        const frame = BOSS_BED.frame
+        const here = frame.worldToLocal(m.getWorldPosition(new THREE.Vector3()))
+        const place = frame.worldToLocal(m.parent.localToWorld(new THREE.Vector3(0, 0, 0)))
+        const way = BOSS_BED.home?.(here, place) ?? [here, place]
+        const mine = (p: THREE.Vector3) => m.parent!.worldToLocal(frame.localToWorld(p.clone()))
+        bd.pts = way.map(mine)
+        bd.len = lengthOf(bd.pts)
+        bd.d = 0; bd.t = 0
+        bd.phase = 'back'; bd.home = true
+        away.current = null
+      }
+    }
+    if (bd.phase === 'off' && !edit && !open && !away.current && m.parent && BOSS_BED.way && BOSS_BED.frame && ((shutting && sleepsDown(BOSS_BODY.fatigue)) || TO_BED.now)) {
       TO_BED.now = false
       const frame = BOSS_BED.frame
       const w = BOSS_BED.way(frame.worldToLocal(m.getWorldPosition(new THREE.Vector3())))
@@ -757,7 +784,7 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
         if (bd.d >= bd.len - 1e-6) {
           if (bd.phase === 'up') { bd.phase = 'upstairs'; bd.t = 0; NIGHT_WITH.up = true; NIGHT_WITH.at = performance.now(); BOSS_BODY.bed = 'asleep'; BOSS_BODY.since = performance.now() }
           else if (bd.phase === 'go') { bd.phase = 'lay'; bd.t = 0; BOSS_BODY.bed = 'laying'; BOSS_BODY.since = performance.now(); ff.on = true }
-          else { bd.phase = 'off'; BOSS_BODY.bed = 'off'; s.x = 0; s.z = 0; s.y = 0; s.phase = 0; s.t = 0 }
+          else { bd.phase = 'off'; bd.home = false; BOSS_BODY.bed = 'off'; s.x = 0; s.z = 0; s.y = 0; s.phase = 0; s.t = 0 }
           bedSpeed = 0
         }
       } else if (bd.phase === 'upstairs') {
@@ -835,6 +862,9 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
       chewSaid.current = false
     }
     let act: Phase['act'] | 'taste' | 'drink' | 'hold' | 'dab' | 'pierce' = ph.act
+    // (item 652: stood where he was put, not at his fire: no tongs, no fan, no walk of his round from there; he looks about, waves, or has his
+    // phone out as his round comes to it)
+    if (away.current && (act === 'tongs' || act === 'fan' || act === 'walk' || act === 'run')) act = 'idle'
     let speed = 0
     // (asked to taste: down his aisle to where it passes nearest the bowl, turned to it, and there he eats it; then back to his round)
     // (or handed a drink: the same, and he drinks it)
@@ -1252,14 +1282,21 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
   }
   /** (item 635) whether he can be taken up just now: up and about at his round, not mid-task (a piece in his hands, tasting, drinking,
    * away from his fire) */
-  const canCarry = useMemo(() => () => !getEdit().on && bed.current.phase === 'off' && !OWNER_GRILL.on && !OWNER_OUT.on && !BOSS_TASTE.at && !BOSS_DRINK.at, [])
+  // (item 652: and on his way back from where he was put, he can be taken up again)
+  const canCarry = useMemo(() => () => !getEdit().on && (bed.current.phase === 'off' || (bed.current.phase === 'back' && !!bed.current.home)) && !OWNER_GRILL.on
+    && !OWNER_OUT.on && !BOSS_TASTE.at && !BOSS_DRINK.at, [])
   const bossHint = useMemo(() => () => (bed.current.phase === 'sleep' ? pick3('睡著了｜按一下搖醒他（沒事的話會再睡）', '眠っている｜クリックで揺り起こす（用がなければまた寝る）', 'Asleep | click to shake him awake (nothing to do, he sleeps on)')
-    : canCarry() ? pick3('按住拖著走，放回他的走道', 'ドラッグで運べる（通路に下ろす）', 'Drag to carry him (down on his aisle)') : ''), [canCarry])
+    : canCarry() ? pick3('按住拖著走，放在哪裡就站在哪裡', 'ドラッグで運べる（下ろした所に立つ）', "Drag to carry him (he stands where he's put)") : ''), [canCarry])
   const bossCursor = useMemo(() => () => (bed.current.phase === 'sleep' ? CURSOR_SHAKE : canCarry() ? CURSOR_GRAB : null), [canCarry])
   /** (item 635) taken up by the pointer: carried after it, held off the floor, swinging; let go, down on his round's line near there and on
-   * with his round from it, or, let go far from it, back where he was taken from */
+   * with his round from it; (item 652) let go anywhere else in the shop, down there (or as near it as he'd stand clear), where he stays a
+   * while before he finds his way back */
   const takeUp = (x: number, y: number, el: HTMLElement | null) => {
     const s = st.current
+    // (taken up again on his way back: that way's off, he's carried from where he is)
+    const bd0 = bed.current
+    if (bd0.phase === 'back' && bd0.home) { bd0.phase = 'off'; bd0.home = false }
+    away.current = null
     carry.current = { on: true, px: x, py: y, from: [s.x, s.z], to: [s.x, s.z], until: 0 }
     if (controls) controls.enabled = false
     GRABBING.on = true
@@ -1274,24 +1311,37 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
       if (el?.style && el.style.cursor === CURSOR_HOLD) el.style.cursor = ''
       const c = carry.current
       if (!c) return
-      // (down on the nearest point of his round's line: his place to the aisle's mouth, and along the aisle; too far from it, back)
-      const p: [number, number] = [st.current.x, st.current.z]
+      // (item 652, the owner's 「老闆被拖曳是可以放下位置的」: he comes down where he's let go, or the nearest place round it he'd stand clear
+      // (BOSS_BED.drop: a stool, a table, a wall there, beside it; over the bar, its aisle or the kitchen); only with nowhere near to stand, back
+      // where he was taken from. (Item 635 had him down on the nearest point of his round's line, or back where he was, 「我的位子在這邊啦」.)
+      c.on = false
+      c.until = performance.now() + 260
+      const mv = mover.current, fr = BOSS_BED.frame
+      const spot = mv?.parent && fr && BOSS_BED.drop ? BOSS_BED.drop(fr.worldToLocal(mv.getWorldPosition(new THREE.Vector3()))) : null
+      if (spot && mv?.parent && fr) { const q = mv.parent.worldToLocal(fr.localToWorld(spot)); c.to = [q.x, q.z] }
+      else { c.to = c.from; setSay({ text: pick3('欸欸，放不下去啦。', 'おいおい、そこには立てんよ。', "Hey now, I can't stand there."), key: Date.now() }) }
+      // (on his round's line where he's come down (his place to the aisle's mouth, and along the aisle), he's on his round from there; off it,
+      // he's been put somewhere: he stays a while, then finds his way back)
       const segs: [number, number, number, number][] = []
       if (aisle) {
         const [mx, mz] = aisle.mouth, [ax, az] = aisle.dir
         segs.push([0, 0, mx, mz], [mx + ax * aisle.range[0], mz + az * aisle.range[0], mx + ax * aisle.range[1], mz + az * aisle.range[1]])
       } else segs.push([0, 0, to[0], to[1]])
-      let best: [number, number] = c.from, bestD = Infinity
+      let off = Infinity
       for (const [x0, z0, x1, z1] of segs) {
         const dx = x1 - x0, dz = z1 - z0, l2 = dx * dx + dz * dz || 1
-        const k = Math.max(0, Math.min(1, ((p[0] - x0) * dx + (p[1] - z0) * dz) / l2))
-        const q: [number, number] = [x0 + dx * k, z0 + dz * k], d = Math.hypot(q[0] - p[0], q[1] - p[1])
-        if (d < bestD) { bestD = d; best = q }
+        const k = Math.max(0, Math.min(1, ((c.to[0] - x0) * dx + (c.to[1] - z0) * dz) / l2))
+        off = Math.min(off, Math.hypot(x0 + dx * k - c.to[0], z0 + dz * k - c.to[1]))
       }
-      c.on = false
-      c.to = bestD < SNAP_TO_ROUND ? best : c.from
-      c.until = performance.now() + 260
-      if (bestD >= SNAP_TO_ROUND) setSay({ text: pick3('欸欸，我的位子在這邊啦。', 'おいおい、持ち場はこっちだ。', 'Hey now, my place is over here.'), key: Date.now() })
+      if (off > ON_ROUND) {
+        away.current = { since: performance.now(), stay: 10 + Math.random() * 6 }
+        if (spot) {
+          const r = Math.floor(Math.random() * 3)
+          setSay({ text: [pick3('哦？放這邊啊，好吧。', 'おっ？ここか、まあいいか。', 'Oh? Here, then. Fine.'),
+            pick3('嗯……換個地方站站也不錯。', 'ふむ……たまには場所を変えるのも悪くない。', "Hm... a change of spot's not bad."),
+            pick3('哎呀，被搬來搬去的。', 'おやおや、あちこち運ばれるな。', 'Oh my, carted about.')][r], key: Date.now() })
+        }
+      }
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)

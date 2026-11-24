@@ -105,7 +105,7 @@ import { CREW_LOAD, GAZE, SHOP, STAFF_SAY, clockIn, idleTick, paceOfStaff, LATE,
 import { loadOf } from '@/game/crewMood'
 /** (where a customer's looking, worked out) */
 const GAZE_AT = new THREE.Vector3()
-import { aisleCornerOf, aisleOf, FIGURES, CARRIED, FED, EAT_PHASE, PLATE_FACES, SEATS_SAT, DRAWER_KICK, TISSUE_REACH_MS, SAY_SEATED, BOWLS, RICE_SEATS, SIDE_SALE, FIRE_TEND, SKEWERS, SEAT_MOVE, STAFF_DOOR_HOLD, CUBBY_KICK, seatLabel, CHOPS_UP, CHOPS_USED, CHOPS_OFF, CHOPS_LOOSE, SEAT_LEFT, SEATS_UNCLEARED, GRIPES, gripe, CUBBY_OPEN, meterWater, KITCHEN_ROUTE, askPantry, shutPantry, SUPPLIES, PLACE, sharedAlong, SICK, LIP_H, PLATING, READY_SLOTS, readyAlong, PLATES_OUT, PLATER_OUT, OWNER_GRILL, FETCHER, SEAT_STICKS, SEAT_BONES, WHOLE_FISH, RICE, seatAlong, tipOver, ALONG, handOver, genkanY, ONIGIRI_TRAY, FLOOR_NEAR, staffWayOut, doorOutOf, inKitchen, alongPath, pathLength, drinkFor, type DrinkId, sauceSide, POINTER_HINT, PLATES_SET, SEATS_TAKEN, SERVICE, PANTRY, KITCHEN_FOLK, platingOf, BAR_GATES, gateCut, gateOf, type Gate, TILL, GRILL_BAR_TOP, GRILL_COUNTERS, GRILL_OFFSET, GRILL_SCALE, GRILL_SEATS, SIDE_PULL, FIRE_SHIFT, KITCHEN_DROP, LAY, toGrillScene, CUBBY, CUBBY2, CUBBY_FLOOR_Y, CUBBY_SHELF_Y, COOK_NOTCH, SOUS_NOTCH, nameOver, BAR_BASE_Z, SOY_DISH_AT, seatTurn, roomOf, type Counter } from './bar'
+import { aisleCornerOf, aisleOf, FIGURES, CARRIED, FED, EAT_PHASE, PLATE_FACES, SEATS_SAT, DRAWER_KICK, TISSUE_REACH_MS, SAY_SEATED, BOWLS, RICE_SEATS, SIDE_SALE, FIRE_TEND, SKEWERS, SEAT_MOVE, STAFF_DOOR_HOLD, CUBBY_KICK, seatLabel, CHOPS_UP, CHOPS_USED, CHOPS_OFF, CHOPS_LOOSE, SEAT_LEFT, SEATS_UNCLEARED, GRIPES, gripe, CUBBY_OPEN, meterWater, KITCHEN_ROUTE, askPantry, shutPantry, SUPPLIES, PLACE, sharedAlong, SICK, LIP_H, PLATING, READY_SLOTS, readyAlong, PLATES_OUT, PLATER_OUT, OWNER_GRILL, FETCHER, SEAT_STICKS, SEAT_BONES, WHOLE_FISH, RICE, seatAlong, tipOver, ALONG, handOver, genkanY, ONIGIRI_TRAY, FLOOR_NEAR, staffWayOut, doorOutOf, inKitchen, alongPath, pathLength, drinkFor, type DrinkId, sauceSide, POINTER_HINT, PLATES_SET, SEATS_TAKEN, SERVICE, PANTRY, KITCHEN_FOLK, platingOf, BAR_GATES, gateCut, gateOf, type Gate, TILL, inGenkan, GRILL_BAR_TOP, GRILL_COUNTERS, GRILL_OFFSET, GRILL_SCALE, GRILL_SEATS, SIDE_PULL, FIRE_SHIFT, KITCHEN_DROP, LAY, toGrillScene, CUBBY, CUBBY2, CUBBY_FLOOR_Y, CUBBY_SHELF_Y, COOK_NOTCH, SOUS_NOTCH, nameOver, BAR_BASE_Z, SOY_DISH_AT, seatTurn, roomOf, type Counter } from './bar'
 import { freshFactor, sickChance } from '@/game/freshness'
 import { warmLater } from '@/scene/Prewarm'
 import { NO_POINTER, zr } from '@/scene/htmlProps'
@@ -4224,14 +4224,16 @@ const NotchStep = memo(function NotchStep({ id = 'notchstep', label = '木台階
  */
 /** (floorMap's scratch: a mesh's points, each worked out once: in the world, then across the map in squares (item 543)) */
 let FLOOR_PTS = new Float64Array(5 * 4096), FLOOR_SEEN = new Int32Array(4096), FLOOR_STAMP = 0
-function floorMap(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vector3, floorY: number, R = 4.5) {
+// (`top`: how high over the floor what stands there is looked at: a futon's 60 cm; one stood up there, his height (item 652: put down under
+// the bar's overhanging top, he stood through it))
+function floorMap(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vector3, floorY: number, R = 4.5, top = 0.6) {
   g.updateWorldMatrix(true, false)
   const c = GRILL_COUNTERS[0]
   const dirOf = (d: THREE.Vector3) => { const o = g.localToWorld(fromBar(c.at.clone())), t = g.localToWorld(fromBar(c.at.clone().add(d))); return t.sub(o).setY(0).normalize() }
   const U = dirOf(c.along), V = dirOf(c.lay)
   const CELL = 0.05, N = Math.round((2 * R) / CELL)
   const occ = new Uint8Array(N * N)
-  const lo = floorY - 0.25, hi = floorY + 0.6
+  const lo = floorY - 0.25, hi = floorY + top
   const E1 = new THREE.Vector3(), E2 = new THREE.Vector3(), WB = new THREE.Box3(), WS = new THREE.Sphere()
   // (the square's reach in the world, the box round its corners: a mesh's box clear of it isn't looked into)
   let sx0 = Infinity, sx1 = -Infinity, sz0 = Infinity, sz1 = -Infinity
@@ -4458,7 +4460,59 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
       // (the staff's door, and the floor just inside the room before it: his way up the stair to the room upstairs (item 637))
       return { path, foot: onFloor(foot), head: onFloor(head), door: onFloor(d.clone().addScaledVector(room, -0.25)), doorFront: onFloor(d.clone().addScaledVector(room, 0.45)) }
     }
-    return () => { BOSS_BED.way = null; BOSS_BED.frame = null }
+    // (item 652, the owner's 「老闆被拖曳是可以放下位置的」: let go off his round's line, he comes down where he's let go, or as near it as he'd
+    // stand clear (a stool, a table, a wall there: beside it; the genkan's stone: up on the room's floor by it), on the map of what stands
+    // there (floorMap, as the futon's place is found, looked at up to his height); his body's square BOSS_FEET each way, his belly and his
+    // hands at his sides: a counter's top or a table's edge not over any of it)
+    const BOSS_FEET = 0.16 * GRILL_SCALE, BOSS_TALL = 0.95 * GRILL_SCALE
+    BOSS_BED.drop = (atGrill) => {
+      const g = ref.current
+      if (!g) return null
+      g.updateWorldMatrix(true, false)
+      const bar = (w: THREE.Vector3) => toBar(g.worldToLocal(w.clone()))
+      const onFloor = (v: THREE.Vector3) => { const q = fromBar(v); return q.setY(floorAt(q)) }
+      const p = g.localToWorld(onFloor(toBar(atGrill).setY(0)))
+      // (looked for out to his own height round it: let go over the bar's middle, the aisle behind its stools or the kitchen in front of it)
+      const REACH = 1.0 * GRILL_SCALE
+      const f = floorMap(bedFinds(scene).meshes, g, p, p.y, REACH + 0.4, BOSS_TALL)
+      let best: THREE.Vector3 | null = null, bestD = Infinity
+      for (let v = -REACH; v <= REACH + 1e-4; v += 0.05) for (let u = -REACH; u <= REACH + 1e-4; u += 0.05) {
+        const d = Math.hypot(u, v)
+        if (d >= bestD || d > REACH) continue
+        if (f.taken(u - BOSS_FEET, u + BOSS_FEET, v - BOSS_FEET, v + BOSS_FEET)) continue
+        const w = f.at(u, v)
+        const corners = [-1, 1].flatMap((su) => [-1, 1].map((sv) => f.at(u + su * BOSS_FEET, v + sv * BOSS_FEET)))
+        if (![w, ...corners].every(f.inRoom) || inGenkan(GRILL_COUNTERS, bar(w))) continue
+        const lv = f.level(w)
+        if (!corners.every((q) => f.level(q) === lv)) continue
+        best = w; bestD = d
+      }
+      return best ? onFloor(bar(best).setY(0)) : null
+    }
+    BOSS_BED.home = (fromGrill, toGrill) => {
+      const route = KITCHEN_ROUTE.route
+      if (!route) return null
+      const onFloor = (v: THREE.Vector3) => { const q = fromBar(v); return q.setY(floorAt(q)) }
+      const cs = GRILL_COUNTERS, P = toBar(fromGrill).setY(0), H = toBar(toGrill).setY(0)
+      if (inKitchen(cs, P)) return [fromGrill.clone(), ...route(P, H).slice(1).map(onFloor)]
+      // (out in the room: square onto the aisle he's by (the first counter's or the side counter's, whichever's nearer), along it (round the
+      // corner where the two meet, if the gate's on the other), out to the gate, in through it, and across the kitchen to his place)
+      const onAisle = (c: Counter, q: THREE.Vector3) => c.at.clone().addScaledVector(c.along, q.clone().sub(c.at).dot(c.along)).addScaledVector(c.lay, -aisleOf(c)).setY(0)
+      const off = (c: Counter) => Math.abs(P.clone().sub(c.at).dot(c.lay) + aisleOf(c))
+      const near = cs.length > 1 && off(cs[1]) < off(cs[0]) ? 1 : 0
+      const corner = cs.length > 1 ? aisleCornerOf(cs, cs[1]).setY(0) : null
+      const lengthOf = (pts: THREE.Vector3[]) => pts.slice(1).reduce((n, q, i) => n + q.distanceTo(pts[i]), 0)
+      let path: THREE.Vector3[] | null = null
+      for (let k = 0; k < Math.min(cs.length, BAR_GATES.length); k++) {
+        const c = cs[k], mid = gateOf(c, BAR_GATES[k]).mid.setY(0)
+        const lane = mid.clone().addScaledVector(c.lay, -aisleOf(c)), out = mid.clone().addScaledVector(c.lay, -0.5), inn = mid.clone().addScaledVector(c.lay, 0.45)
+        const to = near === k || !corner ? [onAisle(c, P)] : [onAisle(cs[near], P), corner]
+        const way = [P, ...to, lane, out, inn, ...route(inn, H).slice(1)]
+        if (!path || lengthOf(way) < lengthOf(path)) path = way
+      }
+      return path ? [fromGrill.clone(), ...path.slice(1).map(onFloor)] : null
+    }
+    return () => { BOSS_BED.way = null; BOSS_BED.frame = null; BOSS_BED.drop = null; BOSS_BED.home = null }
   }, [scene])
   return <group ref={ref} />
 })
