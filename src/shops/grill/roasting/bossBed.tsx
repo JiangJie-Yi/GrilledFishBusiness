@@ -230,8 +230,9 @@ type BedFinds = { door: THREE.Object3D | null; fridge: THREE.Object3D | null
 /** (item 652, the Tester window's) one of the people, the root of them and all they have on them: a customer's own (`guest`), a server's
  * or a cook's (`staffId`, `broom`), the owner's (BossFollow), the kitchen's people, those waiting on the bench and the takeaway's (FIGURES);
  * and what hangs on a bone (a hat, a phone, an umbrella) */
-/** (dev: `__bossWay.seated.on = false` to see his way home made as it was, past those sat at the bar (item 659a)) */
-const SEATED_WAY = { on: true }
+/** (dev: `__bossWay.seated.on = false` to see his way home made as it was, past those sat at the bar (item 659a); `.step = false`, his step to
+ * where he comes down as it was, past whoever's on the way) */
+const SEATED_WAY = { on: true, step: true }
 const isFolk = (o: THREE.Object3D) => (o as THREE.Bone).isBone || o.userData.guest !== undefined || o.userData.staffId !== undefined
   || o.userData.broom !== undefined || o.name === 'BossFollow' || FIGURES.has(o)
 /** (item 652) not on the floor as furniture: one of the people or on them (a map made with them in it kept each where they stood as it was
@@ -435,6 +436,19 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
       }
       return out
     }
+    /** whether a straight step from `a` to `b` (the world's) comes nearer one of the people (`folk`: their bodies' x, z) than STEP_CLEAR, or
+     * than `a` itself is to them if that's nearer (stepping away from one he's beside is all right, going past them isn't) */
+    const STEP_CLEAR = 0.45
+    const passesFolk = (a: THREE.Vector3, b: THREE.Vector3, folk: number[]) => {
+      const abx = b.x - a.x, abz = b.z - a.z, L2 = abx * abx + abz * abz
+      for (let k = 0; k < folk.length; k += 2) {
+        const x = folk[k], z = folk[k + 1]
+        const t = L2 ? Math.max(0, Math.min(1, ((x - a.x) * abx + (z - a.z) * abz) / L2)) : 0
+        const d = Math.hypot(a.x + abx * t - x, a.z + abz * t - z)
+        if (d < Math.min(STEP_CLEAR, Math.hypot(a.x - x, a.z - z)) - 1e-3) return true
+      }
+      return false
+    }
     const onFolk = (w: THREE.Vector3, folk: number[], clear = FOLK_CLEAR) => {
       for (let k = 0; k < folk.length; k += 2) if (Math.hypot(folk[k] - w.x, folk[k + 1] - w.z) < clear) return true
       return false
@@ -454,7 +468,8 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
       const onFloor = (v: THREE.Vector3) => { const q = fromBar(v); return q.setY(floorAt(q)) }
       const t = tableOf(), folk = folkNow()
       const d0 = from.clone().sub(f.at(0, 0)), u0 = d0.dot(f.U), v0 = d0.dot(f.V)
-      for (const [du, dv] of RING) {
+      // (first a place his step to doesn't pass anyone; none round him like that, the nearest as it was (let go in a crowd he's still put down, not sent back to where he was taken from: 23 of 2,255 places across a rush's shop had none that way))
+      for (const careful of [true, false]) for (const [du, dv] of RING) {
         const u = u0 + du, v = v0 + dv
         if (f.taken(u - BOSS_FEET, u + BOSS_FEET, v - BOSS_FEET, v + BOSS_FEET)) continue
         const w = f.at(u, v)
@@ -475,6 +490,10 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
         let across = false
         for (let k = 1; k < steps && !across; k++) across = guarded(f.at(u0 + (du * k) / steps, v0 + (dv * k) / steps), t)
         if (across) continue
+        // (nor his step over to it through one of the people: no nearer to any of them on the way than he was let go, or than STEP_CLEAR
+        // (the Tester window's, item 659a: let go 0.57 m behind a customer sat at the bar, too near to come down on, the nearest place found was
+        // across the stool, and his step there went 0.13 m from them); a step away from them is all right)
+        if (careful && SEATED_WAY.step && folk.length && passesFolk(from, w, folk)) continue
         return onFloor(bar(w).setY(0))
       }
       return null
@@ -672,10 +691,16 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
       const wk = walk
       if (!wk) return null
       const { f, n, W, free } = wk
-      const [ia, ja] = wk.ij(a), end = wk.ij(b)
+      const end = wk.ij(b)
       const goal = nearestFree(wk, end[0], end[1], 6)
       if (!goal) return null
       const [ib, jb] = goal
+      // (and from the nearest free square to where he is, as to where he's going (item 659a, the Tester window's: come down where the
+      // squares round him were all taken (between a stool and the bar), no way was found, and his first stretch home went straight, past a
+      // customer sat there 0.02 m from them))
+      const start = nearestFree(wk, ...wk.ij(a), 6)
+      if (!start) return null
+      const [ia, ja] = start
       // (round those not stepping aside for him (item 659a, the Tester window's: customers sat at the bar; his way, made on the map with no one
       // on it, cut past the bar's end seats 0.12 m from them): the squares within SEATED_CLEAR of each (`avoid`: their bodies, the world's x, z)
       // marked once, dearer to walk through (SEATED_COST a square, so he goes round if there's a way round, and past them only if there's none),
@@ -743,7 +768,7 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
       out.push(b.clone())
       return out
     }
-    if (import.meta.env.DEV) Object.assign(window, { __bossWay: { roomWay, map: () => shopMap, walk: () => walk, seated: SEATED_WAY, seatedNow: () => seatedNow((v) => (ref.current ? ref.current.localToWorld(fromBar(v).setY(0)) : null)) } })
+    if (import.meta.env.DEV) Object.assign(window, { __bossWay: { roomWay, map: () => shopMap, walk: () => walk, seated: SEATED_WAY, folkNow, seatedNow: () => seatedNow((v) => (ref.current ? ref.current.localToWorld(fromBar(v).setY(0)) : null)) } })
     BOSS_BED.home = (fromGrill, toGrill) => {
       const route = KITCHEN_ROUTE.route
       if (!route) return null
