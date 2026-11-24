@@ -269,6 +269,14 @@ export const BOSS_BED = keep(import.meta.hot, 'BOSS_BED', {
    * out in the room along the aisle to the nearer of the bar's gates and in through it, as the crew go */
   home: null as ((fromGrill: THREE.Vector3, toGrill: THREE.Vector3) => THREE.Vector3[] | null) | null,
   wanted: false,
+  /** (item 659) on his way home now, back to his place from where he was put down (Boss): those standing in his way stand aside for him
+   * (Roasting's HearthGuard), the customers walking step round him (GuestBar3D's step aside) */
+  passing: false,
+  /** (item 659) his way home as it's set out (the world's): those in it stand aside off it */
+  wayW: [] as THREE.Vector3[],
+  /** (item 659) whether one could stand at a point (the world's) on the shop's floor map (Roasting's BossBedWays, once it's made): his
+   * walking squares, or (`half`) a body that wide each way (one turned sideways to let him by) */
+  clear: null as ((w: THREE.Vector3, half?: number) => boolean) | null,
   /** when the player last came to his fire (the hearth's view, the shop shut: they'll be cooking by hand with him), performance.now() */
   callAt: -1,
   futon: { on: false, foot: new THREE.Vector3(), yaw: 0, unroll: 0, pillow: 0, cover: 0, fold: 0 },

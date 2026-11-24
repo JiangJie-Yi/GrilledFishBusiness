@@ -116,7 +116,7 @@ import { LINES } from '@/data/lines'
 import { looksOf, newRoll, openRoom, penaltyOf, visitRoom } from '@/game/restroom'
 import { platerFree } from '@/game/kitchenCrew'
 import { plateGoes } from '@/game/tray'
-import { WARE, SEAT_LEFT, CHOPS_USED, CHOPS_OFF, CHOPS_LOOSE, SEATS_UNCLEARED, FLOOR_CHECK, type PathCross } from './bar'
+import { WARE, SEAT_LEFT, CHOPS_USED, CHOPS_OFF, CHOPS_LOOSE, SEATS_UNCLEARED, FLOOR_CHECK, type PathCross, BOSS_BED } from './bar'
 import { CALM_ASK, FUMING, DRAIN_KINDS, EAT_PHASE, PLATE_FACES, SEATS_SAT, DRAWER_KICK, TISSUE_REACH_MS, seatTurn, GRATING, ONIGIRI_TRAY, HAND_WASH, FIGURES, CARRIED, SOY_DISH_AT, FETCHER, FIRE_TEND, SKEWERS, SEAT_MOVE, SEAT_PULL, STOOL_TUCK, SHOE_CELLS, aisleCornerOf, aisleOf, DRAWER_HELD, SHOP_PURSE, STOCKER_WC, SUPPLIES, CHOPS_UP, FED, BENCH, BENCH_SEATS, BENCH_EACH, BENCH_PLACE, BENCH2_ALONG, TAKEOUT_STAND, STAND_AT, cashierIn, nameOver, gripe, setTissues, tissuesAt, meterWater, OWNER_OUT, OWNER_SPOT, OWNER_YAW, FIRE_SHIFT, KITCHEN_ROUTE, PATH_MAP, type PathRoute, SERVE_COUNTER, PLACE, SICK, SHRINE_FLOWERS, PLATING, READY_SLOTS, PLATE_STACK_ALONG, PLATE_STACK_ACROSS, readyAlong, PLATES_OUT, PLATER_OUT, DRYER, DRAIN, PLATE_COUNT, SINK_BIN, SEAT_STICKS, SEAT_BONES, WC_W, WC_ROOM, RICE, SOUP, SOUP_SEATS, SAKE, SAKE_SEATS, LOW_RACK, takeDrink, KITCHEN_DROP, kitchenOf, kitchenGatesOf, AISLE, FLOOR_FAR, FLOOR_NEAR, PLATES_SET, SINK, PILE, KITCHEN_FOLK, GENKAN, inGenkan, sauceSide, SEATS_TAKEN, SERVICE, BAR_GATES, TILL, TILL_CASH, anyInStock, batchOf, payIn, TILL_STATE, PLATE_RACK, billOf, GUEST_BILLS, DRINKS, yen, payOf, TAKEOUT, takeoutOf, POINTER_HINT, tipOver, TOILETS, WC_GRUMBLE, DRINK_BACK, FRIDGE, FRIDGE_AT, FRIDGE_STATE, isCan, FRIDGE_STOCK, placesOf, FRIDGE_UNITS, drinkFor, farOf, fridgesOf, storeOf, STORE, STORE_STATE, fridgeUnitOf, gateOf, toiletsOf, type DrinkId, platingOf, roomOf, alongPath, doorOf, wayInOf, doorAt, doorOutOf, DOOR_LANE, pathLength, pathTo, seatsOf, singleCounter, type Counter, SPILLS, IRONS, type Spill, genkanY, soapPlate, scrubDose, SAY_SEATED, BOWLS, RICE_SEATS, STAFF_DOOR_HOLD, sakeLeft, ownerAway, ownerFree, ownerBack, DRINK_COMING, KITCHEN, DRINK_FRIDGE_TEMP } from './bar'
 import { servedWarm } from '@/game/fridgeTemp'
 import { BONES_GEO, HEAD_GEO } from './fishBones'
@@ -152,6 +152,9 @@ const rampedAlong = (t: number, len: number) => Math.min(len, t < SERVER_RAMP ? 
 // second: about a walk), the fastest anyone walks (a quicker move between two frames is a leap, a phase begun elsewhere, not a walk))
 const AHEAD_S = 0.6, ASIDE_V = 1.5, WALK_MOST = 3.2
 const STOCKER_KEY = -99
+/** (item 659) the owner among those stepping aside for each other (he keeps to his way), and his place this frame, the bar's frame */
+const BOSS_KEY = -98
+const BOSS_AT = new THREE.Vector3()
 /** those waiting on the genkan's bench, among those stepping aside for each other: keyed apart from the customers (SITTER_KEY less their id) */
 const SITTER_KEY = -1000
 /** the pieces standing against the first counter's wall, behind its aisle: the waiting benches, the helmet's stand and the helmet on it; and
@@ -5906,6 +5909,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
    * ways (from each one's place, and the owner's, to the sink, the racks and the plating place), worked out again only when that's changed;
    * the ways being walked; the customers' from the door to each seat */
   const pathsMap = useRef({ at: 0, sig: '', staff: [] as PathRoute[] })
+  /** (item 659) the owner's mover, found once */
+  const bossMover = useRef<THREE.Object3D | null>(null)
   /** (item 629) where the map's ways go through something at a body's middle height (bar's FLOOR_CHECK, the shop's floor map, made with
    * the editor's map of the ways shown): along each way every 3 cm, but its first and last 12 (where one stands at a thing to use it) and
    * a customer's last step (onto their stool); each stretch of it in something, and the piece it's in (at its middle, or where it runs in
@@ -7668,6 +7673,12 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       }
       waiters.current.forEach((w, wi) => add(waiterObjs.current[wi]?.position ?? w.pos, false, -1 - wi))
       if (STOCKER_FIG.o?.visible) add(STOCKER_FIG.o.position, false, STOCKER_KEY)
+      // (item 659: and the owner on his way home from where he was put down: they step round him, he keeps to his way)
+      if (BOSS_BED.passing && frame.current) {
+        const b = bossMover.current ?? (bossMover.current = scene.getObjectByName('BossFollow') ?? null)
+        if (b?.parent && b.visible) add(frame.current.worldToLocal(b.getWorldPosition(BOSS_AT)), false, BOSS_KEY)
+        else if (b && !b.parent) bossMover.current = null
+      }
       // (and those waiting on the bench, on their way to it, sat there or on their way out: they keep to their way, the rest step round them
       // (item 193: going by in the aisle, customers walked through one stood before their place on it))
       // (on their way in or out they step aside as everyone walking does (item 414: one on their way in to the bench and one on their way out

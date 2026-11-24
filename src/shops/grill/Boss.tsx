@@ -697,6 +697,8 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     // ---- (item 444) the nights he's worn out, as the shop's shut: off to the stair's foot by the staff's door, his futon down there, in under
     // it, asleep; up again rested, or wanted (the shop opening, the player at his fire), the futon folded and taken off, back to his fire
     const bd = bed.current, ff = BOSS_BED.futon
+    // (item 659: on his way home from where he was put down: the others give him room)
+    BOSS_BED.passing = !edit && bd.phase === 'back' && !!bd.home
     if (edit && bd.phase !== 'off') { bd.phase = 'off'; ff.on = false; BOSS_BODY.bed = 'off'; setAsleep(false); s.x = 0; s.z = 0; s.y = 0; NIGHT_WITH.up = false }
     // (no futon down unless he's at it: laying it, in it, or up and folding it (item 561, the owner's 「老闆起身厚，棉被殘留」: he was
     // back at his fire, his own night's state begun again (drawn anew: a change of the code while he slept), and the futon, the shop's,
@@ -740,6 +742,8 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
         bd.len = lengthOf(bd.pts)
         bd.d = 0; bd.t = 0
         bd.phase = 'back'; bd.home = true
+        // (item 659: the way in the world, for those in it to stand aside off it)
+        BOSS_BED.wayW = way.map((p) => frame.localToWorld(p.clone()))
         away.current = null
       }
     }
