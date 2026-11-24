@@ -13,6 +13,8 @@ const WATCH = +(process.env.WATCH ?? 90000), STEP = +(process.env.STEP ?? 300), 
 const { browser, page } = await boot({ width: 1440, height: 860 })
 await openShop(page, { x2: true, at: Number(process.env.AT ?? 18 * 60) })
 if (!process.env.CALM) await rush(page)
+// (PRE: a line run in the page before the watch, e.g. a dev switch off, to put it beside the same run with it on)
+if (process.env.PRE) await page.evaluate(process.env.PRE)
 await page.waitForTimeout(Number(process.env.WARM ?? 15000))
 const res = await page.evaluate(async ({ WATCH, STEP, TOL, only, who, BOX, JOBTOL }) => {
   const T = window.__THREE, s = window.__scene
