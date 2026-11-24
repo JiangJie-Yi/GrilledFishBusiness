@@ -59,7 +59,7 @@ React 19 + TypeScript + Vite + three.js（@react-three/fiber / drei）。推到 
 ## 資料夾分類（依賴只能往左）
 
 ```
-data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  App.tsx
+data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  app/  ←  App.tsx
 ```
 
 | 資料夾 | 放什麼 | 可以引用 |
@@ -69,7 +69,8 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  App.tsx
 | `src/scene/` | 各店共用的 3D 元件：`Dish`、`Steam`、`OpeningSpot`、裝置等級（`quality.ts`）、shader | data、game |
 | `src/ui/` | 2D 介面：菜單板、研發筆記、辦公室、歡迎頁、表情、頭像…… | data、game、scene |
 | `src/shops/grill/` | 烤魚店的 3D 與互動（Roasting、吧台、客人、收銀櫃…） | data、game、scene、ui |
-| `src/App.tsx` | 把各部分組起來：存檔、帳本、營業模擬的計時器、場景 | 全部 |
+| `src/app/` | App 組起來用的部分（第 604 項從 `App.tsx` 搬出）：場景 `Scene.tsx`、場景裡的小元件 `sceneParts.tsx`（視角攝影機、影子、地板…）、鏡頭 `camera.ts`、光 `lighting.ts`、渲染器 `renderer.ts`、存檔的鍵 `keys.ts`、日誌 `chatLog.tsx`、時刻 `timing.ts`、菜與供品 `dishes.ts`、共用的 hook `hooks.ts` | 全部 |
+| `src/App.tsx` | 把各部分組起來：存檔、帳本、營業模擬的計時器、介面 | 全部 |
 | `src/styles/` | 介面的樣式，一區一檔（`menu.css`、`office.css`、`till.css`…）；`src/index.css` 只照層疊的順序 `@import` 它們（第 604 項：原本 7,958 行一個檔） | （CSS） |
 
 規則：
@@ -155,7 +156,7 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  App.tsx
 - **加一道食材**：在 `data/menu.ts` 的店家 `items` 加一筆；成本比例加在 `game/economy.ts` 的 `COST_SHARE`；燒烤類要在 `game/taste.ts` 的 `PAIRING` 加上調味搭配（調味的最佳時機在 `TIMING`）；有特別菜名的話加在 `data/recipes.ts`（`SPECIAL` / `BREAD`）。燒烤的 3D 模型由 `blender/grilledfish.py` 產生。
 - **調整價格或成本**：`game/economy.ts`（`costOf`、`COST_SHARE`、`CAPITAL`、`SHOP_COST`）和 `data/recipes.ts` 的 `suggestPrice`、`SEASON_COST`。開店後手上是 NT$200,000（店主定的：資本 `CAPITAL` 30 萬 − 開業費用 `SHOP_COST` 10 萬；BDD `pricing`）。
 - **開店門檻和菜單上限**：`data/recipes.ts` 的 `MENU_MIN`、`MENU_MAX`；四類平均、白飯味噌湯不算的規則在 `game/menuMix.ts`（BDD `menu-mix`）。
-- **加一間店**：`data/menu.ts` 加一個 Dish，`src/shops/<新店>/` 放它的 3D，`App.tsx` 的 Scene 掛上去，`data/staff.ts`、`data/recipes.ts` 補上它的資料，並在 `tests/architecture.test.ts` 的 `ALLOWED` 加上新資料夾。
+- **加一間店**：`data/menu.ts` 加一個 Dish，`src/shops/<新店>/` 放它的 3D，`src/app/Scene.tsx` 掛上去，`data/staff.ts`、`data/recipes.ts` 補上它的資料，並在 `tests/architecture.test.ts` 的 `ALLOWED` 加上新資料夾。
 （根莖蔬菜與大蔥、應徵者、排班制、員工編制的細節在 `docs/DETAILS.md` 同名的一節。）
 
 ## 3D 模型

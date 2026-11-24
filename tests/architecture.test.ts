@@ -17,6 +17,8 @@ const ALLOWED: Record<string, string[]> = {
   scene: ['data', 'game'],
   ui: ['data', 'game', 'scene'],
   'shops/grill': ['data', 'game', 'scene', 'ui'],
+  // (what App puts together, out of App.tsx (item 604): the scene, its parts, the camera and the light, the save's keys; may take all)
+  app: ['data', 'game', 'scene', 'ui', 'shops/grill'],
 }
 const folderOf = (path: string) => Object.keys(ALLOWED).sort((a, b) => b.length - a.length).find((k) => path.startsWith(k + '/'))
 
