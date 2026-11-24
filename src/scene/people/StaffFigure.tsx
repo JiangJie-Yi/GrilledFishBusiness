@@ -227,6 +227,8 @@ const TRAY_R = 0.1
  * back rim clear of it (item 628: at 0.36 the back of a server's tray was 2 cm into the samue) */
 export const TRAY_AT: [number, number, number] = [0, 0.4, CARRY_FRONT + TRAY_R + HOLD_AIR]
 const REST = { L: new THREE.Vector3(-0.31, 0.26, 0.05), R: new THREE.Vector3(0.31, 0.26, 0.05) }
+/** (item 676) a hand drawn in to their side as they squeeze past something: across from their middle, and before them (their own frame) */
+const TUCK_X = 0.19, TUCK_Z = 0.12
 const REACH_A = new THREE.Vector3(), REACH_B = new THREE.Vector3()
 /** where a lean to their work bends them, a share of their height up from their feet (a counter's top on them) (item 387) */
 const LEAN_WAIST = 0.55
@@ -508,6 +510,8 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
   const bend = useRef(0)
   /** how far their hands are at a job's places (handsAt: eased there and back), and those places in their own frame, each to the hand on its side */
   const reachK = useRef(0)
+  /** (item 676) how far each hand's drawn in (left, right), eased to what whoever moves them asks (job's tuckL / tuckR) */
+  const tuckK = useRef([0, 0])
   /** their face's life (game/faceLife, item 368), and which way they faced last frame (for the eyes to go first where they're turning) */
   const life = useRef<FaceLife | null>(null)
   const yawWas = useRef(0)
@@ -598,7 +602,9 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
       /** (a server on an errand: their tray put down, item 249) */
       trayDown?: boolean
       /** (on their way somewhere, as whoever moves them has it (the stock keeper's chores, item 374): their clipboard put by) */
-      walking?: boolean } | undefined
+      walking?: boolean
+      /** (item 676) the hand on that side up against something as they go by it: drawn in to their side (0 .. 1) */
+      tuckL?: number; tuckR?: number } | undefined
     const going = moving || !!job?.walking
     // (how much of them shows: their own copies of the materials while they're fading, the shared ones back after; their ink line thinned
     // with them to nothing (as the customers' is: put away at once, it went in a blink before the rest of them))
@@ -753,6 +759,14 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
       hand.position.lerpVectors(rest, out, hold)
       if (hold !== 1) hand.position.z += swing
       hand.rotation.x = hold === 1 ? -1.1 : 0
+      // (item 676: the hand on a side that's up against something as they go by it drawn in to their side, as one does squeezing past: a server
+      // going by the cats' stand at the door to clear a place had a hand 23 cm in it)
+      {
+        const ti = sd > 0 ? 1 : 0, want = going ? ((sd > 0 ? job?.tuckR : job?.tuckL) ?? 0) : 0
+        tuckK.current[ti] += (want - tuckK.current[ti]) * Math.min(1, dt * 12)
+        const tk = tuckK.current[ti]
+        if (tk > 0.002 && hold < 1) { hand.position.x += (sd * TUCK_X - hand.position.x) * tk; hand.position.z += (TUCK_Z - hand.position.z) * tk }
+      }
       if (job?.stretch) {
         // (finishing up: both arms up over the head in a long stretch, swaying a little)
         hand.position.set(sd * 0.16, 0.95 + Math.sin(t * 1.6) * 0.03, 0.02)

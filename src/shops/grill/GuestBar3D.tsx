@@ -21,7 +21,7 @@ import {
 import { QUALITY } from '@/scene/render/quality'
 import type { GuestView } from '@/game/types'
 import { guestLabel, kindOf } from '@/data/guests'
-import { FOLK_HEIGHT, FolkFigure, FolkWarm, SEAT as FOLK_SEAT, folkSpec } from '@/scene/people/FolkFigure'
+import { FOLK_HEIGHT, FolkFigure, FolkWarm, SEAT as FOLK_SEAT, folkSpec, FOLK_HAND_REST } from '@/scene/people/FolkFigure'
 import { delayOf, FADE_S, paceOf } from '@/game/staff/commute'
 import { makeTrip, tripStep, turnSmooth, turnToward, type Trip } from '@/shops/grill/staff/commuteWalk'
 import { StaffWords, TiredBadges } from '@/shops/grill/staff/StaffWords'
@@ -99,6 +99,23 @@ import { LONG_GEO, ROUND_GEO, Plate, PlateKinds, showKind, smearsOf, pickupReady
 import { WaitingBench, KraftBag, TakeoutStandModel, STAND_TOP, STAND_SLOTS, WARM_TUB_Z, WarmTub, STAND_TURN, STAND_LIFT, STAND_GIVE, TakeoutBag, RiderGear } from './guestbar/takeoutStand'
 import { GuestLabel, CUP_AHEAD, CUP_SIDE, SeatDrink, PersonClock } from './guestbar/labels'
 
+/** (item 676, the owner's 「客人會穿越」) whether each hand of a customer, where it hangs at their side, has something standing there on the
+ * shop's floor map (a finger's breadth round it): [left, right], 1 drawn in as they walk by it, 0 not; their figure's hands' frame found
+ * once; dev `__tuck.on = false` as before */
+const TUCK = { on: true }
+const TUCK_HALF = 0.03, TUCK_P = new THREE.Vector3(), TUCK_OUT: [number, number] = [0, 0], TUCK_NONE: [number, number] = [0, 0]
+const TUCK_FRAMES = new WeakMap<THREE.Object3D, THREE.Object3D | null>()
+const tuckOf = (o: THREE.Object3D): [number, number] => {
+  const taken = BOSS_BED.taken
+  if (!TUCK.on || !taken || !o.visible) return TUCK_NONE
+  let hp = TUCK_FRAMES.get(o)
+  if (hp === undefined || (hp && !hp.parent)) { hp = o.getObjectByName('handL')?.parent ?? null; TUCK_FRAMES.set(o, hp) }
+  if (!hp) return TUCK_NONE
+  TUCK_OUT[0] = taken(hp.localToWorld(TUCK_P.copy(FOLK_HAND_REST.L)), TUCK_HALF) ? 1 : 0
+  TUCK_OUT[1] = taken(hp.localToWorld(TUCK_P.copy(FOLK_HAND_REST.R)), TUCK_HALF) ? 1 : 0
+  return TUCK_OUT
+}
+if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __tuck: TUCK })
 /** (item 659 d's next, the bar's frame) a server walking holds back for the owner on his way home ahead of them on their line: from
  * SERVER_HOLD_AHEAD ahead (1.1 m in the world) to a stand at SERVER_HOLD_STOP (a body's width and a little), he within SERVER_HOLD_SIDE of
  * their line; SERVER_HOLD_MOST at most at a time; dev `__serverHold.on = false` as before */
@@ -3377,6 +3394,9 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         walkers.push({ p, give, id, vx, vz, ax: 0, az: 0, s })
       }
       for (const x of shown) {
+        // (item 676: their hands, where they hang at their sides, against something there: drawn in as they walk by it (FolkFigure))
+        const go = groups.current.get(x.id)
+        if (go) { const [tl, tr] = x.phase === 'sit' ? TUCK_NONE : tuckOf(go); go.userData.tuckL = tl; go.userData.tuckR = tr }
         if (x.phase === 'wcIn' && x.wc?.who !== 'drink') continue
         const gp = groups.current.get(x.id)?.position
         // (those sitting don't move aside, but nobody walks through them either: the ones going by step round them)
@@ -5563,6 +5583,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       // sink's cabinet below its top, 13 cm, for the frames their hands took to reach in (StaffFigure puts it by once they're half way); stood
       // back no further, the step stool under them)
       if (o) o.userData.trayDown = !!w.trayDown || w.phase === 'drop'
+      // (item 676: a hand up against something as they go by it drawn in to their side (StaffFigure))
+      if (o) { const [tl, tr] = tuckOf(o); o.userData.tuckL = tl; o.userData.tuckR = tr }
       // (washing up at the sink, by hand or into the washer: the scrubbing motion (StaffFigure's scrub))
       if (o) o.userData.scrub = w.phase === 'wash' || w.phase === 'handwash' ? w.t : undefined
       // (pouring a customer's sake themself (no plater): both hands where the pour has them (item 177)); and the tray it's carried out on

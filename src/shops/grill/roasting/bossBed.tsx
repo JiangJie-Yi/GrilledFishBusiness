@@ -693,6 +693,13 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
       const d = WALK_IJ.copy(w).sub(walk!.o), u = d.dot(f.U), v = d.dot(f.V)
       return !f.taken(u - half, u + half, v - half, v + half) && f.inRoom(w) && !inGenkan(GRILL_COUNTERS, toBar(g.worldToLocal(WALK_IJ.copy(w))))
     }
+    // (item 676: whether something stands there, the genkan and the room's edge not asked about: the customers' hands as they walk by)
+    BOSS_BED.taken = (w, half) => {
+      const f = walk?.f
+      if (!f) return false
+      const d = WALK_IJ.copy(w).sub(walk!.o), u = d.dot(f.U), v = d.dot(f.V)
+      return f.taken(u - half, u + half, v - half, v + half)
+    }
     /** a way across the room's floor on the shop's map (item 652, the Tester window's: from by the till, straight to the aisle he went through
      * it): from `a` to `b` (the world's), on the free squares, eight ways from each (A*), then drawn straight where nothing's between (the
      * corners it turns at); the end's own square taken, from the nearest free one; null with no map yet or no way */
@@ -916,7 +923,7 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
       }
       return path ? [fromGrill.clone(), ...path.slice(1).map(onFloor)] : null
     }
-    return () => { BOSS_BED.way = null; BOSS_BED.frame = null; BOSS_BED.drop = null; BOSS_BED.home = null; BOSS_BED.clear = null; unsub(); unwarm(); mapJob++; cancelAnimationFrame(mapRaf); window.clearTimeout(mapLater); FLOOR_CHECK.inSomething = null; FLOOR_CHECK.pieceAt = null; if (import.meta.env.DEV) Object.assign(FLOOR_CHECK, { meshAt: null }) }
+    return () => { BOSS_BED.way = null; BOSS_BED.frame = null; BOSS_BED.drop = null; BOSS_BED.home = null; BOSS_BED.clear = null; BOSS_BED.taken = null; unsub(); unwarm(); mapJob++; cancelAnimationFrame(mapRaf); window.clearTimeout(mapLater); FLOOR_CHECK.inSomething = null; FLOOR_CHECK.pieceAt = null; if (import.meta.env.DEV) Object.assign(FLOOR_CHECK, { meshAt: null }) }
   }, [scene])
   return <group ref={ref} />
 })

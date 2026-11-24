@@ -277,6 +277,9 @@ export const BOSS_BED = keep(import.meta.hot, 'BOSS_BED', {
   /** (item 659) whether one could stand at a point (the world's) on the shop's floor map (Roasting's BossBedWays, once it's made): his
    * walking squares, or (`half`) a body that wide each way (one turned sideways to let him by) */
   clear: null as ((w: THREE.Vector3, half?: number) => boolean) | null,
+  /** (item 676) whether something stands at a point (the world's) on the shop's floor map, a square `half` each way round it (nothing
+   * there, or no map made yet: false) */
+  taken: null as ((w: THREE.Vector3, half: number) => boolean) | null,
   /** when the player last came to his fire (the hearth's view, the shop shut: they'll be cooking by hand with him), performance.now() */
   callAt: -1,
   futon: { on: false, foot: new THREE.Vector3(), yaw: 0, unroll: 0, pillow: 0, cover: 0, fold: 0 },

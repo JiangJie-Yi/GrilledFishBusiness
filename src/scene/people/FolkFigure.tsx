@@ -70,6 +70,17 @@ const ON_HEAD = new Set(['glasses', 'moustache', 'phones', 'sunhat', 'schoolhat'
 /** where the head turns from (the neck), in the model's frame */
 const NECK = new THREE.Vector3(0, 0.56, 0)
 const REST = { L: new THREE.Vector3(-0.31, 0.26, 0.05), R: new THREE.Vector3(0.31, 0.26, 0.05) }
+/** (item 676) where each hand hangs at their side (the body's frame): for whoever moves them to look whether it's up against something */
+export const FOLK_HAND_REST = REST
+/** (item 676) a hand drawn in to their side as they squeeze past something: across from their middle, and before them (the body's frame) */
+const TUCK_X = 0.19, TUCK_Z = 0.12
+/** (item 676) the group above a figure that says which of its hands to draw in (tuckL / tuckR), found once */
+const TUCK_SAYS = new WeakMap<THREE.Object3D, THREE.Object3D | null>()
+const tuckSays = (o: THREE.Object3D) => {
+  let g = TUCK_SAYS.get(o)
+  if (g === undefined) { g = null; for (let q = o.parent; q && !g; q = q.parent) if ('tuckL' in q.userData || q.userData.guest !== undefined) g = q; TUCK_SAYS.set(o, g) }
+  return g
+}
 /**
  * The pair of chopsticks in a customer's hand while they eat: the bar's own lacquered ones, picked up off their rest (the owner's: they ate with
  * none to be seen, the pair on the rest untouched; the brown sticks in their fist pointed back into them): black over the top third, a fine
@@ -1109,6 +1120,14 @@ function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = nu
       // (and closely through the phone's: a swipe or a tap is a fifth of a second)
       const gearOn = !!ga && (ga.umb >= 0 || !!ga.coatPose)
       const kL = follow(dt, eating || sipping ? 24 : pb ? 28 : gearOn ? 16 : 10), kR = follow(dt, souping ? 24 : pb ? 28 : gearOn ? 16 : 10)
+      // (item 676, the owner's 「客人會穿越」: the hand on a side that's up against something as they walk by it drawn in to their side, as one does
+      // squeezing past (whoever moves them says which, on their group: tuckL / tuckR); coming in by the cats' stand at the door, the passage
+      // narrower than their arms, their hands went 13 to 19 cm into it)
+      if (walking && !gearOn) {
+        const ud = tuckSays(o)?.userData as { tuckL?: number; tuckR?: number } | undefined
+        if (ud?.tuckL) { lp.x += (-TUCK_X - lp.x) * ud.tuckL; lp.z += (TUCK_Z - lp.z) * ud.tuckL }
+        if (ud?.tuckR) { rp.x += (TUCK_X - rp.x) * ud.tuckR; rp.z += (TUCK_Z - rp.z) * ud.tuckR }
+      }
       L.position.lerp(lp, kL)
       Rh.position.lerp(rp, kR)
       L.rotation.x += (lr - L.rotation.x) * kL
