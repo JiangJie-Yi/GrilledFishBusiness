@@ -23,6 +23,16 @@ export const isFigureHit = (o: THREE.Object3D | null | undefined) => !!o?.userDa
 const NO_CAST = () => {}
 /** whether it and everything it hangs from is shown */
 const shownFrom = (o: THREE.Object3D | null) => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true }
+/**
+ * (item 685, the Tester window's: a server stood at the sink, their box took the press meant for the plate the player was washing behind them,
+ * and nothing came of it for the plate: 2 presses in 6 in a rush) whether a press on a person's box goes on past them, to something shown
+ * behind them on the same ray marked for it (`userData.reachPast`: the plates in the player's hands in the sink)
+ */
+const reachesPast = (e: ThreeEvent<PointerEvent>) => e.intersections.some((i) => {
+  let mark = false
+  for (let q: THREE.Object3D | null = i.object; q; q = q.parent) { if (!q.visible) return false; if (q.userData.reachPast) mark = true }
+  return mark
+})
 // (item 374: drawn again only when its callbacks are new ones: a customer's are made once for them, GuestBar3D's hitOf)
 export const FigureHit = memo(FigureHitImpl)
 function FigureHitImpl({ title, hint, onPointerDown, grabbable, cursor }: { title: () => string; hint?: () => string
@@ -85,5 +95,6 @@ function FigureHitImpl({ title, hint, onPointerDown, grabbable, cursor }: { titl
     me.scale.x *= 0.8
     me.scale.z *= 0.8
   })
-  return <mesh ref={box} geometry={BOX} visible={false} userData={{ figureHit: true }} {...over} onPointerDown={onPointerDown} />
+  const press = useMemo(() => onPointerDown && ((e: ThreeEvent<PointerEvent>) => { if (!reachesPast(e)) onPointerDown(e) }), [onPointerDown])
+  return <mesh ref={box} geometry={BOX} visible={false} userData={{ figureHit: true }} {...over} onPointerDown={press} />
 }

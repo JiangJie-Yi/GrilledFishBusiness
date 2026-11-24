@@ -1367,6 +1367,18 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     if (k < c) return counterAt(k)
     return inBar('SinkBasinFloor', endOf(1)).add(new THREE.Vector3(0, 0.004 + sinkStackUp(c, k), 0))
   }
+  /**
+   * (item 685, the Tester window's: with the servers' stack in the basin grown to ten, the plate washed where it was taken off its top was
+   * inside it, clean and bobbing still under its top; a press on it found the stack's first and took a dirty one) how low a plate of the
+   * player's (`kind`) lies at (lx, lz) in the basin, the bar's frame: on the basin's floor, or, over the servers' stack there (its plates within
+   * two radii of it), on that stack's top, as one more on it
+   */
+  const basinBase = (floor: THREE.Vector3, lx: number, lz: number, kind: PlateKind) => {
+    const n = Math.min(dirty.current, SINK_SHOWN), c = onCounter.current
+    if (n <= c || Math.hypot(floor.x - lx, floor.z - lz) >= SINK_PLATE_R.v * 1.9) return floor.y + 0.012
+    const K = SINK.kinds
+    return Math.max(floor.y + 0.012, floor.y + 0.004 + sinkStackUp(c, n - 1) + (K[n - 1] === 'long' || kind === 'long' ? STACK_GAP : NEST_GAP) * IN_SINK)
+  }
   /** how far up the k-th of the sink's dirty plates stands over the first of its stack (`from`, the counter's 0, the basin's the first in
    * it): a round one on a round one nested into it (NEST_GAP), a long one on or under any other on its rim (STACK_GAP) (item 358) */
   const sinkStackUp = (from: number, k: number) => {
@@ -6117,10 +6129,12 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         if (h.at === 'tap') HAND_TO.set(spout.x, floor.y + (spout.y - floor.y) * 0.45, spout.z)
         else if (h.at === 'water') HAND_TO.set(lx, floor.y + (wtop.y - floor.y) * Math.min(1, Math.max(0, SINK.water)) - 0.004, lz)
         else HAND_TO.set(lx, floor.y + 0.05, lz)
-        // (on those under it where it lies, if any (item 638))
+        // (on those under it where it lies, if any (item 638); on the servers' stack, if it's over it (item 685), the tap's stream or not)
         let below = 0
         for (const u of under.current) if (Math.hypot((u.lay ? u.lay.x : floor.x) - lx, (u.lay ? u.lay.z : floor.z) - lz) < SINK_PLATE_R.v) below++
-        if (h.at !== 'tap' && below) HAND_TO.y = Math.max(HAND_TO.y, floor.y + 0.012 + below * PILE_STEP + 0.006)
+        const ax = h.at === 'tap' ? spout.x : lx, az = h.at === 'tap' ? spout.z : lz
+        const base = basinBase(floor, ax, az, h.kind), onStack = base > floor.y + 0.012
+        if ((h.at !== 'tap' && below) || onStack) HAND_TO.y = Math.max(HAND_TO.y, base + below * PILE_STEP + 0.006)
         // (clean: lifted a little in the water, bobbing, to be taken out (item 606))
         if (h.dirt <= CLEAN_AT) HAND_TO.y += 0.02 + 0.004 * Math.sin(now / 320)
         o.position.lerp(HAND_TO, Math.min(1, step * 12))
@@ -6173,7 +6187,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           const lx = s.lay ? s.lay.x : floor.x, lz = s.lay ? s.lay.z : floor.z
           let below = 0
           for (let j = 0; j < k; j++) { const u = under.current[j]; if (u && Math.hypot((u.lay ? u.lay.x : floor.x) - lx, (u.lay ? u.lay.z : floor.z) - lz) < SINK_PLATE_R.v) below++ }
-          PILE_AT.set(lx + (s.lay ? 0 : k % 2 ? 0.012 : -0.01), floor.y + 0.012 + below * PILE_STEP, lz + (s.lay ? 0 : k % 2 ? -0.008 : 0.01))
+          PILE_AT.set(lx + (s.lay ? 0 : k % 2 ? 0.012 : -0.01), basinBase(floor, lx, lz, s.kind) + below * PILE_STEP, lz + (s.lay ? 0 : k % 2 ? -0.008 : 0.01))
           o.position.lerp(PILE_AT, Math.min(1, step * 10))
           o.rotation.set(0, k * 0.7, 0)
           o.visible = true
@@ -6409,7 +6423,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           </group>
         )}
         {/* (the plate the player's washing by hand (item 224): at the pointer, under the tap or in the water; its suds) */}
-        <group ref={handObj} name="hand-plate" visible={false}
+        <group ref={handObj} name="hand-plate" visible={false} userData={{ reachPast: true }}
           // (in the water: a press on it takes it up out of the water to be carried (item 606: it rubbed it, item 458); pointed at, it says how
           // it's coming on)
           onPointerDown={(e) => { if (e.nativeEvent.button !== 0 || getEdit().on) return; if (liftRef.current(e.nativeEvent.clientX, e.nativeEvent.clientY)) e.stopPropagation() }}
@@ -6425,7 +6439,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         {/* (the basin's pile under it (item 638): in the scene from the start, hidden till a plate's put under; a press on one takes up the top
             one, as a press on the basin does) */}
         {Array.from({ length: UNDER_MAX }, (_, k) => (
-          <group key={k} ref={(g) => { soakObjs.current[k] = g }} name={`soak-plate-${k}`} visible={false}
+          <group key={k} ref={(g) => { soakObjs.current[k] = g }} name={`soak-plate-${k}`} visible={false} userData={{ reachPast: true }}
             onPointerDown={(e) => { if (e.nativeEvent.button !== 0 || getEdit().on) return; if (HAND_WASH.take?.(e.nativeEvent.clientX, e.nativeEvent.clientY)) e.stopPropagation() }}>
             <group ref={(g) => { soakIns.current[k] = g }} scale={IN_SINK}><PlateKinds dirty design={0} /></group>
           </group>
