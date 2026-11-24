@@ -289,11 +289,29 @@ export const TIP_TEXT: Record<string, [ja: string, en: string]> = {
   用過的紙巾: ['使ったティッシュ', 'a used tissue'],
   喝完的飲料: ['飲み終えた飲み物', 'an emptied drink'],
   '乾了，等著搬回碗盤架': ['乾いた・食器棚に戻すのを待つ', 'Dry, waiting to go back to the rack'],
+  // ---- (item 660, the Tester window's: upstairs, the staff's room, all in Chinese) the stair, the bath, the television and its channels
+  樓梯: ['階段', 'Stairs'],
+  '點一下下樓，回到店裡': ['クリックで下へ、店に戻る', 'Click to go back down to the shop'],
+  衛浴: ['風呂とトイレ', 'Bath and toilet'],
+  住在樓上的員工用的浴室與廁所: ['二階に住む従業員の風呂とトイレ', 'For the staff who live upstairs'],
+  點一下拉開拉門: ['クリックで引き戸を開ける', 'Click to slide the door open'],
+  點一下關上拉門: ['クリックで引き戸を閉める', 'Click to slide the door shut'],
+  電視: ['テレビ', 'TV'],
+  關著: ['消えている', 'Off'],
+  '左鍵打開、右鍵換台': ['左クリックでつける、右クリックで次のチャンネル', 'Left-click on, right-click next channel'],
+  '左鍵關掉、右鍵換台': ['左クリックで消す、右クリックで次のチャンネル', 'Left-click off, right-click next channel'],
+  新聞: ['ニュース', 'News'],
+  天氣預報: ['天気予報', 'Weather'],
+  棒球轉播: ['野球中継', 'Baseball'],
+  料理節目: ['料理番組', 'Cooking show'],
+  海洋紀錄片: ['海のドキュメンタリー', 'Ocean documentary'],
 }
 
 /** what's put together with a number in it: its shape, and the same said in Japanese and in English */
 const SHAPES: [RegExp, (m: string[]) => string, (m: string[]) => string][] = [
   [/^剩 (\d+)\/(\d+)$/, (m) => `残り ${m[1]}/${m[2]}`, (m) => `${m[1]}/${m[2]} left`],
+  // (the television's channel (item 660): its number, and what's on, looked up as a name is)
+  [/^第 (\d+) 台：(.+)$/, (m) => `${m[1]}チャンネル：${TIP_TEXT[m[2]]?.[0] ?? m[2]}`, (m) => `Channel ${m[1]}: ${TIP_TEXT[m[2]]?.[1] ?? m[2]}`],
   [/^點一下抽一張$/, () => 'クリックで1枚取る', () => 'Click to take one'],
   [/^(\d+)\/(\d+)$/, (m) => `${m[1]}/${m[2]}`, (m) => `${m[1]}/${m[2]}`],
   [/^空了，開店前會換新的一盒$/, () => '空、開店前に新しい箱に替える', () => 'Empty: a new box goes in before opening'],

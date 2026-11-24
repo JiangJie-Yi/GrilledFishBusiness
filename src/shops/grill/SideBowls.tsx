@@ -39,6 +39,9 @@ const PADDLE_LEN = 0.094 * PADDLE_SCALE
 /** how much of its length it's drawn up along itself to come clear of the cooker's holder (item 618: blender/denkinabe.py's pocket has its
  * lower 0.49 down in it) */
 const PADDLE_OUT = 0.55 * PADDLE_LEN
+/** (item 660) a scoop's sweep up out of the pot and over to the bowl, from and to (of the scoop, 0..1): the cut under the rice before it,
+ * the tipping into the bowl after */
+const SWEEP_FROM = 0.32, SWEEP_TO = 0.74
 /** how long a bowl lasts a customer eating it (ms at the shop's own pace, as fast again at x2: Roasting's SIDE_EAT_S, they get up after),
  * and how much is left when they're done */
 const EAT_MS = 12000
@@ -319,13 +322,26 @@ export function riceFillPose(W: FillAt, t: number): FillPose {
       // (down into the rice, the blade turned to cut under it, up out with a lump on it, over to the bowl and tipped off it, with a little
       // shake as it goes; the first scoop then back over the pot, pointing down again, for the second (item 242: it ended over the bowl,
       // lying level, and the second began over the pot pointing down: the paddle jumped across and snapped round 2 rad in one frame))
-      const back = n === 0 ? 0.8 : 1, u = k / back
-      const blade = u <= 1 ? keyed(u, [[0, outPot], [0.28, inPot], [0.42, at(-0.02, -0.015, -0.015)], [0.58, outPot], [0.72, overBowl], [1, overBowl]])
-        : overBowl.clone().lerp(outPot, sm((k - back) / (1 - back)))
-      const dir = u < 0.5 ? down.clone().lerp(level, sm((u - 0.3) / 0.2)) : u <= 1 ? level : level.clone().lerp(down, sm((k - back) / (1 - back)))
-      const roll = u < 0.72 || u > 1 ? 0 : 1.95 * Math.sin(Math.PI * Math.min(1, (u - 0.72) / 0.28)) + Math.sin(u * 60) * 0.05 * (u > 0.8 ? 1 : 0)
+      // (item 660, the Tester window's: up out of the pot and over to the bowl were two short moves, a stop between them over the pot,
+      // the second a seventh of the scoop: the paddle shot across at 12 m/s (a 20 cm leap a frame at x1). Now one sweep, a fifth of it
+      // longer and not stopping: up out of the rice, over the rim and across, let down over the bowl (a curve through four points, eased
+      // as one move); the tipping after it)
+      // (the first's back over the pot for the second a third of it, not a fifth: it swung back at 10 m/s (item 660))
+      const back = n === 0 ? 0.7 : 1, u = k / back
+      const cut = at(-0.02, -0.015, -0.015)
+      let blade: THREE.Vector3
+      if (u > 1) blade = overBowl.clone().lerp(outPot, sm((k - back) / (1 - back)))
+      else if (u < SWEEP_FROM) blade = keyed(u, [[0, outPot], [0.2, inPot], [SWEEP_FROM, cut]])
+      else if (u < SWEEP_TO) {
+        const e = sm((u - SWEEP_FROM) / (SWEEP_TO - SWEEP_FROM)), o = 1 - e
+        // (straight up out of the rice first (the second point over where it cut), let down onto the bowl last (the third over it))
+        const p1 = cut.clone().setY(outPot.y + 0.05), p2 = overBowl.clone().addScaledVector(UP, 0.05)
+        blade = cut.clone().multiplyScalar(o * o * o).addScaledVector(p1, 3 * o * o * e).addScaledVector(p2, 3 * o * e * e).addScaledVector(overBowl, e * e * e)
+      } else blade = overBowl.clone()
+      const dir = u < 0.44 ? down.clone().lerp(level, sm((u - 0.22) / 0.22)) : u <= 1 ? level : level.clone().lerp(down, sm((k - back) / (1 - back)))
+      const roll = u < SWEEP_TO || u > 1 ? 0 : 1.95 * Math.sin(Math.PI * Math.min(1, (u - SWEEP_TO) / (1 - SWEEP_TO))) + Math.sin(u * 60) * 0.05 * (u > SWEEP_TO + 0.1 ? 1 : 0)
       hold(blade, dir, UP, roll)
-      load = u > 0.38 && u < 0.86 ? 1 - sm((u - 0.76) / 0.1) : 0
+      load = u > 0.3 && u < 0.9 ? 1 - sm((u - 0.8) / 0.08) : 0
       break
     }
     case 'pat': {

@@ -34,7 +34,8 @@ export function handStep(s: HandSink): HandStep {
 export function washTips(s: HandSink): string[] {
   const out: string[] = []
   // (item 458: the sponge is what washes, rubbed over the plate in the water; the liquid a bonus on that)
-  if (!s.sponge) out.push('拿起菜瓜布在泡著的盤子上來回刷，刷得快')
+  // (said as it's done: held and dragged over the plate (item 660: the last place still saying to pick it up))
+  if (!s.sponge) out.push('按住菜瓜布拖到泡著的盤子上來回刷，刷得快')
   else if (s.soap <= 0) out.push(`擠一點洗碗精刷得快 ×${SOAP_X}`)
   if (s.tap && !s.plug) out.push('開著水沖著洗比較費水，塞住水槽可以存水')
   return out

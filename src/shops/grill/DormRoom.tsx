@@ -67,7 +67,8 @@ const STAIR = { x: 1.35, z: 0.625, w: 0.8, d: 1.4 }
 /** the bathroom's door (item 427, blender/dorm.py's DormBathDoor): the doorway's middle and size (the room's metres), how far the door
  * slides left into the wall's pocket, and how long it takes */
 const BATH = { x: 1.36, y: 1.01, z: -1.4, w: 0.72, h: 1.68, slide: 0.7, s: 0.5 }
-const BATH_TIP = (open: boolean) => ({ title: '衛浴', hint: `住在樓上的員工用的浴室與廁所｜點一下${open ? '拉上' : '拉開'}` })
+// (its door said as a door (item 660: '點一下拉開' alone is a drawer's, and read as one in Japanese and English))
+const BATH_TIP = (open: boolean) => ({ title: '衛浴', hint: `住在樓上的員工用的浴室與廁所｜${open ? '點一下關上拉門' : '點一下拉開拉門'}` })
 /** the bath's half-noren over the way in from the room, as a house's changing room's is (item 447, the owner's 「衛浴設備是日式的哦！」;
  * blender/dorm.py's BD0, BD1, BDH): its rod's place (the room's metres: 4 cm before the wall, just under the doorway's head), its width (the
  * doorway's and its jambs') and its length (to over the work clothes' hooks on the door behind it) */
