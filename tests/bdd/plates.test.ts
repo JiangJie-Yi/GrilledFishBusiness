@@ -11,11 +11,20 @@ feature('廚房擺盤：三廚從碗盤櫃把盤子拿到主廚身旁的裝盤�
   scenario(`裝盤處的乾淨盤子少於 ${STACK_LOW} 個就去碗盤櫃拿`, ({ then, and, but }) => {
     then('裝盤處剩 1 個、碗盤櫃有：去拿', () => { expect(platerGoes(1, 0, 30)).toBe(true) })
     and(`還有 ${STACK_LOW} 個就不去`, () => { expect(platerGoes(STACK_LOW, 0, 30)).toBe(false) })
-    and('已經有人在拿的路上：不重複去', () => { expect(platerGoes(0, 3, 30)).toBe(false) })
+    and(`已經有一趟在路上（帶 ${CARRY} 個）：不重複去`, () => { expect(platerGoes(0, CARRY, 30)).toBe(false) })
     but('碗盤櫃空了就不去（等洗好烘乾的搬回來）', () => { expect(platerGoes(0, 0, 0)).toBe(false) })
   })
+  // (item 630, the owner's 「客人很容易等太久」: in a rush the plating place had no clean plate 45% of the time, what came off the fire held
+  // there for one; the stack kept taller and seen to sooner)
+  scenario('出菜快的時候裝盤處不缺盤子：盤堆最多 8 個，剩不到 4 個就去補', ({ then, and, but }) => {
+    then('盤堆最多 8 個', () => { expect(STACK_CAP).toBe(8) })
+    and('剩 3 個、碗盤櫃有：去補', () => { expect(platerGoes(3, 0, 30)).toBe(true) })
+    and('剩 4 個：還不用去', () => { expect(platerGoes(4, 0, 30)).toBe(false) })
+    but('剩 2 個、已經有 2 個在路上：不重複去', () => { expect(platerGoes(2, 2, 30)).toBe(false) })
+  })
   scenario(`一趟補到 ${STACK_CAP} 個為止，最多拿 ${CARRY} 個、不超過碗盤櫃剩的`, ({ then, and }) => {
-    then(`裝盤處剩 1 個：拿 ${STACK_CAP - 1} 個`, () => { expect(platesToBring(1, 30)).toBe(STACK_CAP - 1) })
+    then(`裝盤處剩 1 個：拿 ${Math.min(STACK_CAP - 1, CARRY)} 個（一趟最多 ${CARRY} 個）`, () => { expect(platesToBring(1, 30)).toBe(Math.min(STACK_CAP - 1, CARRY)) })
+    and(`裝盤處剩 ${STACK_CAP - 3} 個：補到滿，拿 3 個`, () => { expect(platesToBring(STACK_CAP - 3, 30)).toBe(3) })
     and('碗盤櫃只剩 2 個：拿 2 個', () => { expect(platesToBring(0, 2)).toBe(2) })
     and('裝盤處是滿的：不拿', () => { expect(platesToBring(STACK_CAP, 30)).toBe(0) })
   })

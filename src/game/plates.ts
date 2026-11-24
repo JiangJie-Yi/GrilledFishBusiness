@@ -9,8 +9,10 @@ import { MINUTES_PER_SECOND } from './clock'
 /** how many plates the racks hold when full (and how many the shop has: two hundred, the owner's, 2026-11-11; it was fifty) */
 export const RACK_FULL = 200
 /** the clean plates stacked at the chef's plating place for plating on, at most, and the fewest before the kitchen goes for more */
-export const STACK_CAP = 4
-export const STACK_LOW = 2
+// (item 630, the owner's 「客人很容易等太久」: 4 and 2, and in a rush there was no clean plate there 45% of the time, what came off the fire
+// held by it for one while the racks stood full (171 to 194): a taller stack, seen to sooner)
+export const STACK_CAP = 8
+export const STACK_LOW = 4
 /** how many plates one person carries at a time (a stack in the hands or on the tray) */
 export const CARRY = 5
 /** the dirty plates at the sink are washed once there are this many (or straight away when the racks have run out) */

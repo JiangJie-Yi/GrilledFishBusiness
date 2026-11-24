@@ -311,6 +311,36 @@ export function topUpOrder(d: Dish, stock: Stock, par = PAR) {
   return { buy, cost }
 }
 
+/**
+ * (item 630, the owner's 「很容易浪費食材，自動模式下要改良」) What the manager (自動營運) orders in before opening: what the menu uses, what
+ * goes off soon kept lean (restockOrder's item 343 rule: the chilled three portions' worth, the ambient two, ordered again at their last, in
+ * stock the moment they're ordered), not every good the shop sells topped up to PAR (topUpOrder: on the menu or not, and the chilled and the
+ * ambient went off before they were used)
+ */
+export function autoOpeningOrder(d: Dish, menu: Entry[], stock: Stock, cash: number, menuReady = true) {
+  if (menuReady) return restockOrder(d, menu, stock, cash, 60)
+  // (no menu yet, a new shop's: what its cooks can make one from (App's makeMenu puts up only what's in stock), each good it sells a lean few,
+  // the chilled three portions, the ambient two (item 343's), the frozen and what keeps to PAR; the menu's own ordered once it's made. With
+  // the menu's alone, there was nothing to make one from, and the manager never opened)
+  const buy: Stock = {}
+  let cost = 0
+  for (const g of goodsOf(d)) {
+    const have = stock[g.id] ?? 0
+    const want = orderedLean(g.id) ? LEAN_PAR[storageOf(g.id) === 'ambient' ? 'ambient' : 'chilled'] : parOf(g.id)
+    if (have >= want) continue
+    const n = Math.min(inPacks(g.id, want - have), roomFor(g.id, have))
+    if (n <= 0) continue
+    const c = costOf(g) * n
+    if (cost + c > cash) continue
+    buy[g.id] = n
+    cost += c
+  }
+  return { buy, cost, fuel: 0 }
+}
+/** (item 630) how long between a stock keeper's rounds (real seconds): their pace and tiredness in the shop's own time, so as fast again at x2
+ * (it went by the clock on the wall: at x2 one round in an hour and a half of the shop's, what was kept lean running out between) */
+export const keeperEvery = (speed: number, fatigue: number, gameSpeed: number) => ((45 - speed * 0.3) * (1 + fatigue / 100)) / Math.max(0.25, gameSpeed)
+
 /** 補到平均: every good below the average stock (over all of this shop's goods, rounded) is brought up to it; the rest left as they are */
 export function averageOrder(d: Dish, stock: Stock) {
   const goods = goodsOf(d)

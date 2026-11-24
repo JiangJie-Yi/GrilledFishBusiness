@@ -4162,7 +4162,9 @@ const CLEAR_TOWARD = new THREE.Vector3()
 const WIPE_STAND = [0.34, 0.53] as const
 /** the cloth they wipe it with: a folded white towel */
 const RAG_GEO = new RoundedBoxGeometry(0.085, 0.007, 0.05, 1, 0.003)
-const PASS_STACK_SHOWN = STACK_CAP + 3
+// (as many as the stack holds: drawn from loading, shown as many as there are (item 630: the stack 4 to 8, drawn 7 to 8, not 11: the
+// Optimization window's))
+const PASS_STACK_SHOWN = STACK_CAP
 /** a plate's size in the sink, against its own: its own (item 203, the owner's 「盤子進水槽變小」: 0.78 when every plate was the one big round
  * plate and the sink's stack had to fit; the plates sized to what's on them since (item 228), none shrinks on its way in or grows on its way
  * out) */
@@ -5013,6 +5015,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
   const sakeCupObj = useRef<THREE.Group>(null)
   /** a customer's seat, by who they are (-1: not sat at the bar); and whether they're still sat at that one (or away at the toilet from it) */
   const guestSeat = (id: number) => shownRef.current.find((x) => x.id === id)?.seat ?? -1
+  /** (item 630) whether a customer's still in the shop (any of them: at their place, in the toilet, on their way): one not, their order let go */
+  const guestHere = (id: number | undefined) => id !== undefined && shownRef.current.some((x) => x.id === id)
   const guestSits = (id: number, seat: number) => shownRef.current.some((x) => x.id === id && x.seat === seat && (x.phase === 'sit' || x.phase.startsWith('wc')))
   /** a point of the sake station's (the serving counter's own frame) in the bar's; where the one pouring stands, and the way they face there */
   const stationIn = (v: THREE.Vector3, out = new THREE.Vector3()) => {
@@ -8185,18 +8189,27 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
               // (called out: the fire wanting coal (item 324))
               if (plater) crewCall(lang, 'coal', plater.id)
             } else { const near = dipFrom(); if (near) stepTo(near, 'toBucket'); else setOff(reachOf(bucketAt()), 'toBucket') }
+          } else if (open && !SHOP.leaving && platerGoes(PLATING.stock, PLATING.coming, PLATE_RACK.n + LOW_RACK.n)) {
+            // (the plating place running low: plates before anything else but the fire, nothing done coming off the fire can be served without
+            // one (item 207); seen to as it runs low, not once it's bare, and before a late dish or a pour of sake (item 630: bare 45% of a
+            // rush, and a third of the time still with it after the sake, the third cook off at a station while the low rack stood full))
+            goPlates()
           } else if (open && !SHOP.leaving && !kitchenJob.current && STATION_OBJ.group
             && KITCHEN.want.some((x) => guestSeat(x.guest) >= 0 && performance.now() - (x.at ?? performance.now()) > KITCHEN_DUE_MS)) {
             // (a dish from the stove, the fryer or the board waited on long enough: made before the sake's poured, the plates fetched and the
             // bowls filled (item 461's evening: below them all, it was never come to while the sake kept coming, and those who'd ordered only
             // a dish off the stove sat with nothing for three hours of the shop's, or went))
             takeKitchen()
+          } else if (open && !SHOP.leaving && SAKE.want.length && !sakeJob.current && STATION_OBJ.group) {
+            // (item 630: its own again: put in under the late dish's (f166ab30), a sake was poured only when a dish was late too, a second
+            // one's over the one being poured, and with none asked for, an empty one queued (the grating and the rice balls held for it))
             // (a customer's tokkuri of sake (item 177, the owner's: "the way it goes looks odd, and not professional"): over to the sake station
             // on the serving counter, the open bottle kept there in reach, and poured by hand; left there with its cup for a server to carry out
             // (the stand on the cook table is out of everyone's reach: its bottle lifted and poured itself, and the tokkuri appeared at the seat))
             const guest = SAKE.want.shift()!, seat = guestSeat(guest)
-            // (not at the bar to be found just now: back in the queue for a little later)
-            if (seat < 0) SAKE.want.push(guest)
+            // (not at the bar to be found just now: back in the queue for a little later; gone (or none: an empty one queued by the old
+            // mix-up above), let go of, not round the queue for ever, the grating and the rice balls held for it (item 630))
+            if (seat < 0) { if (guestHere(guest)) SAKE.want.push(guest) }
             else {
               sakeJob.current = { guest, seat, pourer: 'plater', t: -1 }
               sakeSpots.current.delete(seat)
@@ -8205,10 +8218,6 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
               setOff(stationSpot(), 'toSake')
               away(true)
             }
-          } else if (open && !SHOP.leaving && PLATING.stock + PLATING.coming === 0 && platerGoes(PLATING.stock, PLATING.coming, PLATE_RACK.n + LOW_RACK.n)) {
-            // (the plating place bare: plates before anything else but the fire and a pour of sake, nothing done coming off the fire can be
-            // served without one (item 207))
-            goPlates()
           } else if (open && !SHOP.leaving && !bowlJob.current && STATION_OBJ.group && freeRow() >= 0 && bowlsNow()) {
             // (a customer's rice and soup (items 205, 206): over to the cooker for the rice, to the pot for the soup, both filled by hand,
             // then to the serving counter with them; only with some ready to fill (bowlsNow, item 207), and a place at the counter to set
@@ -8222,6 +8231,11 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
               setOff(b.rice ? riceStand() : soupFillAt().stand, b.rice ? 'toRiceBowl' : 'toSoupBowl')
               away(true)
             }
+          } else if (open && !SHOP.leaving && !kitchenJob.current && STATION_OBJ.group && KITCHEN.want.some((x) => guestSeat(x.guest) >= 0)
+            && PLATING.stock + PLATING.coming < STACK_CAP && PLATE_RACK.n + LOW_RACK.n > 0) {
+            // (a dish at its station is a long while away from the plating place: its stack topped up first (item 630: with it gone, what
+            // came off the fire waited for a plate))
+            goPlates()
           } else if (open && !SHOP.leaving && !kitchenJob.current && STATION_OBJ.group && KITCHEN.want.some((x) => guestSeat(x.guest) >= 0)) {
             takeKitchen()
           } else if (tillCall.current.who >= 0 && tillCall.current.staff < 0 && !cashierIn() && given) {
@@ -8262,8 +8276,6 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
             pl.making = true
             setOff(soupStand(), 'toSoup')
             away(true)
-          } else if (open && !SHOP.leaving && platerGoes(PLATING.stock, PLATING.coming, PLATE_RACK.n + LOW_RACK.n)) {
-            goPlates()
           } else if (open && !SHOP.leaving && lowGoes(LOW_RACK.n, LOW_RACK.coming, PLATE_RACK.n)) {
             // (the low rack by the table run low, nothing else wanting: across to the racks for a carry of plates to fill it)
             pl.pos.copy(home())
@@ -9204,7 +9216,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
             let j = sakeJob.current
             if (!j && open && (!given || ownerServes) && SAKE.want.length) {
               const guest = SAKE.want.shift()!, seat = guestSeat(guest)
-              if (seat < 0) SAKE.want.push(guest)
+              if (seat < 0) { if (guestHere(guest)) SAKE.want.push(guest) }
               else { j = sakeJob.current = { guest, seat, pourer: wi, t: -1, server: wi }; sakeSpots.current.delete(seat); sakeSpotOf(seat) }
             }
             if (j && ((j.pourer === wi && j.t < 0) || (j.server === undefined && j.t >= POUR_TOTAL && guestSits(j.guest, j.seat)))) {

@@ -34,7 +34,7 @@ import { bestDabs, cookable, dishName, expectedTaste, understand } from '@/game/
 import { CHEF_TALK } from '@/data/chefTalk'
 import { CHARCOAL, charcoalOrder, crateRefill, dabFrom, isSupply, GARNISH_GOODS, SEASON_GOODS, seasonId, startingSupplies, supplyName } from '@/game/supplies'
 import { menuPrice, restockOrder, topUpOrder, averageOrder, eachOrder, roomFor, coalCharge, STICKS_PER_PORTION, afterCharcoal, heatStep, canAddCharcoal, canServe, CAPITAL, cashInHand, costOf, entryCost, goodsOf, needOf, partCost, partsOf,
-  keepsDry, portionsLeft, SHOP_COST, takesOf, bankrupt, savingsOf, warningsDue } from '@/game/economy'
+  keepsDry, portionsLeft, SHOP_COST, takesOf, bankrupt, savingsOf, warningsDue, autoOpeningOrder, keeperEvery } from '@/game/economy'
 import { drawerFrom, drawerTotal, owedAtTill, paysByCard, refundFor, tabTotal, takeAll, takeOut, takeTakings, tenderOf, type Denom, type DrawerCash, type Tab } from '@/game/till'
 import { Menu } from '@/ui/Menu'
 import { Crash } from '@/ui/Crash'
@@ -3149,7 +3149,8 @@ export default function App() {
         if (!keeper) continue
         const fatigue = hired[d.id][keeper.id].fatigue
         const now = Date.now()
-        if (now - (lastRound.current[d.id] ?? 0) < (45 - keeper.speed * 0.3) * (1 + fatigue / 100) * 1000) continue
+        // (their pace in the shop's own time (item 630: by the clock on the wall, at x2 one round in an hour and a half of the shop's))
+        if (now - (lastRound.current[d.id] ?? 0) < keeperEvery(keeper.speed, fatigue, GAME_SPEED.value) * 1000) continue
         lastRound.current[d.id] = now
         // (what's gone off past eating thrown out first (item 203): counted as stock, it was never reordered, and went on the fire)
         // (how much of each went since the last round, before anything gone off's thrown out (item 343): what to have for the next)
@@ -3635,14 +3636,24 @@ export default function App() {
         return
       }
     }
-    const order = topUpOrder(d, stock)
-    if (order.cost && order.cost <= cash) {
-      restock(d, 'full')
-      say(T.autoRestock(order.cost, autoK()))
-      return
-    }
+    // (item 630: what the menu uses, what goes off soon kept lean (economy's autoOpeningOrder: item 343's rule), not every good the shop
+    // sells topped up to ten, on the menu or not: most of the chilled and the ambient went off before they were used)
     // (item 617: twenty to open, white rice and miso soup not counted, each kind its share: as many made as it's short of)
     const mix = menuMix(entriesOf(d.id), MENU_MIN[d.id] ?? 1)
+    // (no menu yet: a lean few of each good, for the cooks to make one from)
+    const order = autoOpeningOrder(d, entriesOf(d.id), stock, cash, mix.ok)
+    if (order.cost + order.fuel > 0) {
+      book('bought', order.cost)
+      if (order.fuel) book('fuel', order.fuel)
+      boxesSound()
+      setStock((st) => {
+        const next = { ...st }
+        for (const [k, q] of Object.entries(order.buy)) next[k] = (next[k] ?? 0) + q
+        return next
+      })
+      say(T.autoRestock(order.cost + order.fuel, autoK()))
+      return
+    }
     if (!mix.ok && cooksNow(d).length) {
       const { up, who } = makeMenu(d, Math.max(mix.min - mix.n, mix.short.reduce((s, x) => s + x.need - x.have, 0), 1))
       if (up.length) addTalk(d.id, 'chef', CHEF_TALK[lang].menuMade(up.map((m) => m.name), who))
