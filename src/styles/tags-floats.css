@@ -1,0 +1,290 @@
+/* English name under the Chinese on each tag, small and set sideways to run down the tag (strong enough to read: it was faint, the owner's) */
+.strip-en {
+  writing-mode: vertical-rl;
+  white-space: nowrap;
+  font-family: var(--sans, system-ui), sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  opacity: 0.9;
+  margin-bottom: auto;
+}
+
+/* the name no longer pushes the price down by itself: the English line sits between them */
+.strip-name {
+  margin-bottom: 0 !important;
+}
+
+.menu-title-en {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--sans, system-ui), sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  opacity: 0.6;
+}
+
+/* items that come with the chosen set */
+/* 含: laid over a tag while its set is pointed at (it doesn't take any room, so nothing on the tag moves). It sits
+   at the very top of the tag, over the icon, so it covers neither the name nor a 點 stamp lower down */
+.stamp.stamp-incl {
+  position: absolute;
+  left: 50%;
+  top: 0.35em;
+  margin-left: -0.95em;
+  border: 2px solid #e8742a;
+  color: #e8742a;
+  background: #fff4e6;
+  animation: stamp 220ms cubic-bezier(0.2, 1.6, 0.4, 1);
+  z-index: 1;
+}
+
+/* every tag glows faintly under the pointer */
+.menu .strip:hover {
+  filter: brightness(1.06);
+  /* the glow stays inside the tag (it doesn't spill onto its neighbours) */
+  box-shadow:
+    inset 0 0 0 1px rgb(59 42 32 / 0.18),
+    inset 0 0 14px 3px rgb(255 214 140 / 0.85);
+}
+
+/* 美味 over the food under the pointer, and the little rising word when a seasoning changes it */
+.taste-tip {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgb(43 33 25 / 0.82);
+  color: #ffe9c7;
+  font: 600 12px/1.2 var(--brush);
+  white-space: nowrap;
+}
+
+.taste-tip b {
+  font-size: 14px;
+  color: #ffd27a;
+}
+
+.taste-pop {
+  display: inline-block;
+  font: 700 15px/1 var(--brush);
+  color: #3d8a3a;
+  text-shadow: 0 1px 0 #fff, 0 0 6px rgb(255 255 255 / 0.8);
+  white-space: nowrap;
+  animation: taste-rise 1.5s ease-out forwards;
+}
+
+.taste-pop.is-bad {
+  color: #c4442f;
+}
+
+@keyframes taste-rise {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(-36px); opacity: 0; }
+}
+
+.fullness-rating {
+  display: block;
+  margin-top: 2px;
+  color: #e8742a;
+  letter-spacing: 0.05em;
+}
+
+/* AI simulation: the switch beside the language toggle, and what the chef and customers say */
+.ai-toggle {
+  position: fixed;
+  z-index: 10;
+  top: 20px;
+  right: 72px;
+  width: 44px;
+  height: 44px;
+  border: 1.5px solid var(--text-soft);
+  border-radius: 50%;
+  background: var(--page);
+  color: var(--text);
+  font: 700 14px/1 var(--sans, system-ui), sans-serif;
+  cursor: pointer;
+}
+
+.ai-toggle.is-on {
+  border-color: #e8742a;
+  background: #e8742a;
+  color: #fff;
+  box-shadow: 0 0 12px rgb(232 116 42 / 0.6);
+}
+
+.ai-chat {
+  position: absolute;
+  left: 22px;
+  bottom: 84px;
+  /* (a column from the foot up: the first line takes the room over it while there's room, and past it the list scrolls; aligned to its end
+     instead, what overflowed went off its top, out of the scroll's reach) */
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: min(360px, 80%);
+  /* (the day's log (the owner's: an online game's chat window): some six lines high, scrolled with the wheel, the older lines up it fading out
+     toward its top; no bar showing) */
+  max-height: 270px;
+  margin: 0;
+  padding: 26px 0 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  list-style: none;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to top, #000 0, #000 55%, rgb(0 0 0 / 0.45) 80%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 0, #000 55%, rgb(0 0 0 / 0.45) 80%, transparent 100%);
+}
+.ai-chat::-webkit-scrollbar { display: none; }
+.ai-chat > :first-child { margin-top: auto; }
+.ai-chat > li { flex: none; }
+
+/* (the owner's: a see-through smoked glass, the shop behind it showing, warm white words) */
+.ai-line {
+  padding: 6px 12px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 10px;
+  background: rgb(20 18 16 / 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.25);
+  color: #f3f0e6;
+  font: 14px/1.35 var(--brush);
+  animation: stamp 260ms ease-out;
+}
+
+.ai-who {
+  margin-right: 8px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ai-chef .ai-who {
+  background: var(--hanko);
+}
+
+.ai-guest .ai-who {
+  background: #3d6a9a;
+}
+
+.ai-stock .ai-who {
+  background: #7a6a3e;
+}
+
+/* the money a customer's just paid, rising green over their head (GuestBar3D's PayFloat) */
+.pay-float {
+  display: inline-block;
+  white-space: nowrap;
+  font-weight: 800;
+  font-size: 15px;
+  color: #4fff85;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.85), 0 1px 0 #0a2a14;
+  animation: pay-float 1.6s ease-out forwards;
+}
+
+@keyframes pay-float {
+  0% { opacity: 0; transform: translateY(6px) scale(0.9); }
+  15% { opacity: 1; transform: translateY(0) scale(1.05); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-14px) scale(1); }
+}
+
+/* the staff's goodbyes and good mornings, and the owner's answers (game/commute) */
+.ai-staff .ai-who {
+  background: #4f6b52;
+}
+
+.ai-owner .ai-who {
+  background: #8a4a2a;
+}
+
+/* the foods a pointed-at set includes: their tags go a darker, oiled wood */
+.strip.is-included {
+  --wood: #c9a46c;
+  --wood-dark: #b48b52;
+  box-shadow:
+    inset 0 0 0 1px rgb(59 42 32 / 0.35),
+    0 0 0 2px rgb(217 80 60 / 0.35),
+    0 6px 14px -8px rgb(59 42 32 / 0.5);
+}
+
+/* the pinching hand that takes salt */
+.pinch-hand {
+  display: block;
+  width: 56px;
+  height: 56px;
+  transform: translate(10px, -14px) rotate(-12deg);
+  filter: drop-shadow(0 4px 4px rgb(0 0 0 / 0.25));
+}
+
+/* short message over the stage (e.g. the fire is full) */
+.notice {
+  position: absolute;
+  left: 50%;
+  bottom: 120px;
+  max-width: calc(100% - 32px);
+  margin: 0;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: rgb(59 42 32 / 0.88);
+  color: var(--washi);
+  font-size: 15px;
+  white-space: nowrap;
+  transform: translate(-50%, 8px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.notice.is-shown {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* text stays on one line; narrow screens shrink it instead (see the responsive section) */
+.strip-name,
+.strip-price,
+.dish-name,
+.tally p,
+.heat-value,
+.heat-label,
+.menu-title,
+.roast-tag,
+.brand {
+  white-space: nowrap;
+}
+
+.tally p {
+  font-size: clamp(12px, 1.25vw, 17px);
+}
+
+/* frosted, feathered backing behind text that sits over the 3D view, so it never melts into the scene */
+.switcher-center {
+  position: relative;
+  isolation: isolate;
+}
+
+.switcher-center::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -22px -40px;
+  background: color-mix(in srgb, var(--page) 58%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  /* fade every edge out softly, like torn rice paper (the menu's own panel is .menu-backing) */
+  -webkit-mask-image:
+    linear-gradient(90deg, transparent, #000 35%, #000 65%, transparent),
+    linear-gradient(transparent, #000 32%, #000 68%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(90deg, transparent, #000 35%, #000 65%, transparent),
+    linear-gradient(transparent, #000 32%, #000 68%, transparent);
+  mask-composite: intersect;
+  pointer-events: none;
+}
+

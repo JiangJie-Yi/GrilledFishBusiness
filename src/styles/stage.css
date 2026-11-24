@@ -1,0 +1,674 @@
+/* ---------- stage overlays ---------- */
+
+/* shop sign, top-left of the stage: an old lacquered signboard hanging from two cords */
+.brand {
+  --plate: #a3302a;
+  --plate-cream: #f2e3c2;
+  --hang: 24px;      /* cord length from the top of the stage down to the board */
+  position: absolute;
+  top: var(--hang);
+  left: 22px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  font-size: 32px;   /* everything in the sign scales off this */
+  pointer-events: none;
+  /* swing from where the cords are tied, as if a breeze is moving it */
+  transform-origin: 2.6em calc(-1 * var(--hang));
+  animation: brand-sway 5.5s ease-in-out infinite;
+}
+
+@keyframes brand-sway {
+  0%, 100% { transform: rotate(-1.2deg); }
+  30% { transform: rotate(1.5deg); }
+  55% { transform: rotate(-0.4deg); }
+  80% { transform: rotate(0.9deg); }
+}
+
+/* twisted hemp rope: diagonal light/dark strands, tied off with a small knot where it meets the board */
+.brand-cord {
+  position: absolute;
+  top: calc(-1 * var(--hang));
+  width: 3px;
+  height: calc(var(--hang) + 0.1em);
+  border-radius: 2px;
+  background: repeating-linear-gradient(-58deg, #7b5a37 0 1.6px, #c8a26a 1.6px 3.4px);
+  box-shadow: 0 0 0 0.5px rgb(59 42 32 / 0.35);
+}
+
+.brand-cord::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  width: 7px;
+  height: 5px;
+  margin-left: -3.5px;
+  border-radius: 50%;
+  background: #a8834f;
+  box-shadow: inset 0 -1px 0 #6e5030;
+}
+
+.brand-cord-left {
+  left: 0.85em;
+}
+
+.brand-cord-right {
+  right: 0.85em;
+}
+
+.brand-plate {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.28em;
+  padding: 0.26em 0.62em 0.3em 0.7em;
+  border-radius: 0.12em;
+  --plate-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='80'%3E%3Cfilter id='g' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004 0.02' numOctaves='2' seed='3' result='w'/%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.008 0.22' numOctaves='3' seed='7' result='n'/%3E%3CfeDisplacementMap in='n' in2='w' scale='22' xChannelSelector='R' yChannelSelector='G'/%3E%3CfeColorMatrix values='0 0 0 0 0.16 0 0 0 0 0.05 0 0 0 0 0.02 1.5 0 0 0 -0.5'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  color: var(--plate-cream);
+  /* worn lacquer over a wooden board: the grain shows through, with mottled darker patches */
+  background:
+    var(--plate-grain) center / 100% 100%,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='80'%3E%3Cfilter id='w'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.035 0.09' numOctaves='3' seed='9'/%3E%3CfeColorMatrix values='0 0 0 0 0.2 0 0 0 0 0.04 0 0 0 0 0.02 0 0 0 1.1 -0.45'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23w)'/%3E%3C/svg%3E")
+      center / cover,
+    var(--plate);
+  /* cream double rule painted just inside the edge */
+  box-shadow:
+    inset 0 0 0 0.09em var(--plate),
+    inset 0 0 0 0.14em var(--plate-cream),
+    inset 0 0 0 0.2em var(--plate),
+    inset 0 0 0 0.23em var(--plate-cream),
+    0 0.2em 0.4em -0.22em rgb(40 20 10 / 0.6);
+}
+
+/* nail heads holding the board up */
+.brand-plate::before,
+.brand-plate::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 0.16em;
+  height: 0.16em;
+  margin-top: -0.08em;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #d8cfc0, #6d6458);
+}
+
+.brand-plate::before {
+  left: 0.3em;
+}
+
+.brand-plate::after {
+  right: 0.3em;
+}
+
+.brand-main,
+.brand-sub {
+  font-family: 'Zen Antique', var(--brush);
+  font-weight: 400;
+  line-height: 1;
+}
+
+/* the name sits in a fixed box (three kanji wide), so the board keeps exactly the same size in every
+   language; only the lettering inside it changes size */
+.brand-main {
+  --name-scale: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(var(--name-scale) * 1em);
+  width: calc(3.3em / var(--name-scale));
+  height: calc(1em / var(--name-scale));
+  white-space: nowrap;
+  letter-spacing: 0.1em;
+  text-shadow: 0 0.03em 0 rgb(60 15 10 / 0.5);
+}
+
+/* four kana instead of three kanji: smaller and tighter, to fill the same box */
+.brand-ja .brand-main {
+  --name-scale: 0.8;
+  letter-spacing: 0.02em;
+}
+/* (the grill's name is the same two characters in both languages: set at the same size and spacing in each) */
+.brand-grilledfish.brand-ja .brand-main {
+  --name-scale: 1;
+  letter-spacing: 0.1em;
+}
+
+/* 食堂 stacked small to the right, the way old signs set the trailing word */
+.brand-sub {
+  writing-mode: vertical-rl;
+  font-size: 0.42em;
+  letter-spacing: 0.1em;
+  padding-right: 0.35em;
+}
+
+.brand-plate {
+  transition: background-color 300ms ease, color 300ms ease, box-shadow 300ms ease;
+}
+
+/* night: the board becomes a warm yellow lightbox, red lettering, glowing into the dark */
+/* night: the wooden board stays dark, only the lettering lights up, like neon tubes bent into the characters */
+.brand-night .brand-plate {
+  --plate: #6e1d16;
+  --plate-cream: #b98f63;
+  color: #ffe6a0;
+}
+
+.brand-night .brand-main,
+.brand-night .brand-sub {
+  text-shadow:
+    0 0 0.06em #fff6d0,
+    0 0 0.2em rgb(255 214 120 / 0.95),
+    0 0 0.5em rgb(255 170 60 / 0.6);
+  animation: sign-on 700ms steps(1, end);
+}
+
+/* a fluorescent tube catching: flicker, then hold */
+@keyframes sign-on {
+  0% { filter: brightness(0.55); }
+  12% { filter: brightness(1.15); }
+  20% { filter: brightness(0.6); }
+  32% { filter: brightness(1.1); }
+  40% { filter: brightness(0.8); }
+  55%, 100% { filter: none; }
+}
+
+/* 深夜 tag hung over the board's top-left corner, pressed on like the menu's 選 stamp:
+   snaps down from big to size. Stronger, as the owner asked: bigger, its letters bold with a fine pale double line round the seal, its
+   edges roughened as pressed ink (Brand's #brand-ink), and a red glow about it at night that now and then flickers like a neon tube's */
+.brand-late {
+  position: absolute;
+  z-index: 1;
+  top: -0.34em;
+  left: -0.55em;
+  white-space: nowrap;
+  font-family: 'Zen Antique', var(--brush);
+  /* (0.36em once, 0.5 when made stronger; the owner found that too big) */
+  font-size: 0.41em;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  padding: 0.2em 0.26em 0.22em 0.36em;
+  border-radius: 0.1em;
+  color: #fff6ea;
+  background: linear-gradient(160deg, #e0412f, var(--hanko) 60%, #a51f16);
+  box-shadow:
+    inset 0 0 0 0.07em var(--hanko),
+    inset 0 0 0 0.12em rgb(251 243 228 / 0.8),
+    inset 0 0 0 0.17em var(--hanko),
+    inset 0 0 0 0.2em rgb(251 243 228 / 0.45),
+    0 0.12em 0.3em -0.1em rgb(0 0 0 / 0.6),
+    0 0 0.7em 0.05em rgb(255 70 45 / 0.55);
+  text-shadow: 0 0 0.3em rgb(255 214 180 / 0.75), 0 0.04em 0 rgb(120 10 0 / 0.6);
+  transform: rotate(-12deg);
+  filter: url(#brand-ink);
+  animation: brand-stamp 260ms cubic-bezier(0.2, 1.6, 0.4, 1), brand-late-glow 6s 1.2s infinite;
+}
+
+/* the glow dips twice in quick succession, then holds, as an old neon sign does */
+@keyframes brand-late-glow {
+  0%, 88%, 100% { box-shadow: inset 0 0 0 0.07em var(--hanko), inset 0 0 0 0.12em rgb(251 243 228 / 0.8), inset 0 0 0 0.17em var(--hanko),
+    inset 0 0 0 0.2em rgb(251 243 228 / 0.45), 0 0.12em 0.3em -0.1em rgb(0 0 0 / 0.6), 0 0 0.7em 0.05em rgb(255 70 45 / 0.55); }
+  90%, 94% { box-shadow: inset 0 0 0 0.07em var(--hanko), inset 0 0 0 0.12em rgb(251 243 228 / 0.8), inset 0 0 0 0.17em var(--hanko),
+    inset 0 0 0 0.2em rgb(251 243 228 / 0.45), 0 0.12em 0.3em -0.1em rgb(0 0 0 / 0.6), 0 0 0.2em 0 rgb(255 70 45 / 0.2); }
+  92% { box-shadow: inset 0 0 0 0.07em var(--hanko), inset 0 0 0 0.12em rgb(251 243 228 / 0.8), inset 0 0 0 0.17em var(--hanko),
+    inset 0 0 0 0.2em rgb(251 243 228 / 0.45), 0 0.12em 0.3em -0.1em rgb(0 0 0 / 0.6), 0 0 0.9em 0.1em rgb(255 80 55 / 0.65); }
+}
+
+@keyframes brand-stamp {
+  from {
+    transform: rotate(-12deg) scale(1.8);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand,
+  .brand-night .brand-plate,
+  .brand-late {
+    animation: none;
+  }
+}
+
+/* the game's day and time (ui/GameClock), under the round buttons top right (the owner's: the day's count moved there; a second of ours
+   a minute of the game's, and day and night come round with it, no button for them): smoked glass like the cash, a sun or a moon, the day,
+   the time; only to read, nothing to press */
+.game-clock {
+  position: fixed;
+  z-index: 10;
+  top: 72px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 12px 0 9px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgb(46 38 30 / 0.46), rgb(22 18 14 / 0.34));
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  backdrop-filter: blur(12px) saturate(1.4);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 6px 18px -8px rgb(0 0 0 / 0.5);
+  color: #f6ecda;
+  font: 700 14px/1 var(--brush);
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+  pointer-events: none;
+  user-select: none;
+}
+/* (the part of the day: a button (the owner's, to look at the lights in each); its own colour each: rosy dawn, gold day, orange dusk,
+   the pale moon) */
+.game-clock-sky {
+  --sky-ink: #ffd36a;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin: 0 -2px 0 -4px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background-color 120ms ease, transform 120ms ease;
+}
+.game-clock-sky.is-dawn { --sky-ink: #ffc0a6; }
+.game-clock-sky.is-dusk { --sky-ink: #ffac5c; }
+.game-clock-sky.is-night { --sky-ink: #e9eefc; }
+.game-clock-sky svg {
+  width: 15px;
+  height: 15px;
+  fill: var(--sky-ink);
+  stroke: var(--sky-ink);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: filter 120ms ease;
+}
+.game-clock-sky.is-night svg { stroke: none; }
+.game-clock-sky .game-clock-arrow { fill: none; }
+/* (the day's weather over the mark (item 623): a pale cloud edged dark at its foot, the rain falling from it light blue) */
+.game-clock-sky .game-clock-cloud { fill: #e9eef4; stroke: rgb(18 22 30 / 0.85); stroke-width: 1; }
+.game-clock-sky .game-clock-rain { fill: none; stroke: #8fd0ff; stroke-width: 1.3; }
+.game-clock-sky:hover { background-color: rgb(255 255 255 / 0.16); }
+.game-clock-sky:hover svg { filter: drop-shadow(0 0 3px var(--sky-ink)); }
+.game-clock-sky:focus-visible { outline: 2px solid var(--sky-ink); outline-offset: 1px; }
+/* (the sound effects on or off: a little speaker at its end, its waves while they sound, struck through and dimmed while muted) */
+/* (past midnight: the deep night's mark, a little indigo seal) */
+.game-clock-late {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #3b3f8f;
+  box-shadow: 0 0 8px rgb(110 120 255 / 0.55);
+  color: #eef0ff;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: help;
+}
+.game-clock-sfx {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin: 0 -6px 0 1px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #f6ecda;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background-color 120ms ease, transform 120ms ease, opacity 120ms ease;
+}
+.game-clock-sfx svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.game-clock-sfx .game-clock-sfx-box { fill: currentColor; }
+.game-clock-sfx.is-off { opacity: 0.55; }
+.game-clock-sfx:hover { background-color: rgb(255 255 255 / 0.16); opacity: 1; }
+.game-clock-sfx:focus-visible { outline: 2px solid #f6ecda; outline-offset: 1px; }
+.game-clock-time {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+/* (the shop shut and its day done: on to the next business day (item 327), a button under the clock, the same smoked glass, a warm edge to
+   say it can be pressed) */
+.game-clock-next {
+  position: fixed;
+  z-index: 10;
+  top: 106px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px 0 10px;
+  border: 1px solid rgb(255 214 150 / 0.55);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgb(70 52 34 / 0.62), rgb(34 26 18 / 0.5));
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  backdrop-filter: blur(12px) saturate(1.4);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 6px 18px -8px rgb(0 0 0 / 0.5);
+  color: #f6ecda;
+  font: 700 13px/1 var(--brush);
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
+  animation: game-clock-next-in 260ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+.game-clock-next:hover { border-color: #ffd696; background-color: rgb(255 255 255 / 0.12); }
+.game-clock-next:hover .game-clock-next-go { transform: translateX(2px); }
+.game-clock-next:active { transform: translateY(1px) scale(0.98); }
+.game-clock-next:focus-visible { outline: 2px solid #ffd696; outline-offset: 2px; }
+.game-clock-next .game-clock-next-go { transition: transform 120ms ease; }
+/* today's target for the takings (ui/DayGoal, item 175): while the shop's open, left of the clock in its row (under the clock is the menu
+   board's title then), the clock's own smoked glass; the takings against the target, a thin bar filling along its foot; passed, a warm gold
+   edge and text, a little hop as it's passed */
+.day-goal {
+  position: fixed;
+  z-index: 10;
+  top: 72px;
+  right: calc(28px + var(--clock-w, 163px));
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 11px 0 9px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgb(46 38 30 / 0.46), rgb(22 18 14 / 0.34));
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  backdrop-filter: blur(12px) saturate(1.4);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 6px 18px -8px rgb(0 0 0 / 0.5);
+  color: #f6ecda;
+  font: 700 13px/1 var(--brush);
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+  /* (held over, what meeting it brings is told (item 650): it took no pointer before) */
+  pointer-events: auto;
+  cursor: help;
+  user-select: none;
+  transition: border-color 300ms ease, color 300ms ease;
+  /* (its hop grows it leftward, away from the clock beside it: from its middle it came 1 px over the clock) */
+  transform-origin: 100% 50%;
+}
+.day-goal-icon { flex: none; opacity: 0.9; }
+.day-goal-label { font-size: 12px; opacity: 0.82; letter-spacing: 0.04em; }
+.day-goal-sum { font-variant-numeric: tabular-nums; }
+/* (what meeting it brings (item 650): tomorrow's word once it's met, today's from the days before till then) */
+.day-goal-perk { flex: none; padding: 2px 6px; border-radius: 8px; background: rgb(255 226 168 / 0.16); color: #ffe2a8; font-size: 11px; letter-spacing: 0.02em; }
+.day-goal-bar { position: absolute; left: 10px; right: 10px; bottom: 3px; height: 2px; border-radius: 1px; background: rgb(255 255 255 / 0.16); }
+.day-goal-bar b { display: block; height: 100%; border-radius: 1px; background: linear-gradient(90deg, #f3c77a, #ffe2a8); transform-origin: left center;
+  transition: transform 500ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.day-goal.is-reached { border-color: rgb(255 214 150 / 0.7); color: #ffe2a8; }
+.day-goal.is-reached .day-goal-bar { opacity: 0; }
+.day-goal.is-hop { animation: day-goal-hop 700ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both; }
+@keyframes day-goal-hop {
+  0% { transform: scale(1); }
+  30% { transform: translateY(-5px) scale(1.12); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), 0 0 22px 2px rgb(255 214 150 / 0.55); }
+  60% { transform: translateY(1px) scale(0.98); }
+  100% { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .day-goal.is-hop { animation: none; } }
+@keyframes game-clock-next-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+/* (upstairs: the way down (item 325), at the foot of the screen over the carousel's row, the clock's smoked glass) */
+/* (the cover over the move up to the room upstairs and back down (item 350): a dark veil, where they're going, a bar filling) */
+/* the shop's labels and bubbles (drei's, beside the canvas's own box in the canvas's layer) not shown while the room upstairs is the floor
+   drawn (item 457) */
+:root[data-floor='up'] .canvas-layer > div > div ~ div {
+  display: none !important;
+}
+.floor-cover {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(16, 11, 8, 0.86);
+  opacity: 1;
+  transition: opacity 0.36s ease;
+  pointer-events: auto;
+}
+.floor-cover.is-done {
+  opacity: 0;
+  pointer-events: none;
+}
+.floor-cover-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.floor-cover-word {
+  white-space: nowrap;
+  color: #f3e6cf;
+  font-size: 18px;
+  letter-spacing: 0.18em;
+}
+.floor-cover-bar {
+  display: block;
+  width: 240px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+.floor-cover-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: #e2b770;
+  transition: width 0.55s ease-out;
+}
+.dorm-down {
+  position: fixed;
+  z-index: 10;
+  left: 50%;
+  bottom: 92px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid rgb(255 214 150 / 0.55);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgb(70 52 34 / 0.72), rgb(34 26 18 / 0.62));
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  backdrop-filter: blur(12px) saturate(1.4);
+  color: #f6ecda;
+  font: 700 15px/1 var(--brush);
+  white-space: nowrap;
+  cursor: pointer;
+  transform: translateX(-50%);
+}
+.dorm-down:hover { border-color: #ffd696; }
+.dorm-down .dorm-down-arrow { transform: rotate(180deg); }
+/* (out of the way of a panel docked at the right: its title runs down where the clock is) */
+.app.is-docked .game-clock,
+.app.is-docked .game-clock-next {
+  display: none;
+}
+
+.switcher button:focus-visible {
+  outline: 3px solid var(--moss);
+  outline-offset: 3px;
+}
+
+/* carousel controls: arrows either side of the brushed dish name */
+.switcher {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.switcher-arrow {
+  width: 48px;
+  height: 48px;
+  border: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
+  border-radius: 50%;
+  /* see-through, frosted: the dish shows behind the arrows */
+  background: color-mix(in srgb, var(--washi) 45%, transparent);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  color: var(--text);
+  font-size: 30px;
+  line-height: 1;
+  padding-bottom: 4px;
+  box-shadow: 0 6px 14px -8px rgb(59 42 32 / 0.35);
+  cursor: pointer;
+  transition: transform 160ms ease, background-color 160ms ease;
+}
+
+.switcher-arrow:hover {
+  transform: scale(1.08);
+  background: color-mix(in srgb, var(--washi) 70%, transparent);
+}
+
+.switcher-center {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-width: 140px;
+}
+
+.dish-name {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.2em;
+  padding-left: 0.2em; /* balance the trailing letter-spacing */
+  color: var(--text);
+}
+
+.dots {
+  display: flex;
+  gap: 4px;
+}
+
+/* the visible dot is small; the button around it is a comfortable tap target */
+.dot {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.dot::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--text-soft);
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.dot[aria-current='true']::after {
+  background: var(--hanko);
+  border-color: var(--hanko);
+  transform: scale(1.2);
+}
+
+/* 火候 slider: the track warms from blue to orange up to the current heat */
+/* sits under the shop sign */
+.heat {
+  position: absolute;
+  top: 96px;
+  left: 24px;
+  display: grid;
+  grid-template-columns: auto 200px;
+  grid-template-rows: auto auto;
+  column-gap: 14px;
+  align-items: center;
+  color: var(--text);
+}
+
+.heat-label {
+  grid-row: 1 / 3;
+  font-size: 26px;
+  font-weight: 700;
+  writing-mode: vertical-rl;
+  letter-spacing: 0.15em;
+}
+
+.heat input[type='range'] {
+  width: 100%;
+  height: 28px;
+  margin: 0;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+}
+
+.heat input[type='range']::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #4f9dff, #ff9b3d var(--heat), var(--washi-shade) var(--heat));
+}
+
+.heat input[type='range']::-moz-range-track {
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #4f9dff, #ff9b3d var(--heat), var(--washi-shade) var(--heat));
+}
+
+.heat input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  margin-top: -7px;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  background: var(--washi);
+}
+
+.heat input[type='range']::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  background: var(--washi);
+}
+
+.heat input[type='range']:focus-visible {
+  outline: 3px solid var(--moss);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.heat-value {
+  font-size: 15px;
+  color: var(--text-soft);
+}
+
+.heat-word {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+

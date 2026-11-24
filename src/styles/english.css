@@ -1,0 +1,155 @@
+/* ---- the interface in English: all of it set in LXGW WenKai TC, as the owner chose (once Cormorant Garamond), its plain labels too (what
+   was the system's sans) and the titles set in Zen Antique that read in English there (its few Latin letters, loaded for the signs, beside
+   the brush face's for the rest, made a mix); the shop's own name and 深夜 keep their sign face. The docked panels' upright names once only
+   (the small capitals under them said the same again) ---- */
+html[lang='en'] { --brush: 'LXGW WenKai TC', 'Noto Serif TC', serif; --sans: 'LXGW WenKai TC'; }
+html[lang='en'] :is(.brand-sub, .welcome-card h2, .welcome-card .welcome-go, .unopened-hint b, .loading-board small) { font-family: var(--brush); }
+/* (the grill's sign: its English under the name small and only a little spaced, the brush face's Latin being wider than the old serif's;
+   smaller still, as the owner asked: at 0.33em it ran down onto the fish's lower edge and out toward its tail) */
+html[lang='en'] .brand-grilledfish .brand-sub { font-size: 0.27em; letter-spacing: 0.06em; margin-right: -0.06em; }
+html[lang='en'] .dock-title small { display: none; }
+html[lang='en'] .dock-title { font-weight: 600; letter-spacing: 0.16em; font-size: 42px; }
+html[lang='en'] .menu-title-en { display: none; }
+
+/* every panel's close (the office, the pantry, the drinks' stock, the register's manual): one round button outlined in its header's own
+   colour, the × drawn as two strokes (the font's × sits differently in every face, and differently from panel to panel) */
+/* (a ring of old copper round it (the owner's), turning a quarter and growing a touch to the pointer) */
+.panel-x {
+  position: relative;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 2px solid #b8834a;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgb(255 255 255 / 0.12), transparent 60%);
+  box-shadow: inset 0 1px 0 rgb(255 220 170 / 0.35), 0 1px 2px rgb(0 0 0 / 0.35);
+  color: inherit;
+  font-size: 0;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.22s ease;
+}
+.panel-x::before,
+.panel-x::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 13px;
+  height: 2px;
+  margin: -1px 0 0 -6.5px;
+  border-radius: 1px;
+  background: currentColor;
+  transform: rotate(45deg);
+}
+.panel-x::after { transform: rotate(-45deg); }
+.panel-x:hover { background: color-mix(in srgb, currentColor 16%, transparent); border-color: #e0a866; transform: rotate(90deg) scale(1.08); }
+.panel-x:active { transform: rotate(90deg); }
+.panel-x:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.office > header .panel-x { margin-left: auto; }
+/* the staff tab's foot of the team: what the staff costs, and every open job filled at once */
+.office .ofc-wages { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+/* (what it costs: the hour's on one line, the whole day's under it (item 210), neither broken) */
+.ofc-wages-sum { display: grid; gap: 1px; min-width: 0; }
+.ofc-wages-sum > b,
+.ofc-wages-sum > small { white-space: nowrap; }
+.ofc-wages-sum > b { font-weight: 600; }
+.ofc-wages-sum > small { font-size: 11px; opacity: 0.85; }
+.ofc-hireall {
+  flex: none;
+  padding: 4px 12px;
+  border: 1.5px solid #a8352a;
+  border-radius: 8px;
+  background: #c4442f;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ofc-hireall:hover:not(:disabled) { background: #a8352a; }
+.ofc-hireall:disabled { opacity: 0.4; cursor: default; }
+/* (the dice: the applicants drawn again, two a day (the owner's); dark wood, the count left after it) */
+/* (the staff meal and the shop's air, a row of their own under the day's note (item 323)) */
+.ofc-care { display: flex; align-items: center; gap: 10px; margin: 2px 14px 2px; }
+.ofc-meal {
+  flex: none;
+  padding: 4px 10px;
+  border: 1.5px solid #b8862f;
+  border-radius: 8px;
+  background: #d9a441;
+  color: #3b2a20;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ofc-meal:disabled { opacity: 0.5; cursor: default; }
+.ofc-mood { flex: none; color: #7a6656; font-size: 12px; font-weight: 700; white-space: nowrap; }
+/* (the relations chart's tab (item 323)): the atmosphere's bar over the chart, the owner in its middle, the staff round them, the key under it */
+.ofc-bonds { padding: 10px 14px 14px; overflow: auto; }
+.rel { display: grid; justify-items: center; gap: 10px; }
+.rel-mood { display: flex; align-items: center; gap: 8px; width: 100%; white-space: nowrap; }
+.rel-mood b { color: #3b2a20; font-size: 13px; }
+.rel-mood i { flex: 1; height: 7px; border-radius: 4px; background: rgb(59 42 32 / 0.12); overflow: hidden; }
+.rel-mood i span { display: block; height: 100%; border-radius: 4px; }
+.rel-mood em { color: #7a6656; font-size: 12px; font-style: normal; font-weight: 700; }
+.rel-chart { position: relative; flex: none; }
+.rel-chart svg { position: absolute; inset: 0; }
+.rel-dorm path, .rel-dorm rect { fill: #d9a441; stroke: #6b4a30; stroke-width: 1; }
+.rel-dorm-key path { fill: #d9a441; stroke: #6b4a30; stroke-width: 1; }
+/* (the one the owner's seeing (item 340): a rose heart on the line between them, and in the key) */
+.rel-face { position: absolute; display: grid; justify-items: center; }
+.rel-face.is-off { opacity: 0.45; }
+.rel-face small { margin-top: -6px; padding: 0 4px; border-radius: 6px; background: rgb(255 255 255 / 0.9); font-size: 11px; font-weight: 800; }
+.rel-face.is-owner { filter: drop-shadow(0 0 4px rgb(217 164 65 / 0.8)); }
+.rel-key { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; margin: 0; color: #7a6656; font-size: 11px; }
+.rel-key span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.rel-key i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; }
+.rel-bands { margin-top: 4px; }
+.rel-bands b { color: #6a5040; font-weight: 700; margin-right: 1px; }
+.rel-none { color: #7a6656; font-size: 13px; }
+.ofc-roll {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1.5px solid #5a3d28;
+  border-radius: 8px;
+  background: #6b4a30;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ofc-roll:hover:not(:disabled) { background: #5a3d28; }
+.ofc-roll:hover:not(:disabled) .game-icon { animation: ofc-roll-shake 0.4s ease-in-out; }
+.ofc-roll:disabled { opacity: 0.4; cursor: default; }
+@keyframes ofc-roll-shake {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(-18deg); }
+  75% { transform: rotate(18deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ofc-roll:hover:not(:disabled) .game-icon { animation: none; }
+}
+/* the pantry's header: its name and its ×, as the drinks' stock has them */
+.chiller-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 10px 7px 16px;
+  background: linear-gradient(180deg, #4a5b6e, #3a4858);
+  color: #eaf3f9;
+  font-family: var(--brush);
+}
+.chiller-head > b { font-size: 16px; letter-spacing: 0.3em; }
+.chiller-head .panel-x { margin-left: auto; }
+
+

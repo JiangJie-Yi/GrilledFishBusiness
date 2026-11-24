@@ -1,0 +1,112 @@
+/* ---------- roasting tags (floating over each skewer on the grilled-fish stage) ---------- */
+
+/* while a seasoning is carried, the food tags let the pointer pass through to the food under them */
+.is-carrying,
+.is-carrying * {
+  cursor: grabbing !important;
+}
+
+.is-carrying .roast-tag {
+  pointer-events: none;
+}
+
+/* name over a seasoning pot when it's pointed at */
+.tool-tag {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  color: var(--ink);
+  background: linear-gradient(90deg, #d9b97f, #e8cfa0 20%, #e8cfa0 80%, #d9b97f);
+  box-shadow: inset 0 0 0 1px rgb(59 42 32 / 0.2), 0 4px 10px -5px rgb(59 42 32 / 0.6);
+  font: 700 14px/1.1 var(--brush);
+  white-space: nowrap;
+}
+
+/* (12 px, item 458, the owner's 「字太小」: at 10 the sink's steps were hard to read) */
+.tool-tag small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.roast-tag {
+  --state: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 4px;
+  border: none;
+  border-radius: 999px;
+  color: var(--ink);
+  background: linear-gradient(90deg, #d9b97f, #e8cfa0 20%, #e8cfa0 80%, #d9b97f);
+  box-shadow: inset 0 0 0 1px rgb(59 42 32 / 0.2), 0 4px 10px -5px rgb(59 42 32 / 0.6);
+  font: 600 13px/1 var(--brush);
+  white-space: nowrap;
+  cursor: pointer;
+  /* faint until pointed at (the tag itself, or the food it belongs to), so tags don't crowd the fire */
+  opacity: 0.4;
+  transition: transform 140ms ease, opacity 160ms ease;
+}
+
+.roast-tag:hover,
+.roast-tag:focus-visible,
+.roast-tag-lit {
+  opacity: 1;
+}
+
+.roast-tag:hover {
+  transform: translateY(-2px) scale(1.05);
+}
+
+.roast-tag:focus-visible {
+  outline: 3px solid var(--moss);
+  outline-offset: 2px;
+}
+
+.roast-ring {
+  width: 18px;
+  height: 18px;
+  transform: rotate(-90deg);
+}
+
+.roast-ring circle {
+  fill: none;
+  stroke-width: 3;
+}
+
+.roast-ring-track {
+  stroke: rgb(59 42 32 / 0.15);
+}
+
+.roast-ring-fill {
+  stroke: var(--state);
+  stroke-linecap: round;
+  transition: stroke-dasharray 250ms linear;
+}
+
+.roast-state {
+  color: var(--state);
+}
+
+.roast-half { --state: #c98a1e; }
+.roast-done { --state: var(--hanko); }
+.roast-burnt { --state: #3d2a22; }
+
+/* ready to serve: a little pulse to say "take me off" */
+.roast-done {
+  animation: roast-ready 1.2s ease-in-out infinite;
+}
+
+@keyframes roast-ready {
+  50% { box-shadow: inset 0 0 0 1px rgb(59 42 32 / 0.2), 0 0 0 4px rgb(194 59 42 / 0.25); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roast-done {
+    animation: none;
+  }
+}
+

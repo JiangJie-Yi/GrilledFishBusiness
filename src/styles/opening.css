@@ -1,0 +1,47 @@
+/* ---- before a shop is opened its controls are put away (only the view reset stays); opening it, they pop out,
+   one after another ---- */
+.app.is-hushed .ai-toggle,
+.app.is-hushed .lang-toggle,
+.app.is-hushed .game-clock,
+.app.is-hushed .tools-toggle,
+.app.is-hushed .heat,
+.app.is-hushed .fullness,
+.app.is-hushed .notebook-toggle,
+.app.is-hushed .office-toggle {
+  display: none !important;
+}
+
+.app:not(.is-hushed) .heat,
+.app:not(.is-hushed) .fullness,
+.app:not(.is-hushed) .notebook-toggle,
+.app:not(.is-hushed) .office-toggle {
+  animation: ui-pop-left 520ms cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+
+.app:not(.is-hushed) .ai-toggle,
+.app:not(.is-hushed) .lang-toggle,
+.app:not(.is-hushed) .game-clock,
+.app:not(.is-hushed) .tools-toggle {
+  animation: ui-pop-top 520ms cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+
+.app:not(.is-hushed) .heat { animation-delay: 120ms; }
+.app:not(.is-hushed) .fullness { animation-delay: 220ms; }
+.app:not(.is-hushed) .notebook-toggle { animation-delay: 320ms; }
+.app:not(.is-hushed) .office-toggle { animation-delay: 380ms; }
+.app:not(.is-hushed) .ai-toggle { animation-delay: 240ms; }
+.app:not(.is-hushed) .lang-toggle { animation-delay: 320ms; }
+.app:not(.is-hushed) .game-clock { animation-delay: 400ms; }
+
+@keyframes ui-pop-left {
+  from { opacity: 0; translate: -40px 0; scale: 0.8; }
+}
+
+@keyframes ui-pop-top {
+  from { opacity: 0; translate: 0 -30px; scale: 0.6; }
+}
+/* the spotlight is in the scene itself (OpeningSpot); under it, the shop gets back some of its colour */
+.app.is-unopened.is-spotlit .canvas-layer {
+  filter: grayscale(0.5) brightness(0.75);
+}
+

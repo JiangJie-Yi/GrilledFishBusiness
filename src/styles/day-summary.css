@@ -1,0 +1,278 @@
+/* the day's closing sheet (ui/DaySummary; the owner's): in the middle over the shut shop, the panels' finish (the lacquered wood bar, pale
+   paper half see-through, dark at night), the profit large, the books and the customers below; every label on one line */
+/* (the shop gone out of business (item 239): over everything, nothing behind it to press; in the day sheet's paper and wood) */
+/* (a drink's cases on their way from the liquor shop, beside what's in the back (item 243)) */
+.drink-coming { color: #3a7a4a; font-style: normal; font-weight: 700; white-space: nowrap; }
+:root[data-theme='dark'] .drink-coming { color: #8fd29a; }
+.closed-down-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  background: rgb(20 14 10 / 0.62);
+  animation: day-sum-in 260ms ease-out both;
+}
+.closed-down {
+  width: min(360px, calc(100vw - 32px));
+  overflow: hidden;
+  border: 3px solid #5a3d28;
+  border-radius: 10px;
+  background: rgb(251 246 234 / 0.95);
+  box-shadow: 0 18px 40px -16px rgb(0 0 0 / 0.6);
+  color: #3b2a20;
+}
+:root[data-theme='dark'] .closed-down {
+  background: rgb(34 26 20 / 0.95);
+  color: #f3ead8;
+}
+.closed-down > header {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 16px;
+  background: var(--wood-bar);
+  box-shadow: var(--wood-bar-lip);
+  border-bottom: 2px solid #8a6a44;
+  color: #f6e8cc;
+}
+.closed-down > header h2 {
+  margin: 0;
+  min-width: 0;
+  font: 700 16px/1 var(--brush);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.closed-down-body {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px 18px;
+}
+.closed-down-why {
+  margin: 0;
+  min-width: 0;
+  font-size: 14px;
+  white-space: nowrap;
+  text-align: center;
+}
+.closed-down-books {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 0;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.closed-down-books dt { color: #8a7562; }
+.closed-down-books dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.closed-down-books dd.is-loss { color: #b0452c; font-weight: 700; }
+.closed-down-go {
+  justify-self: center;
+  min-width: 140px;
+  padding: 8px 18px;
+  border: 2px solid #5a3d28;
+  border-radius: 8px;
+  background: var(--wood-bar);
+  color: #f6e8cc;
+  font: 700 15px/1 var(--brush);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.day-sum-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: rgb(20 14 10 / 0.35);
+  animation: day-sum-in 260ms ease-out both;
+}
+.day-sum {
+  --ds-paper: rgb(251 246 234 / 0.9);
+  --ds-ink: #3b2a20;
+  --ds-soft: #7a6450;
+  --ds-rule: rgb(90 61 40 / 0.18);
+  width: min(380px, calc(100vw - 32px));
+  overflow: hidden;
+  border: 3px solid #5a3d28;
+  border-radius: 10px;
+  background: var(--ds-paper);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  backdrop-filter: blur(10px) saturate(1.2);
+  box-shadow: 0 18px 40px -16px rgb(0 0 0 / 0.6);
+  color: var(--ds-ink);
+}
+:root[data-theme='dark'] .day-sum {
+  --ds-paper: rgb(34 26 20 / 0.9);
+  --ds-ink: #f3ead8;
+  --ds-soft: #c9b597;
+  --ds-rule: rgb(246 232 204 / 0.16);
+}
+.day-sum > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 40px;
+  padding: 0 10px 0 16px;
+  background: var(--wood-bar);
+  box-shadow: var(--wood-bar-lip);
+  border-bottom: 2px solid #8a6a44;
+  color: #f6e8cc;
+}
+.day-sum > header h2 {
+  margin: 0;
+  font: 700 16px/1 var(--brush);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.day-sum-body {
+  display: grid;
+  /* (its one column the sheet's width, never wider: a long line in it (a day opened ten hours late, a dish's long name) widened the
+     column past the sheet and every sum on the right was cut off (item 329); such a line shrinks to fit instead (FitLine)) */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  padding: 16px 18px 18px;
+}
+/* (the hours it was open, small over the profit) */
+.day-sum-late { font-size: 0.92em; color: #9a8a78; }
+.day-sum-late.is-late { color: #b0452c; }
+.day-sum-hours {
+  margin: 0 0 6px;
+  color: #8a7562;
+  font-size: 12px;
+  text-align: center;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.day-sum-profit {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 10px 0 12px;
+  border-bottom: 1px solid var(--ds-rule);
+}
+.day-sum-profit span,
+.day-sum-profit small {
+  color: var(--ds-soft);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.day-sum-profit strong {
+  color: #2f8a4c;
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.day-sum-profit.is-loss strong { color: #c0392b; }
+:root[data-theme='dark'] .day-sum-profit strong { color: #4fff85; }
+:root[data-theme='dark'] .day-sum-profit.is-loss strong { color: #ff7a6b; }
+/* (the day's target for the takings under the profit (item 175): made, a warm gold and a tick; short, how much, quietly) */
+.day-sum-goal {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--ds-rule);
+  color: var(--ds-soft);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.day-sum-goal.is-made { color: #b07a1c; font-weight: 700; }
+:root[data-theme='dark'] .day-sum-goal.is-made { color: #ffd98a; }
+.day-sum-books,
+.day-sum-guests {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+.day-sum-books > div,
+.day-sum-guests > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  white-space: nowrap;
+}
+.day-sum-books dt,
+.day-sum-guests dt { color: var(--ds-soft); font-size: 14px; }
+.day-sum-books dd,
+.day-sum-guests dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.day-sum-books dd.is-out { color: var(--ds-soft); font-weight: 600; }
+/* (a part of the line above, already in it: the wages' overtime and night pay (item 210)) */
+.day-sum-books > div.is-sub { padding-left: 14px; }
+.day-sum-books > div.is-sub dt,
+.day-sum-books > div.is-sub dd { font-size: 12px; font-weight: 500; }
+.day-sum-guests { padding-top: 12px; border-top: 1px solid var(--ds-rule); }
+/* (what could be done better (item 329): a line each, its figure bold, what to try under it, smaller; on a warm paper band) */
+.day-sum-tips {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: rgb(232 160 60 / 0.14);
+  list-style: none;
+}
+.day-sum-tips li { display: flex; align-items: flex-start; gap: 7px; color: #9a4a12; }
+.day-sum-tips li > svg { flex: none; margin-top: 2px; }
+.day-sum-tips span { display: grid; flex: 1; gap: 1px; min-width: 0; }
+.day-sum-tips b { color: var(--ds-ink); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.day-sum-tips small { color: var(--ds-soft); font-size: 12px; white-space: nowrap; }
+.day-sum-guests small { margin-left: 4px; color: var(--ds-soft); font-size: 12px; font-weight: 500; }
+/* (the best seller's name: as long as dishes' names run, smaller where it's long, never past the sheet's edge (item 329)) */
+.day-sum-best { min-width: 0; text-align: right; }
+.day-sum-stars { color: #e0a72e; letter-spacing: 1px; }
+.day-sum-ok {
+  justify-self: center;
+  min-width: 140px;
+  height: 38px;
+  margin-top: 2px;
+  border: 0;
+  border-radius: 19px;
+  background: #b8261c;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.day-sum-ok:hover { background: #9e1f17; }
+.day-sum-auto {
+  justify-self: center;
+  margin-top: -6px;
+  color: var(--ds-soft);
+  font-size: 12px;
+  white-space: nowrap;
+}
+/* (the time it stays up, running down along its foot) */
+.day-sum-timer {
+  display: block;
+  height: 3px;
+  background: #b8261c;
+  transform-origin: left;
+  animation: day-sum-timer linear forwards;
+}
+@keyframes day-sum-timer {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+.day-sum-ok:focus-visible { outline: 3px solid var(--moss); outline-offset: 3px; }
+@keyframes day-sum-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .day-sum-veil { animation: none; }
+}
+

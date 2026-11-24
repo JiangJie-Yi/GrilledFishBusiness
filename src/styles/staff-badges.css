@@ -1,0 +1,68 @@
+/* what the stock keeper's at, over his head (GuestBar3D's Stocker; the owner's: stood by the cartons he looked idle): a small warm charcoal
+   chip, as the speech bubbles are */
+.staff-status {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1px solid rgb(230 200 160 / 0.25);
+  border-radius: 8px;
+  background: rgb(24 20 18 / 0.72);
+  color: #f3e6cf;
+  font: 600 11px/1.5 var(--brush);
+  white-space: nowrap;
+  user-select: none;
+}
+/* what's on one of the staff, right over their head (StaffWords' TiredBadges; the owner's): worn out, a see-through deep red with a drawn
+   bead of sweat and 疲勞中; a special skill working just now by the time of night, ▲ and its icon in its quality's colour (the tiers'
+   colours with the office's .ofc-trait); side by side, bobbing a little; pointed at, they say what they mean in the shop's paper label */
+.staff-badges {
+  display: inline-flex;
+  gap: 3px;
+}
+.staff-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 8px 2px 6px;
+  border: 1px solid rgb(255 200 190 / 0.35);
+  border-radius: 10px;
+  background: rgb(180 40 40 / 0.85);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: default;
+  user-select: none;
+  animation: staff-badge-bob 1.8s ease-in-out infinite;
+}
+.staff-badge .game-icon:first-child { color: #d6ecff; }
+/* (slacking at a handheld game: a see-through deep teal, a game pad (the owner's)) */
+.staff-badge.is-slack {
+  border-color: rgb(255 255 255 / 0.3);
+  background: rgb(18 96 96 / 0.78);
+  color: #e6fffb;
+  --icon-cut: rgb(18 96 96);
+}
+.staff-badge.is-slack .game-icon:first-child { color: #9ff3e6; }
+@keyframes staff-badge-bob {
+  0%, 100% { transform: translateY(0); opacity: 1; }
+  50% { transform: translateY(2px); opacity: 0.85; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .staff-badge { animation: none; }
+}
+/* (the office's staff list: one worn out marked so, as the badge beside them in the shop) */
+.ofc-tired {
+  margin-left: 4px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: #8e2620;
+  color: #ffe9e4;
+  font-style: normal;
+  font-weight: 700;
+  white-space: nowrap;
+}
+

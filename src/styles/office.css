@@ -1,0 +1,755 @@
+/* ---------------------------------------------------------------------------------------------------------
+   the office (經營): a sheet of washi in a dark wood frame; each job a section under a coloured rule, each
+   applicant a card, their skill, speed and stamina as little bars */
+.office {
+  --ofc-ink: #3b2a20;
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgba(255, 255, 255, 0.55), transparent 70%),
+    linear-gradient(#fbf6ea, #f4ecda);
+  border: 1px solid rgba(59, 42, 32, 0.35);
+  border-radius: 14px;
+  box-shadow: 0 18px 48px rgba(40, 24, 12, 0.28), 0 2px 0 rgba(255, 255, 255, 0.6) inset;
+  overflow: hidden;
+}
+.office > header {
+  background: var(--wood-bar);
+  box-shadow: var(--wood-bar-lip);
+  color: #f6ecd8;
+  border-bottom: 2px solid #c79a5a;
+  padding: 10px 14px;
+}
+/* (the office's tabs, and the rating drawer's, as pills on the wood) */
+/* (the tabs on the wood (the owner's): not chosen, dark and see-through, their words a pale gold, lifting a little to the pointer; chosen, a
+   small raised plaque of pale wood and washi, a soft shadow under it, its words pressed in) */
+:is(.office, .rep-drawer) > header :is(.ofc-tabs, .rep-tabs) button,
+.stock-panel .stock-tab {
+  color: #e8d3a6;
+  border: 1px solid rgb(232 211 166 / 0.28);
+  background: rgb(0 0 0 / 0.18);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+:is(.office, .rep-drawer) > header :is(.ofc-tabs, .rep-tabs) button:hover,
+.stock-panel .stock-tab:hover { background: rgb(232 211 166 / 0.16); color: #fff3d8; }
+:is(.office, .rep-drawer) > header :is(.ofc-tabs, .rep-tabs) button[aria-selected='true'],
+.stock-panel .stock-tab.is-on {
+  background: linear-gradient(180deg in oklab, #fbf3e2, #e9d8b6);
+  color: #3b2a20;
+  border-color: #f6ecd8;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 0.3), inset 0 1px 0 rgb(255 255 255 / 0.8) !important;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 0.6);
+}
+/* (the books, the office's third tab: one page of lines, the cash on top, each sum to the right, the profit under a rule) */
+.office .ofc-ledger {
+  margin: 12px 16px 16px;
+  padding: 6px 18px 10px;
+  border-radius: 10px;
+  background: #fffaf0;
+  box-shadow: inset 0 0 0 1px rgb(59 42 32 / 0.16);
+  font-size: 15px;
+  line-height: 2;
+  overflow: auto;
+}
+.office .ofc-ledger p + p { border-top: 1px solid rgb(59 42 32 / 0.08); }
+.office .ofc-ledger .ledger-cash { font-size: 17px; font-weight: 700; }
+.office .ofc-ledger .ledger-profit { font-size: 17px; font-weight: 700; border-top: 1px dashed rgb(59 42 32 / 0.35); }
+.office > header .ofc-cash {
+  color: #f2cf7a;
+  font-variant-numeric: tabular-nums;
+}
+.ofc-wages {
+  margin: 6px 14px 4px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(196, 68, 47, 0.07);
+}
+.ofc-role {
+  margin: 10px 14px 0;
+}
+.ofc-role h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0 6px 10px;
+  border-left: 4px solid var(--role, #a08a5c);
+  font-size: 14px;
+  letter-spacing: 0.04em;
+}
+.ofc-role h4 small {
+  margin-left: auto;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(59, 42, 32, 0.08);
+  font-variant-numeric: tabular-nums;
+}
+.ofc-role.is-chef { --role: #e8b04a; }
+.ofc-role.is-sous { --role: #d9c27a; }
+.ofc-role.is-server { --role: #5a7a9a; }
+.ofc-role.is-cashier { --role: #7aa070; }
+.ofc-role.is-stock { --role: #a08a5c; }
+.ofc-person,
+.ofc-person.is-hired {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(59, 42, 32, 0.12);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin: 0 0 8px;
+  box-shadow: 0 1px 3px rgba(59, 42, 32, 0.06);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.ofc-person:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(59, 42, 32, 0.12);
+}
+.ofc-person.is-hired {
+  background: linear-gradient(90deg, rgba(255, 244, 222, 0.95), rgba(255, 255, 255, 0.8));
+  border-color: color-mix(in srgb, var(--role, #a08a5c) 55%, transparent);
+}
+.ofc-person .avatar {
+  filter: drop-shadow(0 2px 3px rgba(59, 42, 32, 0.18));
+}
+.ofc-stars {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 12px;
+  margin: 3px 0 2px;
+}
+.ofc-stat {
+  display: grid;
+  grid-template-columns: auto minmax(28px, 1fr) auto;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #6b5442;
+}
+.ofc-stat i {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(59, 42, 32, 0.12);
+  overflow: hidden;
+}
+.ofc-stat b {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: #d8a245;
+}
+.ofc-stat b.is-high { background: #c4442f; }
+.ofc-stat b.is-low { background: #a9a093; }
+.ofc-stat em {
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  color: var(--ofc-ink);
+  min-width: 2ch;
+  text-align: right;
+}
+.ofc-note {
+  color: #7a6250;
+}
+.ofc-hire b {
+  font-size: 15px;
+  color: var(--ofc-ink);
+  font-variant-numeric: tabular-nums;
+}
+.ofc-person .ofc-hire button {
+  background: #c4442f;
+  border-color: #a8352a;
+  color: #fff;
+  border-radius: 8px;
+}
+.ofc-person .ofc-hire button:not(:disabled):hover {
+  background: #a8352a;
+}
+/* (the job full: taken on in place of the weakest there, 替換: the deep wood amber of the shift switch, not the hire's red) */
+.ofc-person .ofc-hire button.is-swap:not(:disabled) {
+  border-color: #6b4423;
+  background: #8a5a2b;
+}
+.ofc-person .ofc-hire button.is-swap:not(:disabled):hover {
+  background: #6b4423;
+}
+/* (the job full while open: who could fill it still shown, their button quiet) */
+.ofc-person .ofc-hire button:disabled {
+  border-color: rgb(59 42 32 / 0.2);
+  background: rgb(59 42 32 / 0.08);
+  color: #8a7462;
+  cursor: default;
+}
+/* (a hand's feeling for the owner, and the word of praise (item 323): a little heart, a bar, its number, the button) */
+.ofc-person .ofc-bond { display: inline-flex; align-items: center; gap: 5px; color: #c0503a; font-size: 12px; white-space: nowrap; }
+.ofc-person .ofc-bond i { display: block; width: 56px; height: 5px; border-radius: 3px; background: rgb(59 42 32 / 0.12); overflow: hidden; }
+.ofc-person .ofc-bond i b { display: block; height: 100%; background: #e07a5f; }
+/* (each band of the bond its own colour (item 359): cold grey-blue, so-so sand, friendly coral, close rose; its name after the number) */
+.ofc-person .ofc-bond.is-st0 i b { background: #8a9ab0; }
+.ofc-person .ofc-bond.is-st1 i b { background: #d8b070; }
+.ofc-person .ofc-bond.is-st3 i b { background: #d4506a; }
+.ofc-person .ofc-stage { padding: 0 5px; border-radius: 7px; background: rgb(59 42 32 / 0.07); color: #6a5040; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.ofc-person .ofc-bond.is-st0 .ofc-stage { background: #e4eaf2; color: #4a5a72; }
+.ofc-person .ofc-bond.is-st3 .ofc-stage { background: #fbe3e6; color: #b23a54; }
+.ofc-person .ofc-bond-acts, .ofc-person .ofc-pay-row { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.ofc-person .ofc-pay { color: #6a5040; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ofc-person .ofc-pay em { margin-left: 3px; font-style: normal; font-weight: 700; font-size: 11px; }
+.ofc-person .ofc-pay em.is-up { color: #2f8a4a; }
+.ofc-person .ofc-pay em.is-down { color: #b23a3a; }
+.ofc-person .ofc-lodge { padding: 0 6px; border-radius: 8px; font-size: 11px; font-style: normal; font-weight: 700; white-space: nowrap; }
+.ofc-person .ofc-lodge.is-in { background: #e6efe0; color: #3a6a3a; }
+.ofc-person .ofc-lodge.is-ask { background: #fff1d2; color: #946010; }
+.ofc-person .ofc-bond em { min-width: 18px; color: #7a6656; font-style: normal; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ofc-person .ofc-praise {
+  padding: 3px 8px;
+  border: 1px solid rgb(224 122 95 / 0.5);
+  border-radius: 6px;
+  background: rgb(224 122 95 / 0.1);
+  color: #c0503a;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ofc-person .ofc-praise:disabled { opacity: 0.5; cursor: default; }
+/* (seeing the owner (game/romance, item 340): a small rose tag by her feeling) */
+.ofc-person .ofc-praise:not(:disabled):hover { background: rgb(224 122 95 / 0.2); }
+.ofc-person .ofc-fire {
+  padding: 4px 10px;
+  border: 1px solid rgb(224 82 82 / 0.4);
+  border-radius: 6px;
+  background: rgb(224 82 82 / 0.08);
+  color: #e05252;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s;
+}
+.ofc-person .ofc-fire:not(:disabled):hover { background: rgb(224 82 82 / 0.16); border-color: rgb(224 82 82 / 0.7); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .office {
+    background: linear-gradient(#2b2520, #231d18);
+    border-color: rgba(246, 236, 216, 0.15);
+  }
+  :root:not([data-theme='light']) .ofc-person,
+  :root:not([data-theme='light']) .ofc-roster { background: rgba(255, 255, 255, 0.05); border-color: rgba(246, 236, 216, 0.12); }
+  :root:not([data-theme='light']) .ofc-person.is-hired { background: rgba(232, 176, 74, 0.1); }
+  :root:not([data-theme='light']) .ofc-roster-bar.is-scrolled { background: rgb(39 33 28 / 0.97); }
+  :root:not([data-theme='light']) .ofc-pick { background: rgba(255, 255, 255, 0.06); }
+  :root:not([data-theme='light']) .ofc-stat,
+  :root:not([data-theme='light']) .ofc-note { color: #c8b8a4; }
+  :root:not([data-theme='light']) .ofc-stat em,
+  :root:not([data-theme='light']) .ofc-hire b { color: #f6ecd8; }
+}
+:root[data-theme='dark'] .office {
+  background: linear-gradient(#2b2520, #231d18);
+  border-color: rgba(246, 236, 216, 0.15);
+}
+:root[data-theme='dark'] .ofc-person,
+:root[data-theme='dark'] .ofc-roster { background: rgba(255, 255, 255, 0.05); border-color: rgba(246, 236, 216, 0.12); }
+:root[data-theme='dark'] .ofc-person.is-hired { background: rgba(232, 176, 74, 0.1); }
+:root[data-theme='dark'] .ofc-stat,
+:root[data-theme='dark'] .ofc-note { color: #c8b8a4; }
+:root[data-theme='dark'] .ofc-stat em,
+:root[data-theme='dark'] .ofc-hire b { color: #f6ecd8; }
+
+/* night: the boards and the office go dark, and everything written on them light */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .ledger {
+    background: rgb(30 36 50 / 0.88);
+    color: var(--text);
+    box-shadow: 0 6px 16px -10px rgb(0 0 0 / 0.8);
+  }
+  :root:not([data-theme='light']) .ledger *:not(button) {
+    color: inherit;
+  }
+  :root:not([data-theme='light']) .office {
+    color: var(--text);
+  }
+  :root:not([data-theme='light']) .office *:not(button):not(input):not(.ofc-cash):not(.money) {
+    color: inherit;
+  }
+  :root:not([data-theme='light']) .office small,
+  :root:not([data-theme='light']) .office .ofc-note,
+  :root:not([data-theme='light']) .office .ofc-stat,
+  :root:not([data-theme='light']) .office .nb-head small,
+  :root:not([data-theme='light']) .office .notebook-empty,
+  :root:not([data-theme='light']) .office .ofc-wages {
+    color: #c9bfae;
+  }
+  :root:not([data-theme='light']) .office .nb-sec,
+  :root:not([data-theme='light']) .office h4 {
+    color: #f6ecd8;
+    border-color: rgb(246 236 216 / 0.25);
+  }
+  :root:not([data-theme='light']) .office .nb-chat .from-chef {
+    background: rgb(255 255 255 / 0.07);
+    border-color: rgb(246 236 216 / 0.18);
+  }
+  :root:not([data-theme='light']) .office .nb-chat .from-chef b {
+    color: #ff9a80;
+  }
+  :root:not([data-theme='light']) .office .nb-chat .from-me {
+    color: #fff;
+  }
+  :root:not([data-theme='light']) .office .nb-chat-form input,
+  :root:not([data-theme='light']) .office .nb-publish input {
+    background: #1d1915;
+    color: var(--text);
+    border-color: rgb(246 236 216 / 0.3);
+  }
+  :root:not([data-theme='light']) .office .nb-embedded > ul > li,
+  :root:not([data-theme='light']) .office .nb-set {
+    background: rgb(255 255 255 / 0.04);
+    border-color: rgb(246 236 216 / 0.14);
+  }
+  :root:not([data-theme='light']) .office button:not(.ofc-fire):not([aria-selected='true']):not(.nb-chat-form button) {
+    color: var(--text);
+  }
+  :root:not([data-theme='light']) .office .nb-chef-acts button {
+    color: #ff9a80;
+    border-color: rgb(255 154 128 / 0.6);
+  }
+  
+}
+
+:root[data-theme='dark'] .ledger {
+  background: rgb(30 36 50 / 0.88);
+  color: var(--text);
+  box-shadow: 0 6px 16px -10px rgb(0 0 0 / 0.8);
+}
+:root[data-theme='dark'] .ledger *:not(button) {
+  color: inherit;
+}
+:root[data-theme='dark'] .office {
+  color: var(--text);
+}
+:root[data-theme='dark'] .office *:not(button):not(input):not(.ofc-cash):not(.money) {
+  color: inherit;
+}
+:root[data-theme='dark'] .office small,
+:root[data-theme='dark'] .office .ofc-note,
+:root[data-theme='dark'] .office .ofc-stat,
+:root[data-theme='dark'] .office .nb-head small,
+:root[data-theme='dark'] .office .notebook-empty,
+:root[data-theme='dark'] .office .ofc-wages {
+  color: #c9bfae;
+}
+:root[data-theme='dark'] .office .nb-sec,
+:root[data-theme='dark'] .office h4 {
+  color: #f6ecd8;
+  border-color: rgb(246 236 216 / 0.25);
+}
+:root[data-theme='dark'] .office .nb-chat .from-chef {
+  background: rgb(255 255 255 / 0.07);
+  border-color: rgb(246 236 216 / 0.18);
+}
+:root[data-theme='dark'] .office .nb-chat .from-chef b {
+  color: #ff9a80;
+}
+:root[data-theme='dark'] .office .nb-chat .from-me {
+  color: #fff;
+}
+:root[data-theme='dark'] .office .nb-chat-form input,
+:root[data-theme='dark'] .office .nb-publish input {
+  background: #1d1915;
+  color: var(--text);
+  border-color: rgb(246 236 216 / 0.3);
+}
+:root[data-theme='dark'] .office .nb-embedded > ul > li,
+:root[data-theme='dark'] .office .nb-set {
+  background: rgb(255 255 255 / 0.04);
+  border-color: rgb(246 236 216 / 0.14);
+}
+:root[data-theme='dark'] .office button:not(.ofc-fire):not([aria-selected='true']):not(.nb-chat-form button) {
+  color: var(--text);
+}
+:root[data-theme='dark'] .office .nb-chef-acts button {
+  color: #ff9a80;
+  border-color: rgb(255 154 128 / 0.6);
+}
+
+/* money, wherever it's shown, in a pale green (a shade deeper on the light pages, to stay readable) */
+.money,
+.office .money,
+.office > header .ofc-cash .money {
+  color: var(--money, #3f9e5c) !important;
+  font-variant-numeric: tabular-nums;
+}
+.office > header .ofc-cash .money,
+.tally-buyall .money {
+  color: #a6ecb4 !important;
+}
+/* (a little coin before every sum of money) */
+.money::before {
+  content: '';
+  display: inline-block;
+  width: 0.95em;
+  height: 0.95em;
+  margin-right: 0.22em;
+  vertical-align: -0.14em;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='9' fill='%23e8c45a' stroke='%236b4a1a' stroke-width='1.4'/%3E%3Ccircle cx='10' cy='10' r='6.2' fill='none' stroke='%23b8892e' stroke-width='1'/%3E%3Cpath d='M7 6.5l3 3.6 3-3.6M10 10.1v4.4M7.4 11.2h5.2M7.4 13h5.2' fill='none' stroke='%236b4a1a' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* 料理研製: a bar to opening day, then one view at a time (試做紀錄 / 菜單 / 問二廚) under segmented tabs; the chat
+   fills its view, its log scrolling above the box you type in, so there's only ever one scrollbar */
+.nb-embedded {
+  display: flex;
+  flex-direction: column;
+}
+.nb-progress {
+  display: grid;
+  grid-template-columns: auto minmax(60px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 14px 8px;
+  font-size: 13px;
+}
+.nb-progress i {
+  height: 8px;
+  border-radius: 4px;
+  background: rgb(59 42 32 / 0.12);
+  overflow: hidden;
+}
+.nb-progress b {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: #d8a245;
+  transition: width 0.3s;
+}
+.nb-progress.is-ready b { background: #5fa040; }
+.nb-progress small { color: #7a6656; }
+.nb-views {
+  display: flex;
+  gap: 4px;
+  margin: 0 14px 8px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgb(59 42 32 / 0.08);
+}
+.nb-views button {
+  flex: 1;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.nb-views button[aria-selected='true'] {
+  background: #fffaf0;
+  box-shadow: 0 1px 3px rgb(59 42 32 / 0.2);
+  font-weight: 700;
+}
+.nb-views em {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgb(59 42 32 / 0.12);
+  font-style: normal;
+  font-size: 11px;
+}
+.nb-embedded .notebook-empty {
+  margin: 8px 14px 14px;
+  padding: 14px 16px;
+  border: 1.5px dashed rgb(59 42 32 / 0.25);
+  border-radius: 12px;
+  line-height: 1.7;
+}
+.nb-embedded .nb-chef {
+  display: flex;
+  flex-direction: column;
+  height: min(46vh, 400px);
+  padding: 0 14px 12px;
+}
+.nb-embedded .nb-chat {
+  flex: 1;
+  max-height: none;
+  min-height: 0;
+  padding: 8px;
+  border-radius: 12px;
+  background: rgb(59 42 32 / 0.04);
+}
+.nb-embedded .nb-chef-acts {
+  flex-wrap: wrap;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .nb-views { background: rgb(255 255 255 / 0.06); }
+  :root:not([data-theme='light']) .nb-views button[aria-selected='true'] { background: rgb(255 255 255 / 0.14); color: #fff; }
+  :root:not([data-theme='light']) .nb-views em, :root:not([data-theme='light']) .nb-progress i { background: rgb(255 255 255 / 0.12); }
+  :root:not([data-theme='light']) .nb-progress small { color: #c9bfae; }
+  :root:not([data-theme='light']) .nb-embedded .notebook-empty { border-color: rgb(246 236 216 / 0.2); }
+  :root:not([data-theme='light']) .nb-embedded .nb-chat { background: rgb(255 255 255 / 0.03); }
+}
+:root[data-theme='dark'] .nb-views { background: rgb(255 255 255 / 0.06); }
+:root[data-theme='dark'] .nb-views button[aria-selected='true'] { background: rgb(255 255 255 / 0.14); color: #fff; }
+:root[data-theme='dark'] .nb-views em, :root[data-theme='dark'] .nb-progress i { background: rgb(255 255 255 / 0.12); }
+:root[data-theme='dark'] .nb-progress small { color: #c9bfae; }
+:root[data-theme='dark'] .nb-embedded .notebook-empty { border-color: rgb(246 236 216 / 0.2); }
+:root[data-theme='dark'] .nb-embedded .nb-chat { background: rgb(255 255 255 / 0.03); }
+
+/* the two buying buttons side by side: 一鍵補貨 (top up to 10) and 全部各 +10 */
+.tally-buy {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: 6px;
+}
+.tally-topup {
+  padding: 2px 10px;
+  border: 1.5px solid #4f8a34;
+  border-radius: 8px;
+  background: #5fa040;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tally-topup small {
+  margin-left: 4px;
+}
+.tally-topup:disabled {
+  background: #a9b8a0;
+  border-color: #a9b8a0;
+  cursor: default;
+}
+.tally-buy .tally-buyall {
+  margin-left: 0;
+}
+
+.tally-topup .money {
+  color: #f0fff3 !important;
+}
+.tally-topup:disabled {
+  color: #4a5a44;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .office .nb-chat .from-chef b { color: #ff9a80 !important; }
+  :root:not([data-theme='light']) .office .nb-chat .from-me { background: #c4442f; color: #fff !important; border: 0; }
+  :root:not([data-theme='light']) .office .ofc-seat.is-open small { color: #ff8f78; }
+  :root:not([data-theme='light']) .office .ofc-roster-role { color: #d8c8b2; }
+  :root:not([data-theme='light']) .office .nb-stars { color: #f2b84b !important; }
+}
+:root[data-theme='dark'] .office .nb-chat .from-chef b { color: #ff9a80 !important; }
+:root[data-theme='dark'] .office .nb-chat .from-me { background: #c4442f; color: #fff !important; border: 0; }
+:root[data-theme='dark'] .office .ofc-seat.is-open small { color: #ff8f78; }
+:root[data-theme='dark'] .office .ofc-roster-role { color: #d8c8b2; }
+:root[data-theme='dark'] .office .nb-stars { color: #f2b84b !important; }
+/* nothing on a tag runs past its edges: the cost and stock as label-over-number, the 缺 tab inside the corner */
+.menu .strip-stock {
+  max-width: calc(100% - 4px);
+  gap: 3px;
+}
+.menu .strip-stock small,
+.menu .strip-stock b {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  font-size: 0.82em;
+  line-height: 1.05;
+}
+.menu .strip-stock em {
+  font-style: normal;
+  font-size: 1.15em;
+  font-variant-numeric: tabular-nums;
+}
+.menu .out-tag {
+  top: 3px;
+  right: 3px;
+  transform: none;
+  font-size: 10px;
+}
+/* (on the test board the cost and stock stand at the foot of the tag in its flow, so the name makes room for them) */
+.menu .strip.is-research .strip-stock {
+  position: static;
+  transform: none;
+  margin-top: auto !important;
+  flex: none;
+}
+.menu .strip.is-research .strip-en {
+  margin-bottom: 0;
+}
+/* applicants: sex and age by the name, their own words under the note; starting over at the foot */
+.ofc-tag-who {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgb(90 122 154 / 0.14);
+  color: #3d5f80;
+  font-size: 11px;
+  font-weight: 500;
+  vertical-align: 1px;
+}
+.ofc-tag-who.is-f {
+  background: rgb(196 68 47 / 0.12);
+  color: #a8352a;
+}
+.ofc-intro {
+  display: block;
+  margin-top: 2px;
+  color: #8a7360;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.ofc-foot {
+  margin: 14px 14px 12px;
+  text-align: right;
+}
+.ofc-restart {
+  border: 0;
+  background: none;
+  color: #9a8470;
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+/* a tried dish written out as a recipe: numbered steps in a soft card, and a tip when the timing was off */
+.nb-recipe {
+  margin: 6px 0 4px;
+  padding: 8px 10px 8px 30px;
+  border-radius: 10px;
+  background: rgb(232 176 74 / 0.1);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.nb-recipe li::marker {
+  color: #c4442f;
+  font-weight: 700;
+}
+.nb-tip {
+  margin: 2px 0 6px;
+  color: #a8352a;
+  font-size: 12px;
+}
+/* the office and the boards: half see-through frosted glass over the scene */
+.office {
+  background: rgb(251 246 234 / 0.85) !important;
+  -webkit-backdrop-filter: blur(3px) saturate(1.2);
+  backdrop-filter: blur(3px) saturate(1.2);
+}
+.ledger {
+  background: rgb(251 243 228 / 0.85);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+.office > header {
+  background: linear-gradient(rgb(74 52 38 / 0.82), rgb(54 37 26 / 0.82));
+}
+.ofc-person,
+.ofc-person.is-hired {
+  background: rgb(255 255 255 / 0.55);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .office { background: rgb(30 26 22 / 0.85) !important; }
+  :root:not([data-theme='light']) .ledger { background: rgb(30 36 50 / 0.85); }
+}
+:root[data-theme='dark'] .office { background: rgb(30 26 22 / 0.85) !important; }
+:root[data-theme='dark'] .ledger { background: rgb(30 36 50 / 0.85); }
+/* the 經營 button: a little shop front for its icon, frosted like the office it opens */
+.office-toggle {
+  background: rgb(251 246 234 / 0.55);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  border-color: rgb(59 42 32 / 0.35);
+  box-shadow: 0 4px 12px -6px rgb(59 42 32 / 0.5);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.office-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px -8px rgb(59 42 32 / 0.6);
+}
+.office-icon {
+  width: 24px;
+  height: 24px;
+  flex: none;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .office-toggle { background: rgb(30 36 50 / 0.55); border-color: rgb(246 236 216 / 0.3); }
+}
+:root[data-theme='dark'] .office-toggle { background: rgb(30 36 50 / 0.55); border-color: rgb(246 236 216 / 0.3); }
+
+.nb-embedded .nb-recipe li {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  display: list-item;
+}
+/* the order slip in the tally's own flow, two lines' room, above the totals */
+.tally .order-slip {
+  position: static;
+  flex: 1 0 100%;
+  min-height: calc(2 * 1.3 * 14px + 2px);
+  align-content: end;
+}
+/* 自動營運: under 經營, a lamp that glows while the shop runs itself */
+.auto-toggle {
+  position: absolute;
+  top: 294px;
+  left: 24px;
+  z-index: 4;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px 0 10px;
+  border: 1.5px solid var(--text-soft);
+  border-radius: 10px;
+  background: var(--page);
+  color: var(--text);
+  font: 600 13px/1 var(--brush);
+  cursor: pointer;
+}
+
+.auto-lamp {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #8a8580;
+}
+
+.auto-toggle.is-on {
+  border-color: #3d8a3a;
+  background: #3d8a3a;
+  color: #fff;
+  box-shadow: 0 0 12px rgb(61 138 58 / 0.45);
+}
+
+.auto-toggle.is-on .auto-lamp {
+  background: #d8ffb0;
+  box-shadow: 0 0 6px 2px rgb(200 255 150 / 0.8);
+  animation: auto-blink 1.6s ease-in-out infinite;
+}
+
+@keyframes auto-blink {
+  50% { opacity: 0.4; }
+}
+
+/* the shop's diary at the foot of the menu: which day, and how many customers */
+.tally .tally-day {
+  flex-basis: 100%;
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--text-soft);
+  letter-spacing: 0.04em;
+}
+
+.tally .tally-day strong {
+  color: var(--text);
+  font-size: 15px;
+  margin: 0 2px;
+}
+
+/* the open menu: tags the size of the foods' board's, a long dish name (and its English) going on in a second
+   column so its letters needn't come out tiny */
+.menu.menu-two-col .strip-name {
+  white-space: normal;
+  line-height: 1.02;
+  max-height: calc(var(--two-col-rows, 6) * 1.12em + 0.05em);
+}
+
+.menu.menu-two-col .strip-en {
+  white-space: normal;
+  line-height: 1.05;
+  max-height: 12em;
+}
+

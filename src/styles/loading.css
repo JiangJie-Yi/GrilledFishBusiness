@@ -1,0 +1,41 @@
+/* ---- the loading veil over the 3D shop (ui/LoadingScreen): the shop's own look, a dark board with its name in the sign's lettering, a strip of
+   paper filling as the models come in, paper buttons ---- */
+.loading-screen { position: fixed; inset: 0; z-index: 20000; display: grid; place-content: center; justify-items: center; gap: 18px;
+  background: radial-gradient(ellipse at 50% 40%, #3a2618 0%, #1c120b 70%); color: var(--washi, #fbf3e4); font-size: 13px; }
+.loading-board { display: grid; justify-items: center; gap: 6px; padding: 26px 46px 22px; border-radius: 14px;
+  background: var(--plate-grain) center / 100% 100%, linear-gradient(#5a3a22, #3e2716); border: 2px solid #2a1a0f;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 14px 32px -12px rgb(0 0 0 / 0.7); }
+.loading-board h1 { margin: 0; font: 400 46px/1 'Zen Antique', var(--brush, serif); letter-spacing: 0.12em; color: #f6e7c8;
+  text-shadow: 0 2px 0 #1c110a, 0 0 18px rgb(242 196 109 / 0.25); }
+.loading-board small { font: 400 13px 'Zen Antique', var(--brush, serif); letter-spacing: 0.4em; color: #d9c29a; margin-bottom: 10px; }
+.loading-board p { margin: 4px 0 0; color: #e8d6b4; letter-spacing: 0.08em; }
+.loading-bar { width: 220px; height: 8px; border-radius: 4px; background: rgb(0 0 0 / 0.35); box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.5); overflow: hidden; }
+.loading-bar i {
+  /* (it cooks as the fish does: from a raw fish's cool silver to grilled gold as the shop comes in, mixed in Oklab so the way between stays
+     even and never goes muddy; a sheen on top) */
+  --done: 0;
+  --cook: color-mix(in oklab, oklch(0.84 0.03 230) calc((1 - var(--done)) * 100%), oklch(0.78 0.14 70));
+  display: block; height: 100%; border-radius: 4px; transition: width 0.3s ease;
+  background: linear-gradient(in oklab, color-mix(in oklab, var(--cook), white 30%), var(--cook));
+  position: relative; overflow: hidden;
+}
+/* (a glint running along it (item 592): while the shop's models are read and made ready the page can't change the number for seconds at a
+   time (it stood at 50% for 5.7 s, nothing able to run), but a moving transform is the compositor's, and goes on: it's not hung) */
+.loading-bar i::after {
+  content: ''; position: absolute; inset: 0; will-change: transform;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.45), transparent);
+  transform: translateX(-100%); animation: loading-glint 1.8s ease-in-out infinite;
+}
+@keyframes loading-glint { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .loading-bar i::after { animation: none; opacity: 0; } }
+.loading-stuck { display: grid; justify-items: center; gap: 10px; max-width: 420px; text-align: center; color: #d9c29a; }
+.loading-stuck p { margin: 0; }
+.loading-stuck button { padding: 7px 22px; border: 1px solid #2a1a0f; border-radius: 8px; background: var(--washi, #fbf3e4); color: var(--ink, #3b2a20);
+  font: inherit; font-weight: 700; letter-spacing: 0.1em; cursor: pointer; box-shadow: 0 3px 0 #2a1a0f; }
+.loading-stuck button:active { transform: translateY(2px); box-shadow: 0 1px 0 #2a1a0f; }
+
+/* ---- English: what stands upright in Chinese and Japanese lies across, smaller where it has to fit a small space ---- */
+html[lang='en'] :is(.heat-label, .brand-sub, .menu-title, .strip-price, .strip-en) { writing-mode: horizontal-tb; letter-spacing: 0.02em; }
+html[lang='en'] .brand-sub { font-size: 0.62em; white-space: nowrap; }
+html[lang='en'] .heat-label { font-size: 13px; }
+

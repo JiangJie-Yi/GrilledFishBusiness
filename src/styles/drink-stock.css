@@ -1,0 +1,73 @@
+/* ---- the drinks' stock, opened from the back stock by the fridges (shops/grill/DrinkStockPanel): a drinks fridge of its own, its two
+   fridges' drinks as the pantry's bins, a case to order and the fridge to fill for each, the whole lot filled at its foot ---- */
+.drink-stock {
+  position: fixed;
+  z-index: 30;
+  /* (it comes in as an iPhone's sheet does: up a little and in, quick then easing, on the compositor (item 179)) */
+  animation: sheet-in 0.32s cubic-bezier(0.32, 0.72, 0, 1) backwards;
+  top: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(620px, 94vw);
+  max-height: min(76vh, 720px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  border: 5px solid #3c4a58;
+  background: linear-gradient(180deg, #e8f1f7 0%, #d4e3ee 100%);
+  box-shadow: 0 18px 44px rgb(0 0 0 / 0.45), inset 0 0 0 2px #cdd5db;
+  overflow: hidden;
+  font: 14px/1.35 var(--brush);
+  color: #1d3550;
+}
+.drink-stock-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px 9px 16px;
+  background: linear-gradient(180deg, #4a5b6e, #3a4858);
+  color: #eaf3f9;
+}
+.drink-stock-head > b { font-size: 16px; letter-spacing: 0.3em; }
+.drink-stock-cash { margin-left: auto; font-weight: 700; }
+.drink-stock-cash .money { color: #a6ecb4 !important; }
+.drink-stock .chiller-bins { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); }
+.chiller-zone.is-drinks-alcohol .chiller-zone-head { background: linear-gradient(180deg, #8a3a30, #6e2c24); }
+.chiller-zone.is-chilled .chiller-zone-head { background: linear-gradient(180deg, #4a7a6a, #3d6a5a); }
+.drink-bin { cursor: default; }
+.drink-bin .chiller-bin-head { display: flex; align-items: center; gap: 6px; }
+.drink-icon { width: 22px; height: 30px; flex: none; }
+.drink-bin-sub { font-size: 11px; color: var(--ink-soft); }
+.drink-bin-buy { grid-template-columns: 1.4fr 1fr; }
+.drink-stock-foot {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, #cdd5db, #b9c5cf);
+  border-top: 2px solid #9fb7c8;
+}
+.drink-stock-foot button {
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: #1d6b34;
+  color: #fff;
+  font: 700 13px/1 var(--brush);
+  cursor: pointer;
+}
+.drink-stock-foot button + button { background: #c4442f; }
+.drink-stock-foot button:hover:not(:disabled) { filter: brightness(1.12); }
+.drink-stock-foot button:disabled { opacity: 0.45; cursor: default; }
+.drink-stock-foot .money { color: #d8ffe0 !important; }
+
+/* (a docked panel's handle: a slim tab with rounded outer corners on the panel's left edge, an arrow pointing the way a click sends it) */
+.dock-handle {
+  width: 18px; height: 64px; padding: 0; display: grid; place-items: center; cursor: pointer;
+  border: 1px solid #1c1c1c; border-right: 0; border-radius: 9px 0 0 9px; box-shadow: -4px 4px 12px rgb(0 0 0 / 0.3);
+}
+.dock-handle svg { width: 8px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.dock-handle:focus-visible { outline: 2px solid #e8a33d; outline-offset: 2px; }
+/* (the stock's handle only beside the docked panel: on a narrow screen the panel's a window in the middle) */
+.stock-handle { display: none; }
+

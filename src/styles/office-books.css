@@ -1,0 +1,121 @@
+/* the books' day by day (each day's closing sheet, App's dayLog; the owner's): a small table under the ledger, the latest first, the
+   profit green or red, scrolling past a fortnight; every cell on one line */
+.ledger-days {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgb(90 61 40 / 0.2);
+}
+.ledger-days h4 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.ledger-days-scroll {
+  max-height: 260px;
+  overflow-y: auto;
+}
+.ledger-days table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.ledger-days th,
+.ledger-days td {
+  padding: 3px 8px;
+  white-space: nowrap;
+  text-align: right;
+}
+.ledger-days th:first-child,
+.ledger-days td:first-child { text-align: left; }
+.ledger-days th {
+  position: sticky;
+  top: 0;
+  background: rgb(251 246 234 / 0.95);
+  color: #7a6450;
+  font-weight: 600;
+}
+.ledger-days tbody tr:nth-child(odd) { background: rgb(90 61 40 / 0.05); }
+.ledger-days td.is-gain { color: #2f8a4c; font-weight: 700; }
+.ledger-days td.is-loss { color: #c0392b; font-weight: 700; }
+:root[data-theme='dark'] .ledger-days th { background: rgb(40 30 22 / 0.95); color: #c9b597; }
+:root[data-theme='dark'] .ledger-days td.is-gain { color: #4fff85; }
+/* (someone's special skill, after their name in the office: its icon and name, in its quality's colour (the owner's): 特殊 green, 菁英
+   blue, 稀有 purple, 極品 a dark gold with a glint) */
+.ofc-trait {
+  --tier-a: #2f7d3f;
+  --tier-b: #1d5129;
+  --tier-ink: #e6ffe9;
+  --tier-glow: rgb(80 200 110 / 0.45);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 1px 7px 1px 5px;
+  border: 1px solid rgb(255 255 255 / 0.25);
+  border-radius: 8px;
+  background: linear-gradient(180deg, var(--tier-a), var(--tier-b));
+  box-shadow: 0 0 6px var(--tier-glow);
+  color: var(--tier-ink);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: help;
+}
+.ofc-trait { --icon-cut: var(--tier-b); }
+:is(.ofc-trait, .staff-badge).is-elite { --tier-a: #2f62b8; --tier-b: #1b3c7e; --tier-ink: #e6efff; --tier-glow: rgb(90 140 255 / 0.5); }
+:is(.ofc-trait, .staff-badge).is-rare { --tier-a: #7e3fb8; --tier-b: #4f2280; --tier-ink: #f3e6ff; --tier-glow: rgb(170 100 255 / 0.5); }
+:is(.ofc-trait, .staff-badge).is-legend { --tier-a: #8f6d22; --tier-b: #574013; --tier-ink: #ffe9a8; --tier-glow: rgb(230 180 60 / 0.6); }
+
+/* the rota in the office (game/shifts; the owner's): the shift on duty today; on each place, its person's shift (A teal, B amber, both
+   purple; dimmed with their face for one off today); in each one's row, A / B / both to pick */
+.ofc-today {
+  margin: 6px 0 0;
+  color: #7a6450;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.ofc-shift-tag {
+  position: absolute;
+  top: -3px;
+  right: -4px;
+  min-width: 16px;
+  padding: 0 3px;
+  border: 1.5px solid #fffaf0;
+  border-radius: 9px;
+  background: #3f9a4f;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 14px;
+  text-align: center;
+  white-space: nowrap;
+}
+.ofc-shift-tag.is-B { background: #e08a2a; }
+.ofc-shift-tag.is-both { background: #c9a227; color: #3b2a10; }
+.ofc-shift {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid rgb(59 42 32 / 0.18);
+  border-radius: 9px;
+  background: rgb(59 42 32 / 0.07);
+}
+.ofc-shift button {
+  padding: 3px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #7a6450;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ofc-shift button:not(:disabled):not([aria-pressed='true']):hover { background: rgb(255 255 255 / 0.6); }
+.ofc-shift button[aria-pressed='true'] { background: linear-gradient(#b0702e, #7a4a1f); color: #fff6e2; box-shadow: 0 1px 3px rgb(59 42 32 / 0.35); }
+.ofc-shift button:disabled { cursor: default; opacity: 0.6; }
+

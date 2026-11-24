@@ -1,0 +1,152 @@
+/* the game's own drawn icons (ui/GameIcons; the owner's: no emoji, no special characters): sat on the text's line; a rating's stars in gold */
+.game-icon {
+  display: inline-block;
+  flex: none;
+  vertical-align: -0.12em;
+}
+.game-stars {
+  display: inline-flex;
+  gap: 1px;
+  color: #e0a72e;
+  vertical-align: -0.1em;
+}
+
+/* the view's name as the camera's changed to it (ui/ViewToast): a dark glass capsule at the foot of the screen, there under two seconds */
+.view-toast {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(24, 20, 18, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 20px;
+  padding: 6px 18px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  color: #f7f4ed;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1000;
+  animation: view-toast-r 1.8s ease-in-out both;
+}
+/* (in from the side the view lies toward in the list (the owner's): on to a later one from the right, out to the left; back to an earlier
+   one the other way) */
+.view-toast.is-from-left { animation-name: view-toast-l; }
+.view-toast svg { color: #e6c8a0; }
+@keyframes view-toast-r {
+  0% { opacity: 0; translate: 28px 0; }
+  14%, 80% { opacity: 1; translate: 0 0; }
+  100% { opacity: 0; translate: -28px 0; }
+}
+@keyframes view-toast-l {
+  0% { opacity: 0; translate: -28px 0; }
+  14%, 80% { opacity: 1; translate: 0 0; }
+  100% { opacity: 0; translate: 28px 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .view-toast { animation-name: view-toast-still; }
+  @keyframes view-toast-still { 0%, 100% { opacity: 0; } 10%, 85% { opacity: 1; } }
+}
+
+/* 人事's 替換 (ui/Office): who to replace, chosen from those in the job, the two compared side by side before it's done; over the office,
+   its wood bar and paper as the office's own */
+.ofc-swap-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  background: rgb(20 14 10 / 0.35);
+}
+.ofc-swap {
+  width: min(400px, calc(100vw - 32px));
+  overflow: hidden;
+  border-radius: 12px;
+  background: rgb(250 244 232 / 0.97);
+  box-shadow: 0 12px 36px rgb(0 0 0 / 0.4);
+  color: #3b2a20;
+}
+.ofc-swap header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  padding: 0 8px 0 14px;
+  background: var(--wood-bar);
+  box-shadow: var(--wood-bar-lip);
+  color: #f3e3c4;
+  white-space: nowrap;
+}
+.ofc-swap-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 12px 14px 4px;
+  list-style: none;
+}
+.ofc-swap-list button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  border: 1px solid rgb(59 42 32 / 0.18);
+  border-radius: 22px;
+  background: rgb(255 255 255 / 0.6);
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ofc-swap-list button[aria-pressed='true'] { border-color: #8a5a2b; background: #f1dfbf; box-shadow: inset 0 0 0 1px #8a5a2b; }
+.ofc-swap-list .avatar { width: 30px; height: 30px; border-radius: 50%; }
+.ofc-swap-list span { display: flex; flex-direction: column; font-size: 13px; line-height: 1.2; }
+.ofc-swap-list small { color: #8a7562; font-size: 10px; }
+.ofc-swap-list em { color: #8a5a2b; font-size: 11px; font-style: normal; }
+.ofc-swap-cmp {
+  width: calc(100% - 28px);
+  margin: 8px 14px;
+  border-collapse: collapse;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.ofc-swap-cmp th, .ofc-swap-cmp td { padding: 5px 6px; border-bottom: 1px solid rgb(59 42 32 / 0.1); text-align: right; }
+.ofc-swap-cmp th:first-child { text-align: left; color: #6b5442; }
+.ofc-swap-cmp thead th { color: #6b5442; font-size: 11px; font-weight: 700; }
+.ofc-swap-cmp .is-up { color: #2f8a4a; font-weight: 700; }
+.ofc-swap-cmp .is-down { color: #c4442f; font-weight: 700; }
+.ofc-swap-cmp .game-icon { margin-right: 2px; vertical-align: -1px; }
+.ofc-swap footer { display: flex; justify-content: flex-end; gap: 8px; padding: 6px 14px 14px; }
+.ofc-swap footer button { padding: 6px 14px; border: 1px solid transparent; border-radius: 8px; font: inherit; font-size: 13px; white-space: nowrap; cursor: pointer; }
+.ofc-swap footer .ofc-swap-cancel { border-color: rgb(59 42 32 / 0.25); background: transparent; color: #6b5442; }
+.ofc-swap footer .ofc-swap-go { border-color: #6b4423; background: #8a5a2b; color: #fff; }
+.ofc-swap footer .ofc-swap-go:not(:disabled):hover { background: #6b4423; }
+.ofc-swap footer .ofc-swap-go:disabled { opacity: 0.45; cursor: default; }
+/* (and the word as it's done: a paper slip at the foot of the screen, gone after a moment) */
+.ofc-swap-done {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  z-index: 70;
+  transform: translateX(-50%);
+  padding: 8px 18px;
+  border-radius: 20px;
+  background: rgb(24 20 18 / 0.85);
+  color: #f7f4ed;
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: ofc-done 2.6s ease-in-out both;
+}
+@keyframes ofc-done {
+  0% { opacity: 0; translate: 0 6px; }
+  12%, 82% { opacity: 1; translate: 0 0; }
+  100% { opacity: 0; translate: 0 4px; }
+}
+

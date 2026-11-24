@@ -1,0 +1,72 @@
+/* ---- the panels that open over the room, docked at the right as the pantry is (one at a time: App shuts the others), each with its name
+   standing upright beside it as the pantry's 食材 does ---- */
+.dock-title { display: none; }
+@media (min-width: 600px) {
+  .office,
+  .drink-stock {
+    left: auto;
+    right: 89px;
+    top: 110px;
+    transform: none;
+    max-height: calc(100vh - 200px);
+  }
+  .drink-stock { width: 460px; }
+  .drink-stock.stock-panel.is-tucked { transform: translateX(calc(100% + 89px)); pointer-events: none; }
+  /* (its handle on its left edge (89 + its 526 with its border, from the right), its middle at the panel's (StockPanel sets top); tucked, at the screen's edge
+     beside the upright 庫存, which then takes a click too) */
+  .stock-handle {
+    display: grid; position: fixed; z-index: 31; right: 615px; transform: translateY(-50%);
+    background: #5a3d28; color: #f6ecd8; border-color: #3b2a20;
+    transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .stock-handle:hover { background: #6e4b31; }
+  .stock-handle.is-tucked { right: 64px; }
+  .dock-title.is-tucked { pointer-events: auto; cursor: pointer; }
+  .dock-title {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    position: fixed;
+    z-index: 30;
+    top: 72px;
+    right: 14px;
+    margin: 0;
+    writing-mode: vertical-rl;
+    font: 700 44px/1 var(--brush);
+    letter-spacing: 0.3em;
+    color: #eaf3f9;
+    text-shadow: 0 2px 6px rgb(0 0 0 / 0.45);
+    pointer-events: none;
+  }
+  .dock-title small { font: 600 11px/1 var(--brush); letter-spacing: 0.25em; opacity: 0.8; }
+}
+
+/* ---- on a wide screen the cash is the way into the office (the books first): no 經營 button beside it; the cash a pane of frosted glass
+   (phones keep their 經營 button: the cash isn't shown on its own there) ---- */
+@media (min-width: 600px) {
+  .app .office-toggle { display: none; }
+  .cash-pair { right: 228px; }
+  .fridge-toggle { right: 228px; }
+  /* (left of the pantry's little fridge when that's there, at the grill) */
+  .app.has-fridge .cash-pair { right: 280px; }
+  /* (smoked glass: readable over the bright room by day as over the dark by night; no rim round it (the owner's: not a white frame)) */
+  .money-chip,
+  .till-chip {
+    background: linear-gradient(180deg, rgb(46 38 30 / 0.46), rgb(22 18 14 / 0.34));
+    -webkit-backdrop-filter: blur(12px) saturate(1.4);
+    backdrop-filter: blur(12px) saturate(1.4);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.28), 0 6px 18px -8px rgb(0 0 0 / 0.5);
+  }
+  /* (the sum in a bright green, the owner's; its NT$ smaller than the figures) */
+  /* (important: money's pale green everywhere else is, and it won over this, the owner saw the chip's sum the dull green still) */
+  .money-chip .money { color: #4fff85 !important; text-shadow: 0 1px 2px rgb(0 0 0 / 0.55); }
+  .money-chip .money-cur { font-size: 0.62em; margin-right: 0.12em; letter-spacing: 0.02em; opacity: 0.85; }
+  /* (pointed at, the owner's: the glass a little lighter and the sum glowing, the chip lifted; pressed, a touch darker) */
+  .money-chip:hover {
+    background: linear-gradient(180deg, rgb(66 54 40 / 0.62), rgb(32 26 20 / 0.5));
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.32), 0 8px 22px -8px rgb(0 0 0 / 0.6), 0 0 18px -2px rgb(79 255 133 / 0.3);
+    filter: brightness(1.1);
+  }
+}
+

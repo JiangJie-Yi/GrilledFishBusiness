@@ -1,0 +1,485 @@
+/* ---------- responsive ----------
+   > 1280      desktop: stage left, two-row wall menu right
+   ≤ 1280      small laptops / tablets landscape: slimmer strips
+   ≤ 900       tablets portrait and phones: stage on top, one sideways-scrolling row of strips below
+   ≤ 480       small phones: tighter type and controls
+   short landscape (phones on their side): stage left, one sideways row of strips right            */
+
+@media (max-width: 1280px) {
+  .menu {
+    padding: 32px 24px 24px 4px;
+    column-gap: 14px;
+  }
+
+  .menu-title {
+    font-size: 38px;
+  }
+
+  .strips {
+    grid-template-columns: repeat(10, 40px);
+    grid-auto-rows: 248px;
+    gap: 12px 8px;
+  }
+
+  .strip-name {
+    font-size: 20px;
+  }
+
+  .strip .icon {
+    width: 21px;
+    height: 21px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .strip,
+  .stamp {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* ---------- menu tags sized in em ----------
+   Everything on a tag is measured from one font size, so a tag can be scaled as a whole: --tag-font sets the
+   size per screen size, and --fit (set by Menu.tsx when a tag's contents would run long) shrinks just that tag
+   so nothing ever spills out of it. These rules come last so they win over the per-breakpoint px sizes above. */
+.menu {
+  --tag-font: 17px;
+}
+
+.menu .strips {
+  grid-template-columns: repeat(10, calc(var(--tag-font) * 2.7));
+  grid-auto-rows: calc(var(--tag-font) * 15.5);
+}
+
+.menu .strip {
+  font-size: calc(var(--tag-font) * var(--fit, 1));
+  gap: 0.35em;
+  padding: 0.7em 0;
+  overflow: hidden;
+}
+
+.menu .strip .icon {
+  width: 1.4em;
+  height: 1.4em;
+}
+
+/* the dish's picture: the food itself, coloured, as wide as the strip allows */
+.menu .strip .strip-art {
+  width: 2.7em;
+  height: 2em;
+  display: block;
+  margin: -0.1em -0.25em 0;
+}
+.strip .strip-art svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+  filter: drop-shadow(0 1px 0 rgb(255 255 255 / 0.4)) drop-shadow(0 1px 1.5px rgb(60 40 20 / 0.25));
+}
+
+.menu .strip-name {
+  font-size: 1.3em;
+}
+
+.menu .strip-en {
+  font-size: 0.56em;
+}
+
+.menu .strip-price {
+  font-size: 0.82em;
+}
+
+.menu .stamp {
+  width: 1.9em;
+  height: 1.9em;
+  font-size: 1.05em;
+}
+
+.menu .stamp.stamp-base {
+  width: 1.85em;
+  height: 1.85em;
+  font-size: 0.76em;
+}
+
+/* the ×n count sits on the stamp's upper-right edge, inside the tag so the tag's edge never clips it */
+.menu .stamp-count {
+  top: -0.5em;
+  right: -0.5em;
+  bottom: auto;
+  font-size: 0.62em;
+  line-height: 1.25;
+  padding: 0 0.25em;
+  z-index: 1;
+}
+
+/* side by side (desktop and tablets): the stage always keeps at least half the width; the menu shrinks its tags
+   to fit the other half (10 tag columns of 2.7em, plus gaps, the title and padding) */
+@media (min-width: 600px) and (min-height: 500px) {
+  /* side by side: the food gets 60% of the width, the menu 40% (tags shrink to fit it). Folded away by its tab, the menu only slides off and
+     the stage keeps its 60%, so the picture stays just where it was (the owner's: the view is framed on the stage, and the stage widening
+     slid the whole room 20% across); edit mode and a shop not yet opened give the stage the whole width */
+  .app {
+    grid-template-columns: 60% 40%;
+    transition: grid-template-columns 360ms ease;
+  }
+
+  .app.menu-folded:is(.is-editing, .is-unopened) {
+    grid-template-columns: 100% 0%;
+  }
+
+  /* the menu fills its 40% column top to bottom: the title, then the tags in two rows that scroll sideways
+     (drag them, or use the ‹ › buttons), and the bill pinned along the bottom. Only the tags move. */
+  .menu {
+    /* the tags take what the title leaves (the title never gets pushed off the edge) */
+    grid-template-columns: minmax(0, 1fr) auto;
+    max-width: 40vw;
+    min-width: 0;
+    height: 100vh;
+    max-height: none;
+    overflow: hidden;
+    align-content: stretch;
+    grid-template-rows: minmax(0, 1fr) auto;
+    -webkit-mask-image: none;
+    mask-image: none;
+    /* two rows of 15.5em tags have to fit the height left over by the title, bill and padding */
+    --tag-font: clamp(10px, calc((100vh - 290px) / 32), 16px);
+    transition: opacity 260ms ease, transform 360ms ease;
+  }
+
+  .menu .strips-frame {
+    align-self: center;
+    overflow: hidden;
+  }
+
+  .menu .strips {
+    grid-template-columns: none;
+    /* (Menu picks how many rows, and the tag size, to fill the space) */
+    grid-template-rows: repeat(var(--tag-rows, 2), calc(var(--tag-font) * 15.5));
+    justify-content: safe center;
+    grid-auto-rows: unset;
+    grid-auto-flow: column;
+    grid-auto-columns: calc(var(--tag-font) * 2.7);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    padding: 6px 4px 10px;
+    cursor: grab;
+    /* the far end fades off instead of being cut */
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 36px, #000 calc(100% - 12px), transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 36px, #000 calc(100% - 12px), transparent);
+  }
+
+  .menu .strips::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* the bases (sets, soups, bowls) all along the top row; the foods fill in after them. Not dense: a section's plaque (.strip-head, item
+     470) takes a column of its own, and a hole left before it at the foot of the last section's column stays a hole, not filled by the
+     next section's first tag */
+  .menu .strips {
+    grid-auto-flow: column;
+  }
+
+  .menu .strip-base {
+    grid-row: 1;
+  }
+
+  .menu .strips.is-dragging {
+    cursor: grabbing;
+    scroll-behavior: auto;
+  }
+
+  .menu .tally {
+    grid-column: 1 / -1;
+  }
+
+  .app.menu-folded .menu,
+  .app.menu-folded .menu-backing,
+  .app.is-docked .menu,
+  .app.is-docked .menu-backing {
+    opacity: 0;
+    transform: translateX(30%);
+    pointer-events: none;
+  }
+
+  .menu-backing {
+    transition: opacity 260ms ease;
+  }
+
+  /* (one thing at the right at a time (the owner's): while a panel docked there is open (the office, the stock), the menu steps out of its
+     way, tab and all, and comes back as it was when it shuts; they lay over each other, their upright titles one on the other) */
+  .app.is-docked .menu-fold {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* the tab on the menu's edge that folds it away and brings it back: frosted glass as the money chip is, no rim (the owner's: it was a dark
+     plate of lacquer with gold rules, then glass with a pale line round it); its chevron grey-white, gold when pointed at */
+  .menu-fold {
+    position: fixed;
+    z-index: 11;
+    top: 50%;
+    right: calc(40% - 6px);
+    width: 24px;
+    height: 64px;
+    margin-top: -32px;
+    padding: 0;
+    border: none;
+    border-radius: 12px 0 0 12px;
+    background: linear-gradient(180deg, rgb(46 38 30 / 0.34), rgb(22 18 14 / 0.22));
+    -webkit-backdrop-filter: blur(12px) saturate(1.4);
+    backdrop-filter: blur(12px) saturate(1.4);
+    box-shadow: 0 6px 18px -8px rgb(0 0 0 / 0.5);
+    color: transparent;
+    font-size: 0;
+    line-height: 0;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    opacity: 1;
+    transition: right 360ms ease, filter 160ms ease, transform 160ms ease, opacity 260ms ease;
+  }
+
+  /* (the chevron: two sides of a square, turned) */
+  .menu-fold span {
+    display: block;
+    width: 7px;
+    height: 7px;
+    margin-left: -3px;
+    border-top: 2px solid #e6e2da;
+    border-right: 2px solid #e6e2da;
+    border-radius: 1px;
+    transform: rotate(45deg);
+    filter: drop-shadow(0 0 2px rgb(0 0 0 / 0.35));
+    transition: border-color 160ms ease, filter 160ms ease;
+  }
+
+  .menu-fold:hover span,
+  .menu-fold:focus-visible span {
+    border-color: #e2bd6e;
+    filter: drop-shadow(0 0 2px rgb(226 189 110 / 0.6));
+  }
+
+  .app.menu-folded .menu-fold span {
+    transform: rotate(-135deg);
+    margin-left: 3px;
+  }
+
+  .menu-fold:hover {
+    background: linear-gradient(180deg, rgb(56 46 36 / 0.46), rgb(28 22 18 / 0.32));
+  }
+
+  .menu-fold:active {
+    transform: translateX(1px);
+  }
+
+  .app.menu-folded .menu-fold {
+    right: 0;
+  }
+}
+
+@media (max-width: 1280px) {
+  .menu {
+    --tag-font: 15.5px;
+  }
+}
+
+/* the game's speed, ▶▶ / ×2, in the round buttons top right (經營 and 自動營運 to its left on a wide screen) */
+.speed-toggle {
+  position: fixed;
+  z-index: 10;
+  top: 20px;
+  right: 124px;
+  width: 44px;
+  height: 44px;
+  border: 1.5px solid var(--text-soft);
+  border-radius: 50%;
+  background: var(--page);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  cursor: pointer;
+}
+.speed-toggle:hover {
+  border-color: var(--text);
+}
+.speed-toggle.is-on {
+  background: #e8862a;
+  border-color: #e8862a;
+  color: #fff;
+}
+.speed-toggle:focus-visible {
+  outline: 3px solid var(--moss);
+  outline-offset: 3px;
+}
+
+/* language toggle, at the right end of the row of round buttons (the day/night button was beyond it: the game's clock turns day and night
+   now) */
+.lang-toggle {
+  position: fixed;
+  z-index: 10;
+  top: 20px;
+  right: 20px;
+  width: 44px;
+  height: 44px;
+  border: 1.5px solid var(--text-soft);
+  border-radius: 50%;
+  background: var(--page);
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lang-toggle:hover {
+  border-color: var(--text);
+}
+
+.lang-toggle:focus-visible {
+  outline: 3px solid var(--moss);
+  outline-offset: 3px;
+}
+
+/* frosted rice-paper panel behind the menu: its own layer in the menu's grid cell, so it stays put while the
+   menu scrolls, with a broad, gentle feather on every side */
+.stage { grid-area: 1 / 1; }
+.menu, .menu-backing { grid-area: 1 / 2; }
+
+.menu-backing {
+  position: relative;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.menu-backing::before {
+  content: '';
+  position: absolute;
+  /* reaching past the menu on every side, and faded out in a wide soft oval rather than with straight fades,
+     so there's no edge or corner anywhere to read as a cut */
+  inset: -12% -6% -12% -160px;
+  background: color-mix(in srgb, var(--page) 50%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  -webkit-mask-image: radial-gradient(farthest-side at 58% 50%, #000 42%, rgb(0 0 0 / 0.55) 68%, transparent 100%);
+  mask-image: radial-gradient(farthest-side at 58% 50%, #000 42%, rgb(0 0 0 / 0.55) 68%, transparent 100%);
+}
+
+.ledger {
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgb(251 243 228 / 0.86);
+  box-shadow: 0 6px 16px -10px rgb(59 42 32 / 0.6);
+  color: var(--ink);
+  font: 13px/1.4 var(--brush);
+}
+
+.guest-stars {
+  color: #e8742a;
+  letter-spacing: 0.04em;
+}
+
+.guest-stars small {
+  margin-left: 4px;
+  color: var(--text-soft);
+}
+
+.guest-stars em {
+  margin-left: 6px;
+  font-style: normal;
+  color: #3d6a9a;
+  font-size: 12px;
+}
+
+.ledger p {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+}
+
+.ledger b {
+  font-variant-numeric: tabular-nums;
+}
+
+.ledger-profit {
+  margin-top: 4px !important;
+  padding-top: 4px;
+  border-top: 1px dashed rgb(59 42 32 / 0.35);
+  color: #2f7a2d;
+  font-size: 15px;
+}
+
+.ledger-profit.is-loss {
+  color: #c4442f;
+}
+
+.ledger-margin {
+  color: var(--text-soft);
+}
+
+@keyframes gc-dots {
+  50% { transform: translateY(-2px); }
+}
+
+.mood-face {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  align-self: center;
+}
+
+/* an error caught on some device: what went wrong, to screenshot and send, and a reload */
+.crash {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  padding: 24px;
+  background: var(--page);
+  color: var(--text);
+  font: 15px/1.5 system-ui, sans-serif;
+  overflow: auto;
+}
+
+.crash.is-inline {
+  position: absolute;
+  z-index: 8;
+  inset: 20% 4% auto 4%;
+  border-radius: 12px;
+  background: rgb(251 243 228 / 0.95);
+  color: #3b2a20;
+  box-shadow: 0 8px 24px -10px rgb(0 0 0 / 0.5);
+}
+
+.crash b {
+  font-size: 18px;
+}
+
+.crash code {
+  display: block;
+  padding: 8px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.08);
+  font: 12px/1.4 ui-monospace, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.crash small {
+  opacity: 0.6;
+  word-break: break-all;
+}
+
+.crash button {
+  justify-self: start;
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #e8742a;
+  color: #fff;
+  font: inherit;
+}

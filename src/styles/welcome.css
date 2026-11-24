@@ -1,0 +1,449 @@
+/* ---- first visit: the owner's name, then 創業; the sign stays dark until then ---- */
+/* the first day's guide (item 175): a card at the foot of the screen, one short line at a time; what's to be clicked next glows */
+.guide-card {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 18px;
+  z-index: 55;
+  width: min(470px, calc(100% - 32px));
+  margin-inline: auto;
+  padding: 10px 16px 12px;
+  border-radius: 14px;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 27px, rgb(90 120 170 / 0.1) 27px 28px),
+    #fbf3e4;
+  color: #3b2a20;
+  box-shadow: 0 16px 40px -14px rgb(0 0 0 / 0.65);
+  font: 15px/1.45 var(--brush);
+  text-align: center;
+  animation: stamp 320ms ease-out;
+}
+
+.guide-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.guide-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgb(59 42 32 / 0.18);
+}
+
+.guide-dots .is-done {
+  background: rgb(143 42 32 / 0.55);
+}
+
+.guide-dots .is-now {
+  background: #c0392b;
+  box-shadow: 0 0 0 3px rgb(192 57 43 / 0.22);
+}
+
+/* (a day's tip in the guide's card (ui/DayTip, item 175): what it is, small and red, over its title, where the guide's dots are) */
+.guide-kicker {
+  margin-bottom: 2px;
+  color: #c0392b;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+}
+
+.guide-title {
+  font: 400 21px/1.3 var(--brush);
+  letter-spacing: 0.06em;
+  color: #8f2a20;
+}
+
+.guide-hint {
+  margin-top: 2px;
+  font-size: 14px;
+  color: #5a4232;
+}
+
+.guide-acts {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  margin-top: 9px;
+}
+
+.guide-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #8f2a20;
+  color: #fbf3e4;
+  font: 15px/1.2 var(--brush);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.guide-go:hover {
+  background: #a8352a;
+}
+
+.guide-skip {
+  padding: 4px 6px;
+  border: 0;
+  background: none;
+  color: rgb(59 42 32 / 0.55);
+  font: 12px/1.2 var(--brush);
+  white-space: nowrap;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* (what the guide wants clicked: a warm glow round it, breathing; the element's own place and layers left as they are) */
+.guide-glow {
+  animation: guide-glow 1.2s ease-in-out infinite;
+}
+
+@keyframes guide-glow {
+  0%, 100% { box-shadow: 0 0 0 2px rgb(255 196 92 / 0.95), 0 0 10px 2px rgb(255 170 60 / 0.55); }
+  50% { box-shadow: 0 0 0 4px rgb(255 196 92 / 1), 0 0 24px 7px rgb(255 170 60 / 0.85); }
+}
+
+.welcome {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(20 16 12 / 0.55);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+
+.welcome-card {
+  width: min(380px, 100%);
+  padding: 22px 22px 18px;
+  border-radius: 14px;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 27px, rgb(90 120 170 / 0.12) 27px 28px),
+    #fbf3e4;
+  color: #3b2a20;
+  box-shadow: 0 20px 50px -18px rgb(0 0 0 / 0.7);
+  font: 16px/1.5 var(--brush);
+  text-align: center;
+  animation: stamp 320ms ease-out;
+}
+
+.welcome-credits {
+  margin: 18px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-soft);
+  opacity: 0.8;
+  text-align: center;
+}
+
+.welcome-card h2 {
+  margin: 0 0 14px;
+  font: 400 30px/1.2 'Zen Antique', var(--brush);
+  letter-spacing: 0.12em;
+  color: #8f2a20;
+}
+
+.welcome-card label {
+  display: grid;
+  gap: 8px;
+}
+
+.welcome-card input {
+  padding: 10px 12px;
+  border: 1.5px solid rgb(59 42 32 / 0.35);
+  border-radius: 8px;
+  background: #fff;
+  color: inherit;
+  font: 18px/1.2 var(--brush);
+  text-align: center;
+}
+
+.welcome-card button {
+  margin-top: 14px;
+  padding: 9px 26px;
+  border: none;
+  border-radius: 999px;
+  background: #3b2a20;
+  color: #fbf3e4;
+  font: 600 16px/1 var(--brush);
+  cursor: pointer;
+}
+
+.welcome-card button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.welcome-found p {
+  margin: 0 0 4px;
+}
+
+.welcome-sub {
+  color: #7a6656;
+  font-size: 14px;
+}
+
+.welcome-card .welcome-go {
+  display: block;
+  margin: 18px auto 6px;
+  padding: 12px 40px;
+  background: #b4302a;
+  font: 400 24px/1 'Zen Antique', var(--brush);
+  letter-spacing: 0.3em;
+  box-shadow: 0 6px 16px -6px rgb(180 48 42 / 0.7);
+}
+
+.welcome-card .welcome-back {
+  margin-top: 4px;
+  padding: 4px 12px;
+  background: none;
+  color: #7a6656;
+  font-size: 13px;
+}
+
+/* unlit: grey and dull, no glow */
+.brand-dark .brand-plate {
+  filter: grayscale(0.85) brightness(0.55);
+}
+
+.brand-dark .brand-main,
+.brand-dark .brand-sub {
+  text-shadow: none;
+  animation: none;
+}
+
+/* founded: the sign flickers on and flares up, then settles */
+.brand-ignite .brand-plate {
+  animation: brand-ignite 1.8s ease-out;
+}
+
+@keyframes brand-ignite {
+  0% { filter: grayscale(0.85) brightness(0.55); }
+  12% { filter: brightness(1.4) drop-shadow(0 0 12px rgb(255 210 120 / 0.9)); }
+  20% { filter: grayscale(0.6) brightness(0.7); }
+  32% { filter: brightness(1.5) drop-shadow(0 0 18px rgb(255 200 100 / 1)); }
+  42% { filter: brightness(0.85); }
+  60% { filter: brightness(1.35) drop-shadow(0 0 22px rgb(255 190 90 / 0.9)); }
+  100% { filter: none; }
+}
+
+.ofc-owner {
+  font-weight: 700;
+}
+/* not open yet: everything of the shop greyed and dimmed, and not to be touched, except its sign (click to open)
+   and the dish switcher */
+.app.is-unopened .canvas-layer,
+.app.is-unopened .menu,
+.app.is-unopened .menu-backing,
+.app.is-unopened .stage > :not(.brand):not(.switcher):not(.unopened-hint):not(.notice) {
+  filter: grayscale(0.95) brightness(0.62);
+  pointer-events: none;
+  transition: filter 600ms ease;
+}
+
+/* the middle of an unopened shop is the button to open it: hovered, a spotlight swings in on it from above left */
+.unopened-hint {
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  z-index: 6;
+  transform: translate(-50%, -50%);
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  padding: 26px 46px;
+  border: 1.5px dashed rgb(244 236 216 / 0.55);
+  border-radius: 18px;
+  background: rgb(30 26 22 / 0.55);
+  color: #f4ecd8;
+  font: 600 16px/1.3 var(--brush);
+  white-space: nowrap;
+  cursor: pointer;
+  isolation: isolate;
+  transition: background-color 300ms ease, border-color 300ms ease;
+}
+
+.unopened-hint b {
+  font: 400 32px/1.1 'Zen Antique', var(--brush);
+  letter-spacing: 0.3em;
+}
+
+.unopened-hint small {
+  opacity: 0.75;
+}
+
+.unopened-hint:hover,
+.unopened-hint:focus-visible {
+  background: rgb(60 44 30 / 0.5);
+  border-color: rgb(255 226 160 / 0.9);
+}
+
+.unopened-hint:hover b {
+  text-shadow: 0 0 12px rgb(255 220 150 / 0.9);
+}
+
+.app.is-unopened .menu-fold {
+  pointer-events: none;
+  opacity: 0.3;
+}
+.brand[role='button'] {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* (the sign opens the shop's rating: pointed at, it glows warm round its own fish-cut edge and says so (ui/Brand's tag). It used to beckon
+   with a gold ring pulsing round its box forever, left over from when an unopened shop was opened from its sign: the owner saw its
+   rectangle flickering round the logo) */
+/* (quick to answer the pointer, the owner's: it came up over 180 ms) */
+.brand[role='button'] .brand-plate {
+  transition: background-color 300ms ease, color 300ms ease, filter 70ms ease-out;
+}
+/* (a soft, see-through glow: the owner found the first one too solid, a pale rim round the board; and the board itself a quarter brighter,
+   the owner's) */
+.brand[role='button']:hover .brand-plate,
+.brand[role='button']:focus-visible .brand-plate {
+  filter: drop-shadow(0 0.12em 0.14em rgb(40 20 10 / 0.55)) drop-shadow(0 0 0.32em rgb(255 214 140 / 0.38)) brightness(1.25);
+}
+/* (pressed: the whole of it a shade darker, at once (the owner's)) */
+.brand[role='button']:active .brand-plate {
+  filter: drop-shadow(0 0.12em 0.14em rgb(40 20 10 / 0.55)) brightness(0.84);
+  transition-duration: 0s;
+}
+.brand[role='button']:focus-visible {
+  outline: none;
+}
+
+.welcome-warn {
+  color: #c4442f;
+  font-weight: 700;
+}
+
+/* over each 3D customer's head: their face (once they've eaten), a … while they wait, and what they are */
+.g3-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+  /* (its bottom edge on the point over the head, not its middle (drei's center): a line wrapping to two or three grew down over the face,
+     and a longer bubble sat lower than a short one) */
+  translate: 0 -50%;
+}
+
+/* (item 348) a customer getting cross: the button to see to them under their label, its three ways beside it; pointed at and clicked (the label
+   itself lets the pointer through) */
+.g3-label .calm { display: inline-flex; gap: 4px; align-items: center; pointer-events: auto; }
+.g3-label .calm button {
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: 700 12px/1 var(--brush);
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
+  transition: transform 0.12s ease-out, filter 0.12s ease-out;
+}
+.g3-label .calm-btn { background: #e8823a; color: #fff; animation: calm-pop 0.36s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+.g3-label .calm-btn[aria-expanded='true'] { background: #c4612a; }
+.g3-label .calm-opt { background: #fffaf0; color: #3b2a20; animation: calm-pop 0.28s cubic-bezier(0.2, 1.5, 0.4, 1) both; }
+.g3-label .calm button:hover { transform: translateY(-1px); filter: brightness(1.08); }
+.g3-label .calm button:active { transform: none; filter: brightness(0.9); transition-duration: 0s; }
+@keyframes calm-pop { from { scale: 0.6; opacity: 0; } }
+
+/* (item 348) one of the staff clicked in the room: the owner's ways with them, by the pointer */
+.staff-pop {
+  position: fixed;
+  z-index: 40;
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px 9px;
+  border-radius: 10px;
+  border: 2px solid #5a3d28;
+  background: rgb(251 246 234 / 0.97);
+  box-shadow: 0 10px 26px rgb(0 0 0 / 0.35);
+  font: 14px/1.3 var(--brush);
+  color: #2a1a10;
+  animation: sheet-in 0.24s cubic-bezier(0.32, 0.72, 0, 1) backwards;
+}
+.staff-pop-name { font-size: 13px; color: #6a4a2a; white-space: nowrap; }
+.staff-pop-acts { display: flex; gap: 6px; }
+.staff-pop-acts > button {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: #1d6b34;
+  color: #fff;
+  font: 700 13px/1 var(--brush);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.staff-pop-acts > button + button { background: #c4612a; }
+.staff-pop-acts > button:hover:not(:disabled) { filter: brightness(1.1); }
+.staff-pop-acts > button:disabled { opacity: 0.45; cursor: default; }
+
+.g3-label .mood-face {
+  width: 22px;
+  height: 22px;
+}
+
+.g3-bubble {
+  /* (every speaker's alike, the owner's: a see-through warm charcoal glass with a faint lamp-lit edge, white words, the speaker's tag over
+     them; the owner's 2026-11-09: the near-black slabs over every head broke the room) */
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 12px;
+  border: 1px solid rgb(230 200 160 / 0.2);
+  border-radius: 8px;
+  background: rgb(24 20 18 / 0.78);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.35);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  color: #fbf7ef;
+  font: 700 12px/1.4 var(--brush);
+  transition: translate 0.2s ease-out;
+  animation: gc-dots 1.4s ease-in-out infinite;
+}
+
+/* (a couple's heart before the name: pink, the name after it yellow as ever, beating softly) */
+.g3-bubble .say-heart {
+  display: inline-block;
+  margin-right: 3px;
+  vertical-align: -0.08em;
+  line-height: 0;
+  color: #ff6fa5;
+  font-style: normal;
+  animation: say-heartbeat 1.1s ease-in-out infinite;
+}
+
+@keyframes say-heartbeat {
+  0%, 60%, 100% { transform: scale(1); }
+  15% { transform: scale(1.28); }
+  30% { transform: scale(0.95); }
+  45% { transform: scale(1.15); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .g3-bubble .say-heart { animation: none; }
+}
+
+.g3-bubble .say-who {
+  font-size: 10px;
+  font-weight: 600;
+  /* (the speaker's yellow, the same over every bubble: guests, the owner, the staff) */
+  color: #ffcc00;
+  white-space: nowrap;
+  border-bottom: 1px solid rgb(255 204 0 / 0.3);
+  padding-bottom: 1px;
+}
+

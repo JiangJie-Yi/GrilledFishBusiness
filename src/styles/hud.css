@@ -1,0 +1,139 @@
+
+.chiller-bin-head .food-art { flex: none; filter: drop-shadow(0 2px 3px rgb(30 50 70 / 0.25)); }
+
+/* (the food's picture: a band across the top of its card, a good third of it, the name under it) */
+.chiller-bin-head { flex-wrap: wrap; row-gap: 4px; }
+.chiller-bin-head svg.food-art { order: -1; flex: 0 0 100%; width: 100%; height: 78px; padding: 6px 8px; box-sizing: border-box; border-radius: 9px;
+  background: radial-gradient(ellipse at 50% 60%, #fff, #f5e6cc 72%); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.8), inset 0 -6px 10px -8px rgb(59 42 32 / 0.3); }
+
+/* (the pantry's fridge button: the icon draws its own colours; a cold glow behind it while it's open) */
+.fridge-toggle svg.fridge-icon { width: 36px; height: 36px; fill: none; stroke: none; filter: drop-shadow(0 2px 3px rgb(20 40 60 / 0.35)); }
+.fridge-toggle .fr-cold { opacity: 0; transition: opacity 0.25s ease; }
+.fridge-toggle.is-on .fr-cold { opacity: 1; }
+.fridge-toggle.is-on svg.fridge-icon { fill: none; stroke: none; transform: translateY(-1px); }
+/* (a round chip like the buttons beside it, the fridge standing in it) */
+.fridge-toggle { border: 1.5px solid var(--text-soft); border-radius: 50%; background: radial-gradient(circle at 50% 35%, #ffffff, #e4eef5); filter: none; box-shadow: 0 1px 3px rgb(0 0 0 / 0.25); overflow: hidden; }
+.fridge-toggle svg.fridge-icon { width: 34px; height: 40px; margin-top: 6px; }
+.fridge-toggle.is-on { border-color: #3d8fd0; box-shadow: 0 0 12px rgb(61 143 208 / 0.6); }
+
+/* the owner's muttering over his head: a little larger than a customer's (the same dark glass as everyone's) */
+.boss-say {
+  font-size: 13px;
+}
+
+/* ---- the top left: the fire (the grill's view) and the owner's hunger (his view) take the rows over the office and auto buttons; with one
+   of them shown the buttons move up a row, with none up to the top (on a wide screen; narrow ones lay these out their own way) ---- */
+@media (min-width: 600px) {
+  .office-toggle, .auto-toggle { transition: margin-top 0.3s ease; }
+  .hud-rows-1 .office-toggle, .hud-rows-1 .auto-toggle { margin-top: -62px; }
+  .hud-rows-0 .office-toggle, .hud-rows-0 .auto-toggle { margin-top: -152px; }
+  /* (the hunger, alone on the owner's view, sits in the fire's row) */
+  .hud-rows-1 .fullness { top: 96px; }
+}
+
+/* (the foods' pictures of their own models: on the card's band, filling it, a soft shadow under; or in their round tile) */
+.chiller-bin-head .food-art-band { order: -1; flex: 0 0 100%; width: 100%; height: 78px; padding: 2px 6px; box-sizing: border-box; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 60%, #fff, #f5e6cc 72%); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.8), inset 0 -6px 10px -8px rgb(59 42 32 / 0.3); }
+.food-art-band img { height: 100%; max-width: 100%; object-fit: contain; filter: drop-shadow(0 4px 4px rgb(59 42 32 / 0.26)); }
+.food-art-tile { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; overflow: hidden; }
+.food-art-tile img { width: 92%; height: 92%; object-fit: contain; }
+
+/* ---- behind the shop, where its open sides look out: a dark charcoal grey (--scene-bg, set in the developer panel), the same by day and by night,
+   lit softly from the middle where the shop stands and falling away darker to the edges, as a stage's backdrop ---- */
+:root { --scene-bg: #26262c; }
+.canvas-layer,
+:root[data-theme='dark'] .canvas-layer {
+  background:
+    radial-gradient(ellipse 62% 58% at 50% 48%, color-mix(in srgb, var(--scene-bg), #ffffff 16%) 0%, var(--scene-bg) 58%, color-mix(in srgb, var(--scene-bg), #000000 50%) 100%);
+}
+/* (and the picture darkening toward its edges, a vignette, so the room in the middle holds the eye; deeper by night) */
+.canvas-layer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 75% 70% at 50% 50%, rgb(0 0 0 / 0) 55%, rgb(4 10 22 / 0.42) 100%);
+}
+:root[data-theme='dark'] .canvas-layer::after {
+  background: radial-gradient(ellipse 72% 66% at 50% 50%, rgb(0 0 0 / 0) 45%, rgb(2 6 14 / 0.62) 100%);
+}
+
+/* ---- 經營 and 自動營運, on a wide screen: round buttons at the left end of the row top right (經營 its shop front, 自動營運 自 with its
+   lamp at the rim); the cash on its own at the top left where 經營 was, always in sight (a click opens the books). Narrower screens keep
+   the two as they were, the cash in 經營 ---- */
+.cash-pair { display: none; }
+.auto-toggle .auto-short { display: none; }
+@media (min-width: 600px) {
+  .app .office-toggle,
+  .app .auto-toggle {
+    position: fixed;
+    z-index: 10;
+    top: 20px;
+    left: auto;
+    width: 44px;
+    height: 44px;
+    margin-top: 0;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+    animation-name: ui-pop-top;
+  }
+  .app .office-toggle { right: 228px; }
+  .app .auto-toggle { right: 176px; }
+  .app .office-toggle em,
+  .app .office-toggle .money,
+  .app .auto-toggle .auto-long { display: none; }
+  .app .office-toggle .office-icon { width: 27px; height: 27px; }
+  .app .auto-toggle .auto-short { display: inline; font: 700 17px/1 var(--brush); }
+  .app .auto-toggle .auto-lamp { position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; box-shadow: 0 0 0 1.5px var(--page); }
+  /* (the cash and the till's chip side by side, one capsule (item 366): the pair placed where the cash was) */
+  .cash-pair {
+    display: flex;
+    position: fixed;
+    top: 20px;
+    left: auto;
+    z-index: 10;
+    gap: 3px;
+    align-items: center;
+    transition: margin-top 0.3s ease;
+  }
+  .money-chip,
+  .till-chip {
+    display: flex;
+    position: relative;
+    height: 44px;
+    align-items: center;
+    padding: 0 16px 0 12px;
+    border: 0;
+    border-radius: 22px;
+    background: var(--page);
+    box-shadow: 0 4px 12px -6px rgb(59 42 32 / 0.5);
+    font: 700 16px/1 var(--brush);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: transform 0.15s, filter 0.12s ease-out, box-shadow 0.15s ease-out, background 0.15s ease-out;
+  }
+  /* (the till's chip the capsule's left half: its outer end round, the side against the cash square-ish) */
+  .till-chip { gap: 6px; padding: 0 12px 0 11px; border-radius: 22px 8px 8px 22px; color: #f3e4bd; }
+  .cash-pair:has(.till-chip) .money-chip { border-radius: 8px 22px 22px 8px; }
+  .till-chip-sum { color: #ffd36b; text-shadow: 0 1px 2px rgb(0 0 0 / 0.55); font-size: 15px; }
+  .till-chip-sum.is-up { display: inline-block; animation: cash-bump 520ms cubic-bezier(0.2, 1.6, 0.4, 1); }
+  .till-chip[aria-expanded='true'] { box-shadow: inset 0 0 0 1.5px #ffd36b88, 0 6px 18px -8px rgb(0 0 0 / 0.5); }
+  .money-chip:hover,
+  .till-chip:hover { transform: translateY(-1px); }
+  .money-chip:active,
+  .till-chip:active { transform: none; filter: brightness(0.88); transition-duration: 0s; }
+  .app.is-hushed .cash-pair { display: none; }
+  .app:not(.is-hushed) .cash-pair { animation: ui-pop-top 520ms cubic-bezier(0.2, 1.5, 0.4, 1) 300ms both; }
+  /* (money in (item 209, ui/CashChip): the figure bobs and shines a moment as it counts up; what came in rises out of the chip and fades) */
+  .money-chip .money.is-up { display: inline-block; animation: cash-bump 520ms cubic-bezier(0.2, 1.6, 0.4, 1); }
+  .cash-pair .cash-up {
+    position: absolute; right: 14px; top: 100%; margin-top: 4px; white-space: nowrap; pointer-events: none;
+    font: 800 14px/1 var(--brush); color: #4fff85; text-shadow: 0 0 4px rgb(0 0 0 / 0.85), 0 1px 0 #0a2a14;
+    animation: cash-up 1.4s ease-out forwards;
+  }
+  /* (into the till: in the coins' gold) */
+  .cash-pair .cash-up.is-till { color: #ffd36b; text-shadow: 0 0 4px rgb(0 0 0 / 0.85), 0 1px 0 #3a2a08; }
+}
+

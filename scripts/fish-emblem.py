@@ -134,11 +134,10 @@ ts = ('// (written by scripts/fish-emblem.py: edit it there and run it, not here
 ts = ts.replace("export const FISH_EMBLEM = '", "export const FISH_EMBLEM = '")
 open(os.path.join(ROOT, 'src', 'ui', 'fishEmblem.ts'), 'w', encoding='utf-8').write(ts)
 
-p = os.path.join(ROOT, 'src', 'index.css')
-s = open(p, encoding='utf-8').read()
-s = re.sub(r'\n/\* ---- fish emblem \(scripts/fish-emblem\.py\) ---- \*/.*?/\* ---- end fish emblem ---- \*/\n', '\n', s, flags=re.S)
-s += '\n/* ---- fish emblem (scripts/fish-emblem.py) ---- */\n' + CSS + '\n/* ---- end fish emblem ---- */\n'
-open(p, 'w', encoding='utf-8').write(s)
+# (its own file among the styles, imported in its place in src/index.css's order (item 604): written whole; it used to be cut out of
+# index.css and put back at its end, after everything added since)
+p = os.path.join(ROOT, 'src', 'styles', 'fish-emblem.css')
+open(p, 'w', encoding='utf-8').write('/* ---- fish emblem (scripts/fish-emblem.py) ---- */\n' + CSS + '\n/* ---- end fish emblem ---- */\n')
 
 p = os.path.join(ROOT, 'index.html')
 s = open(p, encoding='utf-8').read()

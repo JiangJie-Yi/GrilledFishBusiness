@@ -1,0 +1,60 @@
+/* ---- developer mode's character viewer (CharacterViewer.tsx, the owner's: it comes with G, on the right), in the editor's dark grey ---- */
+/* (its frame: the panel, 360 wide as the dev panel is, its height dragged at its foot (kept); minimised (−), it shrinks away into the dock at
+   the bottom left (edit.ts: its pill there brings it back), letting the scene have the pointer meanwhile) */
+.char-dock {
+  position: fixed; right: 14px; top: 72px; z-index: 9998; width: 360px; max-height: calc(100vh - 100px); display: flex; flex-direction: column;
+  transform-origin: 0 100%; transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.22s ease;
+}
+.char-dock.is-tucked { pointer-events: none; opacity: 0; transform: scale(0.15); }
+body.be-tool .char-dock { right: calc(var(--bt-right) + 12px); top: calc(var(--bt-top) + 12px); }
+.char-view-grip { flex: none; height: 9px; margin-top: -4px; cursor: ns-resize; position: relative; z-index: 1; }
+.char-view-grip::after { content: ''; position: absolute; left: 50%; top: 3px; width: 40px; height: 3px; margin-left: -20px; border-radius: 2px; background: #5a5a5a; }
+.char-view-grip:hover::after { background: #e8a33d; }
+.char-view-x:hover { background: #b8433a !important; color: #fff !important; }
+.char-view {
+  flex: 1; min-width: 0; min-height: 0;
+  display: flex; flex-direction: column; background: #303030; color: #d6d6d6; border: 1px solid #1c1c1c; border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); font: 13px/1.4 system-ui, sans-serif; overflow: hidden;
+}
+/* (its title bar the dev panel's own: 36 high, the same grey, the same type and buttons (the owner's: the two panels alike)) */
+.char-view-head { display: flex; align-items: center; gap: 8px; height: 36px; flex: none; padding: 0 10px; background: #262626; border-bottom: 1px solid #1a1a1a; font: 600 13px/1 "Inter", "Segoe UI", "Noto Sans TC", sans-serif; }
+.char-view-head b { font-weight: 600; color: #f0f0f0; }
+.char-view-head span { flex: 1; min-width: 0; color: #e8a33d; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.char-view-fold { display: inline-grid; place-items: center; width: 22px; height: 22px; flex: none; padding: 0; border: 0; border-radius: 4px; background: #3a3a3a; color: #ddd; font: 600 14px/22px sans-serif; cursor: pointer; }
+.char-view-fold:hover { background: #4a4a4a; }
+.char-view-stage { position: relative; height: 360px; flex: none; background: radial-gradient(ellipse at 50% 38%, #5a5550 0%, #2b2826 62%, #1c1a19 100%); cursor: grab; }
+/* (either side of the stage, half way up: the one before and the one after in the list) */
+.char-view-arrow {
+  position: absolute;
+  top: 50%;
+  width: 32px;
+  height: 56px;
+  margin-top: -28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.22);
+  color: #e6e6e6;
+  cursor: pointer;
+  opacity: 0.72;
+  transition: opacity 0.12s, background 0.12s;
+}
+.char-view-arrow.is-prev { left: 8px; }
+.char-view-arrow.is-next { right: 8px; }
+.char-view-arrow:hover { opacity: 1; background: rgb(0 0 0 / 0.42); }
+.char-view-arrow:active { background: #e8a33d; color: #1d1d1d; }
+.char-view-arrow svg { width: 14px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.char-view-stage:active { cursor: grabbing; }
+.char-view-info { padding: 5px 10px; color: #b8b8b8; font-size: 12px; border-top: 1px solid #1c1c1c; font-variant-numeric: tabular-nums; }
+.char-view-tools { display: flex; flex-wrap: wrap; gap: 5px; padding: 6px 10px 8px; border-bottom: 1px solid #1c1c1c; }
+.char-view-tools button, .char-view-group button {
+  padding: 3px 9px; border: 1px solid #1f1f1f; border-radius: 4px; background: #474747; color: #e2e2e2; font: inherit; font-size: 12px; cursor: pointer;
+  white-space: nowrap;
+}
+.char-view-tools button:hover, .char-view-group button:hover { background: #555; }
+.char-view-tools button.is-on, .char-view-group button.is-on { background: #e8a33d; border-color: #b97c24; color: #1d1d1d; }
+.char-view-list { overflow-y: auto; padding: 4px 10px 10px; }
+.char-view-group h4 { margin: 8px 0 5px; font-size: 11px; font-weight: 600; color: #9a9a9a; letter-spacing: 0.04em; }
+.char-view-group { display: flex; flex-wrap: wrap; gap: 5px; }
+.char-view-group h4 { flex-basis: 100%; }
+

@@ -1,0 +1,122 @@
+/* ---- the shop's editor (editor.html, item 178: the developer mode as a tool of its own, framed as the mainstream editors are) ---- */
+/* (its frame's sizes: the bar of menus and the bar of tools along the top, the status line at the foot, the outliner's width on the left and the
+   inspector's on the right (edit.ts's panel, docked); the 3D view fills what's left) */
+body.be-tool { --bt-menu: 34px; --bt-toolbar: 40px; --bt-top: calc(var(--bt-menu) + var(--bt-toolbar)); --bt-foot: 26px; --bt-left: 290px; --bt-right: 340px;
+  background: #1e1e1e; }
+.bt-top { position: fixed; z-index: 10000; left: 0; right: 0; top: 0; height: var(--bt-menu); display: flex; align-items: center; gap: 4px; padding: 0 8px;
+  background: #2b2b2b; border-bottom: 1px solid #141414; color: #d6d6d6; font: 12px/1 "Inter", "Segoe UI", "Noto Sans TC", sans-serif; user-select: none; white-space: nowrap; box-sizing: border-box; }
+.bt-brand { display: flex; align-items: center; gap: 7px; padding-right: 12px; color: #f0f0f0; }
+.bt-brand b { font-weight: 600; letter-spacing: 0.04em; }
+.bt-dot { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; background: #e8a33d; }
+.bt-menus { display: flex; gap: 2px; }
+.bt-menu { position: relative; }
+.bt-menu > button { height: 26px; padding: 0 10px; border: 0; border-radius: 4px; background: none; color: inherit; font: inherit; cursor: pointer; }
+.bt-menu > button:hover, .bt-menu.is-open > button { background: #3d3d3d; color: #fff; }
+.bt-list { position: absolute; left: 0; top: calc(100% + 3px); min-width: 230px; margin: 0; padding: 4px; list-style: none; background: #2f2f2f;
+  border: 1px solid #141414; border-radius: 6px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55); animation: bt-drop 0.12s ease-out; }
+@keyframes bt-drop { from { opacity: 0; transform: translateY(-4px); } }
+.bt-list button { display: flex; align-items: center; gap: 6px; width: 100%; height: 26px; padding: 0 10px 0 4px; border: 0; border-radius: 4px;
+  background: none; color: #dcdcdc; font: inherit; text-align: left; cursor: pointer; white-space: nowrap; }
+.bt-list button:hover:not(:disabled) { background: #2f6fb0; color: #fff; }
+.bt-list button:disabled { color: #6a6a6a; cursor: default; }
+.bt-check { flex: none; width: 14px; display: grid; place-items: center; color: #e8a33d; }
+.bt-label { flex: 1; }
+.bt-list kbd { color: #8a8a8a; font: 11px/1 "Cascadia Mono", Consolas, "SF Mono", Menlo, ui-monospace, monospace; }
+.bt-list button:hover:not(:disabled) kbd { color: #dce8f6; }
+.bt-gap { height: 1px; margin: 4px 6px; background: #444; }
+.bt-play { margin-left: auto; display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 14px; border: 0; border-radius: 4px; background: #3f8a4a;
+  color: #fff; font: 600 12px/1 "Inter", "Segoe UI", "Noto Sans TC", sans-serif; cursor: pointer; white-space: nowrap; }
+.bt-play:hover { background: #4ea35b; }
+.bt-tools { position: fixed; z-index: 10000; left: 0; right: 0; top: var(--bt-menu); height: var(--bt-toolbar); display: flex; align-items: center; padding: 0 8px;
+  background: #262626; border-bottom: 1px solid #141414; box-sizing: border-box; }
+.bt-left { position: fixed; z-index: 9999; left: 0; top: var(--bt-top); bottom: var(--bt-foot); width: var(--bt-left); display: flex; flex-direction: column;
+  background: #2b2b2b; border-right: 1px solid #141414; color: #d6d6d6; font: 11.5px/1.35 "Inter", "Segoe UI", "Noto Sans TC", sans-serif; box-sizing: border-box; overflow: hidden; user-select: none; }
+.bt-left *, .bt-tools * { box-sizing: border-box; }
+.bt-status { position: fixed; z-index: 10000; left: 0; right: 0; bottom: 0; height: var(--bt-foot); display: flex; align-items: center; gap: 16px; padding: 0 12px;
+  background: #1f1f1f; border-top: 1px solid #141414; color: #a8a8a8; font: 11.5px/1 "Inter", "Segoe UI", "Noto Sans TC", sans-serif; white-space: nowrap; box-sizing: border-box; }
+.bt-sel { overflow: hidden; text-overflow: ellipsis; }
+.bt-saved { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.bt-saved.is-dirty { color: #e8a33d; }
+.bt-keys { position: fixed; inset: 0; z-index: 10001; display: grid; place-items: center; background: rgba(0, 0, 0, 0.45); }
+.bt-keys-card { width: min(640px, 92vw); background: #2b2b2b; border: 1px solid #141414; border-radius: 8px; box-shadow: 0 18px 48px rgba(0, 0, 0, 0.6);
+  color: #d6d6d6; font: 12px/1.5 "Inter", "Segoe UI", "Noto Sans TC", sans-serif; overflow: hidden; }
+.bt-keys-head { display: flex; align-items: center; height: 36px; padding: 0 8px 0 14px; background: #262626; border-bottom: 1px solid #141414; }
+.bt-keys-head b { flex: 1; font-weight: 600; white-space: nowrap; }
+.bt-keys-head button { width: 26px; height: 26px; display: grid; place-items: center; border: 0; border-radius: 4px; background: none; color: #bbb; cursor: pointer; }
+.bt-keys-head button:hover { background: #b8433a; color: #fff; }
+.bt-keys pre { margin: 0; padding: 12px 16px 16px; white-space: pre-wrap; font: 12px/1.8 "Cascadia Mono", Consolas, "SF Mono", Menlo, ui-monospace, monospace; color: #c8c8c8; }
+/* (the start-up screen (item 190): over the whole frame till editing begins, then faded away) */
+.bt-splash { position: fixed; inset: 0; z-index: 10002; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 38%, #2a2a2a 0%, #1b1b1b 70%);
+  transition: opacity 0.4s ease; font: 12px/1.4 "Inter", "Segoe UI", "Noto Sans TC", sans-serif; color: #cfcfcf; user-select: none; }
+.bt-splash.is-done { opacity: 0; pointer-events: none; }
+.bt-splash-card { width: min(520px, 92vw); padding: 24px 26px 20px; background: #262626; border: 1px solid #141414; border-radius: 10px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6); box-sizing: border-box; }
+.bt-splash-head { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+.bt-splash-mark { flex: none; width: 46px; height: 46px; display: grid; place-items: center; border-radius: 10px; background: linear-gradient(#e8a33d, #c27a1e); color: #1e1e1e; }
+.bt-splash-name { display: grid; gap: 3px; min-width: 0; }
+.bt-splash-name b { font-size: 20px; font-weight: 600; color: #f2f2f2; letter-spacing: 0.04em; white-space: nowrap; }
+.bt-splash-name small { color: #8f8f8f; white-space: nowrap; }
+.bt-splash-ver { margin-left: auto; align-self: flex-start; padding: 2px 8px; border-radius: 10px; background: #333; color: #9a9a9a; font: 11px/1.4 "Cascadia Mono", Consolas, "SF Mono", Menlo, ui-monospace, monospace; white-space: nowrap; }
+.bt-splash-bar { height: 6px; border-radius: 3px; background: #1a1a1a; overflow: hidden; }
+.bt-splash-bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #2f6fb0, #4a90d9); transition: width 0.25s ease; }
+.bt-splash-now { display: flex; align-items: baseline; gap: 10px; margin-top: 10px; color: #e0e0e0; white-space: nowrap; }
+.bt-splash-now span { overflow: hidden; text-overflow: ellipsis; }
+.bt-splash-now em { font: 12px/1 "Cascadia Mono", Consolas, "SF Mono", Menlo, ui-monospace, monospace; font-style: normal; color: #9a9a9a; }
+.bt-splash-now b { margin-left: auto; font: 600 12px/1 "Cascadia Mono", Consolas, "SF Mono", Menlo, ui-monospace, monospace; color: #9fc3ea; }
+.bt-splash-file { height: 16px; margin-top: 4px; color: #777; font: 11px/16px "Cascadia Mono", Consolas, "SF Mono", Menlo, ui-monospace, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bt-splash-steps { display: grid; gap: 6px; margin: 16px 0 0; padding: 14px 0 0; border-top: 1px solid #333; list-style: none; }
+.bt-splash-steps li { display: flex; align-items: center; gap: 9px; color: #6f6f6f; white-space: nowrap; }
+.bt-splash-steps li.is-now { color: #e0e0e0; }
+.bt-splash-steps li.is-done { color: #a8a8a8; }
+.bt-splash-tick { flex: none; width: 16px; height: 16px; display: grid; place-items: center; border-radius: 50%; border: 1px solid #444; color: #7fc48a; }
+.bt-splash-steps li.is-done .bt-splash-tick { border-color: #3f8a4a; background: #24402a; }
+.bt-splash-steps li.is-now .bt-splash-tick { border-color: #4a90d9; }
+.bt-splash-steps li.is-now .bt-splash-tick i { width: 6px; height: 6px; border-radius: 50%; background: #4a90d9; animation: bt-pulse 1s ease-in-out infinite; }
+@keyframes bt-pulse { 50% { opacity: 0.25; } }
+.bt-splash-stuck { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 8px 10px; border-radius: 6px; background: #3a2a1a; color: #e8c08a; }
+.bt-splash-stuck span { flex: 1; }
+.bt-splash-stuck button { flex: none; padding: 4px 12px; border: 0; border-radius: 4px; background: #e8a33d; color: #1e1e1e; font: 600 12px/1.4 "Inter", "Segoe UI", "Noto Sans TC", sans-serif; cursor: pointer; white-space: nowrap; }
+/* (the paths' list (item 189, PathLegend): over the 3D view's top left corner while the map's shown) */
+.bt-paths { position: fixed; z-index: 9998; left: calc(var(--bt-left) + 12px); top: calc(var(--bt-top) + 12px); width: 240px; max-height: calc(100vh - var(--bt-top) - var(--bt-foot) - 90px);
+  overflow: auto; padding: 8px; background: rgba(38, 38, 38, 0.95); border: 1px solid #141414; border-radius: 8px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  color: #d6d6d6; font: 12px/1.35 "Inter", "Segoe UI", "Noto Sans TC", sans-serif; user-select: none; box-sizing: border-box; }
+.bt-paths-head { padding: 2px 4px 6px; font-weight: 600; color: #f0f0f0; white-space: nowrap; }
+.bt-paths-key { display: flex; gap: 12px; padding: 0 4px 4px; color: #a8a8a8; white-space: nowrap; }
+.bt-paths-key span { display: inline-flex; align-items: center; gap: 5px; }
+.bt-paths-key i { width: 10px; height: 10px; border-radius: 2px; box-sizing: border-box; }
+.bt-paths-key i.is-block { background: rgba(255, 59, 47, 0.45); border: 1px solid #ff5a4c; }
+.bt-paths-key i.is-zone { background: rgba(255, 45, 85, 0.4); border: 1px solid #ff5c7a; }
+.bt-paths-sec { margin: 8px 4px 3px; color: #8a8a8a; font-size: 11px; letter-spacing: 0.04em; white-space: nowrap; }
+.bt-paths-who { margin-bottom: 4px; }
+.bt-paths-name { display: flex; align-items: center; gap: 6px; width: 100%; height: 24px; padding: 0 6px; border: 0; border-radius: 4px; background: none; color: #ececec;
+  font: 600 12px/1 "Inter", "Segoe UI", "Noto Sans TC", sans-serif; text-align: left; cursor: pointer; white-space: nowrap; }
+.bt-paths-name i { flex: none; width: 10px; height: 10px; border-radius: 50%; }
+.bt-paths-name em { flex: none; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #4772b3; color: #fff; font: 600 10px/16px "Inter", "Segoe UI", "Noto Sans TC", sans-serif; font-style: normal; text-align: center; box-sizing: border-box; }
+.bt-paths-caret { margin-left: auto; display: grid; place-items: center; color: #8a8a8a; transition: transform 0.15s ease; }
+.bt-paths-name.is-open .bt-paths-caret { transform: rotate(90deg); }
+.bt-paths-way { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 4px 0 22px; border-radius: 4px; color: #c8c8c8; cursor: pointer; white-space: nowrap; }
+.bt-paths-way span { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.bt-paths-way em { flex: none; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #4772b3; color: #fff; font: 600 10px/16px "Inter", "Segoe UI", "Noto Sans TC", sans-serif; font-style: normal;
+  text-align: center; box-sizing: border-box; }
+.bt-paths-way button { flex: none; height: 20px; padding: 0 8px; border: 0; border-radius: 3px; background: #3c3c3c; color: #d6d6d6; font: 11px/1 "Inter", "Segoe UI", "Noto Sans TC", sans-serif; cursor: pointer;
+  white-space: nowrap; opacity: 0; }
+.bt-paths-way:hover button, .bt-paths-way.is-hot button { opacity: 1; }
+.bt-paths-way button:hover { background: #4772b3; color: #fff; }
+.bt-paths-name:hover, .bt-paths-way:hover, .bt-paths-name.is-hot, .bt-paths-way.is-hot { background: #3a3a3a; }
+.bt-paths-name.is-pinned, .bt-paths-way.is-pinned { background: #2f4d73; }
+.bt-paths-live { display: flex; flex-wrap: wrap; gap: 2px; }
+.bt-paths-live .bt-paths-name { width: auto; }
+.bt-paths-none { padding: 2px 6px; color: #777; white-space: nowrap; }
+.bt-paths-hint { margin: 8px 4px 2px; color: #8a8a8a; font-size: 11px; line-height: 1.5; }
+/* (the places and the people named on the floor with the paths' map (PathMap, item 189)) */
+.pm-tag { display: inline-block; padding: 2px 7px; border-radius: 9px; background: rgba(20, 20, 20, 0.82); color: #f2f2f2; font: 600 11px/1.3 "Inter", "Segoe UI", "Noto Sans TC", sans-serif; white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4); }
+.pm-tag.is-person { color: #101010; }
+.pm-tag.is-seat { padding: 1px 5px; background: rgba(79, 210, 110, 0.85); color: #0d2614; font-size: 10px; }
+/* (a way's stretch through a piece of furniture, red as its stretch is drawn (item 629)) */
+.pm-tag.is-through { padding: 1px 6px; background: rgba(206, 30, 18, 0.92); color: #fff; font-size: 10px; }
+/* (the sheets' and menus' coming in (item 179): translate, scale and opacity alone, which go on top of what's set as `transform` and run on
+   the compositor, smooth while the main thread's drawing the 3D view) */
+@keyframes sheet-in { from { opacity: 0; translate: 0 18px; scale: 0.98; } }
+@keyframes pop-in { from { opacity: 0; translate: 0 -6px; scale: 0.96; } }
+@media (prefers-reduced-motion: reduce) { .drink-stock, .office, .view-menu { animation: none; } }

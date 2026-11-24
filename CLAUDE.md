@@ -70,6 +70,7 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  App.tsx
 | `src/ui/` | 2D 介面：菜單板、研發筆記、辦公室、歡迎頁、表情、頭像…… | data、game、scene |
 | `src/shops/grill/` | 烤魚店的 3D 與互動（Roasting、吧台、客人、收銀櫃…） | data、game、scene、ui |
 | `src/App.tsx` | 把各部分組起來：存檔、帳本、營業模擬的計時器、場景 | 全部 |
+| `src/styles/` | 介面的樣式，一區一檔（`menu.css`、`office.css`、`till.css`…）；`src/index.css` 只照層疊的順序 `@import` 它們（第 604 項：原本 7,958 行一個檔） | （CSS） |
 
 規則：
 - **店家之間不能互相引用**。兩間店都要用的東西，放到 `game/`（邏輯）或 `scene/`（3D）。
@@ -219,7 +220,7 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  App.tsx
 ## 節省 token 的做法
 
 - 驗證優先用數值（`__scene`、`__ctl`、Box3 量測、DOM 查詢），必要才截圖，且只截目標區域，不截整頁。
-- 大檔（`Roasting.tsx` 約 185KB、`DiningRoom.tsx`、`GuestBar3D.tsx`、`index.css`）先用搜尋定位，再讀幾十行，不要整檔展開。
+- 大檔（`Roasting.tsx` 約 185KB、`DiningRoom.tsx`、`GuestBar3D.tsx`）先用搜尋定位，再讀幾十行，不要整檔展開；樣式在 `src/styles/` 一區一檔，先找到哪個檔再讀。
 - 一次改多處用腳本批次處理；`npx tsc -b` 與 `npm test` 只在提交前跑一次。
 - 回報只講結果、已驗證與未驗證的部分，不重貼程式碼。
 - 對話很長時（回覆開始變慢或重複），建議推送後開新 chat，靠本檔接續。

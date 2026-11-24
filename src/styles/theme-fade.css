@@ -1,0 +1,21 @@
+/* ---- the day turned to night (or back) as a dissolve (App's switchTheme, the owner's: ease-in-out, 0.65 s): the page as it was held as a
+   picture and faded into the page as it is now, the room and the panels together ---- */
+html.theme-fading::view-transition-old(root),
+html.theme-fading::view-transition-new(root) {
+  animation-duration: 0.65s;
+  animation-timing-function: ease-in-out;
+}
+/* (the sign kept out of the dissolve: it changes at once, so the 深夜 stamp's bounce down onto it and its letters' flicker as they light are
+   seen as they play (the owner's: keep them); they played under the dissolve, faded over by the picture of the page as it was) */
+html.theme-fading .brand { view-transition-name: brand; }
+html.theme-fading::view-transition-old(brand) { animation: none; opacity: 0; }
+html.theme-fading::view-transition-group(brand),
+html.theme-fading::view-transition-new(brand) { animation: none; }
+
+/* (asked for from the room (the sake barrels: the sake), a card in the stock is brought into view and lit a moment) */
+.stock-panel .is-focus { animation: stock-focus 1.8s ease-in-out; }
+@keyframes stock-focus {
+  0%, 100% { box-shadow: none; }
+  20%, 65% { box-shadow: 0 0 0 3px #ffd36b, 0 0 18px 4px rgba(255, 211, 107, 0.6); }
+}
+

@@ -1,0 +1,114 @@
+:root {
+  /* 野營夕暮 Campfire Dusk */
+  --page: #dde5ee;        /* dusk wash behind everything */
+  --text: #3b2a20;        /* text on the page */
+  --text-soft: #7a6450;
+  --washi: #fbf3e4;       /* menu strips (always paper, in both themes) */
+  --washi-shade: #efe2c9;
+  --ink: #3b2a20;         /* text on paper */
+  --ink-soft: #7a6450;
+  --moss: #33503f;        /* base strip, focus rings */
+  --hanko: #c23b2a;       /* the stamp */
+
+  --brush: 'LXGW WenKai TC', 'Noto Serif TC', serif;
+
+  color-scheme: light;
+  font: 17px/1.6 var(--brush);
+  color: var(--text);
+  background: var(--page);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* night camp: the page goes dark, the paper strips stay lit like lanterns */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --money: #9fe3ae;
+    --page: #171c27;
+    --text: #efe6d6;
+    --text-soft: #a99f90;
+    --washi: #ece0c8;
+    --washi-shade: #cdbd9f;
+    --moss: #5d8a70;
+    --hanko: #d9503c;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --money: #9fe3ae;
+  --page: #171c27;
+  --text: #efe6d6;
+  --text-soft: #a99f90;
+  --washi: #ece0c8;
+  --washi-shade: #cdbd9f;
+  --moss: #5d8a70;
+  --hanko: #d9503c;
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  /* clip, not hidden: a hidden box can still be scrolled (a drag held past the edge auto-scrolls it, shifting
+     the whole page out of place); a clipped one never scrolls */
+  overflow: hidden;
+  overflow: clip;
+  background: var(--page);
+  transition: background-color 300ms ease;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.app {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  height: 100%;
+}
+
+/* the 3D view sits under everything and spans the whole window (no hard edge where the menu starts) */
+.canvas-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+/* (the shop's editor (editor.html, item 178): the 3D view in the room its frame leaves, between the top bars, the docks and the status line;
+   the game's own buttons and boards not there at all) */
+body.be-tool .canvas-layer { position: fixed; inset: var(--bt-top) var(--bt-right) var(--bt-foot) var(--bt-left); }
+body.be-tool .app > :not(.canvas-layer):not(.axis-widget) { display: none; }
+
+.canvas-layer canvas {
+  touch-action: none;
+}
+
+/* stage and menu are see-through layers over the 3D view: only their controls take the pointer, so dragging
+   anywhere else still orbits the camera */
+.stage,
+.menu {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.stage {
+  min-width: 0;
+}
+
+.stage > *,
+.menu > * {
+  pointer-events: auto;
+}
+
+/* an app, not a document: no text selection highlight when clicking around */
+.app {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+

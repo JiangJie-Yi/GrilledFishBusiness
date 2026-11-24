@@ -1,0 +1,340 @@
+/* ---- the stock chiller: the shop's closed, and the board of foods is the kitchen's chiller (a steel cabinet, a row of glass-fronted bins), where a food
+   is taken out to try, and more is called in or topped up ---- */
+.chiller {
+  width: clamp(320px, 31vw, 460px);
+  max-height: min(70vh, 620px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  border: 5px solid #46576a;
+  background: linear-gradient(180deg, #e8f1f7 0%, #d4e3ee 100%);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.35), inset 0 0 0 2px #cdd5db;
+  overflow: hidden;
+}
+
+.chiller-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: linear-gradient(180deg, #46576a, #3a4858);
+  color: #eaf3f9;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  font-size: 15px;
+}
+
+.chiller-top i {
+  font: 600 13px/1 ui-monospace, monospace;
+  letter-spacing: 0.05em;
+  color: #7fe0ff;
+  background: #0d1a24;
+  padding: 3px 7px;
+  border-radius: 4px;
+  text-shadow: 0 0 6px #4ac8ee;
+}
+
+.chiller-bins {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 8px;
+  padding: 10px;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #8aa2b6 transparent;
+}
+
+.chiller-foot {
+  height: 12px;
+  background: linear-gradient(180deg, #cdd5db, #46576a);
+}
+
+.chiller-bin {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto 14px auto auto;
+  gap: 3px;
+  padding: 7px 8px 8px;
+  border-radius: 8px;
+  border: 1.5px solid #9fb7c8;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.85), rgb(228 240 248 / 0.7)),
+    #eef6fb;
+  color: #1d3550;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 #fff, 0 1px 3px rgb(30 60 90 / 0.18);
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.chiller-bin:hover {
+  transform: translateY(-1px);
+  border-color: #4a90c0;
+  box-shadow: inset 0 1px 0 #fff, 0 4px 10px rgb(30 60 90 / 0.28);
+}
+
+.chiller-bin:focus-visible {
+  outline: 3px solid var(--moss, #4a7c3a);
+  outline-offset: 2px;
+}
+
+.chiller-bin.is-taken {
+  border-color: #c0392b;
+  background: linear-gradient(180deg, #fff6f2, #fbe3dc);
+}
+
+.chiller-bin.is-out {
+  filter: saturate(0.5);
+  background: linear-gradient(180deg, rgb(235 240 244 / 0.9), rgb(214 224 232 / 0.85));
+}
+
+/* (an empty bin clicked: a short shake, and its order buttons glow to say "buy some first") */
+.chiller-bin.is-nudged { animation: bin-nudge 0.5s ease; }
+.chiller-bin.is-nudged .chiller-btn:not(.is-off) { animation: bin-buy-glow 0.5s ease 2; }
+@keyframes bin-nudge {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+@keyframes bin-buy-glow {
+  50% { background: #3f8f5a; box-shadow: 0 0 0 3px rgb(80 200 120 / 0.45); }
+}
+
+.chiller-bin-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.chiller-bin-head .icon,
+.chiller-bin-head svg {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+
+.chiller-bin-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.15;
+}
+
+/* (a name or a line that keeps to one line, set smaller where it doesn't fit (ui/FitLine): the owner's, nothing on two lines) */
+.fit-line {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.chiller-taken {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: #c0392b;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.chiller-bin-en {
+  font-size: 10.5px;
+  color: #5a7388;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chiller-bin-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+}
+
+.chiller-bin-info b {
+  color: #1d6b34;
+}
+
+.chiller-bin-info b.is-zero {
+  color: #c0392b;
+}
+
+/* (a drink's bottles put in another drink's places: beside its count, apart from it) */
+.chiller-bin-info .drink-astray {
+  margin-left: 3px;
+  padding: 0 4px;
+  border-radius: 6px;
+  background: rgb(192 57 43 / 0.12);
+  color: #a33a2a;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.chiller-bin-info em {
+  font-style: normal;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.chiller-bin-info small {
+  color: #5a7388;
+  font-size: 11px;
+}
+
+.chiller-bin-info small em {
+  font-size: 12px;
+}
+
+.chiller-buy {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+}
+
+.chiller-btn {
+  display: grid;
+  place-items: center;
+  padding: 3px 0;
+  border-radius: 5px;
+  background: #46576a;
+  color: #eaf3f9;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+}
+
+.chiller-btn:hover {
+  background: #2f6f9f;
+}
+
+.chiller-btn.chiller-fill {
+  background: #1d6b34;
+}
+
+.chiller-btn.chiller-fill:hover {
+  background: #2a8a46;
+}
+
+.chiller-btn.is-off {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* at the grill, researching: a little fridge, top right beside the edit button, no ring round it; it opens and shuts the ingredients' panel */
+.fridge-toggle {
+  position: fixed;
+  z-index: 10;
+  top: 20px;
+  right: 332px;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.35));
+}
+.fridge-toggle svg {
+  width: 30px;
+  height: 30px;
+  fill: #e8f1f7;
+  stroke: #3a4858;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 160ms ease;
+}
+.fridge-toggle:hover svg { transform: translateY(-1px) scale(1.06); }
+.fridge-toggle.is-on svg { fill: #bfe6ff; stroke: #1d5e8a; }
+.fridge-toggle:focus-visible { outline: 3px solid var(--moss); outline-offset: 3px; border-radius: 8px; }
+
+/* the ingredients' panel while researching: further right (no board title beside it), in three zones: frozen, chilled, room temperature */
+.menu.is-research { padding-right: 14px; justify-content: end; }
+.menu.is-research .strips-frame { justify-self: end; }
+.menu.is-research .menu-title { display: block; color: #eaf3f9; text-shadow: 0 2px 6px rgb(0 0 0 / 0.45); }
+.chiller-scroll {
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #8aa2b6 transparent;
+}
+.chiller-scroll .chiller-bins { overflow: visible; }
+.chiller-zone + .chiller-zone { border-top: 2px solid #9fb7c8; }
+.chiller-zone-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  padding: 5px 12px;
+  font-size: 14px;
+  letter-spacing: 0.3em;
+  color: #eaf3f9;
+}
+.chiller-zone-head i {
+  font: 600 12px/1 ui-monospace, monospace;
+  letter-spacing: 0.05em;
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: #0d1a24;
+}
+.chiller-zone.is-frozen .chiller-zone-head { background: linear-gradient(180deg, #3d6a8e, #315a7a); }
+.chiller-zone.is-chilled .chiller-zone-head { background: linear-gradient(180deg, #4a7a6a, #3d6a5a); }
+.chiller-zone.is-ambient { background: linear-gradient(180deg, #f3ece0, #e9dfcd); }
+.chiller-zone.is-ambient .chiller-zone-head { background: linear-gradient(180deg, #8a6a46, #745838); }
+
+/* the test kitchen's foot: what's out to try, put it all back, and the three ways to restock */
+.tally-research { align-items: center; }
+.tally-research .tally-trying { flex: 1 1 auto; font-size: 14px; }
+.tally-research .tally-buy { flex-basis: 100%; margin-left: 0; justify-content: flex-end; }
+.tally-restock {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1.5px solid #3d6a8e;
+  border-radius: 8px;
+  background: #315a7a;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tally-restock.is-each { background: #4f8a34; border-color: #4f8a34; }
+.tally-restock.is-full { background: #c4442f; border-color: #c4442f; }
+.tally-restock small { font-weight: 400; opacity: 0.9; }
+.tally-restock .money { color: #e8f6ff !important; }
+.tally-restock:hover:not(:disabled) { filter: brightness(1.12); }
+.tally-restock:disabled { opacity: 0.4; cursor: default; }
+
+/* the world axes at the bottom left while editing */
+.axis-widget {
+  position: fixed;
+  z-index: 12;
+  left: 76px;
+  bottom: 12px;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: rgb(30 32 36 / 0.35);
+  pointer-events: none;
+}
+body.be-tool .axis-widget { left: calc(var(--bt-left) + 12px); bottom: calc(var(--bt-foot) + 12px); }
+
+/* the music button is the speaker on the wall now: it only shows while the speaker is out of the picture (or on a narrow screen) */
+

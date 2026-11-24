@@ -1,0 +1,153 @@
+/* ---------- menu paging (narrow layouts, where the tags don't all fit across) ---------- */
+
+.strips::-webkit-scrollbar {
+  display: none;
+}
+
+/* the reset-view button, bottom left of the stage */
+.view-reset {
+  position: absolute;
+  left: 22px;
+  bottom: 24px;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--washi) 45%, transparent);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 160ms ease, background-color 160ms ease;
+}
+
+.view-reset svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.view-reset:hover {
+  transform: rotate(-30deg);
+  background: color-mix(in srgb, var(--washi) 75%, transparent);
+}
+
+/* the game's guide (item 388): a fish on a round button beside the views' eye, the same glass; a little wag as it's pointed at */
+.guide-fish {
+  position: absolute;
+  left: 74px;
+  bottom: 24px;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--washi) 45%, transparent);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 160ms ease, background-color 160ms ease;
+}
+.guide-fish:hover, .guide-fish.is-open {
+  transform: rotate(-12deg) scale(1.06);
+  background: color-mix(in srgb, var(--washi) 75%, transparent);
+}
+
+/* switching language mustn't shuffle the layout: labels keep a fixed box, lines don't wrap */
+.heat-label {
+  min-height: 3.3em;
+  display: grid;
+  align-content: center;
+}
+
+.tally p {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* a long press on a tag (to take one off) mustn't pop up the phone's callout or select the text */
+.strip {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* 火力 gauge for the charcoal grill (shares the .heat layout) */
+.fire-meter {
+  height: 8px;
+  border-radius: 4px;
+  /* (the heat in orange; past it, faint, the charcoal on the bed still catching that it's rising to (--bed); then the empty bar) */
+  background: linear-gradient(90deg, #8a2b12, #ff7a2e var(--heat), rgb(255 122 46 / 0.32) var(--heat), rgb(255 122 46 / 0.32) var(--bed, var(--heat)),
+    var(--washi-shade) var(--bed, var(--heat)));
+}
+/* fanned past full (up to 120%): the whole bar white-hot and glowing */
+.fire-meter.fire-over {
+  background: linear-gradient(90deg, #b8340f, #ffb347 60%, #fff0c2);
+  box-shadow: 0 0 10px 2px rgba(255, 150, 50, 0.75);
+}
+
+/* 飽足: a belly meter under the heat/fire controls, filling warm as you eat */
+.fullness {
+  position: absolute;
+  top: 186px;
+  left: 22px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+}
+
+.fullness-icon {
+  width: 46px;
+  height: 46px;
+  flex: none;
+}
+
+.fire-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.fire-add {
+  white-space: nowrap;
+  padding: 3px 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--hanko);
+  color: var(--washi);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 10px -6px rgb(59 42 32 / 0.7);
+  transition: transform 140ms ease;
+}
+
+.fire-add:hover:not(:disabled) {
+  transform: scale(1.06);
+}
+
+.fire-add:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.fire-add:focus-visible {
+  outline: 3px solid var(--moss);
+  outline-offset: 2px;
+}
+

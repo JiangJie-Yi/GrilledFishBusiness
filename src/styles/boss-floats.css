@@ -1,0 +1,120 @@
+/* ---- the boss's answers (Boss.tsx; the owner's): his gulps floating up while he drinks, coins and hearts rising at the till's money ---- */
+.boss-float {
+  display: block; white-space: nowrap; font: 700 15px/1 var(--brush); color: #fff4d8; letter-spacing: 0.04em;
+  text-shadow: 0 0 6px rgb(255 170 60 / 0.85), 0 2px 3px rgb(0 0 0 / 0.55);
+  animation: boss-float 1.8s ease-out forwards;
+}
+@keyframes boss-float {
+  0% { opacity: 0; transform: translate(0, 6px) scale(0.85); }
+  15% { opacity: 1; transform: translate(0, 0) scale(1); }
+  100% { opacity: 0; transform: translate(14px, -46px) scale(1.05); }
+}
+/* (and a customer who loved what they had: hearts and stars out of their face (item 209)) */
+.boss-joy, .guest-joy { position: relative; display: block; width: 0; height: 0; }
+/* (item 444: the owner asleep on his futon, Zz rising off him in turn, larger as they go, fading) */
+.boss-zz { position: relative; display: block; width: 0; height: 0; }
+.boss-zz i { position: absolute; left: 0; bottom: 0; font: 900 28px/1 "Arial Black", sans-serif; color: #f6f1e6; font-style: normal;
+  -webkit-text-stroke: 2px #2f3e63; paint-order: stroke; text-shadow: 0 2px 4px rgb(0 0 0 / 0.45); opacity: 0; animation: boss-zz 3s ease-out infinite; }
+.boss-zz i:nth-child(2) { animation-delay: 1s; font-size: 22px; }
+.boss-zz i:nth-child(3) { animation-delay: 2s; font-size: 17px; }
+@keyframes boss-zz { 0% { opacity: 0; transform: translate(0, 0) scale(0.6); } 20% { opacity: 0.95; } 100% { opacity: 0; transform: translate(26px, -48px) scale(1.25); } }
+.boss-joy i, .guest-joy i {
+  position: absolute; left: 0; top: 0; font-style: normal; font-size: 18px; line-height: 1; opacity: 0;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.5));
+  animation: boss-joy 2s ease-out forwards; animation-delay: calc(var(--i) * 0.12s);
+}
+.boss-joy i:nth-child(odd), .guest-joy i:nth-child(odd) { --dx: -1; }
+/* (the drawn coins and hearts that rise from him: an old gold coin, its hole and rim cut in a darker gold; a red heart) */
+.boss-joy i.is-coin { color: #f6c84a; --icon-cut: #9a6516; }
+.boss-joy i.is-heart, .guest-joy i.is-heart { color: #ff5f86; }
+.guest-joy i.is-star { color: #ffc93c; }
+.boss-float .game-icon { margin-left: 3px; vertical-align: -0.1em; }
+.boss-joy i:nth-child(even), .guest-joy i:nth-child(even) { --dx: 1; }
+@keyframes cash-bump {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.14); filter: drop-shadow(0 0 6px rgb(79 255 133 / 0.8)); }
+  100% { transform: scale(1); }
+}
+@keyframes cash-up {
+  0% { opacity: 0; transform: translateY(-6px) scale(0.9); }
+  18% { opacity: 1; transform: translateY(0) scale(1.05); }
+  100% { opacity: 0; transform: translateY(18px) scale(1); }
+}
+/* the full house (大入り, item 209): a red seal stamped down over the top of the room, its brush letters white, a word under it; held a
+   moment, then gone */
+/* (the full house's stamp as an ooiri-bukuro (item 319): a tall red card, its paper's fine fibres, a gold double line round it and gold
+   knots at its corners, 大入 down it in the brush with a gold edge; under it a small seal; it comes down hard with a puff of dust) */
+/* (a review just written (item 320): a little card under the sign, its stars filling, then rising away; gold for a good one, plain for a
+   middling one, a dusk blue for a poor one) */
+.review-pop {
+  position: absolute; top: 92px; left: 26px; z-index: 11;
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px 5px 8px; border-radius: 999px;
+  background: #fff8ec; border: 1.5px solid #3b2a20; color: #3b2a20; white-space: nowrap; cursor: pointer;
+  font: 700 13px/1 var(--ui-font, inherit); box-shadow: 0 6px 16px -6px rgb(40 20 0 / 0.55);
+  animation: review-pop 3.2s cubic-bezier(0.2, 1.3, 0.4, 1) both;
+}
+.review-pop.is-good { border-color: #b8860b; box-shadow: 0 0 0 3px rgb(232 196 90 / 0.35), 0 6px 16px -6px rgb(40 20 0 / 0.55); }
+.review-pop.is-poor { background: #eef1f6; border-color: #4a5a72; color: #34425a; }
+.review-pop small { font-size: 11px; font-weight: 600; opacity: 0.8; }
+.review-pop-stars { position: relative; display: inline-flex; font-size: 13px; line-height: 1; }
+.review-pop-base { color: #d6ccb8; display: inline-flex; }
+.review-pop-fill { position: absolute; inset: 0 auto 0 0; overflow: hidden; color: #e0a526; display: inline-flex; animation: review-pop-fill 0.7s 0.25s ease-out both; }
+.review-pop.is-poor .review-pop-fill { color: #7a8aa6; }
+@keyframes review-pop {
+  0% { opacity: 0; transform: translateY(-10px) scale(0.6); }
+  9% { opacity: 1; transform: translateY(0) scale(1.08); }
+  15% { transform: scale(1); }
+  82% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-14px); }
+}
+@keyframes review-pop-fill { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+.ooiri {
+  position: fixed; left: 50%; top: 86px; z-index: 12; pointer-events: none;
+  display: grid; justify-items: center; gap: 6px;
+  animation: ooiri-in 2.8s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.ooiri-card {
+  position: relative; display: grid; place-items: center; width: 84px; height: 124px; border-radius: 4px;
+  background:
+    repeating-linear-gradient(97deg, rgb(255 255 255 / 0.05) 0 1px, transparent 1px 5px),
+    linear-gradient(180deg, #d8402c, #b42617 70%, #9e1f13);
+  box-shadow: inset 0 0 0 3px #b42617, inset 0 0 0 5px #e9c46a, inset 0 0 0 7px #b42617, inset 0 0 0 8px #f3d98e,
+    0 12px 26px -10px rgb(60 10 0 / 0.7);
+}
+.ooiri-card::after {
+  content: ''; position: absolute; inset: -14px; border-radius: 50%; pointer-events: none;
+  border: 3px solid rgb(255 236 200 / 0.6);
+  animation: ooiri-dust 0.7s ease-out 0.22s both;
+}
+.ooiri-corners { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke: #f3d98e; stroke-width: 1.6; }
+.ooiri-corners g path:last-child { fill: #f3d98e; stroke: none; }
+.ooiri b {
+  writing-mode: vertical-rl; color: #fff6dc; font: 700 40px/1 var(--brush); letter-spacing: 0.06em; white-space: nowrap;
+  text-shadow: 0 0 1px #8a5a10, 0 1px 0 #e9c46a, 0 2px 6px rgb(60 10 0 / 0.5);
+}
+.ooiri small {
+  padding: 3px 7px; border-radius: 3px; background: var(--hanko); color: #fff3e6; font: 700 13px/1 var(--brush); white-space: nowrap;
+  box-shadow: 0 0 0 1.5px #fff3e6, 0 0 0 3px var(--hanko), 0 3px 8px rgb(0 0 0 / 0.4);
+}
+@keyframes ooiri-dust {
+  from { opacity: 0.9; transform: scale(0.6); }
+  to { opacity: 0; transform: scale(1.5); }
+}
+@keyframes ooiri-in {
+  0% { opacity: 0; transform: translateX(-50%) rotate(-12deg) scale(2.3); }
+  10% { opacity: 1; transform: translateX(-50%) rotate(-8deg) scale(0.92); }
+  15% { transform: translateX(-50%) rotate(-8deg) scale(1); }
+  82% { opacity: 1; transform: translateX(-50%) rotate(-8deg) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) rotate(-8deg) scale(1.04) translateY(-6px); }
+}
+@keyframes boss-joy {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(0.6); }
+  15% { opacity: 1; transform: translate(calc(-50% + var(--dx) * 10px), -12px) scale(1); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--dx) * (18px + var(--i) * 4px)), -64px) scale(0.9) rotate(calc(var(--dx) * 18deg)); }
+}
+@media (prefers-reduced-motion: reduce) { .boss-float, .boss-joy i { animation-duration: 0.01s; } }
+
+/* (a tag that says no: its hint in red (the staff stair's 閒人勿進)) */
+.hover-tip .tool-tag.is-warn small { color: #c4302a; font-weight: 700; }
+.hover-tip .tool-tag.is-warn small .game-icon { margin-right: 4px; vertical-align: -0.14em; }
+
