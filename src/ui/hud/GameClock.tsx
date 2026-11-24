@@ -8,9 +8,9 @@ import { isLate } from '@/game/world/hours'
 import { businessDay, rainAt, weatherOf } from '@/game/world/weather'
 import { tl, type Lang } from '@/data/i18n'
 import { setTip } from '@/scene/hoverTip'
-import { Glyph } from './GameIcons'
+import { Glyph } from '@/ui/art/GameIcons'
 import { setSfxMuted, useSfxMuted } from '@/scene/sfx'
-import { getClock, setClock, useClock } from './clockStore'
+import { getClock, setClock, useClock } from '@/ui/kit/clockStore'
 
 const NAMES: Record<Sky, [string, string, string]> = {
   dawn: ['清晨', '明け方', 'Dawn'], day: ['白天', '昼', 'Day'], dusk: ['黃昏', '夕暮れ', 'Dusk'], night: ['黑夜', '夜', 'Night'],

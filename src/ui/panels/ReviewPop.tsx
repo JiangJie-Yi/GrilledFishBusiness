@@ -1,7 +1,7 @@
 import { memo, useEffect } from 'react'
 import type { Lang } from '@/data/i18n'
-import { StarIcon } from './GameIcons'
-import { reviewSound } from './uiSound'
+import { StarIcon } from '@/ui/art/GameIcons'
+import { reviewSound } from '@/ui/kit/uiSound'
 
 const tl = (lang: Lang, zh: string, ja: string, en: string) => (lang === 'ja' ? ja : lang === 'en' ? en : zh)
 

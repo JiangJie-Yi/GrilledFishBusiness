@@ -13,7 +13,7 @@ import { getEdit } from './edit'
 import type { Lang } from '@/data/i18n'
 import { bedLineText, bossLineText, cashLineText, drinkLineText, lineIn, munchLineText, phoneLine, nextBossLine, tasteLineText, tasteVerdict, verdictLineText, type BossSituation } from '@/data/bossLines'
 import { bossSituation } from '@/game/staff/talkTime'
-import { getClock } from '@/ui/clockStore'
+import { getClock } from '@/ui/kit/clockStore'
 import { DrinkBottle } from './dining/bottles'
 import { gulpSound } from './chewSound'
 import { BOSS_BED, FIGURES, FRIDGE_STOCK, FUTON, KITCHEN_FOLK, NIGHT_WITH, OWNER_GRILL, OWNER_OUT, STAFF_DOOR_HOLD, type DrinkId } from './bar'
@@ -23,8 +23,8 @@ import { footDust, newSteps } from '@/scene/DustPuffs'
 const FEET = new THREE.Vector3()
 import { RUSH, SPEAKERS, STAFF_TALK } from '@/game/world/shopState'
 import { FigureHit, GRABBING } from '@/scene/FigureHit'
-import { glyphCursor } from '@/ui/glyphs'
-import { Glyph } from '@/ui/GameIcons'
+import { glyphCursor } from '@/ui/art/glyphs'
+import { Glyph } from '@/ui/art/GameIcons'
 /** the skin's own colour on a figure (its BossSkin material's) */
 const skinOf = (r: THREE.Object3D) => {
   let c: THREE.Color | null = null

@@ -5,7 +5,7 @@
 import * as THREE from 'three'
 import { FADE_S, NOD_S, yieldTo } from '@/game/staff/commute'
 import { clockIn, clockOut, STAFF_TALK, SWITCH_SPOT } from '@/game/world/shopState'
-import { minutesNow } from '@/ui/clockStore'
+import { minutesNow } from '@/ui/kit/clockStore'
 import { getLights, pressLightSwitch } from '@/scene/lightsStore'
 import { LIGHTS_ON } from '@/data/commuteLines'
 import type { Lang } from '@/data/i18n'

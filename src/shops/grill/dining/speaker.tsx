@@ -7,7 +7,7 @@ import { useGLTF } from '@react-three/drei'
 import { handOver } from '@/shops/grill/bar'
 import { getEdit } from '@/shops/grill/edit'
 import { setTip } from '@/scene/hoverTip'
-import { getBgmOff, setBgmOff, useBgmOff } from '@/ui/bgmStore'
+import { getBgmOff, setBgmOff, useBgmOff } from '@/ui/kit/bgmStore'
 import { useSfxMuted } from '@/scene/sfx'
 import { MusicNotes } from './crates'
 

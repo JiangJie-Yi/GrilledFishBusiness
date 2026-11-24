@@ -3,7 +3,7 @@ import type { Lang } from '@/data/i18n'
 import { tl } from '@/data/i18n'
 import { OUTFIT_COLOURS, OUTFIT_PARTS, OUTFIT_PART_NAMES, type OutfitPart } from '@/data/bossOutfit'
 import { OUTFIT_DEFAULT, OUTFIT_KEY, getOutfit, setOutfit, subscribeOutfit, type Outfit } from '@/game/staff/bossOutfit'
-import { usePanelSound } from './uiSound'
+import { usePanelSound } from '@/ui/kit/uiSound'
 
 /** how each part looks as he's made (its first colour has no dye of its own: his picture as it is) */
 const AS_MADE: Record<OutfitPart, string> = { coat: '#f2efe8', apron: '#1f2a48', trousers: '#33405f', headband: '#29386b', towel: '#e7e0ce' }

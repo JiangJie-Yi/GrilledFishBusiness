@@ -1,7 +1,7 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { TIP_AIM, useTip } from '@/scene/hoverTip'
-import { Glyph } from './GameIcons'
+import { Glyph } from '@/ui/art/GameIcons'
 import { tipIn } from '@/data/tipText'
 
 /** how tall on screen a thing may be (px) for its tag to stand over its top; anything bigger, the tag stays by the pointer */

@@ -3,7 +3,7 @@
 import { writeFileSync } from 'node:fs'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { SEASONINGS } from '@/data/recipes'
-import { SeasoningArt } from '@/ui/SeasoningArt'
+import { SeasoningArt } from '@/ui/art/SeasoningArt'
 
 const cells = renderToStaticMarkup(<>{SEASONINGS.map((k) => <div key={k} className="cell"><SeasoningArt k={k} /><div>{k}</div></div>)}</>)
 writeFileSync(process.argv[2] ?? 'seasonsheet.html', `<!doctype html><meta charset="utf-8"><title>調味料插畫</title>

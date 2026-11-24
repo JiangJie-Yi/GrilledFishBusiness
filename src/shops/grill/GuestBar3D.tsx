@@ -5,7 +5,7 @@ import { memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { SKEWER_WASH_S, WASH_LOW, pickUpDirty, putBackClean, washAll, washGoes, washUrgent } from '@/game/kitchen/skewers'
 import { stepFrame, waitsForStep } from '@/game/guests/genkanStep'
 import { rattleSound } from './skewerSound'
-import { getClock, minutesNow } from '@/ui/clockStore'
+import { getClock, minutesNow } from '@/ui/kit/clockStore'
 import { crewCall, crewThanks, crewWelcome } from './crewTalk'
 import { nextClean, sweeps, SWEEP_S, WIPE_S as FLOOR_WIPE_S } from '@/game/service/spills'
 import { FigureHit, GRABBING } from '@/scene/FigureHit'

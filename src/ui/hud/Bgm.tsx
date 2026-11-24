@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef } from 'react'
-import { getBgmOff, useBgmOff } from './bgmStore'
+import { getBgmOff, useBgmOff } from '@/ui/kit/bgmStore'
 import { sfxMuted, useSfxMuted } from '@/scene/sfx'
 
 /**

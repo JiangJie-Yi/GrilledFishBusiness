@@ -3,11 +3,11 @@ import type { Lang } from '@/data/i18n'
 import { tl } from '@/data/i18n'
 import { GAME_GUIDE, type GuideIcon } from '@/data/gameGuide'
 import { emotePicture } from '@/scene/crewEmote'
-import type { GlyphId } from './glyphs'
-import { FitLine } from './FitLine'
-import { Glyph } from './GameIcons'
-import { withArrows } from './RegisterManual'
-import { usePanelSound } from './uiSound'
+import type { GlyphId } from '@/ui/art/glyphs'
+import { FitLine } from '@/ui/kit/FitLine'
+import { Glyph } from '@/ui/art/GameIcons'
+import { withArrows } from '@/ui/panels/RegisterManual'
+import { usePanelSound } from '@/ui/kit/uiSound'
 
 /**
  * The game's guide (item 388, the owner's, 2026-11-20: 「左下加入一個小Icon 是有關魚遊戲說明，引導、教學、玩法，及員工、客人各種狀態說明。」): a

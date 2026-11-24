@@ -7,7 +7,7 @@ import { plainColours, mergeByMaterial } from '@/scene/StaticBatch'
 import { TILL_STATE, tipOver } from './bar'
 import { getEdit } from './edit'
 import type { Lang } from '@/data/i18n'
-import { drawGlyph } from '@/ui/glyphs'
+import { drawGlyph } from '@/ui/art/glyphs'
 import { sharedAudio } from '@/scene/sfx'
 
 /**

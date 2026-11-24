@@ -2,7 +2,7 @@
 //   npx vite-node tests/visual/foodsheet.tsx <out.html>      (then open it in a browser)
 import { writeFileSync } from 'node:fs'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { FoodArt } from '@/ui/FoodArt'
+import { FoodArt } from '@/ui/art/FoodArt'
 
 const IDS = ['ExtraFish', 'Saury', 'Mackerel', 'Aji', 'Iwashi', 'Shishamo', 'Hokke', 'Buri', 'Nodoguro', 'Salmon', 'Gindara', 'ShrimpSkewer',
   'Yakitori', 'PorkBelly', 'BloodCake', 'Squid', 'Scallop', 'Shishito', 'Okra', 'Asparagus', 'KingOyster', 'GrilledShiitake', 'GrilledCorn',

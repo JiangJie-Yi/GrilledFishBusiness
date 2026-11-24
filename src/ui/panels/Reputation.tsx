@@ -14,9 +14,9 @@ import { tl, type Lang } from '@/data/i18n'
 import { STORY } from '@/data/story'
 import { CAPITAL, SHOP_COST } from '@/game/money/economy'
 import { agoOf, pageButtons, pageOf, pagesOf, remarkOf, REVIEW_PACKS, sortReviews, starCounts, visitSides, visitStars, type Rating, type Remark, type ReviewOrder, type Visit } from '@/game/guests/reputation'
-import { FitLine } from './FitLine'
-import { ReviewerAvatar } from './ReviewerAvatar'
-import { Glyph, StarIcon } from './GameIcons'
+import { FitLine } from '@/ui/kit/FitLine'
+import { ReviewerAvatar } from '@/ui/art/ReviewerAvatar'
+import { Glyph, StarIcon } from '@/ui/art/GameIcons'
 
 /** what a customer says as they go, a few ways each (the owner's: every one said the same line), picked by who they were and how it went */
 const REMARK: Record<Remark, [string, string, string][]> = {

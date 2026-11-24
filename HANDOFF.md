@@ -111,7 +111,7 @@
 |---|---|---|
 | 灶台固定位置：火邊最多 8 串、砧板 4 串、裝盤處 3 格，鐵串落盤就拔 | `game/kitchen/fireSlots.ts`、`bdd/fire-slots.test.ts`、`game/kitchen/chefFlow.ts`、`grill/Roasting.tsx`、`grill/bar.ts`、`grill/Grill2D.tsx`、`App.tsx` | `80ec9f0` |
 | 飲料數量只算自己格子裡的（放到別格的另外標 +n） | `game/stock/drinkStock.ts`、`bdd/drink-stock.test.ts`、`grill/DrinkStockPanel.tsx`、`src/index.css` | `aa36652` |
-| 關於頁精簡、故事照店主改寫 | `data/story.ts`、`ui/Reputation.tsx`、`src/index.css` | `7c33051` |
+| 關於頁精簡、故事照店主改寫 | `data/story.ts`、`ui/panels/Reputation.tsx`、`src/index.css` | `7c33051` |
 | 衛生紙垂下的那張貼著紙捲 | `grill/Restroom.tsx` | `9652b3c` |
 | 三廚的凹槽（灶台桌尾挖一塊），兩個凹處的內壁在桌面下變暗 | `grill/Roasting.tsx`、`grill/GuestBar3D.tsx`、`grill/Decor.tsx`、`grill/bar.ts`、`App.tsx`、`blender/notchstep.py` → `models/notchstep.glb` | `c67c06a`、`11af9f5` |
 | 老闆一律實心；兩塊木台階改成 5 公分的簀の子；老闆、台階、水桶、廚餘桶回到廚房地板（以前浮在桌面的高度） | `grill/Roasting.tsx`、`grill/Boss.tsx`、`grill/bar.ts`、`blender/notchstep.py` → `models/notchstep.glb`、`data/editText.ts` | `246e9b6`、`188bb48` |
@@ -126,12 +126,12 @@
 | 外場擦桌不再把頭壓進桌面 | `scene/StaffFigure.tsx`、`grill/GuestBar3D.tsx` | `39802e6` |
 | 神龕花瓶直立貼桌、各自的轉向與大小 | `grill/DiningRoom.tsx` | `c06cf40` |
 | 鞋櫃深度減半、壓胡桃木紋 | `blender/shoecab.py` → `models/shoecab.glb`、`grill/GuestBar3D.tsx` | `ace686e` |
-| 客人一口一口喝飲料、離開時留下自己的瓶罐；地上的垃圾桶換成廚餘桶 | `scene/FolkFigure.tsx`、`grill/GuestBar3D.tsx`、`grill/DiningRoom.tsx`、`grill/Roasting.tsx`、`grill/bar.ts`、`blender/foodwaste.py` → `models/foodwaste.glb`、`game/stock/drinkStock.ts`、`game/world/hours.ts`、`ui/DaySummary.tsx`、`bdd/hours.test.ts` | `d40e22c` |
+| 客人一口一口喝飲料、離開時留下自己的瓶罐；地上的垃圾桶換成廚餘桶 | `scene/FolkFigure.tsx`、`grill/GuestBar3D.tsx`、`grill/DiningRoom.tsx`、`grill/Roasting.tsx`、`grill/bar.ts`、`blender/foodwaste.py` → `models/foodwaste.glb`、`game/stock/drinkStock.ts`、`game/world/hours.ts`、`ui/screens/DaySummary.tsx`、`bdd/hours.test.ts` | `d40e22c` |
 | 廁所門牌是厚胡桃木板，兩扇門的暖簾桿分開 | `grill/DiningRoom.tsx`、`data/tipText.ts` 等 | `e87cd83` |
 | 左下日誌像線上遊戲的聊天視窗（留一整天、可往上翻、不擋滑鼠） | `App.tsx`、`src/index.css` | `8b8a9f4` |
 | 灶台正面兩個鐵串筒（乾淨、回收） | `grill/SkewerStore.tsx`、`grill/Roasting.tsx`、`grill/Decor.tsx`、`grill/GuestBar3D.tsx` 等 | `9d39392` |
-| 員工疲勞照忙、待命、偷閒算，只有倉儲會偷閒 | `data/staff.ts`、`game/world/shopState.ts`、`bdd/staff.test.ts`、`grill/GuestBar3D.tsx`、`grill/Roasting.tsx`、`ui/Office.tsx`、`App.tsx` | `f63aafe` |
-| 關於頁的版本在本機寫「開發版」 | `data/credits.ts`、`ui/Reputation.tsx`、`bdd/version.test.ts` | `d6476ee` |
+| 員工疲勞照忙、待命、偷閒算，只有倉儲會偷閒 | `data/staff.ts`、`game/world/shopState.ts`、`bdd/staff.test.ts`、`grill/GuestBar3D.tsx`、`grill/Roasting.tsx`、`ui/panels/Office.tsx`、`App.tsx` | `f63aafe` |
+| 關於頁的版本在本機寫「開發版」 | `data/credits.ts`、`ui/panels/Reputation.tsx`、`bdd/version.test.ts` | `d6476ee` |
 
 ### 2-3　2026-11-09（113 個提交，重點）
 
@@ -148,19 +148,19 @@
 | 腳後跟小煙（後來只有員工與小學生、跑的時候才冒） | `scene/DustPuffs.tsx`、`scene/FolkFigure.tsx`、`scene/StaffFigure.tsx`、`grill/Boss.tsx`、`App.tsx` | `c9c141b`、`1d917ff` |
 | Overcooked 風格的簡約五官 | `scene/faceSheet.ts` | `aa8df69` |
 | 對話氣泡跟著人藏、最後 0.3 秒淡出、同時最多 6 句 | `grill/StaffWords.tsx`、`grill/GuestBar3D.tsx`、`grill/Boss.tsx`、`App.tsx`、`src/index.css` | `daa2c36`、`3194002` |
-| 人事頁重排；滿員時「替換」（先選要換誰、對照能力） | `ui/Office.tsx`、`game/staff/hiring.ts`、`bdd/staff.test.ts`、`src/index.css` | `b82ad8a`、`845e104`、`5bbdbec` |
+| 人事頁重排；滿員時「替換」（先選要換誰、對照能力） | `ui/panels/Office.tsx`、`game/staff/hiring.ts`、`bdd/staff.test.ts`、`src/index.css` | `b82ad8a`、`845e104`、`5bbdbec` |
 | 倉儲頭上狀態牌；補飲料時櫃門會開 | `grill/GuestBar3D.tsx`、`grill/DiningRoom.tsx`、`grill/bar.ts`、`src/index.css` | `4396113`、`d055701` |
 | 大廚替火上的食物調味時有手部動作 | `grill/Boss.tsx`、`grill/Roasting.tsx`、`grill/bar.ts` | `73250b6` |
 | 托盤、三廚手上的東西在手的高度 | `grill/GuestBar3D.tsx` | `838e67d`、`3c6c470` |
 | 偶爾才動的東西歸位時合成一份畫（座位抽屜、鞋櫃、神龕、飲料櫃門、收銀台座抽屜、調味架） | `scene/StaticBatch.tsx`（`homeCopy`）、`grill/Roasting.tsx`（`ledgeCopy`）、`grill/GuestBar3D.tsx`、`grill/DiningRoom.tsx`、`grill/TillDesk.tsx`、`scene/atlasMerge.ts`、`scene/materialNormalize.ts` | `f5e513f`、`0e8b3c5`、`9044bba`、`8431531`、`8231503`、`d4121c1` |
 | 客人台詞每種情境 3～4 句 | `data/lines.ts` | `eff1693` |
-| 三種語言補齊；員工名字在英文拼出來 | `data/tipText.ts`、`data/i18n.ts`、`data/recipes.ts`、`data/people.ts`（`personName`）、`ui/Office.tsx`、`grill/Roasting.tsx`、`App.tsx`、`bdd/dish-names.test.ts`、`bdd/person-names.test.ts` 等 | `21ec62a`～`9a4909e`、`29686ac` |
+| 三種語言補齊；員工名字在英文拼出來 | `data/tipText.ts`、`data/i18n.ts`、`data/recipes.ts`、`data/people.ts`（`personName`）、`ui/panels/Office.tsx`、`grill/Roasting.tsx`、`App.tsx`、`bdd/dish-names.test.ts`、`bdd/person-names.test.ts` 等 | `21ec62a`～`9a4909e`、`29686ac` |
 | 人物轉身不再一格轉過去 | `grill/commuteWalk.ts`（`turnToward`）、`grill/GuestBar3D.tsx`、`grill/Roasting.tsx` | `4ae4291`、`19d853a` |
 | 總覽視角聽得到店裡的聲音（可聽距離 34 公尺） | `scene/sfx.ts` | `8e9affc` |
 | 每支鐵串同一個規格 | `grill/Roasting.tsx` | `c68dd93` |
 | 打烊照遊戲時鐘（05:00 催、05:30 強制關店）；結算收起後跳到 16:00 | `App.tsx`、`game/world/shopState.ts`、`grill/Roasting.tsx`、`grill/restroomSound.ts` | `e52af34`、`46d695c` |
 | 開店時沒開燈，進門的員工去開 | `grill/commuteWalk.ts`、`data/commuteLines.ts`、`game/world/shopState.ts`、`grill/DiningRoom.tsx` | `62041d9` |
-| 廁所門牌的人形圖示；鞋櫃低矮長型 2×4；店家評價照三項權重；客人拉椅子入座；柳樹盆景 | `grill/DiningRoom.tsx`、`blender/shoecab.py` → `models/shoecab.glb`、`game/guests/reputation.ts`、`ui/Reputation.tsx`、`bdd/reputation.test.ts`、`blender/willow.py` → `models/willow.glb`、`grill/GuestBar3D.tsx`、`grill/bar.ts` | `e81260c`、`a4c8bfd`、`1bdf8bd`、`88115b7` |
+| 廁所門牌的人形圖示；鞋櫃低矮長型 2×4；店家評價照三項權重；客人拉椅子入座；柳樹盆景 | `grill/DiningRoom.tsx`、`blender/shoecab.py` → `models/shoecab.glb`、`game/guests/reputation.ts`、`ui/panels/Reputation.tsx`、`bdd/reputation.test.ts`、`blender/willow.py` → `models/willow.glb`、`grill/GuestBar3D.tsx`、`grill/bar.ts` | `e81260c`、`a4c8bfd`、`1bdf8bd`、`88115b7` |
 | 人物不套開發者模式的渲染設定（老闆黑臉的一個成因） | `grill/renderPrefs.ts` | `13c63f4` |
 
 ### 2-4　2026-11-07～08
@@ -170,18 +170,18 @@
 | Mac 開得了 3D：著色程式大幅減少、貼圖尺寸上限、Mac 起始中畫質、2D 畫布留在一般記憶體 | `scene/materialNormalize.ts`、`scene/textureCap.ts`、`scene/quality.ts`、`scene/canvasKeep.ts`、`scene/studio.ts`、`scene/Later.tsx`、`App.tsx`、`main.tsx` | `01f4820`、`4423a54`、`64df6d9`、`a965d1c` |
 | 開發者模式不用中鍵（Mac 觸控板） | `game/system/navInput.ts`、`bdd/nav-input.test.ts`、`grill/edit.ts`、`App.tsx`、`data/editText.ts` | `f68410a` |
 | 庫存分批、先進先出 | `game/stock/lots.ts`、`game/stock/freshness.ts`、`bdd/fresh-lots.test.ts`、`grill/StockPanel.tsx`、`grill/Roasting.tsx`、`grill/bar.ts`、`App.tsx` | `e656fd8` |
-| 五道新菜（洋蔥、蔥、紅蘿蔔、牛蒡、白蘿蔔）與根莖蔬菜區 | `blender/grilledfish.py` → `models/grilledfish.glb`、`data/menu.ts`、`data/storage.ts`、`game/money/economy.ts`、`game/kitchen/taste.ts`、`ui/FoodArt.tsx`、`blender/produce.py`、`blender/cubbystock.py` 等 | `e652520`、`4a191d9` |
+| 五道新菜（洋蔥、蔥、紅蘿蔔、牛蒡、白蘿蔔）與根莖蔬菜區 | `blender/grilledfish.py` → `models/grilledfish.glb`、`data/menu.ts`、`data/storage.ts`、`game/money/economy.ts`、`game/kitchen/taste.ts`、`ui/art/FoodArt.tsx`、`blender/produce.py`、`blender/cubbystock.py` 等 | `e652520`、`4a191d9` |
 | 五十支鐵串循環 | `game/kitchen/skewers.ts`、`bdd/skewers.test.ts`、`grill/SkewerStore.tsx`、`grill/Roasting.tsx`、`grill/GuestBar3D.tsx`、`grill/bar.ts`、`grill/skewerSound.ts`、`data/lines.ts` | `be283c8`、`bb48d94` |
 | 營業時食物不丟（沒人要的放進試吃碗保溫） | `grill/Roasting.tsx`、`grill/GuestBar3D.tsx`、`data/lines.ts` | `9affd60` |
 | 飲料櫃自己做（332 面）並 1:1 精修 | `blender/drinkfridge.py` → `models/drinkfridge.glb`、`grill/DiningRoom.tsx`、`data/credits.ts`、`scene/signFont.ts`、`index.html` | `e1a7467`、`234764a` |
 | 營業時的內場分工（老闆是大廚、二廚取料、三廚擺盤顧火） | `game/kitchen/kitchenCrew.ts`、`bdd/kitchen-crew.test.ts`、`grill/Boss.tsx`、`grill/Roasting.tsx`、`grill/GuestBar3D.tsx`、`grill/bar.ts`、`data/staff.ts`、`App.tsx` | `20f7215`、`99dee21` |
 | 三廚顧火（加炭、灑水、攪湯） | `game/kitchen/fireTend.ts`、`bdd/fire-tend.test.ts`、`grill/GuestBar3D.tsx`、`grill/Roasting.tsx`、`grill/Decor.tsx`、`grill/bar.ts` | `4c5a29c`、`a0b18b5` |
-| 音效總開關（時鐘上的小喇叭）、補齊動作音效 | `scene/sfx.ts`、`main.tsx`、`ui/GameClock.tsx`、`grill/restroomSound.ts` 等 | `798f9f4` |
-| 營業時間 16:30–04:30、深夜模式、疲勞與特殊技能 | `game/world/hours.ts`、`bdd/hours.test.ts`、`data/staff.ts`、`data/guests.ts`、`game/staff/hiring.ts`、`game/world/shopState.ts`、`ui/Office.tsx` 等 | `a792bce` |
-| 打烊結算（暫停時間、10 秒自動關、記進帳簿） | `game/money/daySummary.ts`、`bdd/day-summary.test.ts`、`ui/DaySummary.tsx`、`App.tsx` | `1310548`、`66b3092` |
-| 排班 A／B；應徵者價碼照數值、每天刷新 | `game/staff/shifts.ts`、`bdd/shifts.test.ts`、`game/staff/hiring.ts`、`ui/Office.tsx`、`App.tsx` | `bfae45b`、`da1c120` |
+| 音效總開關（時鐘上的小喇叭）、補齊動作音效 | `scene/sfx.ts`、`main.tsx`、`ui/hud/GameClock.tsx`、`grill/restroomSound.ts` 等 | `798f9f4` |
+| 營業時間 16:30–04:30、深夜模式、疲勞與特殊技能 | `game/world/hours.ts`、`bdd/hours.test.ts`、`data/staff.ts`、`data/guests.ts`、`game/staff/hiring.ts`、`game/world/shopState.ts`、`ui/panels/Office.tsx` 等 | `a792bce` |
+| 打烊結算（暫停時間、10 秒自動關、記進帳簿） | `game/money/daySummary.ts`、`bdd/day-summary.test.ts`、`ui/screens/DaySummary.tsx`、`App.tsx` | `1310548`、`66b3092` |
+| 排班 A／B；應徵者價碼照數值、每天刷新 | `game/staff/shifts.ts`、`bdd/shifts.test.ts`、`game/staff/hiring.ts`、`ui/panels/Office.tsx`、`App.tsx` | `bfae45b`、`da1c120` |
 | 最後半小時只收外帶；外帶客人與外送員 | `game/guests/takeout.ts`、`bdd/takeout.test.ts`、`game/world/hours.ts`、`grill/GuestBar3D.tsx`、`grill/Roasting.tsx`、`grill/bar.ts`、`data/guests.ts` | `2cd8cd4`、`f23bc7f` |
-| 表情符號與特殊符號全換成自己畫的圖示 | `ui/glyphs.ts`、`ui/GameIcons.tsx` 與各面板 | `09582b8`、`638b2df` |
+| 表情符號與特殊符號全換成自己畫的圖示 | `ui/art/glyphs.ts`、`ui/art/GameIcons.tsx` 與各面板 | `09582b8`、`638b2df` |
 | 換時段時整個遊戲停 5 秒多 → 圓窗的圖整層模糊一次 | `grill/DiningRoom.tsx`、`scene/IndoorHDRI.tsx`、`grill/GuestBar3D.tsx` | `b22f73c` |
 
 ### 2-5　2026-11-05～06
@@ -198,7 +198,7 @@
 | 窄視窗不再換成手機版的舊排版 | `src/index.css` | `dda1cc7` |
 | 拖著的飲料一直在游標下、發亮 | `grill/DiningRoom.tsx` | `3779106` |
 | 飲料後場減面（19,672 → 2,624 面） | `blender/bottlecrate.py`、`blender/drinkcartons.py`、`models/bottlecrate.glb`、`models/drinkcartons.glb`、`grill/DiningRoom.tsx` | `90ff2cf` |
-| 滑鼠移到人身上顯示名字，只有客人能拖 | `scene/FigureHit.tsx`、`scene/hoverTip.ts`、`ui/HoverTip.tsx`、`grill/GuestBar3D.tsx` 等 | `832c17c` |
+| 滑鼠移到人身上顯示名字，只有客人能拖 | `scene/FigureHit.tsx`、`scene/hoverTip.ts`、`ui/hud/HoverTip.tsx`、`grill/GuestBar3D.tsx` 等 | `832c17c` |
 | 人物 1,000 面以下、Overcooked 表情（臉是頭的正面） | `blender/boss.py` → `models/boss.glb`、`models/crew_*.glb`、`scene/faceSheet.ts`、`scene/rigidSkin.ts`、`scene/atlasMerge.ts`、`scene/StaffFigure.tsx`、`scene/FolkFigure.tsx` | `d3017fb` |
 
 ### 2-6　2026-11-03～04
@@ -222,7 +222,7 @@
 | **玄關兩個開關各管一條線路**（店內電燈、門口燈籠） | `game/world/roomLights.ts`、`bdd/room-lights.test.ts`、`scene/lightsStore.ts`、`grill/DiningRoom.tsx`、`App.tsx`、`game/money/utilities.ts` | `06aa41e`、`409906b` |
 | **門口兩盞長提灯並排** | `grill/GuestBar3D.tsx`、`grill/edit.ts` | `dcc350f`、`4e29206` |
 | **廁所改格局**（開門先看到洗手台與鏡子，轉彎才是馬桶） | `blender/wc.py` → `models/washstand.glb`、`models/wcbits.glb`、`grill/Restroom.tsx`、`grill/DiningRoom.tsx` 等 | `f0f2f87` |
-| 店家評價、衛生紙、水電 | `game/guests/reputation.ts`、`game/stock/tissues.ts`、`game/money/utilities.ts`、`ui/Reputation.tsx` 等 | `0340d90` |
+| 店家評價、衛生紙、水電 | `game/guests/reputation.ts`、`game/stock/tissues.ts`、`game/money/utilities.ts`、`ui/panels/Reputation.tsx` 等 | `0340d90` |
 | 發票紙是耗材 | `game/money/receipts.ts`、`bdd/receipts.test.ts`、`grill/cashRegister.tsx` 等 | `1a5104b` |
 
 ---
@@ -242,7 +242,7 @@
 | 水桶放在大廚左腳邊的地上（11/7 的規格） | 放回灶台桌上（`2069df3`） | 店主 11/9 說「水桶也沒放回桌上」，照最新的 |
 | 店外剖開的那一側補牆（11/9 截圖的紅框） | 不補 | 這間店是剖開的模型，像娃娃屋，朝鏡頭那一側沒有牆、沒有屋頂，總覽才看得到店裡 |
 | 醬烤在烤到 50% 時刷醬 | 照評分規則在 85% 左右刷 | 提早刷會被調味時機扣分；要改的話評分規則一起改，待店主決定 |
-| 手機版 | 顯示「手機版（2D）暫不開放」（`ui/PhoneClosed`）；2D 手機版本身第 188 項整個拿掉（店主 2026-11-16） | 店主要的 |
+| 手機版 | 顯示「手機版（2D）暫不開放」（`ui/screens/PhoneClosed`）；2D 手機版本身第 188 項整個拿掉（店主 2026-11-16） | 店主要的 |
 
 ---
 
@@ -342,7 +342,7 @@
 - 外送員背的保溫箱改成背包（肩帶、反光條）（`267aef5`）；女廁衛生紙架改到跟男廁同一面（`a6bf14b`）；廁所壁燈換回原本的和風燈（`724f571`）。
 - 客人上廁所看得到：走進隔間、坐馬桶、沖水、走到洗手台洗手烘手；燈沒開會自己開，最後一個出來的關燈（`8530dfa`）。
 - 減面：碗盤架疊盤中間只畫盤緣（每座 46,512 → 26,800 面）（`3b9be60`）；飲料櫃後排瓶子 6 段、罐蓋簡化、瓶蓋不再是放射扇形（每台約 48,000 → 30,000 面）（`b28df4f`）。
-- 庫存與菜單的食材圖全部改成可愛卡通風（`ui/CuteFood.tsx`，`tests/visual/foodsheet.tsx` 可看總表）（`3babf4d`）。
+- 庫存與菜單的食材圖全部改成可愛卡通風（`ui/art/CuteFood.tsx`，`tests/visual/foodsheet.tsx` 可看總表）（`3babf4d`）。
 - 評論沒有上限，每頁 10 則、Google 式頁碼（BDD `review-pages`）（`a33f835`）。
 - 招財貓台多一階、最上階放小判金幣（relaid-14）（`2871e8b`）。
 - 吧台上的小垃圾桶可以移動（`68fa55d`）。
@@ -354,8 +354,8 @@
 - **飲料櫃減面（晚上補做，`dfe8340`、`1e0db68`）**：拍照法：dev 的 `__stock` 直接填滿（`units[i][r][k]=id`、`counts=4`、`ver++`），再用 `__freeCam`（`tests/e2e/_fridgefull.mjs`，不進 git）。前排瓶身、標籤、頸圈 8 邊降 7 邊；清澈的飲料（彈珠汽水、清酒、燒酎、運動飲料）不再畫瓶內液體層。同鏡頭前後沒看出差別，全場 668,611 → 666,973（碗盤架之後是 669,821）。填滿的一個櫃子仍約 2.8～3 萬面，大頭是 4 個合併網格（玻璃 9.2k、物理材質 9.0k、標準材質 6.6k 與 5.6k），邊數不是主因；要再減得拆這幾個網格。老闆掃地的手位仍未親眼看到（`tests/e2e/_sweepforce.mjs` 抓到的是爐邊不動的老闆模型，不是掃地的 OwnerWalker）。
 - **店主的規矩（2026-11-12）**：不要反問，有疑問就選預設，做了再說，不要停下來等。
 - 招財貓組沿牆再往圓窗方向移 1.0 公尺（`CATS_SHIFT_3`、新 key `jgs-edit-groupshift-3`，舊存檔補移一次；`edit.ts`、`bdd/edit-group`）（`c326ef3`、`322c8bb`）。用 `_catfit.mjs` 量過：貓組最高 0.54、小神龕組 1.17 以上，沒有重疊；`clips.mjs` 沒有任何牽涉貓台的穿模。第二張長凳位置仍待店主決定。
-- 庫存食物圖全部拿掉臉與眼睛（含魚的大眼睛），`ui/CuteFood.tsx`（`c326ef3`）。
-- 調味料九種各自一張圖（鹽罐、醬油瓶、煉乳管、黃豆粉袋、味噌桶、山葵管、七味罐、柚子胡椒罐加柚子、檸檬加檸檬片），`ui/SeasoningArt.tsx`，庫存面板的 `SeasonIcon` 改用它；`npx vite-node tests/visual/seasonsheet.tsx` 可看總表（`50eea21`）。
+- 庫存食物圖全部拿掉臉與眼睛（含魚的大眼睛），`ui/art/CuteFood.tsx`（`c326ef3`）。
+- 調味料九種各自一張圖（鹽罐、醬油瓶、煉乳管、黃豆粉袋、味噌桶、山葵管、七味罐、柚子胡椒罐加柚子、檸檬加檸檬片），`ui/art/SeasoningArt.tsx`，庫存面板的 `SeasonIcon` 改用它；`npx vite-node tests/visual/seasonsheet.tsx` 可看總表（`50eea21`）。
 - 老闆掃碎玻璃：手握在掃把上的位置改到他托盤的高度與前後（`SWEEP_LEAN.owner`），掃把柄比較直（`StaffFigure.tsx`、`GuestBar3D.tsx`）（`3474565`）。**還沒在畫面上看到**：腳本抓不到掃地中的近拍（鏡頭被遊戲拉回），要店主看一眼；不對的話調 `SWEEP_LEAN.owner`（0.3）。
 - 料理台桌面：三小碟配料（梅、鮭、昆布）、飯勺與勺架、醃蘿蔔碟、芝麻罐、毛巾、保鮮膜盒、右端竹盤放三個包好的飯糰（`blender/warmer.py` → `models/prepcounter.glb`，+2,082 面，mesh-audit 乾淨）（`9b1274b`）。
 - **面數**（店主說暴增）：dev 總覽 682,909 面（含描線 79,627）、1,371 次繪製；11-08 是 56.3 萬。沒有單一元兇，前幾名：`home-copy` 43,344、飲料櫃各約 3 萬、`till-counter` 26,994、碗盤架各 21,184（已先減過）、小神龕組 19,767、清酒 18,922、`produce` 描線 13,588、`till-tree` 13,198。店主 11-12 說「先減飲料櫃與碗盤架」：
@@ -475,7 +475,7 @@ git worktree remove ..\JGS-basin-b
 
 1. **飲料外箱印刷多樣化**：條碼縮到原本的 1/3～1/4（不超過箱高 15%）、位置錯落；生啤酒、綠茶、可樂、沙瓦四種完全不同的版面；拿掉每箱都有的兩罐小圖。主要檔案：`grill/drinkCartons.ts`（可能還有 `blender/drinkcartons.py`）。
 2. **洗手間設備**：烘手機改成壁掛下吹式（約 24×28×16 公分、底部出風狹縫與感應點、往下吹的氣流）；擦手紙盒改成霧面暖白的 ABS 塑料（茶色半透明餘量窗、頂部鎖孔、弧形出紙口）。主要檔案：`blender/wc.py`、`models/wcbits.glb`／`toilet.glb`、`grill/Restroom.tsx`、`grill/restroomSound.ts`。
-3. **店家評價**：改成跟 Google 地圖評論一樣；店在大阪，評論者以日本人為主（`data/reviewers.ts`）；新開局一定從 0 顆星開始；旁邊加一個花錢買評價的功能。主要檔案：`ui/Reputation.tsx`、`game/guests/reputation.ts`、`data/reviewers.ts`、`App.tsx`、`src/index.css`。
+3. **店家評價**：改成跟 Google 地圖評論一樣；店在大阪，評論者以日本人為主（`data/reviewers.ts`）；新開局一定從 0 顆星開始；旁邊加一個花錢買評價的功能。主要檔案：`ui/panels/Reputation.tsx`、`game/guests/reputation.ts`、`data/reviewers.ts`、`App.tsx`、`src/index.css`。
 4. **廁所**：植物質感高級一些；皂液可以按壓、有用量；擦手紙上限 150；物資數量都加進庫存「耗材」頁的「民生」；廁所燈再亮一些，靠近門的那盞換造型、要比較亮。主要檔案：`blender/wc.py`、`grill/Restroom.tsx`、`grill/DiningRoom.tsx`（壁燈 `WcSconce`）、`grill/StockPanel.tsx`、`game/stock/supplies.ts`。
 
 ### 5-6　以前留下的待辦

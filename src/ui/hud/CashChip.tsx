@@ -1,6 +1,6 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { coinSound } from './uiSound'
-import { TillGlyph } from './TillPanel'
+import { coinSound } from '@/ui/kit/uiSound'
+import { TillGlyph } from '@/ui/panels/TillPanel'
 
 /**
  * The cash, top right (item 209, the owner's, 2026-11-16: 「我要讓這遊戲看起來覺得好玩」): money coming in is seen coming in: the figure counts

@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { tl, type Lang } from '@/data/i18n'
 import { caseCost, CASE_SIZE, comingOf, drinkCounts, fillFromBack, orderCase } from '@/game/stock/drinkStock'
-import { getClock } from '@/ui/clockStore'
-import { FitLine } from '@/ui/FitLine'
+import { getClock } from '@/ui/kit/clockStore'
+import { FitLine } from '@/ui/kit/FitLine'
 import { setTip } from '@/scene/hoverTip'
 import { DRINK_BACK, DRINK_COMING, DRINK_FRIDGE_TEMP, DRINKS, FRIDGE_STOCK, FRIDGE_UNITS, placesOf, pressDrinkTemp, SHOP_PURSE, type DrinkId } from './bar'
 import { DRINK_MAX, DRINK_MIN, servedWarm } from '@/game/stock/fridgeTemp'
-import { Glyph } from '@/ui/GameIcons'
+import { Glyph } from '@/ui/art/GameIcons'
 
 /** (item 615) a fridge's temperature as it is (game/fridgeTemp: it drifts outside React, read twice a second), red once it's too warm for
  * a cold drink, and its setting a degree colder or warmer either side (as the display over its doors takes a left or a right click; the

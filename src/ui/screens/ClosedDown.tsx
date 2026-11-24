@@ -4,7 +4,7 @@
 // menu's 重新開始, the only thing that clears the drinks' save).
 import { createPortal } from 'react-dom'
 import { tl, type Lang } from '@/data/i18n'
-import { FitLine } from './FitLine'
+import { FitLine } from '@/ui/kit/FitLine'
 
 const nt = (n: number) => `NT$${Math.round(n).toLocaleString('en-US')}`
 

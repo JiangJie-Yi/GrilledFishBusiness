@@ -2,7 +2,7 @@ import { memo, useEffect, useState } from 'react'
 import type { Lang } from '@/data/i18n'
 import { tl } from '@/data/i18n'
 import { drawerTotal, takeTakings, type Denom, type DrawerCash } from '@/game/money/till'
-import { usePanelSound } from './uiSound'
+import { usePanelSound } from '@/ui/kit/uiSound'
 
 /**
  * The till's own panel (item 366, the owner's, 2026-11-19: 「收銀櫃的錢要另外畫個介面，可以與總金額結合」): opened from the till's chip beside

@@ -5,7 +5,7 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import { VIEW_SPOTS, viewName, type ViewId } from '@/data/views'
 import type { Lang } from '@/data/i18n'
-import { Glyph } from './GameIcons'
+import { Glyph } from '@/ui/art/GameIcons'
 
 const SHOW_MS = 1800
 const indexOf = (v: ViewId) => VIEW_SPOTS.findIndex((x) => x.id === v)

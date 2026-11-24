@@ -17,8 +17,8 @@ import { BossModel } from './Boss'
 import { ShadeView, WireView } from './Movable'
 import { isInk } from '@/scene/inkHull'
 import type { CrewFace } from '@/scene/faceSheet'
-import { usePanelSound } from '@/ui/uiSound'
-import { Glyph } from '@/ui/GameIcons'
+import { usePanelSound } from '@/ui/kit/uiSound'
+import { Glyph } from '@/ui/art/GameIcons'
 import { getCharHidden, onCharHidden, setCharHidden, toggleEdit } from './edit'
 
 type Entry = { key: string; zh: string; ja: string; en: string; group: 'boss' | 'staff' | 'guest'; role?: Role; female?: boolean; kind?: GuestKind }

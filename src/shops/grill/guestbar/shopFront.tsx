@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef } from 'react'
-import { getClock } from '@/ui/clockStore'
+import { getClock } from '@/ui/kit/clockStore'
 import { heard } from '@/scene/sfx'
 import { glowLeave, glowOnly } from '@/scene/hoverGlow'
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'

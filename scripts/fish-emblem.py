@@ -1,5 +1,5 @@
 """Writes the loading screens' emblem (a salt-grilled ayu on a bamboo skewer over flames, in a gold-ringed medallion) into both places it
-shows: src/ui/fishEmblem.ts (the app's loading veil, cooked by --done) and index.html's first splash (raw). Run: python scripts/fish-emblem.py"""
+shows: src/ui/art/fishEmblem.ts (the app's loading veil, cooked by --done) and index.html's first splash (raw). Run: python scripts/fish-emblem.py"""
 import math
 import os
 import re
@@ -132,7 +132,7 @@ CSS = """.fish-emblem { width: min(300px, 64vw); height: auto; margin-bottom: -1
 ts = ('// (written by scripts/fish-emblem.py: edit it there and run it, not here)\n'
       f'export const FISH_EMBLEM = {repr(svg)}\n')
 ts = ts.replace("export const FISH_EMBLEM = '", "export const FISH_EMBLEM = '")
-open(os.path.join(ROOT, 'src', 'ui', 'fishEmblem.ts'), 'w', encoding='utf-8').write(ts)
+open(os.path.join(ROOT, 'src', 'ui', 'art', 'fishEmblem.ts'), 'w', encoding='utf-8').write(ts)
 
 # (its own file among the styles, imported in its place in src/index.css's order (item 604): written whole; it used to be cut out of
 # index.css and put back at its end, after everything added since)

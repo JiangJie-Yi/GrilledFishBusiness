@@ -1,7 +1,7 @@
 import { memo, type CSSProperties } from 'react'
 import { UI, type Lang } from '@/data/i18n'
-import { Glyph } from './GameIcons'
-import { usePull } from './pullStore'
+import { Glyph } from '@/ui/art/GameIcons'
+import { usePull } from '@/ui/kit/pullStore'
 
 /** the pull-to-reload mark over the 3D view while the page is pulled down by a finger: how far, and "let go" once it's far enough. Drawn
  * again by itself as the finger moves (ui/pullStore), the page round it not */

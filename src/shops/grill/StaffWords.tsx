@@ -7,7 +7,7 @@ import { Html } from '@/scene/Html'
 import * as THREE from 'three'
 import { SPEAKERS, STAFF_IDLE, STAFF_TALK, STAFF_TIRED, type StaffWord } from '@/game/world/shopState'
 import { activityOf } from '@/data/staff'
-import { Glyph } from '@/ui/GameIcons'
+import { Glyph } from '@/ui/art/GameIcons'
 import { setTip } from '@/scene/hoverTip'
 
 const STYLE = { pointerEvents: 'none' } as const

@@ -2,7 +2,7 @@ import { memo, useEffect } from 'react'
 import type { Lang } from '@/data/i18n'
 import { tl } from '@/data/i18n'
 import { URGE_PACE, URGE_S } from '@/game/staff/urge'
-import { usePanelSound } from './uiSound'
+import { usePanelSound } from '@/ui/kit/uiSound'
 
 /**
  * One of the staff clicked in the room (item 348, the owner's 「要有設計思維，一些交互跟互動要有」): a little card by the pointer, their name, and

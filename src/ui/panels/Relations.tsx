@@ -6,7 +6,7 @@ import { BOND_STAGES, BOND_START, bondOf, moodWord, pairKey } from '@/game/staff
 import { commuteOf } from '@/game/staff/commute'
 import type { Rota } from '@/game/staff/shifts'
 import { onShift } from '@/game/staff/shifts'
-import { Avatar } from './Avatar'
+import { Avatar } from '@/ui/art/Avatar'
 
 /**
  * The relations chart beside 人事 (item 323, the owner's, 2026-11-18: 「人事旁放一個關係圖，是老闆與員工，員工與員工之間，以及誰留宿」): the

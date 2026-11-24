@@ -14,7 +14,7 @@ import { cartonMaterials } from '@/shops/grill/drinkCartons'
 import { askPantry, SUPPLIES, DRINK_BACK, DRINKS, FRIDGE_UNITS, handOver } from '@/shops/grill/bar'
 import { getEdit } from '@/shops/grill/edit'
 import { setTip } from '@/scene/hoverTip'
-import { drawGlyph } from '@/ui/glyphs'
+import { drawGlyph } from '@/ui/art/glyphs'
 import { canvasTex } from './base'
 
 /**

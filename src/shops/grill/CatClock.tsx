@@ -4,7 +4,7 @@ import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { inkModel } from '@/scene/inkHull'
 import { StaticBatch } from '@/scene/StaticBatch'
-import { getClock } from '@/ui/clockStore'
+import { getClock } from '@/ui/kit/clockStore'
 import { nameOver } from './bar'
 
 /**

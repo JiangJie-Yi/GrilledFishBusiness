@@ -12,12 +12,12 @@ import './scene/triProfiler'
 // (every sound effect through one switch: muted together from the clock, top right)
 import './scene/sfx'
 // (every button's press sinks at once and springs back as it's let go, as an iPhone's: item 179)
-import './ui/pressFeel'
+import '@/ui/kit/pressFeel'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
-import { Crash } from '@/ui/Crash'
+import { Crash } from '@/ui/screens/Crash'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

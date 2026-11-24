@@ -14,7 +14,7 @@ import { glowOnly, HOVER } from '@/scene/hoverGlow'
 import { setTip } from '@/scene/hoverTip'
 import { GRILL_SEATS } from './bar'
 import { replaces } from '@/scene/hot'
-import { glyphSvg, type GlyphId } from '@/ui/glyphs'
+import { glyphSvg, type GlyphId } from '@/ui/art/glyphs'
 import { EDITOR_URL, GAME_URL, TOOL_PAGE } from '@/scene/toolPage'
 /** a drawn icon (ui/glyphs) put in front of a button's or label's words, never an emoji or a symbol (the owner's) */
 const withGlyph = (el: HTMLElement, id: GlyphId, text = '', size = 12) => { el.innerHTML = glyphSvg(id, size); if (text) el.append(' ' + text) }

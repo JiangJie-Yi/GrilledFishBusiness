@@ -4,7 +4,7 @@
 import { writeFileSync } from 'node:fs'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { avatarOf, COATS, PETS, SCENES } from '@/game/guests/avatars'
-import { ReviewerAvatar } from '@/ui/ReviewerAvatar'
+import { ReviewerAvatar } from '@/ui/art/ReviewerAvatar'
 
 const N = Number(process.argv[3] ?? 48)
 const NAMES = ['上班族', '大學生', '小學生', '老爺爺', '不良少年', '浴衣姐姐', 'Office lady', '女僕']

@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef } from 'react'
-import { getClock, minutesNow } from '@/ui/clockStore'
+import { getClock, minutesNow } from '@/ui/kit/clockStore'
 import { BOX_SHEETS, TISSUE } from '@/game/stock/tissues'
 import { drinksToOrder, ROLL_LOW, stockerChore, type StockChore } from '@/game/stock/stocker'
 import { bagGoes, bagOut, binToEmpty, type BinKind } from '@/game/service/bins'

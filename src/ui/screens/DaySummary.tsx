@@ -8,8 +8,8 @@ import { createPortal } from 'react-dom'
 import { tl, type Lang } from '@/data/i18n'
 import { adviceOf, type DaySummary as Summary } from '@/game/money/daySummary'
 import { goalBonus } from '@/game/money/dayGoal'
-import { Glyph, Stars } from './GameIcons'
-import { FitLine } from './FitLine'
+import { Glyph, Stars } from '@/ui/art/GameIcons'
+import { FitLine } from '@/ui/kit/FitLine'
 
 /** how long (s, of real time: the game's clock stands still meanwhile) it stays up by itself; a few more with things to point out, to
  * read them (item 329) */

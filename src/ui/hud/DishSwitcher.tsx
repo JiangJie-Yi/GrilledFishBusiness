@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { nameIn, type Lang } from '@/data/i18n'
 import type { Dish } from '@/data/menu'
-import { Glyph } from './GameIcons'
+import { Glyph } from '@/ui/art/GameIcons'
 
 type DishSwitcherProps = {
   dishes: Dish[]

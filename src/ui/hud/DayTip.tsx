@@ -3,9 +3,9 @@
 // next day the next one; put off (Later), the same one again the next day.
 import { tl, type Lang } from '@/data/i18n'
 import type { TipId } from '@/game/play/dailyTip'
-import { Glyph } from './GameIcons'
-import { FitLine } from './FitLine'
-import { usePanelSound } from './uiSound'
+import { Glyph } from '@/ui/art/GameIcons'
+import { FitLine } from '@/ui/kit/FitLine'
+import { usePanelSound } from '@/ui/kit/uiSound'
 
 export function DayTip({ lang, tip, onGo, onLater }: { lang: Lang; tip: TipId
   /** taken up: take them to it (App: the view, or the panel; the staff's praise, only noted), and it's seen */

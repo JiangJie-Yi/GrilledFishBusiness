@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import { inkModel } from '@/scene/inkHull'
 import { StaticBatch, mergeByMaterial } from '@/scene/StaticBatch'
 import type { Lang } from '@/data/i18n'
-import { openRegisterManual } from '@/ui/RegisterManual'
+import { openRegisterManual } from '@/ui/panels/RegisterManual'
 import { tipOver } from './bar'
 import { getEdit } from './edit'
 

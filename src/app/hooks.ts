@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useState } from 'react'
 import { showsFlat } from '@/game/system/device'
 import { MOBILE } from '@/scene/flatGate'
 import { skyAt, themeOf, type Sky } from '@/game/world/clock'
-import { getClock } from '@/ui/clockStore'
+import { getClock } from '@/ui/kit/clockStore'
 
 export function usePrefersReducedMotion() {
   const query = '(prefers-reduced-motion: reduce)'

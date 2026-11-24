@@ -1,6 +1,6 @@
 import { UI, type Lang } from '@/data/i18n'
 import { starsOf } from '@/game/kitchen/taste'
-import { Stars } from './GameIcons'
+import { Stars } from '@/ui/art/GameIcons'
 import { tl } from '@/data/i18n'
 
 type FullnessProps = {

@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import type { Lang } from '@/data/i18n'
 import { tl } from '@/data/i18n'
 import { GUIDE_DOTS, dotOf, guideStep, type GuideState, type GuideStep } from '@/game/play/firstDay'
-import { FitLine } from './FitLine'
-import { Glyph } from './GameIcons'
-import { usePanelSound } from './uiSound'
+import { FitLine } from '@/ui/kit/FitLine'
+import { Glyph } from '@/ui/art/GameIcons'
+import { usePanelSound } from '@/ui/kit/uiSound'
 
 /**
  * The first day's guide (item 175, the owner's: someone who doesn't care for games should want to play on once they see it): a little

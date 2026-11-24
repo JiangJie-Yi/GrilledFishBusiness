@@ -2,8 +2,8 @@ import { memo, useEffect, useState, useSyncExternalStore } from 'react'
 import type { Lang } from '@/data/i18n'
 import { REGISTER_MANUAL } from '@/data/registerManual'
 import { tl } from '@/data/i18n'
-import { usePanelSound } from './uiSound'
-import { Glyph } from './GameIcons'
+import { usePanelSound } from '@/ui/kit/uiSound'
+import { Glyph } from '@/ui/art/GameIcons'
 import { sharedAudio } from '@/scene/sfx'
 
 /** whether the register's manual is open (opened by clicking the booklet under the till) */

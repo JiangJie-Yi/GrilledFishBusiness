@@ -1,4 +1,4 @@
-import { getClock } from '@/ui/clockStore'
+import { getClock } from '@/ui/kit/clockStore'
 
 /** closing up, by the game's minutes past closing time: those still in hurried out (half an hour), the shop shut whoever's left (an hour) */
 export const CLOSE_HURRY = 30
