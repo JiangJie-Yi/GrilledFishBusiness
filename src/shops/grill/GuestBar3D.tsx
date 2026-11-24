@@ -127,6 +127,13 @@ if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window,
  * are on each other, and one is under the tap's stream if the stream comes down within it */
 const SINK_PLATE_R = { v: 0.1 }
 const RUB_SWAP = new THREE.Vector3()
+/** (item 675) a server's tray lifted over the sink's top (the bar's units): eased up over LIFT_D of their way up to it, up by LIFT_END short
+ * of where they stand at it (their hands, before them, as far again from its front as they'd be in it there); kept up LIFT_HOLD of the way
+ * back, then eased down over LIFT_D; the hands' undersides (LIFT_HANDS of their own frame under the tray's height) LIFT_CLEAR over it */
+const LIFT_D = 0.35, LIFT_END = 0.25, LIFT_HOLD = 0.2, LIFT_CLEAR = 0.01, LIFT_HANDS = 0.1
+const LIFT_BOX = new THREE.Box3(), LIFT_P = new THREE.Vector3()
+/** (item 675) the skewers washed in the basin: in the right hand as it scrubs, held in its grip (the bar's units under the hand's middle) */
+const SK_WASH_DOWN = 0.02, SK_AT = new THREE.Vector3()
 /** (dev, item 670) how many of the kitchen's ways had no way round what's there, even squeezed past it, and went through the least of it */
 const KITCHEN_THROUGH = { n: 0 }
 if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __kitchenThrough: KITCHEN_THROUGH })
@@ -518,6 +525,9 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     spill?: number; broom?: boolean
     /** their tray put down for an errand (TRAY_ERRANDS), till they're back at their place (item 249) */
     trayDown?: boolean
+    /** (item 675) how far their tray's lifted (the bar's units) over the sink's top as they come up to it with what they've cleared, and as
+     * they go from it after; whether the way back they're on is from tipping that into the sink */
+    lift?: number; fromSink?: boolean
     /** (item 600) the washed bowls, renge and chopsticks on their tray, out of the washer back to the cabinets; and the place they're laying
      * a clean pair at once it's wiped (-1: none to lay), from when */
     ware?: Wares; lay?: number; layT?: number
@@ -1378,6 +1388,24 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     if (n <= c || Math.hypot(floor.x - lx, floor.z - lz) >= SINK_PLATE_R.v * 1.9) return floor.y + 0.012
     const K = SINK.kinds
     return Math.max(floor.y + 0.012, floor.y + 0.004 + sinkStackUp(c, n - 1) + (K[n - 1] === 'long' || kind === 'long' ? STACK_GAP : NEST_GAP) * IN_SINK)
+  }
+  /** (item 675) the sink's top's height (the bar's frame), looked at again once a second (it's moved in edit mode); NaN with no sink in */
+  const sinkTopMemo = useRef({ y: NaN, t: -1e9 })
+  const sinkTopBar = () => {
+    const c = sinkTopMemo.current, now = performance.now()
+    if (now - c.t > 1000) {
+      c.t = now
+      // (its own slab's box, not with what stands on it: with the tap's in it, it came out at the tap's height and their hands went up to it)
+      const top = markOf('SinkTop') as THREE.Mesh | null, f = frame.current
+      if (top && f) {
+        f.updateWorldMatrix(true, false)
+        top.updateWorldMatrix(true, false)
+        if (top.isMesh) { if (!top.geometry.boundingBox) top.geometry.computeBoundingBox(); LIFT_BOX.copy(top.geometry.boundingBox!).applyMatrix4(top.matrixWorld) }
+        else LIFT_BOX.setFromObject(top)
+        c.y = f.worldToLocal(LIFT_P.copy(LIFT_BOX.max)).y
+      } else c.y = NaN
+    }
+    return c.y
   }
   /** how far up the k-th of the sink's dirty plates stands over the first of its stack (`from`, the counter's 0, the basin's the first in
    * it): a round one on a round one nested into it (NEST_GAP), a long one on or under any other on its rim (STACK_GAP) (item 358) */
@@ -4826,7 +4854,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         return a > kitchen.along[0] && a < kitchen.along[1] && l > kitchen.lay[0] && l < kitchen.lay[1]
       }
       const trayAt = () => w.pos.clone().add(new THREE.Vector3(...HELD_AT).setY(HELD_AT[1] + 0.02).multiplyScalar(STAFF_SCALE)
-        .applyAxisAngle(UP_Y, w.look ?? w.yaw)).add(new THREE.Vector3(0, onDais() ? 0 : -rise, 0))
+        .applyAxisAngle(UP_Y, w.look ?? w.yaw)).add(new THREE.Vector3(0, (onDais() ? 0 : -rise) + (w.lift ?? 0), 0))
       const run = () => runs.current.find((x) => x.key === w.run)
       // (their way bent in past what stands out from the first counter's wall (item 387: aisleSqueeze); the way back's walked from its end,
       // where they are: bent from there)
@@ -4835,6 +4863,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         const zones = stoolLine && wallKeep.current.boxes.length ? aisleSqueeze(wallKeep.current.boxes, line, stoolLine.back, SERVER_HALF) : []
         const back = phase === 'back'
         const bent = squeezePath(back ? [...path].reverse() : path, c0, line, zones)
+        // (item 675: back from tipping what they cleared into the sink, their tray picked up off its top and lowered as they go)
+        w.fromSink = back && w.phase === 'drop'
         w.path = back && bent !== path ? bent.reverse() : bent; w.len = pathLength(w.path); w.phase = phase; w.t = 0
       }
       const walk = (then: () => void) => {
@@ -5515,6 +5545,21 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         }
         go(kitchenRoute(home.at, w.pos), 'back')
       }
+      // (item 675: their tray lifted over the sink's top as they come the last of the way up to it with what they've cleared, and down again
+      // over the first of the way from it after (held at their waist, it and the hands under it went into the sink's cabinet as they came up
+      // and turned away, 7.5 and 25 cm): the hands under it just over the top, eased in and out along the way)
+      w.lift = 0
+      if (w.phase === 'clearBack' || w.phase === 'drop' || (w.phase === 'back' && w.fromSink)) {
+        // (kept up as they tip it in: let down at once, their hands went back into the cabinet before they reached into the basin)
+        const d = rampedAlong(w.t, w.len), top = sinkTopBar(), fig = waiterObjs.current[wi]
+        const k = w.phase === 'drop' ? 1 : w.phase === 'clearBack' ? (LIFT_D - (w.len - d - LIFT_END)) / LIFT_D : (LIFT_D - (d - LIFT_HOLD)) / LIFT_D
+        if (k > 0 && fig && Number.isFinite(top)) {
+          // (from their figure's own feet (up on the dais, the step stool): the hands' undersides (LIFT_HANDS of their frame under the tray's
+          // height) just over the top)
+          const c = Math.min(1, k), sm = c * c * (3 - 2 * c)
+          w.lift = sm * Math.max(0, top + LIFT_CLEAR - fig.position.y - (HELD_AT[1] - LIFT_HANDS) * STAFF_SCALE)
+        }
+      }
       // what's on the tray goes where the tray goes (and, being set down, from the tray to the bar)
       const tray = trayAt()
       // (the bundle of skewers in their hands, from the used bucket to the clean one; scrubbed to and fro at the sink)
@@ -5523,7 +5568,15 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         const has = w.phase === 'skSinkGo' || w.phase === 'skWash' || w.phase === 'skHolderGo' || w.phase === 'skPut' || (w.phase === 'skTake' && w.t > 0.3)
         sb.visible = has
         sb.userData.by = has ? wi : undefined
-        if (has) { sb.position.copy(tray).add(new THREE.Vector3(w.phase === 'skWash' ? Math.sin(w.t * 12) * 0.03 : 0, 0.01, 0)); sb.rotation.set(0, w.look ?? w.yaw, 0) }
+        const hr = has && w.phase === 'skWash' && frame.current ? waiterObjs.current[wi]?.getObjectByName('handR') : undefined
+        if (hr && frame.current) {
+          // (item 675: in the right hand as it scrubs in the basin (StaffFigure's scrub; the hand itself, up on the step stool with them), not
+          // held at the tray's height before them, in the sink's cabinet with the hands)
+          frame.current.worldToLocal(hr.getWorldPosition(SK_AT))
+          sb.position.copy(SK_AT)
+          sb.position.y -= SK_WASH_DOWN
+          sb.rotation.set(0, w.look ?? w.yaw, 0)
+        } else if (has) { sb.position.copy(tray); sb.position.y += 0.01; sb.rotation.set(0, w.look ?? w.yaw, 0) }
       }
       if (w.carry?.length) {
         let i = 0
@@ -5595,10 +5648,17 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       // sink's cabinet below its top, 13 cm, for the frames their hands took to reach in (StaffFigure puts it by once they're half way); stood
       // back no further, the step stool under them)
       if (o) o.userData.trayDown = !!w.trayDown || w.phase === 'drop'
+      // (item 675: with it put by, what they've in their hands held before them as it would be: a takeaway's bag (drawn where a plate on the
+      // tray rides), the skewers' bundle (on the tray's place but at the sink); else their hands at their sides)
+      if (o) o.userData.holding = w.phase === 'toTill' || w.phase === 'hand' || w.phase === 'toStand' || w.phase === 'standPut'
+        || w.phase === 'skSinkGo' || w.phase === 'skHolderGo' || w.phase === 'skPut' || (w.phase === 'skTake' && w.t > 0.3)
+      // (item 675: lifted over the sink's top, in their own frame (StaffFigure lifts the tray and the hands under it))
+      if (o) o.userData.trayLift = (w.lift ?? 0) / STAFF_SCALE
       // (item 676: a hand up against something as they go by it drawn in to their side (StaffFigure))
       if (o) { const [tl, tr] = tuckOf(o); o.userData.tuckL = tl; o.userData.tuckR = tr }
       // (washing up at the sink, by hand or into the washer: the scrubbing motion (StaffFigure's scrub))
-      if (o) o.userData.scrub = w.phase === 'wash' || w.phase === 'handwash' ? w.t : undefined
+      // (and the skewers washed in the basin too (item 675: their hands were held before them at the tray's height, in the sink's cabinet))
+      if (o) o.userData.scrub = w.phase === 'wash' || w.phase === 'handwash' || w.phase === 'skWash' ? w.t : undefined
       // (pouring a customer's sake themself (no plater): both hands where the pour has them (item 177)); and the tray it's carried out on
       // (clearing a place: the right hand on the plate's rim as it's taken up and set on the tray, the left on the tray (item 231))
       const clearHands = () => {

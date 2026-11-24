@@ -512,6 +512,10 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
   const reachK = useRef(0)
   /** (item 676) how far each hand's drawn in (left, right), eased to what whoever moves them asks (job's tuckL / tuckR) */
   const tuckK = useRef([0, 0])
+  /** (item 675) how far their hands are out to hold what they carry (a tray, the clipboard, the cashier's together): eased (-1: not yet set) */
+  const holdK = useRef(-1)
+  /** whether what they last held out was carried (a tray, the clipboard, what the chef brings back) or their hands just together (the cashier) */
+  const heldAs = useRef(false)
   /** their face's life (game/faceLife, item 368), and which way they faced last frame (for the eyes to go first where they're turning) */
   const life = useRef<FaceLife | null>(null)
   const yawWas = useRef(0)
@@ -601,6 +605,10 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
       handsAt?: { left: THREE.Vector3; right: THREE.Vector3 }
       /** (a server on an errand: their tray put down, item 249) */
       trayDown?: boolean
+      /** (item 675) their tray lifted (their own frame) over the sink's top as they come up to it and go from it, the hands under it */
+      trayLift?: number
+      /** (item 675) with their tray put by, something held before them all the same (a takeaway's bag, the skewers): their hands out for it */
+      holding?: boolean
       /** (on their way somewhere, as whoever moves them has it (the stock keeper's chores, item 374): their clipboard put by) */
       walking?: boolean
       /** (item 676) the hand on that side up against something as they go by it: drawn in to their side (0 .. 1) */
@@ -709,7 +717,20 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
     const stooped = job?.sweep !== undefined || job?.floorWipe !== undefined
     const [jw, jh] = stooped ? [1, 1] : jelly(t - fw.at)
     fig.body.scale.set(jw, (1 + (1 - walk) * Math.sin(t * 2 + seed) * 0.008) * jh, jw)
-    const hold = role === 'server' || role === 'stock' || job?.carry ? 1 : role === 'cashier' ? 0.6 : 0
+    // (item 675: a server's tray put by for an errand, their hands down at their sides, swinging as they walk (held out before them still,
+    // at the tray's height, holding nothing, they went into the sink's cabinet as they stood at it); out to hold it and back eased, a
+    // quarter second, not at once)
+    const carrying = role === 'server' || role === 'stock' || !!job?.carry
+    const holdWant = carrying ? (role === 'server' && job?.trayDown && !job?.holding ? 0 : 1) : role === 'cashier' ? 0.6 : 0
+    // (eased back from what they held as it was held: a cook's hands, done carrying, went by the cashier's place on their way down)
+    if (holdWant > 0) heldAs.current = carrying
+    const holder = heldAs.current
+    holdK.current = holdK.current < 0 ? holdWant : holdK.current + (holdWant - holdK.current) * Math.min(1, dt * 10)
+    if (Math.abs(holdK.current - holdWant) < 0.003) holdK.current = holdWant
+    const hold = holdK.current
+    // (item 675: the tray lifted over the sink's top as they come up to it and go from it (GuestBar3D's trayLift, their own frame), the
+    // hands under it with it)
+    const lift = role === 'server' ? job?.trayLift ?? 0 : 0
     // (both hands where a job wants them in the world (item 177: the open sake bottle held at its foot and its neck as it's poured, a tokkuri
     // brought up onto the counter, a cup set down): eased to them and back as it begins and ends; each place to the hand on its side (the one
     // further along their +x to the +x hand), so the two never cross)
@@ -755,17 +776,19 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
       }
       // (held out in front (a tray, a clipboard), together at the front (the cashier), swinging as they walk, or the fan waved)
       const swing = walk * Math.sin(ph + (sd > 0 ? Math.PI : 0)) * 0.07
-      const out = HAND_OUT.set(sd * (hold === 1 ? 0.13 : 0.12), hold === 1 ? TRAY_AT[1] - 0.04 : 0.22, hold === 1 ? TRAY_AT[2] - 0.02 : 0.26)
+      const out = HAND_OUT.set(sd * (holder ? 0.13 : 0.12), holder ? TRAY_AT[1] - 0.04 + lift : 0.22, holder ? TRAY_AT[2] - 0.02 : 0.26)
       hand.position.lerpVectors(rest, out, hold)
-      if (hold !== 1) hand.position.z += swing
-      hand.rotation.x = hold === 1 ? -1.1 : 0
+      if (!holder) hand.position.z += swing
+      else if (hold < 1) hand.position.z += swing * (1 - hold)
+      hand.rotation.x = holder ? -1.1 * hold : 0
       // (item 676: the hand on a side that's up against something as they go by it drawn in to their side, as one does squeezing past: a server
       // going by the cats' stand at the door to clear a place had a hand 23 cm in it)
       {
         const ti = sd > 0 ? 1 : 0, want = going ? ((sd > 0 ? job?.tuckR : job?.tuckL) ?? 0) : 0
         tuckK.current[ti] += (want - tuckK.current[ti]) * Math.min(1, dt * 12)
         const tk = tuckK.current[ti]
-        if (tk > 0.002 && hold < 1) { hand.position.x += (sd * TUCK_X - hand.position.x) * tk; hand.position.z += (TUCK_Z - hand.position.z) * tk }
+        const tkh = holder ? tk * (1 - hold) : hold < 1 ? tk : 0
+        if (tkh > 0.002) { hand.position.x += (sd * TUCK_X - hand.position.x) * tkh; hand.position.z += (TUCK_Z - hand.position.z) * tkh }
       }
       if (job?.stretch) {
         // (finishing up: both arms up over the head in a long stretch, swaying a little)
@@ -820,7 +843,11 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
       for (const [hand, sd] of [[fig.handL, -1], [fig.handR, 1]] as const) {
         if (!hand) continue
         const to = sd > 0 ? reachAt.current.R : reachAt.current.L
-        hand.position.set(hand.position.x + (to.x - hand.position.x) * out, hand.position.y + (to.y - hand.position.y) * up, hand.position.z + (to.z - hand.position.z) * out)
+        // (item 675: down into what's lower, out over it first, then down: into the sink's basin from over its top, down first, the hand went
+        // through its top's front edge, 7.5 cm)
+        const down = to.y < hand.position.y
+        hand.position.set(hand.position.x + (to.x - hand.position.x) * (down ? up : out), hand.position.y + (to.y - hand.position.y) * (down ? out : up),
+          hand.position.z + (to.z - hand.position.z) * (down ? up : out))
         hand.rotation.x += (-0.9 - hand.rotation.x) * reachK.current
         hand.rotation.z *= 1 - reachK.current
       }
@@ -844,7 +871,9 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
     // (nor while both hands are at a job (pouring the sake, item 177))
     // (nor while they're on an errand (GuestBar3D's trayDown: the till, the skewers, the sink, sweeping up): the tray's put down for it, picked
     // up again at their place, item 249)
-    fig.tray?.scale.setScalar(role === 'server' && !job?.broom && job?.floorWipe === undefined && !job?.trayDown && reachK.current < 0.5 ? 1 : 0)
+    // (picked up again once their hands are out for it (item 675: they come out to it eased now); lifted with them over the sink's top)
+    fig.tray?.scale.setScalar(role === 'server' && !job?.broom && job?.floorWipe === undefined && !job?.trayDown && reachK.current < 0.5 && hold > 0.9 ? 1 : 0)
+    if (fig.tray) fig.tray.position.y = lift
   })
   // (clicked: the owner's ways with them (App's popover, item 348); the same handler from one redraw to the next (item 374: a new one each
   // time, their hit box was drawn again with them, 6 times a second))
