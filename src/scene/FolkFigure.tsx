@@ -350,15 +350,22 @@ function folkMaterial(outfit: THREE.Texture | null, face: THREE.Texture | null, 
 // frame: the phone in the left hand (+x, handR) before the chest, its screen up and back toward the face (it was held flat, its screen to
 // the floor, the hand still the whole while, the other hanging by them); the right hand (-x, handL) at the screen: swiping up it, tapping,
 // typing with the left's thumb by turns; taken out of the pocket (down to it first, up with a touch past where it stops) and put back
-const PH_HOLD = new THREE.Vector3(0.075, 0.43, 0.3)
+// (item 649, the owner's 「手要拿著!」: the phone sat on the left hand's mitten, 5.5 cm up off its middle and turned about its own middle,
+// its back 4.5 mm clear of the mitten: a slab floating over the fist. It's held now: the mitten behind its lower outer corner (the palm at
+// its back, the thumb on its corner, the mitten round past its outer edge and its foot), turned about the hand (taken out of the pocket it
+// comes up out of the fist, put away it goes down into it); the hand's place a little out and up for it, so the phone and its screen stand
+// where they did)
+/** the phone's middle from the left hand's (its own frame: across, up it, out of its back; its screen's on the -z face) */
+const PH_GRIP = new THREE.Vector3(-0.024, 0.035, -0.032)
+const PH_HOLD = new THREE.Vector3(0.099, 0.444, 0.29)
 const PH_POCKET = new THREE.Vector3(0.24, 0.2, 0.14)
 /** the left hand's turn holding it; the phone's own turn from upright with it (its screen up and back toward the face), and in the pocket */
 const PH_TURN = -0.2
 const PH_TILT = 1.15
 const PH_TILT_POCKET = 0.15
-/** its screen's middle (for PH_HOLD and PH_TURN: the phone's part 0.055 up the hand and 0.02 out, its screen 5 mm out of that on its face),
- * its way along toward its top and out of it */
-const PH_SCREEN = new THREE.Vector3(0.075, 0.4926, 0.307)
+/** its screen's middle (PH_HOLD, the phone PH_GRIP from the hand turned PH_TILT in all, its screen 5 mm out of that on its face), its way
+ * along toward its top and out of it */
+const PH_SCREEN = PH_GRIP.clone().add(new THREE.Vector3(0, 0, -0.005)).applyAxisAngle(new THREE.Vector3(1, 0, 0), PH_TILT).add(PH_HOLD)
 const PH_UP = new THREE.Vector3(0, Math.cos(PH_TILT), Math.sin(PH_TILT))
 const PH_OUT = new THREE.Vector3(0, Math.sin(PH_TILT), -Math.cos(PH_TILT))
 /** the right hand's middle off the screen with its finger on it (the mitten's round) */
@@ -478,8 +485,9 @@ function heldShapes(briefcase: boolean): { part: (typeof FOLK_BONES)[number]; ge
     { part: 'chop', geo: CHOP_GEO!.clone() },
     { part: 'bite', geo: BITE_GEO.clone(), colour: '#c8743a' },
     // (item 625: a size bigger than it was, as their hands are: the right hand at its screen covered it all)
-    { part: 'phone', geo: new THREE.BoxGeometry(0.068, 0.125, 0.009), colour: '#22252a' },
-    { part: 'phone', geo: at(new THREE.PlaneGeometry(0.06, 0.11), new THREE.Matrix4().makeTranslation(0, 0, -0.005).multiply(new THREE.Matrix4().makeRotationY(Math.PI))), colour: '#b8e2ff', flat: true },
+    // (item 649: made about the hand's middle, PH_GRIP from it, so it turns and grows in the hand)
+    { part: 'phone', geo: at(new THREE.BoxGeometry(0.068, 0.125, 0.009), new THREE.Matrix4().makeTranslation(PH_GRIP.x, PH_GRIP.y, PH_GRIP.z)), colour: '#22252a' },
+    { part: 'phone', geo: at(new THREE.PlaneGeometry(0.06, 0.11), new THREE.Matrix4().makeTranslation(PH_GRIP.x, PH_GRIP.y, PH_GRIP.z - 0.005).multiply(new THREE.Matrix4().makeRotationY(Math.PI))), colour: '#b8e2ff', flat: true },
   ]
   if (briefcase) {
     // (as Person3D's Briefcase: its handle, its body (inked), two latches; in hand as it hangs, by the stool stood on its end)
@@ -523,7 +531,7 @@ function template(scene: THREE.Group, hair: string, acc: string[], briefcase: bo
   const chop = group('chop', handL)
   const bite = group('bite', chop, new THREE.Vector3(0, CHOP_LEN - CHOP_GRIP - 0.01, 0))
   bite.scale.set(1, 0.7, 0.8)
-  const phone = group('phone', handR, new THREE.Vector3(0, 0.055, 0.02))
+  const phone = group('phone', handR)
   phone.rotation.x = -0.3
   const carried = group('carried', handR, new THREE.Vector3(0, 0, 0.02))
   carried.rotation.z = Math.PI
