@@ -16,7 +16,7 @@ if (!process.env.CALM) await rush(page)
 // (PRE: a line run in the page before the watch, e.g. a dev switch off, to put it beside the same run with it on)
 if (process.env.PRE) await page.evaluate(process.env.PRE)
 await page.waitForTimeout(Number(process.env.WARM ?? 15000))
-const res = await page.evaluate(async ({ WATCH, STEP, TOL, only, who, BOX, JOBTOL }) => {
+const res = await page.evaluate(async ({ WATCH, STEP, TOL, only, who, BOX, JOBTOL, GUESTS, GLASS }) => {
   const T = window.__THREE, s = window.__scene
   const onlySet = only ? new Set(only.split(',')) : null
   // (the furniture: every edit piece's solid meshes, their boxes in their own frames; not what's carried or eaten, not see-through, not
@@ -25,7 +25,7 @@ const res = await page.evaluate(async ({ WATCH, STEP, TOL, only, who, BOX, JOBTO
   s.traverse((m) => {
     if (!m.isMesh || m.isSkinnedMesh) return
     const mat = [].concat(m.material)[0]
-    if (!mat || mat.transparent || mat.visible === false || mat.side === T.BackSide) return
+    if (!mat || (mat.transparent && !GLASS) || mat.visible === false || mat.side === T.BackSide) return
     let id = null
     for (let q = m; q && !id; q = q.parent) id = q.userData?.editId ?? null
     if (!id || /floor|wall|room|bar-top|noren|facade|lantern|light|switch|sign|art-|chochin/.test(id)) return
@@ -38,13 +38,18 @@ const res = await page.evaluate(async ({ WATCH, STEP, TOL, only, who, BOX, JOBTO
     solids.push({ m, id, bb })
   })
   const figs = []
-  s.traverse((o) => {
+  // (looked for again every few samples with GUESTS=1: the customers come and go)
+  const scan = () => s.traverse((o) => {
     // (the plater's figure has no id of its own on it: GuestBar3D's plater-walker)
-    const sid = o.userData?.staffId ?? (o.name === 'plater-walker' ? 'plater' : undefined)
+    let sidG
+    const sid0 = o.userData?.staffId ?? (o.name === 'plater-walker' ? 'plater' : undefined)
     // (their job: their group's own word for it, or their figure's (StaffFigure's staffRole: chef, sous, server, cashier, stock), so WHO=cashier
     // finds the cashier (item 587: it found no one, the group itself carrying no role))
     let role = o.userData?.role
-    if (sid && !role) o.traverse((q) => { if (!role && q.userData?.staffRole) role = q.userData.staffRole })
+    if (sid0 && !role) o.traverse((q) => { if (!role && q.userData?.staffRole) role = q.userData.staffRole })
+    // (GUESTS=1: the customers too (item 676, the owner's 「客人會穿越」): their group's guest id)
+    if (GUESTS && !sid0 && !role && o.userData?.guest !== undefined) { role = 'guest'; sidG = `guest${o.userData.guest}` }
+    const sid = sid0 ?? sidG
     if (!sid && !role) return
     if (who && who !== sid && who !== role) return
     if (figs.some((f) => f.o === o || f.sid === sid)) return
@@ -52,6 +57,7 @@ const res = await page.evaluate(async ({ WATCH, STEP, TOL, only, who, BOX, JOBTO
     o.traverse((q) => { if (q.isSkinnedMesh) skinned = true })
     if (skinned) figs.push({ o, sid: sid ?? role, role: role ?? '' })
   })
+  scan()
   const hits = new Map()
   const v = new T.Vector3(), inv = new T.Matrix4(), l = new T.Vector3(), sc = new T.Vector3()
   const proxy = new T.Mesh(new T.BufferGeometry(), new T.MeshBasicMaterial({ side: T.DoubleSide }))
@@ -63,7 +69,9 @@ const res = await page.evaluate(async ({ WATCH, STEP, TOL, only, who, BOX, JOBTO
   while (performance.now() - t0 < WATCH) {
     await new Promise((r) => setTimeout(r, STEP))
     samples++
+    if (GUESTS && samples % 10 === 0) { for (let k = figs.length - 1; k >= 0; k--) if (!figs[k].o.parent) figs.splice(k, 1); scan() }
     for (const f of figs) {
+      if (!f.o.parent) continue
       let shown = true
       for (let q = f.o; q; q = q.parent) if (!q.visible) shown = false
       if (!shown) continue
@@ -151,7 +159,7 @@ const res = await page.evaluate(async ({ WATCH, STEP, TOL, only, who, BOX, JOBTO
   }
   return { samples, figs: figs.map((f) => `${f.sid}${f.role ? '/' + f.role : ''}`), solids: solids.length,
     hits: [...hits.entries()].sort((a, b) => b[1].deep - a[1].deep).map(([k, h]) => ({ k, ...h, deep: +h.deep.toFixed(3) })) }
-}, { WATCH, STEP, TOL, only: process.env.ONLY ?? '', who: process.env.WHO ?? '', BOX: !!process.env.BOX, JOBTOL: process.env.JOBTOL })
+}, { WATCH, STEP, TOL, only: process.env.ONLY ?? '', who: process.env.WHO ?? '', BOX: !!process.env.BOX, JOBTOL: process.env.JOBTOL, GUESTS: process.env.GUESTS === '1', GLASS: process.env.GLASS === '1' })
 console.log(`samples ${res.samples}, figures ${res.figs.length} (${res.figs.join(' ')}), solid meshes ${res.solids}`)
 for (const h of res.hits.slice(0, Number(process.env.TOP ?? 25))) console.log(`  ${h.k}: ${h.n} looks, deepest ${h.deep} m (${h.pts} points, its ${h.part || '?'}) at ${JSON.stringify(h.at)}${h.job ? ' doing ' + h.job : ''}`)
 await browser.close()

@@ -106,6 +106,10 @@ const SERVER_HOLD = { on: true }
 const SERVER_HOLD_AHEAD = 0.55, SERVER_HOLD_STOP = 0.28, SERVER_HOLD_SIDE = 0.22, SERVER_HOLD_MOST = 1.5
 const SERVER_HOLD_AT = new THREE.Vector3()
 if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __serverHold: SERVER_HOLD })
+/** (item 680) a sink plate's half across (the bar's frame), as last measured where one was let go into the basin: two lying nearer than it
+ * are on each other, and one is under the tap's stream if the stream comes down within it */
+const SINK_PLATE_R = { v: 0.1 }
+const RUB_SWAP = new THREE.Vector3()
 /** (dev, item 670) how many of the kitchen's ways had no way round what's there, even squeezed past it, and went through the least of it */
 const KITCHEN_THROUGH = { n: 0 }
 if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __kitchenThrough: KITCHEN_THROUGH })
@@ -1850,7 +1854,27 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
   // clean, it waits in the water to be dragged into the basket; `fromWater`: the one carried was taken up out of the water (let go where it
   // can't go, it goes back in); `shone`: its coming clean marked)
   const hand = useRef<{ dirt: number; design: number; kind: PlateKind; at: HandAt; scrub: number; soaped: boolean; px: number; py: number; pt: number; said: number
-    wet: boolean; heard: number; rub: boolean; phase: 'drag' | 'soak' | 'toBasket'; t: number; from: THREE.Vector3; tipTill: number; fromWater?: boolean; shone?: boolean } | null>(null)
+    wet: boolean; heard: number; rub: boolean; phase: 'drag' | 'soak' | 'toBasket'; t: number; from: THREE.Vector3; tipTill: number; fromWater?: boolean; shone?: boolean
+    /** (item 680, the owner's 「當我拿第二盤的時候，會飛回去水槽內的第一盤?」) where it lies in the basin, as it was let go there (the bar's frame) */
+    lay?: THREE.Vector3 } | null>(null)
+  /** (item 681) how hard the pointer's going to and fro with the sponge held, whatever plate it's over (the plate in the water's own came only
+   * with one there: rubbed over one already lying in the basin, nothing counted) */
+  const rubNow = useRef({ px: -1, py: -1, pt: 0, scrub: 0 })
+  /** (item 680) a place in the basin (the bar's frame) for a plate let go over it: where it was, kept a plate's half inside the water's edges */
+  const layIn = (p: THREE.Vector3) => {
+    const f = frame.current, pool = markOf('SinkWater'), plate = handObj.current
+    const out = p.clone()
+    if (!f || !pool || !plate) return out
+    f.updateWorldMatrix(true, false)
+    const corners = (b: THREE.Box3) => [b.min.x, b.max.x].flatMap((x) => [b.min.z, b.max.z].map((z) => f.worldToLocal(new THREE.Vector3(x, b.min.y, z))))
+    const w = corners(new THREE.Box3().setFromObject(pool)), q = corners(new THREE.Box3().setFromObject(plate))
+    const r = Math.max(Math.max(...q.map((v) => v.x)) - Math.min(...q.map((v) => v.x)), Math.max(...q.map((v) => v.z)) - Math.min(...q.map((v) => v.z))) * 0.5
+    SINK_PLATE_R.v = r
+    const x0 = Math.min(...w.map((v) => v.x)) + r, x1 = Math.max(...w.map((v) => v.x)) - r, z0 = Math.min(...w.map((v) => v.z)) + r, z1 = Math.max(...w.map((v) => v.z)) - r
+    out.x = x0 < x1 ? Math.min(x1, Math.max(x0, out.x)) : (x0 + x1) / 2
+    out.z = z0 < z1 ? Math.min(z1, Math.max(z0, out.z)) : (z0 + z1) / 2
+    return out
+  }
   const handGl = useThree((st) => st.gl)
   /** the pointer's ray (the plate carried over the counter, the sponge over the water, where the plate's let go) */
   const handRay = useRef(new THREE.Raycaster())
@@ -1883,12 +1907,12 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
   const spongeFrom = useRef(new THREE.Vector3())
   /** (item 606) whether the sponge in hand (the pointer) is over the plate in the water: within its rim, at its level (over the basin wasn't
    * enough: the sponge's own dish is in the basin's box, and the plate came clean on the way over to it) */
-  const spongeOnPlate = (o: THREE.Object3D) => {
+  const spongeOnPlate = (o: THREE.Object3D, reach = 1.05) => {
     if (pointerNow.current.x < 0) return false
     RUB_BOX.setFromObject(o).getCenter(RUB_C)
     const r = Math.max(RUB_BOX.max.x - RUB_BOX.min.x, RUB_BOX.max.z - RUB_BOX.min.z) * 0.5
     const p = pointerAtY(pointerNow.current.x, pointerNow.current.y, RUB_C.y)
-    return !!p && Math.hypot(p.x - RUB_C.x, p.z - RUB_C.z) < r * 1.05
+    return !!p && Math.hypot(p.x - RUB_C.x, p.z - RUB_C.z) < r * reach
   }
   useEffect(() => {
     const move = (ev: PointerEvent) => { pointerNow.current.x = ev.clientX; pointerNow.current.y = ev.clientY }
@@ -2004,9 +2028,12 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
   const nearCam = (at: THREE.Vector3) => Math.max(0, Math.min(1, 1 - (at.distanceTo(camera.position) - 1.5) / 7))
   /** how hard the pointer's going to and fro while the press is held: the scrubbing (item 234) */
   const scrubHand = (x: number, y: number) => {
+    const now = performance.now(), r = rubNow.current, rdt = Math.max(8, now - r.pt)
+    r.scrub = r.px < 0 ? 0 : Math.min(1, r.scrub * 0.6 + (Math.hypot(x - r.px, y - r.py) / rdt) * 0.5)
+    r.px = x; r.py = y; r.pt = now
     const h = hand.current
     if (!h) return
-    const now = performance.now(), dt = Math.max(8, now - h.pt)
+    const dt = Math.max(8, now - h.pt)
     h.scrub = Math.min(1, h.scrub * 0.6 + (Math.hypot(x - h.px, y - h.py) / dt) * 0.5)
     h.px = x; h.py = y; h.pt = now
   }
@@ -2106,6 +2133,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     spongeOver.current = dropOn(x, y)
     const h = hand.current
     if (h) { h.px = x; h.py = y; h.pt = performance.now(); h.scrub = 0 }
+    rubNow.current.px = x; rubNow.current.py = y; rubNow.current.pt = performance.now(); rubNow.current.scrub = 0
     document.body.style.cursor = 'grabbing'
     document.body.classList.add('is-carrying')
     holdPress(() => {
@@ -2172,6 +2200,58 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     if (o) o.visible = false
     HAND_WASH.soaking = true
   }
+  /**
+   * (item 681, the owner's 「菜瓜布依然沒法刷」) the plate the sponge in hand is over is the one rubbed, whichever it is: one lying under the top
+   * one comes up to be rubbed where it lies (the two change places in the pile, not on the counter); the top of the dirty ones lying in the
+   * basin as they were brought (not dragged in: only one dragged in was rubbed, and those lying there took no notice) is taken into the
+   * water where it lies, the one there put under it. The basin full, said so
+   */
+  const pickRubbed = () => {
+    if (!hand.current && under.current.length) promote()
+    const h = hand.current
+    if (h && h.phase !== 'soak') return
+    // (the one on top is the one rubbed, clean or not (a dirty one under a clean one is got at once that's taken out to the basket); kept till
+    // the sponge is well off it: rubbed to and fro over two lying on each other, it went from one to the other and back)
+    if (h && handObj.current && spongeOnPlate(handObj.current, 1.5)) return
+    const r = rubNow.current, now = performance.now()
+    for (let k = under.current.length - 1; k >= 0; k--) {
+      const o = soakObjs.current[k]
+      if (!h || !o?.visible || under.current[k].dirt <= CLEAN_AT || !spongeOnPlate(o)) continue
+      const s = under.current[k]
+      under.current[k] = h
+      setPattern(soakIns.current[k], h.design)
+      showKind(soakIns.current[k], h.kind)
+      if (handObj.current) { RUB_SWAP.copy(handObj.current.position); handObj.current.position.copy(o.position); o.position.copy(RUB_SWAP) }
+      h.rub = false
+      s.phase = 'soak'; s.rub = false; s.scrub = r.scrub; s.px = r.px; s.py = r.py; s.pt = r.pt; s.tipTill = now + 1500
+      hand.current = s
+      setPattern(handIn.current, s.design)
+      showKind(handIn.current, s.kind)
+      HAND_WASH.soaking = true
+      return
+    }
+    const n = dirty.current, top = Math.min(n, SINK_SHOWN) - 1
+    if (n <= 0 || top < onCounter.current) return
+    const po = sinkPlates.current[top]
+    if (!po?.visible || !spongeOnPlate(po)) return
+    if (h && !bury()) {
+      if (now - (h.said ?? 0) > 1500) { h.said = now; sayTip({ title: '盤子', hint: `水槽裡已經泡了 ${UNDER_MAX + 1} 個：先刷好一個拖到瀝水籃`, warn: true }) }
+      return
+    }
+    const dirt = SINK.dirt[n - 1] ?? DIRT_BASE
+    SINK.dirt.length = Math.min(SINK.dirt.length, n - 1)
+    const kind = SINK.kinds[n - 1] ?? 'round'
+    SINK.kinds.length = Math.min(SINK.kinds.length, n - 1)
+    dirty.current = n - 1
+    PILE.n = pileLeft(PILE.n, dirty.current)
+    hand.current = { dirt, design: top, kind, at: null, scrub: r.scrub, soaped: false, px: r.px, py: r.py, pt: r.pt, said: 0, wet: false, heard: 0, rub: false,
+      phase: 'soak', t: 0, from: new THREE.Vector3(), tipTill: now + 1500, lay: po.position.clone() }
+    HAND_WASH.soaking = true
+    setPattern(handIn.current, top)
+    showKind(handIn.current, kind)
+    if (handObj.current) { handObj.current.position.copy(po.position); handObj.current.visible = true }
+    redraw()
+  }
   /** a plate let go of where it can't go: back into the water if it was taken up out of it (item 606), else back on the stack */
   const backWhence = (h: NonNullable<typeof hand.current>, why: string | null) => {
     if (!h.fromWater) { backOnStack(h, why); return }
@@ -2203,6 +2283,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       } else backWhence(h, !open ? '洗碗機的門關著：先點一下門打開' : ph === 'washing' ? '洗碗機正在洗，等它洗完' : ph === 'clean' ? '洗碗機裡是洗好的，要先拿出來' : `洗碗機滿了（${DRYER_CAP} 個）`)
     } else if (on === 'basin') {
       h.phase = 'soak'
+      // (where it was let go, not over to where the last one lay (item 680))
+      if (handObj.current) h.lay = layIn(handObj.current.position)
       h.tipTill = performance.now() + 2500
       HAND_WASH.soaking = true
       // (the tap left as it is (item 638, the owner's 「我拖曳碗盤，水龍頭不該自己開」): the splash of it going in)
@@ -5931,6 +6013,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         showKind(sinkPlates.current[i], K[i])
       }
     }
+    // (item 681: the sponge rubs the plate it's over, whichever)
+    if (SINK.sponge && !bossWash.current && frame.current) pickRubbed()
     // (the plate the player's washing by hand (items 224, 234, 458): carried after the pointer a little over the counter; let go in the water,
     // under the running tap tipped to the stream or in the water at its top, it comes clean slowly by itself and quickly as it's rubbed (the
     // sponge in hand, else the bare hand; the liquid on the sponge or in the water a bonus on that); its smear fading, its suds as it's rubbed
@@ -5958,7 +6042,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           // (the basin's pile's top up next (item 638))
           promote()
           if (!bossWash.current) HAND_WASH.stream = null
-          sayTip({ title: '盤子', hint: DRAIN.n >= DRAIN_CAP ? '洗好了｜瀝水籃滿了，先把乾的收回碗盤架' : dirty.current > 0 ? `洗好了｜還有 ${dirty.current} 個髒盤，拖下一個到水裡` : '洗好了，都洗完了' })
+          // (one come up from under it (item 638): that one's to be rubbed next, not another dragged in (item 681))
+          sayTip({ title: '盤子', hint: DRAIN.n >= DRAIN_CAP ? '洗好了｜瀝水籃滿了，先把乾的收回碗盤架' : hand.current ? '洗好了｜下一個在水裡，拿菜瓜布接著刷' : dirty.current > 0 ? `洗好了｜還有 ${dirty.current} 個髒盤，拖下一個到水裡` : '洗好了，都洗完了' })
           redraw()
         }
       } else if (h && o && f && h.phase === 'drag') {
@@ -5992,17 +6077,24 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         const floor = inBar('SinkBasinFloor', endOf(1)), wtop = inBar('SinkWaterTop', endOf(1)), spout = inBar('SinkSpoutTip', endOf(1))
         const running = SINK.tap || SINK.washing
         const water = SINK.water > 0.12
-        h.at = running ? 'tap' : water ? 'water' : null
+        // (where it lies (item 680: let go anywhere in the basin it went over to the one place, on the last one); under the running tap only if
+        // the stream comes down on it)
+        const lx = h.lay ? h.lay.x : floor.x, lz = h.lay ? h.lay.z : floor.z
+        h.at = running && Math.hypot(lx - spout.x, lz - spout.z) < SINK_PLATE_R.v ? 'tap' : water ? 'water' : null
         // (rubbed as the sponge in the player's hand is moved over it (item 606): held over the plate itself, within its rim; dry or wet
         // (item 638: in a dry basin it did nothing))
-        h.rub = SINK.sponge && h.dirt > CLEAN_AT && spongeOnPlate(o)
+        // (item 681: the sponge on it anywhere over its face, the sponge's own half reaching past the rim (at the rim's edge, a hair off, it
+        // wasn't rubbing: rubbed to and fro over it, a third of the moves went by it))
+        h.rub = SINK.sponge && h.dirt > CLEAN_AT && spongeOnPlate(o, 1.5)
         // (where it lies: under the tap halfway down to the basin's floor, tipped to the stream; in the water over the drain at its top; with
         // no water, just over the basin's floor)
         if (h.at === 'tap') HAND_TO.set(spout.x, floor.y + (spout.y - floor.y) * 0.45, spout.z)
-        else if (h.at === 'water') HAND_TO.set(floor.x, floor.y + (wtop.y - floor.y) * Math.min(1, Math.max(0, SINK.water)) - 0.004, floor.z)
-        else HAND_TO.set(floor.x, floor.y + 0.05, floor.z)
-        // (on the basin's pile, if there's one under it (item 638))
-        if (h.at !== 'tap' && under.current.length) HAND_TO.y = Math.max(HAND_TO.y, floor.y + 0.012 + under.current.length * PILE_STEP + 0.006)
+        else if (h.at === 'water') HAND_TO.set(lx, floor.y + (wtop.y - floor.y) * Math.min(1, Math.max(0, SINK.water)) - 0.004, lz)
+        else HAND_TO.set(lx, floor.y + 0.05, lz)
+        // (on those under it where it lies, if any (item 638))
+        let below = 0
+        for (const u of under.current) if (Math.hypot((u.lay ? u.lay.x : floor.x) - lx, (u.lay ? u.lay.z : floor.z) - lz) < SINK_PLATE_R.v) below++
+        if (h.at !== 'tap' && below) HAND_TO.y = Math.max(HAND_TO.y, floor.y + 0.012 + below * PILE_STEP + 0.006)
         // (clean: lifted a little in the water, bobbing, to be taken out (item 606))
         if (h.dirt <= CLEAN_AT) HAND_TO.y += 0.02 + 0.004 * Math.sin(now / 320)
         o.position.lerp(HAND_TO, Math.min(1, step * 12))
@@ -6017,8 +6109,10 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         if (was > CLEAN_AT && h.dirt <= CLEAN_AT && h.soaped) SINK.soap = scrubbed(SINK.soap)
         h.scrub *= Math.max(0, 1 - step * 2.5)
         for (const sm of smearsOf(handIn.current)) { (sm.material as THREE.MeshBasicMaterial).opacity = smearOpacity(h.dirt); sm.visible = h.dirt > CLEAN_AT }
-        const suds = !!h.at && h.rub && soap && h.dirt > CLEAN_AT
-        handFoam.current?.children.forEach((c, i) => { const k = suds ? FOAM_AT[i][2] * (0.65 + 0.35 * h.scrub) : 0; c.scale.set(k, k * 0.6, k); c.visible = k > 0.03 })
+        // (item 681, the owner's 「如用洗碗精要冒泡」: the liquid on the sponge froths as it's rubbed, wet or dry (less with no water: it was none))
+        const suds = h.rub && soap && h.dirt > CLEAN_AT
+        const foamK = h.at ? 1 : 0.6
+        handFoam.current?.children.forEach((c, i) => { const k = suds ? FOAM_AT[i][2] * (0.65 + 0.35 * h.scrub) * foamK : 0; c.scale.set(k, k * 0.6, k); c.visible = k > 0.03 })
         // (the tap's stream stopped on it, unless the owner's at the sink with his own)
         if (!bossWash.current) HAND_WASH.stream = h.at === 'tap' ? f.localToWorld(HAND_STREAM.copy(o.position)) : null
         // (heard: a splash as it goes into the water or under the stream, the sponge as it's rubbed)
@@ -6042,12 +6136,18 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       // little turned one from the next, its smears fading as it comes clean)
       if (f && under.current.length + soakObjs.current.filter((x) => x?.visible).length) {
         const floor = inBar('SinkBasinFloor', endOf(1))
-        const at: HandAt = SINK.tap || SINK.washing ? 'tap' : SINK.water > 0.12 ? 'water' : null
+        // (soaking only in standing water: the tap's stream comes down on the one on top (item 681: under the running tap those under it came
+        // clean unrubbed, and came up clean))
+        const at: HandAt = SINK.water > 0.12 ? 'water' : null
         for (let k = 0; k < UNDER_MAX; k++) {
           const o = soakObjs.current[k], s = under.current[k]
           if (!o) continue
           if (!s) { if (o.visible) o.visible = false; continue }
-          PILE_AT.set(floor.x + (k % 2 ? 0.012 : -0.01), floor.y + 0.012 + k * PILE_STEP, floor.z + (k % 2 ? -0.008 : 0.01))
+          // (where it was let go (item 680), on those under it there)
+          const lx = s.lay ? s.lay.x : floor.x, lz = s.lay ? s.lay.z : floor.z
+          let below = 0
+          for (let j = 0; j < k; j++) { const u = under.current[j]; if (u && Math.hypot((u.lay ? u.lay.x : floor.x) - lx, (u.lay ? u.lay.z : floor.z) - lz) < SINK_PLATE_R.v) below++ }
+          PILE_AT.set(lx + (s.lay ? 0 : k % 2 ? 0.012 : -0.01), floor.y + 0.012 + below * PILE_STEP, lz + (s.lay ? 0 : k % 2 ? -0.008 : 0.01))
           o.position.lerp(PILE_AT, Math.min(1, step * 10))
           o.rotation.set(0, k * 0.7, 0)
           o.visible = true
@@ -6291,7 +6391,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           onPointerOut={() => { const h = hand.current; if (h && h.tipTill === Infinity) h.tipTill = performance.now() + 300 }}>
           <group ref={handIn} scale={IN_SINK}>
             <PlateKinds dirty design={0} />
-            <group ref={handFoam}>
+            <group ref={handFoam} name="hand-foam">
               {FOAM_AT.map(([x, z], i) => <mesh key={i} geometry={FOAM_GEO} material={FOAM_MAT} position={[x, 0.016, z]} visible={false} raycast={() => {}} />)}
             </group>
           </group>
