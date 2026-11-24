@@ -183,7 +183,7 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  app/  ←  App.tsx
 | `bar.ts` | 店面的共用資料與純計算（不含 React）：吧台 `GRILL_COUNTERS`（`shift` 座位位移、`far` 牆距）、座位 `seatsOf`、整間地板 `roomOf`、閘門 `BAR_GATES`/`gateOf`、收銀台 `TILL`、廁所 `toiletsOf`、飲料櫃 `fridgeOf`/`DRINKS`、玄關 `GENKAN`/`inGenkan`、盤子堆 `PLATE_STACKS`、醬油碟位置 `sauceSide`；以及兩邊溝通用的狀態 `SERVICE`（裝好的菜與外場）、`PLATING`（主廚裝盤處的盤子與位置，`platingOf`）、`PLATES_OUT`、`PLATER_OUT`、`DRYER`、`SINK_BIN`、`SEAT_STICKS`、`SEATS_TAKEN`、`PLATES_SET`、`TOILETS`、`POINTER_HINT` |
 | `Roasting.tsx` | 爐火、料理台、吧台本體（`Bar`、`BarCounter`、`BarGate` 擺動門）、烤物的流程與點餐 |
 | `GuestBar3D.tsx` | 客人（進出、坐下、上廁所、拿飲料、換拖鞋、淡出）、外場服務生（從閘門進出，走進廚房到主廚旁端裝好的菜、收盤、洗碗、烘碗、搬回碗盤櫃）、廚房補盤的人（碗盤櫃 → 出餐口）、盤子、地板、玄關、收銀台 `Register` |
-| `DiningRoom.tsx` | 牆面與牆上的東西（畫、門口的神棚與供品 `Altar`、男女廁所與室內 `WcRoom`）、飲料櫃 `DrinkFridge`、場內擺設 `ShopProps`（酒樽、竹子、柳樹、酒箱） |
+| `DiningRoom.tsx` | 牆面的組裝 `DiningWall` 與場內擺設 `ShopProps`；各區在 `dining/`（第 604 項從這個檔拆出）：畫 `art`、圓窗與竹簾 `roundWindow`、牆上的牌子 `wallSigns`、牆上的菜單木牌 `menuTags`、男女廁所 `wc`、倉庫 `storeRoom`、員工門與樓梯 `staffDoor`、角落的用品 `supplies`、神棚 `shrine`、神棚板與供品 `altar`（`Altar`）、吊燈 `pendant`、飲料櫃 `fridge`（`DrinkFridge`；櫃內陳列 `fridgeStock`、瓶子 `bottles`、瓶身標籤與材質 `bottleGeometry`、飲料種類 `drinkKinds`、陳列架尺寸 `shelves`、杯子 `cups`）、酒樽與柳樹 `props`、酒箱 `crates`、喇叭 `speaker`、逃生燈 `exitSign`、開關 `switches`、米袋 `riceSacks`；共用的 `base`（牆的尺寸、畫布貼圖、木板）、`ambient`（晝夜的光、語言） |
 | `Decor.tsx` | 料理台上的擺設：炭箱、扇子、行燈、飯桶與作業台 |
 | `ui/PhoneClosed.tsx` | 手機不用 3D（`game/device.ts` 的 `showsFlat`，BDD `device`：寬不到 600px、或高不到 500px（橫拿）、或瀏覽器說自己是手機（`phoneDevice`：userAgentData.mobile，沒有就看 iPhone、iPod、Android 手機……）；平板與電腦是網頁，一律完整的 3D，店主要的）：手機只顯示「手機版（2D）暫不開放」（直接放進 `body`、蓋住一切）。以前的 2D 手機版（`Grill2D`、`Grill2DArt`、2D 吧台 `ui/GuestCounter`、手機的客人看板與供酒按鈕、手機尺寸的 CSS）第 188 項整個拿掉了（店主 2026-11-16：「原本的2D手機板先移除，做專案減肥」） |
 
@@ -221,7 +221,7 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  app/  ←  App.tsx
 ## 節省 token 的做法
 
 - 驗證優先用數值（`__scene`、`__ctl`、Box3 量測、DOM 查詢），必要才截圖，且只截目標區域，不截整頁。
-- 大檔（`Roasting.tsx` 約 185KB、`DiningRoom.tsx`、`GuestBar3D.tsx`）先用搜尋定位，再讀幾十行，不要整檔展開；樣式在 `src/styles/` 一區一檔，先找到哪個檔再讀。
+- 大檔（`Roasting.tsx` 約 185KB、`GuestBar3D.tsx`）先用搜尋定位，再讀幾十行，不要整檔展開；樣式在 `src/styles/` 一區一檔，先找到哪個檔再讀。
 - 一次改多處用腳本批次處理；`npx tsc -b` 與 `npm test` 只在提交前跑一次。
 - 回報只講結果、已驗證與未驗證的部分，不重貼程式碼。
 - 對話很長時（回覆開始變慢或重複），建議推送後開新 chat，靠本檔接續。

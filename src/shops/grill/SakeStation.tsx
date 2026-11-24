@@ -3,7 +3,7 @@ import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { useStudio } from '@/scene/studio'
 import { dressSake, STREAM_GEO, STREAM_MAT } from './Decor'
-import { SakeCup } from './DiningRoom'
+import { SakeCup } from './dining/cups'
 import { TOKKURI_H } from './Tokkuri'
 import { SAKE } from './bar'
 
