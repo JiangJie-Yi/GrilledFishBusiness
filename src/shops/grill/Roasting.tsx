@@ -91,7 +91,7 @@ import { Boss, BOSS_TASTE } from './Boss'
 import { AxisGizmo, focusCamera, useEditBox } from './Movable'
 import { ashMaterial, MODEL_LEN, MODEL_R, useBinchotan } from './binchotanModel'
 import { coalLayer, coalLook, type CoalLook } from './coalLayer'
-import { beginChange, commitOffsets, getEdit, moveTo, offsetOf, positionOf, registerMovable, scaleOf, settleOffset, useEditSel, type V3 } from './edit'
+import { beginChange, commitOffsets, getEdit, moveTo, offsetOf, positionOf, registerMovable, scaleOf, settleOffset, subscribeEdit, useEditSel, type V3 } from './edit'
 import { figureCursorOn, setTip } from '@/scene/hoverTip'
 import { slide as drawerSound } from './TillDesk'
 import { tissuePull } from './paperSound'
@@ -4226,7 +4226,9 @@ const NotchStep = memo(function NotchStep({ id = 'notchstep', label = '木台階
 let FLOOR_PTS = new Float64Array(5 * 4096), FLOOR_SEEN = new Int32Array(4096), FLOOR_STAMP = 0
 // (`top`: how high over the floor what stands there is looked at: a futon's 60 cm; one stood up there, his height (item 652: put down under
 // the bar's overhanging top, he stood through it))
-function floorMap(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vector3, floorY: number, R = 4.5, top = 0.6) {
+// (made a mesh at a step (item 652, the Optimization window's: the boss's drop map is some 340 thousand points, 32 ms here and some 130 on a
+// slower laptop in one frame; stepped, a few milliseconds a frame); floorMap below makes it all at once, as the futon's way wants it)
+function* floorMapSteps(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vector3, floorY: number, R = 4.5, top = 0.6) {
   g.updateWorldMatrix(true, false)
   const c = GRILL_COUNTERS[0]
   const dirOf = (d: THREE.Vector3) => { const o = g.localToWorld(fromBar(c.at.clone())), t = g.localToWorld(fromBar(c.at.clone().add(d))); return t.sub(o).setY(0).normalize() }
@@ -4316,6 +4318,7 @@ function floorMap(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vector3, fl
         if ((s1 >= 0 && s2 >= 0 && s3 >= 0) || (s1 <= 0 && s2 <= 0 && s3 <= 0)) occ[jj * N + ii] = 1
       }
     }
+    yield
   }
   // (its sums, for any rectangle of it at once)
   const sum = new Uint32Array((N + 1) * (N + 1))
@@ -4336,6 +4339,12 @@ function floorMap(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vector3, fl
   const level = (w: THREE.Vector3) => inKitchen(GRILL_COUNTERS, bar(w))
   if (import.meta.env.DEV) (window as unknown as { __futonMap?: unknown }).__futonMap = { N, occ, c0: c0.toArray(), U: U.toArray(), V: V.toArray(), R, CELL }
   return { U, V, R, taken, at, inRoom, level }
+}
+function floorMap(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vector3, floorY: number, R = 4.5, top = 0.6) {
+  const it = floorMapSteps(meshes, g, c0, floorY, R, top)
+  let r = it.next()
+  while (!r.done) r = it.next()
+  return r.value
 }
 type FloorMap = ReturnType<typeof floorMap>
 /** where the futon lies clear on a map, its middle at (u, v) and its length's way (du, dv) one of the room's four: the futon and a hand's
@@ -4465,29 +4474,48 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
     // there (floorMap, as the futon's place is found, looked at up to his height); his body's square BOSS_FEET each way, his belly and his
     // hands at his sides: a counter's top or a table's edge not over any of it)
     const BOSS_FEET = 0.16 * GRILL_SCALE, BOSS_TALL = 0.95 * GRILL_SCALE
-    BOSS_BED.drop = (atGrill) => {
+    // (looked for out to his own height round it: let go over the bar's middle, the aisle behind its stools or the kitchen in front of it;
+    // the places round it nearest first, the first he'd stand clear at taken (the Optimization window's: the whole square was gone through
+    // every time, 32 ms here, some 130 on a slower laptop, right as he was let go))
+    const REACH = 1.0 * GRILL_SCALE
+    const RING: [number, number][] = []
+    for (let v = -REACH; v <= REACH + 1e-4; v += 0.05) for (let u = -REACH; u <= REACH + 1e-4; u += 0.05) if (Math.hypot(u, v) <= REACH) RING.push([u, v])
+    RING.sort((a, b) => Math.hypot(a[0], a[1]) - Math.hypot(b[0], b[1]))
+    // (and the meshes the map looks at found once, again only once edit mode's changed something, or a minute on (a crate's come since))
+    let dropMeshes: THREE.Mesh[] | null = null, dropFound = 0
+    const unsub = subscribeEdit(() => { dropMeshes = null })
+    BOSS_BED.drop = (atGrill, done) => {
       const g = ref.current
-      if (!g) return null
+      if (!g) { done(null); return () => {} }
       g.updateWorldMatrix(true, false)
       const bar = (w: THREE.Vector3) => toBar(g.worldToLocal(w.clone()))
       const onFloor = (v: THREE.Vector3) => { const q = fromBar(v); return q.setY(floorAt(q)) }
       const p = g.localToWorld(onFloor(toBar(atGrill).setY(0)))
-      // (looked for out to his own height round it: let go over the bar's middle, the aisle behind its stools or the kitchen in front of it)
-      const REACH = 1.0 * GRILL_SCALE
-      const f = floorMap(bedFinds(scene).meshes, g, p, p.y, REACH + 0.4, BOSS_TALL)
-      let best: THREE.Vector3 | null = null, bestD = Infinity
-      for (let v = -REACH; v <= REACH + 1e-4; v += 0.05) for (let u = -REACH; u <= REACH + 1e-4; u += 0.05) {
-        const d = Math.hypot(u, v)
-        if (d >= bestD || d > REACH) continue
-        if (f.taken(u - BOSS_FEET, u + BOSS_FEET, v - BOSS_FEET, v + BOSS_FEET)) continue
-        const w = f.at(u, v)
-        const corners = [-1, 1].flatMap((su) => [-1, 1].map((sv) => f.at(u + su * BOSS_FEET, v + sv * BOSS_FEET)))
-        if (![w, ...corners].every(f.inRoom) || inGenkan(GRILL_COUNTERS, bar(w))) continue
-        const lv = f.level(w)
-        if (!corners.every((q) => f.level(q) === lv)) continue
-        best = w; bestD = d
+      if (!dropMeshes || performance.now() - dropFound > 60000) { dropMeshes = bedFinds(scene).meshes; dropFound = performance.now() }
+      const it = floorMapSteps(dropMeshes.filter((q) => q.parent), g, p, p.y, REACH + 0.4, BOSS_TALL)
+      let raf = 0, live = true
+      const step = () => {
+        if (!live) return
+        // (a few milliseconds of it a frame, till it's made)
+        const t = performance.now()
+        let r = it.next()
+        while (!r.done && performance.now() - t < 3) r = it.next()
+        if (!r.done) { raf = requestAnimationFrame(step); return }
+        const f = r.value
+        for (const [u, v] of RING) {
+          if (f.taken(u - BOSS_FEET, u + BOSS_FEET, v - BOSS_FEET, v + BOSS_FEET)) continue
+          const w = f.at(u, v)
+          const corners = [-1, 1].flatMap((su) => [-1, 1].map((sv) => f.at(u + su * BOSS_FEET, v + sv * BOSS_FEET)))
+          if (![w, ...corners].every(f.inRoom) || inGenkan(GRILL_COUNTERS, bar(w))) continue
+          const lv = f.level(w)
+          if (!corners.every((q) => f.level(q) === lv)) continue
+          done(onFloor(bar(w).setY(0)))
+          return
+        }
+        done(null)
       }
-      return best ? onFloor(bar(best).setY(0)) : null
+      raf = requestAnimationFrame(step)
+      return () => { live = false; cancelAnimationFrame(raf) }
     }
     BOSS_BED.home = (fromGrill, toGrill) => {
       const route = KITCHEN_ROUTE.route
@@ -4512,7 +4540,7 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
       }
       return path ? [fromGrill.clone(), ...path.slice(1).map(onFloor)] : null
     }
-    return () => { BOSS_BED.way = null; BOSS_BED.frame = null; BOSS_BED.drop = null; BOSS_BED.home = null }
+    return () => { BOSS_BED.way = null; BOSS_BED.frame = null; BOSS_BED.drop = null; BOSS_BED.home = null; unsub() }
   }, [scene])
   return <group ref={ref} />
 })

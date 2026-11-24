@@ -571,6 +571,10 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
   /** (item 652) put down off his round's line by the player: since when (performance.now()), how long he stays there before going back of
    * his own accord (sooner if he's wanted: the shop open, a taste or a drink for him, bed) */
   const away = useRef<{ since: number; stay: number } | null>(null)
+  /** (item 652) each let-go's number: where he's to stand is worked out a moment after, and taken up again meanwhile, that one's dropped */
+  const dropToken = useRef(0)
+  /** (item 652) calls off the working out of where he's to stand, under way since he was let go */
+  const dropStop = useRef<(() => void) | null>(null)
   const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null
   // (asleep on it: the Zz over him)
   const [asleep, setAsleep] = useState(false)
@@ -1297,6 +1301,8 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     const bd0 = bed.current
     if (bd0.phase === 'back' && bd0.home) { bd0.phase = 'off'; bd0.home = false }
     away.current = null
+    dropStop.current?.()
+    dropStop.current = null
     carry.current = { on: true, px: x, py: y, from: [s.x, s.z], to: [s.x, s.z], until: 0 }
     if (controls) controls.enabled = false
     GRABBING.on = true
@@ -1316,32 +1322,51 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
       // where he was taken from. (Item 635 had him down on the nearest point of his round's line, or back where he was, 「我的位子在這邊啦」.)
       c.on = false
       c.until = performance.now() + 260
+      // (down where he's held first; where he's to stand worked out over the next few frames (the Optimization window's: done as he was let
+      // go it held that frame, 32 ms here, some 130 on a slower laptop), and he steps over to it if it isn't there)
+      c.to = [st.current.x, st.current.z]
+      // (stood there meanwhile, not off on his round's walk from it)
+      away.current = { since: performance.now(), stay: 60 }
       const mv = mover.current, fr = BOSS_BED.frame
-      const spot = mv?.parent && fr && BOSS_BED.drop ? BOSS_BED.drop(fr.worldToLocal(mv.getWorldPosition(new THREE.Vector3()))) : null
-      if (spot && mv?.parent && fr) { const q = mv.parent.worldToLocal(fr.localToWorld(spot)); c.to = [q.x, q.z] }
-      else { c.to = c.from; setSay({ text: pick3('欸欸，放不下去啦。', 'おいおい、そこには立てんよ。', "Hey now, I can't stand there."), key: Date.now() }) }
-      // (on his round's line where he's come down (his place to the aisle's mouth, and along the aisle), he's on his round from there; off it,
-      // he's been put somewhere: he stays a while, then finds his way back)
-      const segs: [number, number, number, number][] = []
-      if (aisle) {
-        const [mx, mz] = aisle.mouth, [ax, az] = aisle.dir
-        segs.push([0, 0, mx, mz], [mx + ax * aisle.range[0], mz + az * aisle.range[0], mx + ax * aisle.range[1], mz + az * aisle.range[1]])
-      } else segs.push([0, 0, to[0], to[1]])
-      let off = Infinity
-      for (const [x0, z0, x1, z1] of segs) {
-        const dx = x1 - x0, dz = z1 - z0, l2 = dx * dx + dz * dz || 1
-        const k = Math.max(0, Math.min(1, ((c.to[0] - x0) * dx + (c.to[1] - z0) * dz) / l2))
-        off = Math.min(off, Math.hypot(x0 + dx * k - c.to[0], z0 + dz * k - c.to[1]))
-      }
-      if (off > ON_ROUND) {
-        away.current = { since: performance.now(), stay: 10 + Math.random() * 6 }
-        if (spot) {
-          const r = Math.floor(Math.random() * 3)
-          setSay({ text: [pick3('哦？放這邊啊，好吧。', 'おっ？ここか、まあいいか。', 'Oh? Here, then. Fine.'),
-            pick3('嗯……換個地方站站也不錯。', 'ふむ……たまには場所を変えるのも悪くない。', "Hm... a change of spot's not bad."),
-            pick3('哎呀，被搬來搬去的。', 'おやおや、あちこち運ばれるな。', 'Oh my, carted about.')][r], key: Date.now() })
+      const ask = mv?.parent && fr ? fr.worldToLocal(mv.getWorldPosition(new THREE.Vector3())) : null
+      const token = ++dropToken.current
+      const settle = (spot: THREE.Vector3 | null) => {
+        // (taken up again meanwhile: this let-go's done with)
+        if (token !== dropToken.current || carry.current?.on) return
+        dropStop.current = null
+        const m2 = mover.current, f2 = BOSS_BED.frame
+        let to: [number, number] = c.from
+        if (spot && m2?.parent && f2) { const q = m2.parent.worldToLocal(f2.localToWorld(spot)); to = [q.x, q.z] }
+        else setSay({ text: pick3('欸欸，放不下去啦。', 'おいおい、そこには立てんよ。', "Hey now, I can't stand there."), key: Date.now() })
+        const s2 = st.current
+        if (Math.hypot(to[0] - s2.x, to[1] - s2.z) > 0.005) carry.current = { on: false, px: c.px, py: c.py, from: c.from, to, until: performance.now() + 260 }
+        // (on his round's line where he's come down (his place to the aisle's mouth, and along the aisle), he's on his round from there; off
+        // it, he's been put somewhere: he stays a while, then finds his way back)
+        const segs: [number, number, number, number][] = []
+        if (aisle) {
+          const [mx, mz] = aisle.mouth, [ax, az] = aisle.dir
+          segs.push([0, 0, mx, mz], [mx + ax * aisle.range[0], mz + az * aisle.range[0], mx + ax * aisle.range[1], mz + az * aisle.range[1]])
+        } else segs.push([0, 0, to[0], to[1]])
+        let off = Infinity
+        for (const [x0, z0, x1, z1] of segs) {
+          const dx = x1 - x0, dz = z1 - z0, l2 = dx * dx + dz * dz || 1
+          const k = Math.max(0, Math.min(1, ((to[0] - x0) * dx + (to[1] - z0) * dz) / l2))
+          off = Math.min(off, Math.hypot(x0 + dx * k - to[0], z0 + dz * k - to[1]))
+        }
+        away.current = null
+        if (off > ON_ROUND) {
+          away.current = { since: performance.now(), stay: 10 + Math.random() * 6 }
+          if (spot) {
+            const r = Math.floor(Math.random() * 3)
+            setSay({ text: [pick3('哦？放這邊啊，好吧。', 'おっ？ここか、まあいいか。', 'Oh? Here, then. Fine.'),
+              pick3('嗯……換個地方站站也不錯。', 'ふむ……たまには場所を変えるのも悪くない。', "Hm... a change of spot's not bad."),
+              pick3('哎呀，被搬來搬去的。', 'おやおや、あちこち運ばれるな。', 'Oh my, carted about.')][r], key: Date.now() })
+          }
         }
       }
+      dropStop.current?.()
+      if (ask && BOSS_BED.drop) dropStop.current = BOSS_BED.drop(ask, settle)
+      else settle(null)
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)

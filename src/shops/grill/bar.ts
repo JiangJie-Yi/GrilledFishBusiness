@@ -262,8 +262,9 @@ export const BOSS_BED = keep(import.meta.hot, 'BOSS_BED', {
   way: null as ((fromGrill: THREE.Vector3) => { path: THREE.Vector3[]; foot: THREE.Vector3; head: THREE.Vector3; door: THREE.Vector3; doorFront: THREE.Vector3 } | null) | null,
   /** (item 652, the owner's 「老闆被拖曳是可以放下位置的」) where he comes down, let go off his round's line at a place (the grill's frame): there
    * if he'd stand clear on the floor (in the shop, not in the genkan, nothing where his feet go, all on one level), else the nearest place
-   * round it that is, within a metre; null if there's none (Roasting's BossBedWays) */
-  drop: null as ((atGrill: THREE.Vector3) => THREE.Vector3 | null) | null,
+   * round it that is, within a metre; null if there's none (Roasting's BossBedWays). Worked out over a few frames (its map's a few
+   * milliseconds a frame), handed to `done`; the function it gives back calls it off */
+  drop: null as ((atGrill: THREE.Vector3, done: (spot: THREE.Vector3 | null) => void) => () => void) | null,
   /** his way back to his place from where he's been put (the grill's frame, on the floor): across the kitchen round what's in it, or from
    * out in the room along the aisle to the nearer of the bar's gates and in through it, as the crew go */
   home: null as ((fromGrill: THREE.Vector3, toGrill: THREE.Vector3) => THREE.Vector3[] | null) | null,
