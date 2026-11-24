@@ -801,7 +801,9 @@ body.be-tool .app > :not(.canvas-layer):not(.axis-widget) { display: none; }
   font: 700 13px/1 var(--brush);
   white-space: nowrap;
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
-  pointer-events: none;
+  /* (held over, what meeting it brings is told (item 650): it took no pointer before) */
+  pointer-events: auto;
+  cursor: help;
   user-select: none;
   transition: border-color 300ms ease, color 300ms ease;
   /* (its hop grows it leftward, away from the clock beside it: from its middle it came 1 px over the clock) */
@@ -810,6 +812,8 @@ body.be-tool .app > :not(.canvas-layer):not(.axis-widget) { display: none; }
 .day-goal-icon { flex: none; opacity: 0.9; }
 .day-goal-label { font-size: 12px; opacity: 0.82; letter-spacing: 0.04em; }
 .day-goal-sum { font-variant-numeric: tabular-nums; }
+/* (what meeting it brings (item 650): tomorrow's word once it's met, today's from the days before till then) */
+.day-goal-perk { flex: none; padding: 2px 6px; border-radius: 8px; background: rgb(255 226 168 / 0.16); color: #ffe2a8; font-size: 11px; letter-spacing: 0.02em; }
 .day-goal-bar { position: absolute; left: 10px; right: 10px; bottom: 3px; height: 2px; border-radius: 1px; background: rgb(255 255 255 / 0.16); }
 .day-goal-bar b { display: block; height: 100%; border-radius: 1px; background: linear-gradient(90deg, #f3c77a, #ffe2a8); transform-origin: left center;
   transition: transform 500ms cubic-bezier(0.2, 0.8, 0.2, 1); }

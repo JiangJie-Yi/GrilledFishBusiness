@@ -1,6 +1,7 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { dayGoal, goalProgress, GOAL_FIRST } from '@/game/dayGoal'
+import { dayGoal, goalBonus, goalProgress, goalStreak, GOAL_BONUS_MAX, GOAL_BONUS_STEP, GOAL_FIRST } from '@/game/dayGoal'
+import { addDay, type DaySummary } from '@/game/daySummary'
 
 // (item 175, the owner's: those who don't care for games should want to play a little longer: each day a target for its takings, a little
 // past the day before, shown while the shop's open and cheered as it's passed)
@@ -42,6 +43,52 @@ feature('每天的營業額小目標', () => {
       const p = goalProgress(w.goal, 5000)
       expect(p.reached).toBe(true)
       expect(p.share).toBe(1)
+    })
+  })
+
+  // (item 650, the owner's 「達標會有甚麼好處」: met, word of it goes round, and the next day more come in; more the more days running)
+  scenario('達標的隔天口碑傳開，客人來得多一點；連續達標越多天越多，有上限', ({ given, then, and }) => {
+    given('一天達標', (w) => { w.days = [{ day: 1, revenue: 5000, made: true }] })
+    then('連續一天，隔天客人多 5%', (w) => {
+      expect(goalStreak(w.days)).toBe(1)
+      expect(goalBonus(goalStreak(w.days))).toBeCloseTo(GOAL_BONUS_STEP)
+    })
+    and('連續三天，多 15%', () => {
+      expect(goalBonus(goalStreak([1, 2, 3].map((d) => ({ day: d, revenue: 5000, made: true }))))).toBeCloseTo(0.15)
+    })
+    and('再多天也不超過上限', () => {
+      expect(goalBonus(goalStreak([1, 2, 3, 4, 5, 6, 7, 8].map((d) => ({ day: d, revenue: 5000, made: true }))))).toBeCloseTo(GOAL_BONUS_MAX)
+    })
+  })
+
+  scenario('沒達標的那天斷掉，連續從頭算；沒記錄的舊存檔不算達標', ({ then, and }) => {
+    then('最近一天沒達標：連續 0 天、沒有口碑', () => {
+      const days = [{ day: 1, revenue: 5000, made: true }, { day: 2, revenue: 5000, made: true }, { day: 3, revenue: 900, made: false }]
+      expect(goalStreak(days)).toBe(0)
+      expect(goalBonus(goalStreak(days))).toBe(0)
+    })
+    and('中間斷過：只算最近的那一段', () => {
+      expect(goalStreak([{ day: 1, revenue: 5000, made: true }, { day: 2, revenue: 900, made: false }, { day: 3, revenue: 5000, made: true }, { day: 4, revenue: 5000, made: true }])).toBe(2)
+    })
+    and('結算順序亂了也照日子算', () => {
+      expect(goalStreak([{ day: 4, revenue: 5000, made: true }, { day: 3, revenue: 5000, made: true }, { day: 2, revenue: 900, made: false }])).toBe(2)
+    })
+    and('舊的記錄沒有達標這一欄：當作沒達標', () => { expect(goalStreak([{ day: 1, revenue: 5000 }])).toBe(0) })
+  })
+
+  scenario('一天的結算記下那天的目標與有沒有達標；同一天開兩次店，有一次達標就算', ({ given, then, and }) => {
+    given('一天的結算', (w) => {
+      w.sum = { revenue: 3000, profit: 1000, guests: 10, stars: 4, best: null, overtime: 0, wage: 500 } as unknown as DaySummary
+    })
+    then('記下目標與達標', (w) => {
+      const days = addDay([], 1, w.sum as DaySummary, undefined, { goal: 2500, made: true })
+      expect(days[0].goal).toBe(2500)
+      expect(days[0].made).toBe(true)
+    })
+    and('同一天第二次沒達標，仍算達標', (w) => {
+      const once = addDay([], 1, w.sum as DaySummary, undefined, { goal: 2500, made: true })
+      const twice = addDay(once, 1, w.sum as DaySummary, undefined, { goal: 2500, made: false })
+      expect(twice[0].made).toBe(true)
     })
   })
 })

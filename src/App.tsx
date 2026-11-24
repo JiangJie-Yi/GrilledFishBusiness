@@ -108,7 +108,7 @@ import { FirstDayGuide } from '@/ui/FirstDayGuide'
 import { DayGoal } from '@/ui/DayGoal'
 import { DayTip } from '@/ui/DayTip'
 import { tipFor, tipShown, type TipId } from '@/game/dailyTip'
-import { dayGoal } from '@/game/dayGoal'
+import { dayGoal, goalBonus, goalStreak } from '@/game/dayGoal'
 import { CANDIDATES, pickHires, refreshApplicants, ROLLS_PER_DAY, valueOf } from '@/game/hiring'
 import { arrange, onShift, openDay, shutDay, type Rota, type Shift } from '@/game/shifts'
 import { crewChatTick } from '@/shops/grill/crewTalk'
@@ -1574,12 +1574,16 @@ export default function App() {
   // cooks; on again, at its speed, as the mode ends)
   // the day's closing sheet (ui/DaySummary), up once the shop's shut: the game stands still while it's up (the owner's), going on as it goes
   // (and the hours it was open: when it opened and when it closed, by the game's clock (the owner's: the sheet says when the day ended))
-  const [daySum, setDaySum] = useState<{ s: DaySum; day: number; from: string; to: string; goal?: number; made?: boolean } | null>(null)
+  const [daySum, setDaySum] = useState<{ s: DaySum; day: number; from: string; to: string; goal?: number; made?: boolean
+    /** (item 650) the days running it's met now, counting this one (0: missed), and whether a run was broken by missing it */
+    streak?: number; broke?: boolean } | null>(null)
   // (and each day's sheet kept in the books (the owner's), shown under the ledger: kept in the browser, cleared with a fresh start)
   const [dayLog, setDayLog] = useState<DayRecord[]>(() => { try { return JSON.parse(localStorage.getItem(DAYS_KEY) ?? '[]') as DayRecord[] } catch { return [] } })
   // (for the day's target, set as it opens (game/dayGoal, item 175))
   const dayLogNow = useRef(dayLog)
   dayLogNow.current = dayLog
+  // (dev: the books' days, to look at and to set (item 650's check: days running met, before the shop opens))
+  useEffect(() => { if (import.meta.env.DEV) Object.assign(window, { __dayLog: { get: () => dayLogNow.current, set: (d: DayRecord[]) => setDayLog(d) } }) }, [])
   useEffect(() => { GAME_SPEED.value = (editOn && ai) || daySum ? 0 : speed }, [speed, editOn, ai, daySum])
   // (and the frame pacer doesn't judge for a while after any of these, or the view flown elsewhere: a moment of slow frames, figures built
   // and shaders compiled, no measure of the machine; it took the shop opening for a slow machine and drew the rest of the session coarse)
@@ -1687,6 +1691,10 @@ export default function App() {
     chatPinned.current = true
     // (the shop's name, as it stands this morning, bringing them in, or keeping them away (game/reputation's flowOf; the owner's))
     Object.assign(RATING_FLOW, flowOf(shopRatingRef.current.stars))
+    // (and word of the days running its target's been met going round (game/dayGoal's goalBonus, item 650, the owner's 「達標會有甚麼好處」):
+    // customers come in that much more often today)
+    const streak = goalStreak(dayLogNow.current), bonus = goalBonus(streak)
+    RATING_FLOW.more *= 1 + bonus
     SHOP.counted = true
     // (the day's shift on (game/shifts): each one's run of days counted, those off resting it all)
     {
@@ -1696,7 +1704,7 @@ export default function App() {
     // (the day's books as they stand at opening, for its closing sheet; one still up from the last day put away)
     // (and the day's target for its takings: the last day's a tenth more (game/dayGoal, item 175))
     dayStart.current = { ledger: { ...ledgerNow.current }, seen: new Set(visitsNow.current.map((v) => v.id)), sold: { ...entryCountNow.current }, day: getClock().day,
-      from: hhmm(getClock().minute), goal: dayGoal(dayLogNow.current) }
+      from: hhmm(getClock().minute), goal: dayGoal(dayLogNow.current), streak, bonus }
     setDaySum(null)
     const day = SHOP.day
     const timers = [window.setTimeout(() => sayStaff.current('owner', OPEN_DORM, day), 1200)]
@@ -2274,7 +2282,9 @@ export default function App() {
   const entryCountNow = useRef(entryCount)
   entryCountNow.current = entryCount
   // the day's closing sheet (ui/DaySummary): the books, the customers seen and the orders as they stood at opening; the sheet once shut
-  const dayStart = useRef<{ ledger: typeof ledger; seen: Set<number>; sold: Record<string, number>; day: number; from: string; goal: number; made?: boolean } | null>(null)
+  const dayStart = useRef<{ ledger: typeof ledger; seen: Set<number>; sold: Record<string, number>; day: number; from: string; goal: number; made?: boolean
+    /** (item 650) the days running its target was met before today, and the word of it today: customers that much more often */
+    streak: number; bonus: number } | null>(null)
   const ledgerNow = useRef(ledger)
   ledgerNow.current = ledger
   // (dev: the books and the cash in hand, for tests/e2e: the takings go up as customers order, the cash only as they pay at the till)
@@ -2660,7 +2670,11 @@ export default function App() {
     st.made = true
     BOSS_FX.joyAt = performance.now()
     const sum = `NT$${st.goal.toLocaleString('en-US')}`
-    talk('owner', tl(langRef.current, `今天的目標 ${sum} 達成了！`, `今日の目標 ${sum} 達成！`, `Today's target of ${sum} made!`))
+    // (and what it brings (item 650): word going round, more in tomorrow; days running, said so)
+    const run = st.streak + 1, more = Math.round(goalBonus(run) * 100)
+    talk('owner', run > 1
+      ? tl(langRef.current, `今天的目標 ${sum} 達成了！連續 ${run} 天，口碑傳開，明天客人會多 ${more}%！`, `今日の目標 ${sum} 達成！${run} 日連続、評判が広まって明日は客が ${more}% 増えるぞ！`, `Today's target of ${sum} made! ${run} days running: word's going round, ${more}% more customers tomorrow!`)
+      : tl(langRef.current, `今天的目標 ${sum} 達成了！口碑傳開，明天客人會多 ${more}%。`, `今日の目標 ${sum} 達成！評判が広まって明日は客が ${more}% 増えるぞ。`, `Today's target of ${sum} made! Word will go round: ${more}% more customers tomorrow.`))
   }, [talk])
   /** (the orders said in the log just now: the same customer's same dish again at once (two of it ordered together, next to each other or
    * not) is its line with how many, 點了 味噌烤香菇×2, as a takeaway's order is called (item 56: two lines the same, one after the other,
@@ -3557,11 +3571,12 @@ export default function App() {
         if (st) {
           dayStart.current = null
           const sum = daySummary(st.ledger, ledgerNow.current, visitsNow.current.filter((v) => !st.seen.has(v.id)), soldBetween(st.sold, entryCountNow.current))
-          setDaySum({ s: sum, day: st.day, from: st.from, to: hhmm(getClock().minute), goal: st.goal, made: st.made })
+          const made = !!st.made || sum.revenue >= st.goal
+          setDaySum({ s: sum, day: st.day, from: st.from, to: hhmm(getClock().minute), goal: st.goal, made, streak: made ? st.streak + 1 : 0, broke: !made && st.streak > 0 })
           setDayLog((log) => {
             // (with its hours: opened, shut, and how far past the hours' end (the owner's, 2026-11-15: "the hours must be kept too"))
             const shut = getClock().minute
-            const next = addDay(log, st.day, sum, { open: st.from, close: hhmm(shut), late: Math.max(0, inHours(shut) ? 0 : lateBy(CLOSE_AT, shut)) })
+            const next = addDay(log, st.day, sum, { open: st.from, close: hhmm(shut), late: Math.max(0, inHours(shut) ? 0 : lateBy(CLOSE_AT, shut)) }, { goal: st.goal, made })
             try { localStorage.setItem(DAYS_KEY, JSON.stringify(next)) } catch { /* (not kept) */ }
             return next
           })
@@ -4295,7 +4310,7 @@ export default function App() {
       {/* (today's target for the takings while the shop's open, left of the clock (ui/DayGoal, item 175)) */}
       {ai && !editOn && dayStart.current && !daySum && (
         <DayGoal lang={lang} goal={dayStart.current.goal} takings={Math.max(0, ledger.revenue - dayStart.current.ledger.revenue)} day={dayStart.current.day}
-          onReached={onGoal} />
+          streak={dayStart.current.streak} bonus={dayStart.current.bonus} onReached={onGoal} />
       )}
       {/* (upstairs: the way down to the shop (item 325)) */}
       {view === 'upstairs' && !editOn && (
@@ -4355,7 +4370,7 @@ export default function App() {
       </button>
       <Bgm />
       {bust && <ClosedDown lang={lang} day={bust.day} savings={bust.savings} takings={ledger.revenue} spent={CAPITAL + ledger.revenue - bust.savings} onRestart={startOver} />}
-      {daySum && <DaySummary s={daySum.s} day={daySum.day} hours={[daySum.from, daySum.to]} goal={daySum.goal} goalMade={daySum.made} lang={lang} onClose={dayDone}
+      {daySum && <DaySummary s={daySum.s} day={daySum.day} hours={[daySum.from, daySum.to]} goal={daySum.goal} goalMade={daySum.made} streak={daySum.streak} broke={daySum.broke} lang={lang} onClose={dayDone}
         nameOf={(key) => { const e = Object.values(menuByRef.current).flat().find((x) => x.key === key); return e ? nameIn(lang, e) : key }} />}
       <HoverTip hidden={editOn} />
       {guide && !editOn && !flatGrill && (

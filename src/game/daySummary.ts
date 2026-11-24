@@ -87,13 +87,15 @@ export type DayRecord = { day: number; revenue: number; profit: number; guests: 
    * "the hours must be kept too", "as past them the staff's pay goes up"); none on a day kept before they were */
   open?: string; close?: string; late?: number; overtime?: number
   /** the day's wages, for its wages over its takings (item 210) */
-  wage?: number }
+  wage?: number
+  /** its target for the takings and whether it was met (item 650: met days running bring more customers, game/dayGoal's goalStreak) */
+  goal?: number; made?: boolean }
 /** a day's hours as it went: opened, shut, minutes past the hours' end */
 export type DayHours = { open: string; close: string; late: number }
 /** how many days the books keep */
 export const KEEP_DAYS = 60
 /** the books with the day just closed added (opened and shut twice in a day: the two put together, the stars weighed by their customers) */
-export function addDay(days: DayRecord[], day: number, s: DaySummary, hours?: DayHours): DayRecord[] {
+export function addDay(days: DayRecord[], day: number, s: DaySummary, hours?: DayHours, target?: { goal: number; made: boolean }): DayRecord[] {
   const was = days.find((d) => d.day === day)
   const rated = (r: { guests: number; stars: number | null }) => (r.stars === null ? 0 : r.guests)
   const rec: DayRecord = was
@@ -111,6 +113,9 @@ export function addDay(days: DayRecord[], day: number, s: DaySummary, hours?: Da
   if (late !== undefined) rec.late = late
   if (overtime > 0) rec.overtime = overtime
   if (wage > 0) rec.wage = wage
+  // (its target, and met if it was met either time it was open that day)
+  if (target) { rec.goal = target.goal; rec.made = target.made || !!was?.made }
+  else if (was?.goal !== undefined) { rec.goal = was.goal; rec.made = was.made }
   const next = [...days.filter((d) => d.day !== day), rec]
   return next.length > KEEP_DAYS ? next.slice(-KEEP_DAYS) : next
 }

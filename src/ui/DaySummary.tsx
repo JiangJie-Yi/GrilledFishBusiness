@@ -7,6 +7,7 @@ import { CLOSE_AT, OPEN_AT, lateBy, minutesOf } from '@/game/hours'
 import { createPortal } from 'react-dom'
 import { tl, type Lang } from '@/data/i18n'
 import { adviceOf, type DaySummary as Summary } from '@/game/daySummary'
+import { goalBonus } from '@/game/dayGoal'
 import { Glyph, Stars } from './GameIcons'
 import { FitLine } from './FitLine'
 
@@ -16,9 +17,11 @@ export const AUTO_S = 10
 const AUTO_TIPS_S = 16
 const nt = (n: number) => `NT$${Math.round(n).toLocaleString('en-US')}`
 
-export function DaySummary({ s, day, hours, goal, goalMade, lang, nameOf, onClose }: { s: Summary; day: number; hours?: [string, string]; goal?: number
+export function DaySummary({ s, day, hours, goal, goalMade, streak = 0, broke = false, lang, nameOf, onClose }: { s: Summary; day: number; hours?: [string, string]; goal?: number
   /** the day's target passed while it was open (refunds after don't take it back) */
-  goalMade?: boolean; lang: Lang; nameOf: (key: string) => string; onClose: () => void }) {
+  goalMade?: boolean
+  /** (item 650) the days running it's met now, counting this one, and whether a run was broken by missing it today */
+  streak?: number; broke?: boolean; lang: Lang; nameOf: (key: string) => string; onClose: () => void }) {
   /** how far off its hour a time was, as a small note after it (none if on the minute) */
   const offBy = (hour: number, hhmm: string) => {
     const at = minutesOf(hhmm)
@@ -103,8 +106,13 @@ export function DaySummary({ s, day, hours, goal, goalMade, lang, nameOf, onClos
           {goal !== undefined && (
             <p className={`day-sum-goal${goalMade || s.revenue >= goal ? ' is-made' : ''}`}>
               <Glyph id={goalMade || s.revenue >= goal ? 'check' : 'coin'} size="13px" />
-              <FitLine>{goalMade || s.revenue >= goal ? t(`今日目標 ${nt(goal)} 達成`, `今日の目標 ${nt(goal)} 達成`, `Today's target ${nt(goal)} made`)
-                : t(`今日目標 ${nt(goal)}，還差 ${nt(goal - s.revenue)}`, `今日の目標 ${nt(goal)}、あと ${nt(goal - s.revenue)}`, `Today's target ${nt(goal)}: ${nt(goal - s.revenue)} short`)}</FitLine>
+              {/* (and what it brings (item 650): days running, tomorrow's word; missed, a run broken) */}
+              <FitLine>{goalMade || s.revenue >= goal
+                ? t(`今日目標 ${nt(goal)} 達成${streak > 1 ? `・連續 ${streak} 天` : ''}・明天客人 +${Math.round(goalBonus(Math.max(1, streak)) * 100)}%`,
+                  `今日の目標 ${nt(goal)} 達成${streak > 1 ? `・${streak} 日連続` : ''}・明日の客 +${Math.round(goalBonus(Math.max(1, streak)) * 100)}%`,
+                  `Today's target ${nt(goal)} made${streak > 1 ? ` · ${streak} days running` : ''} · tomorrow +${Math.round(goalBonus(Math.max(1, streak)) * 100)}% customers`)
+                : t(`今日目標 ${nt(goal)}，還差 ${nt(goal - s.revenue)}${broke ? '・連續達標中斷' : ''}`, `今日の目標 ${nt(goal)}、あと ${nt(goal - s.revenue)}${broke ? '・連続達成が途切れた' : ''}`,
+                  `Today's target ${nt(goal)}: ${nt(goal - s.revenue)} short${broke ? ' · the run is broken' : ''}`)}</FitLine>
             </p>
           )}
           <dl className="day-sum-books">
