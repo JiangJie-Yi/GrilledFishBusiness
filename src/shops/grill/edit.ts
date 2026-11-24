@@ -391,6 +391,9 @@ const RELAIDS: [string, string[]][] = [
   ['jgs-edit-relaid-44', ['basket']],
   // (the cork board and its notes moved under the shrine's shelf (item 616, the owner's 「留言板移駕到紅框區。」): what was kept for them dropped once)
   ['jgs-edit-relaid-45', ['sign-cork', 'cork-thanks', 'cork-boss', 'cork-fish', 'cork-toast', 'cork-night', 'cork-crayon', 'cork-english', 'cork-bday', 'cork-saba', 'cork-stamps', 'cork-title']],
+  // (the sake cups' glass stand forward on the shrine's shelf, its new default (item 611, the owner's 「清酒流理台Z:0.35 然後 Reset」): what was
+  // kept for it dropped once)
+  ['jgs-edit-relaid-46', ['shrinecups']],
 ]
 const relaidDue = RELAIDS.filter(([k]) => { try { return !localStorage.getItem(k) } catch { return false } })
 const relaid = !relaidDue.length
@@ -495,7 +498,10 @@ export const BASES: Record<string, V3> = {
   // turned -90°: the panel's X its Z, the panel's Z its -X), added to where each stood)
   oranges: [0.0275 + 0.08, 0, 0.025],
   oranges2: [0.14, 0, 0.08],
-  shrinecups: [0.0502, 0, 0.115],
+  // (and forward off the shrine's door steps as seen from the room (item 611, the owner's 「清酒流理台Z:0.35 然後 Reset」: the panel's Z out from
+  // the wall, read as 0.035, as 0.35 would have it 0.32 clear of the shelf's front in mid-air; the tray's front 5.9 cm in from the shelf's edge,
+  // its back 10 cm before the shrine's front; the panel's Z its -X))
+  shrinecups: [0.0502 - 0.035, 0, 0.115],
   // (each 2 cm in toward the middle and 2 cm down, as the owner set them in the room's frame (item 110, 2026-11-14: left X 0.02, Y -0.02; right
   // X -0.02, Y -0.02), taken into their parents' (turned -90°: fromRoom))
   // (the owner's, 2026-11-15: both up 0.02, then reset)
