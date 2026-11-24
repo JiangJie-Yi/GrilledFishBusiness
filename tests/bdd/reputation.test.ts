@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
-import { flowOf, rateShop, remarkOf, satisfaction, starsOf, visitStars, WEIGHTS, type Visit } from '@/game/reputation'
-import { BOX_LOW, BOX_SHEETS, refillBoxes, sheetsFor, takeSheets, tissueOrder, TISSUE_PACK } from '@/game/tissues'
+import { flowOf, rateShop, remarkOf, satisfaction, starsOf, visitStars, WEIGHTS, type Visit } from '@/game/guests/reputation'
+import { BOX_LOW, BOX_SHEETS, refillBoxes, sheetsFor, takeSheets, tissueOrder, TISSUE_PACK } from '@/game/stock/tissues'
 import { feature, scenario } from './bdd'
 
 const visit = (o: Partial<Visit> = {}): Visit => ({ id: 1, taste: 80, waited: 30, walkedOut: false, gripes: [], ...o })

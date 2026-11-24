@@ -1,7 +1,7 @@
 import { memo, useRef, useSyncExternalStore } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { clearPref, prefOf, readPrefs, setPref, sigOf, writePrefs, type RenderPref, type RenderPrefs } from '@/game/renderPrefs'
+import { clearPref, prefOf, readPrefs, setPref, sigOf, writePrefs, type RenderPref, type RenderPrefs } from '@/game/system/renderPrefs'
 import { isInk } from '@/scene/inkHull'
 import { gradientMap } from '@/scene/Person3D'
 

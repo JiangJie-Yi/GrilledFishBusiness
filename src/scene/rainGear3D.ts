@@ -5,7 +5,7 @@
 // collar at the top, the legs along the foot). game/rainGear says who has what and the beats of it; FolkFigure and GuestBar3D draw them.
 import * as THREE from 'three'
 import { useGLTF } from '@react-three/drei'
-import { COAT_COLOURS, UMB_COLOURS, VINYL, type CoatPose, type UmbPose } from '@/game/rainGear'
+import { COAT_COLOURS, UMB_COLOURS, VINYL, type CoatPose, type UmbPose } from '@/game/guests/rainGear'
 
 export const KASA_URL = import.meta.env.BASE_URL + 'models/kasatate.glb'
 /** the canopy's tip from the grip, along the rod (blender/kasatate.py's ROD_TIP), and the ferrule's end past it: the umbrella's whole reach

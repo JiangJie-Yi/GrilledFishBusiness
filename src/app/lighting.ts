@@ -1,4 +1,4 @@
-import { type Sky } from '@/game/clock'
+import { type Sky } from '@/game/world/clock'
 
 export type Theme = 'light' | 'dark'
 

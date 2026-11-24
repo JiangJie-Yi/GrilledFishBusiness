@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { pickOrders } from '@/game/orderPick'
+import { pickOrders } from '@/game/kitchen/orderPick'
 
 /** a dice that rolls the given numbers in turn (0..1), the last one ever after */
 const rolls = (...r: number[]) => { let i = 0; return () => r[Math.min(i++, r.length - 1)] }

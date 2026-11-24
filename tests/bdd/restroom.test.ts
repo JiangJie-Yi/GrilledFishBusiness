@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { freshRoom, visitRoom, cleanRoom, newRoll, penaltyOf, looksOf, openRoom, pullSheet, DIRTY_AT, ROLL_USES, SHEET } from '@/game/restroom'
+import { freshRoom, visitRoom, cleanRoom, newRoll, penaltyOf, looksOf, openRoom, pullSheet, DIRTY_AT, ROLL_USES, SHEET } from '@/game/guests/restroom'
 
 feature('廁所的清潔與衛生紙', () => {
   scenario('剛打掃好的廁所，客人用完沒有怨言，但會變髒一點、衛生紙少一點', ({ given, when, then, and }) => {

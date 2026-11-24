@@ -2,14 +2,14 @@
 // offset is kept in the browser. While the shop is open it can't be switched on (and is switched off if the shop opens), since customers and
 // staff are walking about. Here: the state, the key, the panel at the screen's corner, and the list of what can be moved.
 
-import { isMac } from '@/game/navInput'
+import { isMac } from '@/game/system/navInput'
 import { useSyncExternalStore } from 'react'
 import { clearAllRenderPrefs, clearRenderPref, onRenderPrefs, renderPrefOf, setRenderPref } from './renderPrefs'
-import { RENDER_DEFAULT, type RenderPref } from '@/game/renderPrefs'
+import { RENDER_DEFAULT, type RenderPref } from '@/game/system/renderPrefs'
 import { EDIT_TEXT, pieceName } from '@/data/editText'
 import type { Lang } from '@/data/i18n'
 import { VIEW_SPOTS } from '@/data/views'
-import { applyGroup, AREA_REACH, areasOf, chainOf, isStill, leavesOf, parentOf, ROOM_TURN, undoGroup, viewOf, within, type ViewCam } from '@/game/editGroups'
+import { applyGroup, AREA_REACH, areasOf, chainOf, isStill, leavesOf, parentOf, ROOM_TURN, undoGroup, viewOf, within, type ViewCam } from '@/game/system/editGroups'
 import { glowOnly, HOVER } from '@/scene/hoverGlow'
 import { setTip } from '@/scene/hoverTip'
 import { GRILL_SEATS } from './bar'

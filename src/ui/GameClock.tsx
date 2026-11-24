@@ -3,9 +3,9 @@
 // 14:25. Only it redraws as the minutes go by. The part of the day is a button (the owner's: to look at the shop's lights in each without
 // waiting): it moves the clock on to where the next part starts, and the room dissolves into that light.
 import { memo, useEffect, useLayoutEffect, useRef } from 'react'
-import { hhmm, nextSky, skyAt, type Sky } from '@/game/clock'
-import { isLate } from '@/game/hours'
-import { businessDay, rainAt, weatherOf } from '@/game/weather'
+import { hhmm, nextSky, skyAt, type Sky } from '@/game/world/clock'
+import { isLate } from '@/game/world/hours'
+import { businessDay, rainAt, weatherOf } from '@/game/world/weather'
 import { tl, type Lang } from '@/data/i18n'
 import { setTip } from '@/scene/hoverTip'
 import { Glyph } from './GameIcons'

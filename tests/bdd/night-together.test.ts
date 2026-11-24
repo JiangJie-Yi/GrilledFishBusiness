@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { CHANCE_HIGH, CHANCE_LOW, TOGETHER_AT, TOGETHER_BOND, afterTogether, bedFit, mayShare, nightRoll, togetherChance, tonightWith, type Lodger } from '@/game/nightTogether'
+import { CHANCE_HIGH, CHANCE_LOW, TOGETHER_AT, TOGETHER_BOND, afterTogether, bedFit, mayShare, nightRoll, togetherChance, tonightWith, type Lodger } from '@/game/staff/nightTogether'
 
 const her = (o: Partial<Lodger> = {}): Lodger => ({ id: 'w1', female: true, years: 26, lives: true, bond: 90, ...o })
 

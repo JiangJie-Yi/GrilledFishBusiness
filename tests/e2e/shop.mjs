@@ -16,7 +16,7 @@ export async function boot({ width = 1440, height = 860, url = process.env.URL ?
   // (the first day's guide (item 175) taken as done: its card at the foot of the screen would stand over what's clicked)
   await page.addInitScript(() => { try { localStorage.setItem('jgs-guide-1', 'done') } catch { /* (blocked) */ } })
   // (every file the page loads kept in its resource timings: rush() finds the game's modules there by name, and past the browser's own 250
-  // (the customers' 92 pictures, item 377) the later ones, game/flow.ts among them, were dropped)
+  // (the customers' 92 pictures, item 377) the later ones, game/guests/flow.ts among them, were dropped)
   await page.addInitScript(() => performance.setResourceTimingBufferSize(20000))
   page.setDefaultTimeout(15000)
   page.on('pageerror', (e) => console.log('ERR', e.message))
@@ -69,8 +69,8 @@ export async function openShop(page, { hire = true, x2 = false, at = 17 * 60 } =
 export async function rush(page, { more = 2.3, gap = 0.6 } = {}) {
   await page.evaluate(async ([more, gap]) => {
     const names = performance.getEntriesByType('resource').map((e) => e.name)
-    const sh = await import(names.find((n) => /game\/shopState/.test(n)))
-    const fl = await import(names.find((n) => /game\/flow\.ts/.test(n)))
+    const sh = await import(names.find((n) => /\/game\/(?:\w+\/)?shopState\.ts/.test(n)))
+    const fl = await import(names.find((n) => /\/game\/(?:\w+\/)?flow\.ts/.test(n)))
     const on = () => { sh.RATING_FLOW.more = more; for (const k of Object.keys(fl.FLOWS)) fl.FLOWS[k].gap = () => gap }
     on()
     setInterval(on, 2000)

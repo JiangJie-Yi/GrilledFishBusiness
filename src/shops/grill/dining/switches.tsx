@@ -1,7 +1,7 @@
 import { lightSwitchSound } from '@/shops/grill/restroomSound'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { SWITCH_SPOT } from '@/game/shopState'
+import { SWITCH_SPOT } from '@/game/world/shopState'
 import * as THREE from 'three'
 import { inkModel } from '@/scene/inkHull'
 import { useGLTF } from '@react-three/drei'
@@ -9,7 +9,7 @@ import { handOver } from '@/shops/grill/bar'
 import { getEdit } from '@/shops/grill/edit'
 import { setTip } from '@/scene/hoverTip'
 import { getLights, pressLightSwitch, useLights } from '@/scene/lightsStore'
-import { lightOn, type Circuit } from '@/game/roomLights'
+import { lightOn, type Circuit } from '@/game/world/roomLights'
 
 const SWITCH_URL = import.meta.env.BASE_URL + 'models/lightswitch.glb'
 /** the slim one (スリムスイッチ, 3.4 cm by 12): the toilets', on the post between their two doors */

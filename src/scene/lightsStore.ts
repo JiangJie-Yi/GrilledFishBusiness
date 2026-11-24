@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import { LIGHTS_DEFAULT, lightOn, readLights, switchLights, writeLights, type Circuit, type RoomLights } from '@/game/roomLights'
+import { LIGHTS_DEFAULT, lightOn, readLights, switchLights, writeLights, type Circuit, type RoomLights } from '@/game/world/roomLights'
 
 /** the shop's lights (its wall switches: the room's and the door lanterns' by the way in, each toilet's by its door), kept in the browser:
  * whoever draws a lamp or the room's light follows them */

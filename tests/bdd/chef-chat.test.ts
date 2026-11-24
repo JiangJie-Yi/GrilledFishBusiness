@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { understand } from '@/game/chefChat'
+import { understand } from '@/game/kitchen/chefChat'
 import { DISHES } from '@/data/menu'
 
 const shop = DISHES.find((d) => d.id === 'grilledfish')!

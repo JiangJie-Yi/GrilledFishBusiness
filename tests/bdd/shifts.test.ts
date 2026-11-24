@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { arrange, crewOf, onShift, openDay, recoverShare, shutDay, type Rota } from '@/game/shifts'
+import { arrange, crewOf, onShift, openDay, recoverShare, shutDay, type Rota } from '@/game/staff/shifts'
 
 feature('排班：兩批員工交替輪班', () => {
   scenario('A、B 兩班一天一天輪流', ({ then, and }) => {

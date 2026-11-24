@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { crossYaw, MAX_LAYERS, placeStick, restOf, settle, STICK_HALF, STICK_R, surfaceY, type Lay } from '@/game/coalPile'
+import { crossYaw, MAX_LAYERS, placeStick, restOf, settle, STICK_HALF, STICK_R, surfaceY, type Lay } from '@/game/kitchen/coalPile'
 
 describe('coal pile', () => {
   it('a lone stick lies on the bed', () => {

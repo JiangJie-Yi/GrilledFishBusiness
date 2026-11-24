@@ -2,8 +2,8 @@ import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
 import { CARRY, CLEAR_LATE, DRYER_CAP, ON_THE_WAY, onTheWay, DRY_S, STACK_CAP, STACK_LOW, RACK_FULL, WASH_AT, dryerStarts, dryerTick, dutyOf, nextChore, platerGoes, platesToBring,
   putBack, unload, washNow, washOne, type Dryer, canOpen, dryerPhase, playerLoad, shutStarts, DRAIN_CAP, DRAIN_S, drainTick, handNow, handOne,
-  unbasket, washerBusy, START_DIRTY, START_DRAIN, rackAtStart, LOW_FULL, PLATES_ALL } from '@/game/plates'
-import { kitchenPath, reachSpot, standClear, type Rect } from '@/game/kitchenPath'
+  unbasket, washerBusy, START_DIRTY, START_DRAIN, rackAtStart, LOW_FULL, PLATES_ALL } from '@/game/service/plates'
+import { kitchenPath, reachSpot, standClear, type Rect } from '@/game/kitchen/kitchenPath'
 
 const idle: Dryer = { n: 0, left: null }
 

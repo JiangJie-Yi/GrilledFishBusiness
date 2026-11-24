@@ -11,7 +11,7 @@ import * as THREE from 'three'
 import { inkModel } from '@/scene/inkHull'
 import { warmLater } from '@/scene/Prewarm'
 import { GAME_SPEED } from '@/scene/speed'
-import { beatAt, fillAt, RICE_BEATS, SOUP_BEATS } from '@/game/sides'
+import { beatAt, fillAt, RICE_BEATS, SOUP_BEATS } from '@/game/kitchen/sides'
 import { BOWL_LIFT } from '@/scene/bowlLift'
 import { BOWLS } from './bar'
 

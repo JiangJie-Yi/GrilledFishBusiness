@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { DRY_STORE, parOf, unitsShown } from '@/game/pantry'
-import { NORI, NORI_PAR, SEASON_PAR, SEASON_START, startingSupplies } from '@/game/supplies'
+import { DRY_STORE, parOf, unitsShown } from '@/game/stock/pantry'
+import { NORI, NORI_PAR, SEASON_PAR, SEASON_START, startingSupplies } from '@/game/stock/supplies'
 import { storageOf } from '@/data/storage'
 
 feature('櫃子裡看到的東西跟庫存一致（調料、海苔、冷藏的食材）', () => {

@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { CLOSE_AT, OPEN_AT, PAY, crewPay, dayPay, hoursBegin, hoursEnd, hoursText, inHours, isLate, isNightWork, lateBy, minutesOf, payFor, payRate } from '@/game/hours'
+import { CLOSE_AT, OPEN_AT, PAY, crewPay, dayPay, hoursBegin, hoursEnd, hoursText, inHours, isLate, isNightWork, lateBy, minutesOf, payFor, payRate } from '@/game/world/hours'
 
 const at = (h: number, m = 0) => h * 60 + m
 

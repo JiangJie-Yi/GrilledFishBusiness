@@ -3,7 +3,7 @@ import { feature, scenario } from './bdd'
 import {
   COAT_COLOURS, COAT_OFF_S, COAT_ON_S, STAND_SLOTS, UMB_COLOURS, UMB_IN_S, coatOf, coatOffBeat, coatOnBeat, freeSlot, gearOf, newCoatPose,
   newUmbPose, umbInBeat, umbOutBeat, umbOutS, umbrellaOf,
-} from '@/game/rainGear'
+} from '@/game/guests/rainGear'
 
 const ids = Array.from({ length: 400 }, (_, i) => i + 1)
 

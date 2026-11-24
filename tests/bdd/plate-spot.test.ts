@@ -1,5 +1,5 @@
 import { feature, scenario } from './bdd'
-import { LONG_BACK, LOOSE_FRONT, PLATE_DIMS, PLATE_SPREAD, plateSide, plateSpot } from '@/game/plateSize'
+import { LONG_BACK, LOOSE_FRONT, PLATE_DIMS, PLATE_SPREAD, plateSide, plateSpot } from '@/game/service/plateSize'
 
 // (item 557, the owner's 「模型發現都沒擺好」)
 feature('長盤上的擺法', () => {

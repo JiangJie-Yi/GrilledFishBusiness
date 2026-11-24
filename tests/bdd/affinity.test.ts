@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { atmosphere, BOND_START, bondAfter, bondOf, bondPace, dayBond, dayPairs, givesNotice, LOW_BOND, moodPace, pairKey, QUIT_AFTER } from '@/game/affinity'
+import { atmosphere, BOND_START, bondAfter, bondOf, bondPace, dayBond, dayPairs, givesNotice, LOW_BOND, moodPace, pairKey, QUIT_AFTER } from '@/game/staff/affinity'
 
 // (item 323, the owner's, 2026-11-18: 「新增與員工的好感度」「人事旁放一個關係圖」「關係之間會影響工作氣氛」)
 feature('員工對老闆的好感度', () => {

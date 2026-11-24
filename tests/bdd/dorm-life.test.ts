@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { CLIMB_S, SETTLE_S, WALK_MPS, downBeat, downLength, dormDoing, upBeat, upstairs } from '@/game/dormLife'
+import { CLIMB_S, SETTLE_S, WALK_MPS, downBeat, downLength, dormDoing, upBeat, upstairs } from '@/game/staff/dormLife'
 
 feature('住二樓的員工：上樓、在房裡、下樓', () => {
   scenario('收店後上樓：先從樓梯爬上來，再走到自己的位子，坐定', ({ given, then, and }) => {

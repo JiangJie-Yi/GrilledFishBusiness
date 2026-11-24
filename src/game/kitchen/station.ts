@@ -1,8 +1,8 @@
 // The kitchen's stations off the fire (items 461, 469): what each made-to-order dish takes there, and whether it can be made from what's in
 // stock (its own food, and its eggs, its frying oil, its nori: supplies' GARNISH). Pure: GuestBar3D's cooks and the stations' looks go by it.
 import { KITCHEN_IDS, kitchenDish, type Station } from '@/data/kitchenDishes'
-import { GARNISH } from './supplies'
-import type { Stock } from './economy'
+import { GARNISH } from '@/game/stock/supplies'
+import type { Stock } from '@/game/money/economy'
 
 /** which station a dish is made at (null: not one of the stations': grilled, or a side) */
 export const stationOf = (id: string): Station | null => kitchenDish(id)?.station ?? null

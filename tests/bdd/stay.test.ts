@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { NEXT_WAIT, STAY_MAX, gaveUpOnNext, overstayed } from '@/game/stay'
+import { NEXT_WAIT, STAY_MAX, gaveUpOnNext, overstayed } from '@/game/guests/stay'
 
 // (item 207, the owner's: 「是否有客人站位置太久，需制定用餐時間」: a customer sat on two hours and more, waiting on a dish that was long in
 // coming, and their stool was nobody else's)

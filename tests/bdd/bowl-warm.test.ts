@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { BOWL_GAP, BOWL_HAND_MAX, BOWL_ROW, BOWL_WARM_MAX, bowlPlace, warmToEat } from '@/game/plates'
+import { BOWL_GAP, BOWL_HAND_MAX, BOWL_ROW, BOWL_WARM_MAX, bowlPlace, warmToEat } from '@/game/service/plates'
 
 feature('保溫大碗的上限', () => {
   scenario('大碗裡的魚不會堆積如山', ({ given, when, then }) => {

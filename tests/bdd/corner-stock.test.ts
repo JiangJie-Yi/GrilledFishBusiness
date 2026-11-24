@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { CARTON_H, CLEAN_H, cornerStack } from '@/game/cornerStock'
-import { TISSUE_PACK } from '@/game/tissues'
+import { CARTON_H, CLEAN_H, cornerStack } from '@/game/stock/cornerStock'
+import { TISSUE_PACK } from '@/game/stock/tissues'
 
 // (item 199, the owner's, 2026-11-16: 「庫存的東西沒對上」: the corner's stack of spares was always full, whatever was in stock)
 feature('牆角的備品跟著庫存（第 199 項）', () => {

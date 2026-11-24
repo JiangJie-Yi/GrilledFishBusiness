@@ -3,7 +3,7 @@
 //   npx vite-node tests/visual/avatarsheet.tsx <out.html> [N]      (then open it in a browser)
 import { writeFileSync } from 'node:fs'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { avatarOf, COATS, PETS, SCENES } from '@/game/avatars'
+import { avatarOf, COATS, PETS, SCENES } from '@/game/guests/avatars'
 import { ReviewerAvatar } from '@/ui/ReviewerAvatar'
 
 const N = Number(process.argv[3] ?? 48)

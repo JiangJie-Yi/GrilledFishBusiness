@@ -1,4 +1,4 @@
-import { frameStep } from '@/game/framePace'
+import { frameStep } from '@/game/system/framePace'
 
 /**
  * How fast the game runs (1, or 2 with the ×2 button; 0 while it's paused: developer mode during business, the owner's): the 3D scene's

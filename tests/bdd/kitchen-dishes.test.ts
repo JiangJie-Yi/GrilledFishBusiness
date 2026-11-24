@@ -1,9 +1,9 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
 import { KITCHEN_DISHES, SECTIONS, bySection, sectionOf } from '@/data/kitchenDishes'
-import { batchSeconds, canCook, cookSeconds, extrasOf, kitchenBatch, sideAllowed, stationOf, stepOf } from '@/game/station'
-import { costOf } from '@/game/economy'
-import { EGG, FRYOIL, GARNISH_GOODS, GARNISH_PAR, NORI, startingSupplies } from '@/game/supplies'
+import { batchSeconds, canCook, cookSeconds, extrasOf, kitchenBatch, sideAllowed, stationOf, stepOf } from '@/game/kitchen/station'
+import { costOf } from '@/game/money/economy'
+import { EGG, FRYOIL, GARNISH_GOODS, GARNISH_PAR, NORI, startingSupplies } from '@/game/stock/supplies'
 import { dishOf, oneOfEach, partEn, partName } from '@/data/recipes'
 
 feature('爐子、油炸台與手卷的菜', () => {

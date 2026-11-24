@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { REVIEWS_PER_PAGE, keepVisits, pageButtons, pageOf, pagesOf } from '@/game/reputation'
+import { REVIEWS_PER_PAGE, keepVisits, pageButtons, pageOf, pagesOf } from '@/game/guests/reputation'
 
 feature('評論沒有上限，像 Google 一樣一頁一頁看', () => {
   scenario('評論全部留著', ({ then }) => {

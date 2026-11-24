@@ -5,7 +5,7 @@
 import * as THREE from 'three'
 import { useLoader } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
-import { phoneDevice, showsFlat } from '@/game/device'
+import { phoneDevice, showsFlat } from '@/game/system/device'
 
 /** whether the browser says it's a phone: its own word where it gives one, else what it calls itself */
 export const MOBILE = typeof navigator !== 'undefined'

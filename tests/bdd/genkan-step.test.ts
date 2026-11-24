@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { newStepTurn, stepFrame, waitsForStep, type StepTurn } from '@/game/genkanStep'
+import { newStepTurn, stepFrame, waitsForStep, type StepTurn } from '@/game/guests/genkanStep'
 
 // (item 414: found by the crowd audit, two customers stood at the genkan's step in each other changing their shoes)
 // (a customer's way: the step 1.0 along it, their stop there 1.2 long (in the walk's units), a body's length 0.6)

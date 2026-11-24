@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { afterPhase, CARRY_MAX, nextTrip, storeOf, tendOf } from '@/game/chefFlow'
+import { afterPhase, CARRY_MAX, nextTrip, storeOf, tendOf } from '@/game/kitchen/chefFlow'
 
 feature('主廚取料、備料、上火', () => {
   scenario('每樣食材都到它存放的地方拿', ({ then, and }) => {

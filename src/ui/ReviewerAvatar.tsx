@@ -1,5 +1,5 @@
 import { memo, type ReactNode } from 'react'
-import { avatarOf, initialOf, type AvatarSpec, type Pet, type Scene } from '@/game/avatars'
+import { avatarOf, initialOf, type AvatarSpec, type Pet, type Scene } from '@/game/guests/avatars'
 
 /*
  * A reviewer's profile picture in the shop's reviews (the owner's: as Google Maps' reviews have them, not an emoji): game/avatars makes up

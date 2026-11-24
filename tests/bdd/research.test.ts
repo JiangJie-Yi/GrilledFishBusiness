@@ -1,8 +1,8 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
 import { DISHES } from '@/data/menu'
-import { idealSteps, recipeSteps, timingTips, trialIdeas } from '@/game/research'
-import { timingLoss } from '@/game/taste'
+import { idealSteps, recipeSteps, timingTips, trialIdeas } from '@/game/kitchen/research'
+import { timingLoss } from '@/game/kitchen/taste'
 
 feature('研發與試做', () => {
   scenario('每間店都有東西可以試做，口味分數在 0 到 100 之間', ({ given, when, then }) => {

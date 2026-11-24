@@ -1,6 +1,6 @@
 // The stock keeper's (倉儲) round on the floor (the owner's: they order in and restock, the bar's tissues and the toilets' paper too, and
 // walk to do it): what they see to next, and which drinks they order a case of.
-import type { BinKind } from './bins'
+import type { BinKind } from '@/game/service/bins'
 import { CASE_SIZE } from './drinkStock'
 
 /** a toilet's roll is changed once it's down to this much of a roll (of 1) */

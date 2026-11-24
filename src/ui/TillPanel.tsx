@@ -1,7 +1,7 @@
 import { memo, useEffect, useState } from 'react'
 import type { Lang } from '@/data/i18n'
 import { tl } from '@/data/i18n'
-import { drawerTotal, takeTakings, type Denom, type DrawerCash } from '@/game/till'
+import { drawerTotal, takeTakings, type Denom, type DrawerCash } from '@/game/money/till'
 import { usePanelSound } from './uiSound'
 
 /**

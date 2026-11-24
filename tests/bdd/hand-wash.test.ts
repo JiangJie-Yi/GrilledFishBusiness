@@ -1,9 +1,9 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { DRAIN_CAP, DRAIN_MIN, drainSays, drainTick, handOne, handWashSays, unbasket, type Drain } from '@/game/plates'
-import { MINUTES_PER_SECOND } from '@/game/clock'
-import { HAND_RUB, NO_SOAP_SLOW, RINSE_RATE, SCRUB_RATE, SOAK_RATE, SOAP_X, WASH_BEATS, beatLength, handClean, handSays, handStops, scrubbed, washBeat, washPlateS } from '@/game/handWash'
-import { CLEAN_AT } from '@/game/plates'
+import { DRAIN_CAP, DRAIN_MIN, drainSays, drainTick, handOne, handWashSays, unbasket, type Drain } from '@/game/service/plates'
+import { MINUTES_PER_SECOND } from '@/game/world/clock'
+import { HAND_RUB, NO_SOAP_SLOW, RINSE_RATE, SCRUB_RATE, SOAK_RATE, SOAP_X, WASH_BEATS, beatLength, handClean, handSays, handStops, scrubbed, washBeat, washPlateS } from '@/game/service/handWash'
+import { CLEAN_AT } from '@/game/service/plates'
 
 feature('玩家手動洗碗', () => {
   scenario('點水槽洗一個盤子，放進瀝水籃', ({ given, when, then, and }) => {

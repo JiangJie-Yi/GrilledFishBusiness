@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { PACE, holdPace, newPace, paceFrame, type Pace } from '@/game/framePace'
+import { PACE, holdPace, newPace, paceFrame, type Pace } from '@/game/system/framePace'
 
 /** `seconds` of frames at `fps` (every `hitchEvery` frames one of `hitch` seconds instead); what it did along the way */
 function run(p: Pace, seconds: number, fps: number, hitch?: { every: number; s: number }) {

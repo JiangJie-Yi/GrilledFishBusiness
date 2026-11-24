@@ -2,7 +2,7 @@
 // and who goes home, each one's own moment to set off and pace, a pause at the door to nod back in, and a word or two on the way. Pure
 // rules; the walks themselves are the shop's (Roasting's crew, GuestBar3D's servers and stock keeper).
 
-import { LODGERS } from './shopState'
+import { LODGERS } from '@/game/world/shopState'
 
 /** where someone goes when the shop shuts, and comes from when it opens: upstairs by the staff door (the owner, and those of the staff who
  * live in: each one's own matter since item 361, game/lodging, App keeping LODGERS), or out of the front door and home */

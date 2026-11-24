@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
 import { DISHES } from '@/data/menu'
-import { LEAN_PAR, PAR, autoOpeningOrder, inPacks, keeperEvery, type Stock } from '@/game/economy'
+import { LEAN_PAR, PAR, autoOpeningOrder, inPacks, keeperEvery, type Stock } from '@/game/money/economy'
 import { storageOf } from '@/data/storage'
 import type { Entry } from '@/data/recipes'
 

@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { ageFresh, freshFactor, freshGrade, frozenRate, INEDIBLE, sickChance } from '@/game/freshness'
+import { ageFresh, freshFactor, freshGrade, frozenRate, INEDIBLE, sickChance } from '@/game/stock/freshness'
 
 feature('食材鮮度', () => {
   scenario('放越久越不新鮮，冷凍最慢、常溫最快', ({ then }) => {

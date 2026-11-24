@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { comesIn, exitSignLit, LIGHTS_DEFAULT, lampGlow, lanternsLit, lightOn, patienceIn, readLights, roomDim, roomMood, keyLightFrom, shadowDepth, shadowSoft, studioLight, switchLights, unlitShade, writeLights } from '@/game/roomLights'
+import { comesIn, exitSignLit, LIGHTS_DEFAULT, lampGlow, lanternsLit, lightOn, patienceIn, readLights, roomDim, roomMood, keyLightFrom, shadowDepth, shadowSoft, studioLight, switchLights, unlitShade, writeLights } from '@/game/world/roomLights'
 
 feature('牆上的電燈開關', () => {
   scenario('一開店燈是開著的', ({ given, then }) => {

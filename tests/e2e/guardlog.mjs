@@ -1,5 +1,5 @@
 // Who the cook table's guard puts somewhere else, and what they were doing (in git; item 54). Roasting's HearthGuard puts every figure out
-// of the cook table and its hearth the last thing before each frame's drawn (game/hearthGuard's keepOut): someone whose own way or spot is
+// of the cook table and its hearth the last thing before each frame's drawn (game/kitchen/hearthGuard's keepOut): someone whose own way or spot is
 // in the table is drawn at its edge, not where they are, and when the nearest edge changes as they go, they're drawn leaping from one edge
 // to another (the third cook's walk to the coal sack, four leaps of 0.86-0.98 a trip, item 54). A push now and then at the table's corner is
 // no matter; anyone pushed far, or a flip, is someone walking or standing in the table: find their way or their spot.

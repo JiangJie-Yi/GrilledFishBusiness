@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { CALM, CALM_FROM, calmedSince, calmLeft, canCalm } from '@/game/calm'
+import { CALM, CALM_FROM, calmedSince, calmLeft, canCalm } from '@/game/guests/calm'
 
 feature('安撫等太久的客人（第 348 項：互動，跟第 347 項的生氣一起）', () => {
   scenario('招呼、道歉、送小菜：各讓客人多等一段', ({ given, then, and }) => {

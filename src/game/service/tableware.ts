@@ -4,8 +4,8 @@
  * bowl, a soup bowl and its renge, and a pair of chopsticks; there are three settings' bowls and spoons for every seat (one in use, one in
  * the wash, one spare: two pots of miso soup's worth), and the chopsticks two and a half times that (they go out with the takeaways too).
  */
-import { SOUP_BOWLS } from './soup'
-import { SKEWER_POOL } from './skewers'
+import { SOUP_BOWLS } from '@/game/kitchen/soup'
+import { SKEWER_POOL } from '@/game/kitchen/skewers'
 import { PLATES_ALL } from './plates'
 
 export const TABLEWARE = { riceBowls: 24, soupBowls: 24, spoons: 24, chopsticks: 60 }

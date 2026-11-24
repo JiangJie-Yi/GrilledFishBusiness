@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { BOX_LOW, FRIDGE_SHORT, ROLL_LOW, drinksToOrder, stockerChore } from '@/game/stocker'
-import { CASE_SIZE } from '@/game/drinkStock'
+import { BOX_LOW, FRIDGE_SHORT, ROLL_LOW, drinksToOrder, stockerChore } from '@/game/stock/stocker'
+import { CASE_SIZE } from '@/game/stock/drinkStock'
 
 const calm = { rolls: { m: 1, f: 1 }, wcBusy: { m: false, f: false }, fridgeShort: [0, 0], boxes: [200, 200, 200], seatTaken: () => false, spares: 5 }
 

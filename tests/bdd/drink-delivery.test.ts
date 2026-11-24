@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { DELIVERY_MIN, arrivals, comingOf, orderCase } from '@/game/drinkStock'
+import { DELIVERY_MIN, arrivals, comingOf, orderCase } from '@/game/stock/drinkStock'
 
 feature('飲料箱叫了要等酒屋送來（第 243 項：以前一買就到）', () => {
   scenario('叫一箱啤酒：先在路上，時間到才送到', ({ given, then, and }) => {

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { BOSS_BED } from '@/shops/grill/bar'
 import { useThree } from '@react-three/fiber'
-import { keepOut, nearTable, type HearthRole } from '@/game/hearthGuard'
+import { keepOut, nearTable, type HearthRole } from '@/game/kitchen/hearthGuard'
 import * as THREE from 'three'
 import { FIGURES, CARRIED, ALONG, LAY } from '@/shops/grill/bar'
 import { HEARTH_ZONES } from './kitchen'

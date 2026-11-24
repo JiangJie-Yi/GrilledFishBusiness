@@ -3,7 +3,7 @@ import { feature, scenario } from './bdd'
 import { BOSS_LINES, nextBossLine, type BossSituation } from '@/data/bossLines'
 import { OPEN_DORM, OPEN_HOME } from '@/data/commuteLines'
 import { CREW_BUSY, CREW_SELF, CREW_SELF_TIME } from '@/data/crewLines'
-import { bossSituation, talkPart } from '@/game/talkTime'
+import { bossSituation, talkPart } from '@/game/staff/talkTime'
 
 const at = (h: number, m = 0) => h * 60 + m
 

@@ -2,7 +2,7 @@ import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
 import { DISHES } from '@/data/menu'
 import { storageOf } from '@/data/storage'
-import { PAR, averageOrder, eachOrder, goodsOf, inPacks, keepsDry, packOf, topUpOrder, type Stock, parOf } from '@/game/economy'
+import { PAR, averageOrder, eachOrder, goodsOf, inPacks, keepsDry, packOf, topUpOrder, type Stock, parOf } from '@/game/money/economy'
 
 const grill = DISHES.find((d) => d.id === 'grilledfish')!
 

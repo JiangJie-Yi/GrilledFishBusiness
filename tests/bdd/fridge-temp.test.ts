@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { DRINK_DEFAULT, DRINK_MAX, DRINK_MIN, WARM_AT, driftDrinkTemp, servedWarm, stepDrinkTemp } from '@/game/fridgeTemp'
+import { DRINK_DEFAULT, DRINK_MAX, DRINK_MIN, WARM_AT, driftDrinkTemp, servedWarm, stepDrinkTemp } from '@/game/stock/fridgeTemp'
 
 feature('飲料櫃的溫度（第 615 項）', () => {
   scenario('預設 4℃，一次調一度，調不出 1～8℃', ({ then, and }) => {

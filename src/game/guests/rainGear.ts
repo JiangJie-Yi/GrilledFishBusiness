@@ -3,8 +3,8 @@
 // umbrella closed and put in the stand coming in, taken out and opened going) and at the genkan's step (a raincoat off and folded coming
 // in, put on going), each a pose at a time into it. Pure rules: the shop (GuestBar3D) times them, the figure (FolkFigure) takes the pose.
 
-import { unit2 } from './commute'
-import { rainGear } from './weather'
+import { unit2 } from '@/game/staff/commute'
+import { rainGear } from '@/game/world/weather'
 
 /** the umbrellas' colours: navy, wine, black, khaki, and the clear vinyl one (ビニール傘) nearly everyone in Japan has one of */
 export const UMB_COLOURS = [

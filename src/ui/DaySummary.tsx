@@ -3,11 +3,11 @@
 // In the middle of the page over the shut shop; × , the button below, Esc or a click outside put it away, and it goes by itself after
 // AUTO_S seconds (the owner's: the game stands still while it's up, App's GAME_SPEED; it goes on after); a bar along its foot runs down.
 import { useEffect, useRef, useState } from 'react'
-import { CLOSE_AT, OPEN_AT, lateBy, minutesOf } from '@/game/hours'
+import { CLOSE_AT, OPEN_AT, lateBy, minutesOf } from '@/game/world/hours'
 import { createPortal } from 'react-dom'
 import { tl, type Lang } from '@/data/i18n'
-import { adviceOf, type DaySummary as Summary } from '@/game/daySummary'
-import { goalBonus } from '@/game/dayGoal'
+import { adviceOf, type DaySummary as Summary } from '@/game/money/daySummary'
+import { goalBonus } from '@/game/money/dayGoal'
 import { Glyph, Stars } from './GameIcons'
 import { FitLine } from './FitLine'
 

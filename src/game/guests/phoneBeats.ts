@@ -8,7 +8,7 @@
 // - The beats each customer's own (by `seed`) and the same however often asked: what it is, how long (within its kind's range).
 // - Never a laugh straight after taking it out (nothing read yet), never two looks up in a row; the last beat runs on to the putting away
 //   rather than leave a scrap of one.
-import { unit2 } from './commute'
+import { unit2 } from '@/game/staff/commute'
 
 export type PhoneBeat = 'out' | 'scroll' | 'read' | 'tap' | 'type' | 'up' | 'laugh' | 'away'
 /** how long taking it out and putting it back take (s) */

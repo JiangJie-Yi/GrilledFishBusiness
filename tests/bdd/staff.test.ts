@@ -1,9 +1,9 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
 import { IDLE_TIRE, LATE_TIRE, ROLES, SKILLS, SLACK_AFTER, TIER_ODDS, TIRED_AT, activityOf, effective, fair, paceBoost, paceOf, restPerHour, tireNow, tirePerHour, workFatigue, type SkillId, type Worker } from '@/data/staff'
-import { STAFF_IDLE, idleTick } from '@/game/shopState'
+import { STAFF_IDLE, idleTick } from '@/game/world/shopState'
 import { MIN_WAGE, MIN_WAGE_YEN } from '@/data/osaka'
-import { CANDIDATES, ROLLS_PER_DAY, canDismiss, canHire, makeCandidates, pickHires, refreshApplicants, replaceOf, seeded, skillDraw, statScore, valueOf, wageOf } from '@/game/hiring'
+import { CANDIDATES, ROLLS_PER_DAY, canDismiss, canHire, makeCandidates, pickHires, refreshApplicants, replaceOf, seeded, skillDraw, statScore, valueOf, wageOf } from '@/game/staff/hiring'
 
 feature('員工與徵人', () => {
   scenario('營業中不能解雇員工，閉店後才可以', ({ given, when, then, and }) => {

@@ -2,7 +2,7 @@
 // behind its bamboo. Each shows its light while the room's lights are on; with them off, the plain stuff it's made of (game/roomLights'
 // unlitShade: grey-white by day, a dim grey by night), by the time of day (the page's data-theme), followed as either changes.
 import * as THREE from 'three'
-import { unlitShade } from '@/game/roomLights'
+import { unlitShade } from '@/game/world/roomLights'
 import { getLights, onLights } from '@/scene/lightsStore'
 import { replaces } from '@/scene/hot'
 

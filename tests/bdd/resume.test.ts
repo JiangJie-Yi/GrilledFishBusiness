@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { RESUME_MAX_AGE, RESUME_VERSION, keptForResume, resumeFrom } from '@/game/resume'
+import { RESUME_MAX_AGE, RESUME_VERSION, keptForResume, resumeFrom } from '@/game/system/resume'
 
 feature('3D 畫面中斷後重新載入，接著原本的進度', () => {
   scenario('畫面中斷那一刻存下的進度，重新載入後接回來', ({ given, when, then }) => {

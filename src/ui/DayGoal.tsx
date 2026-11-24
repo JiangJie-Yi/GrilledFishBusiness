@@ -3,7 +3,7 @@
 // a thin bar filling under them; passed, it goes gold, says so, and gives a little hop and a chime, once a day.
 import { memo, useEffect, useRef } from 'react'
 import { tl, type Lang } from '@/data/i18n'
-import { GOAL_BONUS_MAX, GOAL_BONUS_STEP, goalBonus, goalProgress } from '@/game/dayGoal'
+import { GOAL_BONUS_MAX, GOAL_BONUS_STEP, goalBonus, goalProgress } from '@/game/money/dayGoal'
 import { Glyph } from './GameIcons'
 import { goalSound } from './uiSound'
 

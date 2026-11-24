@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { bagGoes, bagOut, binOf, binToEmpty, EMPTY_AT, emptyBins, OVER, TAKES, toss, wantsEmptying } from '@/game/bins'
-import { stockerChore } from '@/game/stocker'
+import { bagGoes, bagOut, binOf, binToEmpty, EMPTY_AT, emptyBins, OVER, TAKES, toss, wantsEmptying } from '@/game/service/bins'
+import { stockerChore } from '@/game/stock/stocker'
 
 // (item 208, the owner's, 2026-11-16: 「垃圾桶及資源回收桶不好看，然後它們也得運作」: the bins by the sink took only the sticks, never
 // filled, and nobody ever emptied them; the recycling one took nothing at all)

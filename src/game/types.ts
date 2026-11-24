@@ -1,5 +1,5 @@
 // Shapes of game state shared between the shops, the screens and App.
-import type { PlateKind } from './plateSize'
+import type { PlateKind } from '@/game/service/plateSize'
 
 /** an AI customer as App shows them: seated and waiting, eating, or gone (with their rating) */
 export type GuestView = { id: number; state: 'waiting' | 'eating' | 'done' | 'angry'; rating: number | null; items: number;

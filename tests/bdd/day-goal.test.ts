@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { dayGoal, goalBonus, goalProgress, goalStreak, GOAL_BONUS_MAX, GOAL_BONUS_STEP, GOAL_FIRST } from '@/game/dayGoal'
-import { addDay, type DaySummary } from '@/game/daySummary'
+import { dayGoal, goalBonus, goalProgress, goalStreak, GOAL_BONUS_MAX, GOAL_BONUS_STEP, GOAL_FIRST } from '@/game/money/dayGoal'
+import { addDay, type DaySummary } from '@/game/money/daySummary'
 
 // (item 175, the owner's: those who don't care for games should want to play a little longer: each day a target for its takings, a little
 // past the day before, shown while the shop's open and cheered as it's passed)

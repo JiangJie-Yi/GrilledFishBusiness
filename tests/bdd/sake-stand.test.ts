@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { SAKE_BOTTLE_ML, STATION_GO, TOKKURI_ML, bottleFrom, fullStand, goOf, pour, pourFrom, poursLeft, stationGo } from '@/game/sakeStand'
+import { SAKE_BOTTLE_ML, STATION_GO, TOKKURI_ML, bottleFrom, fullStand, goOf, pour, pourFrom, poursLeft, stationGo } from '@/game/kitchen/sakeStand'
 
 feature('酒台倒酒（店主要的，第 89 項）', () => {
   scenario('酒台上有十二支酒：一升瓶六支、四合瓶六支（第 285 項：數量不夠）', ({ given, then, and }) => {

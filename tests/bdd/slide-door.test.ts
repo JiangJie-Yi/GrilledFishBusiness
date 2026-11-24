@@ -1,6 +1,6 @@
 import { feature, scenario } from './bdd'
 import { expect } from 'vitest'
-import { DOOR_HOLD_S, DOOR_OPEN_S, DOOR_SEEN_S, DOOR_SHUT_S, doorClicked, doorShown, doorShut, doorStep, doorWantOpen, doorWanted, type DoorState, type DoorWalker } from '@/game/slideDoor'
+import { DOOR_HOLD_S, DOOR_OPEN_S, DOOR_SEEN_S, DOOR_SHUT_S, doorClicked, doorShown, doorShut, doorStep, doorWantOpen, doorWanted, type DoorState, type DoorWalker } from '@/game/world/slideDoor'
 
 // (item 410, the owner's 「玄關試著做和式拉門」「客人進來的時候會先開拉門再脫鞋」; item 415's 「拉門我要兩節，和式得那種，且我也可以互動」)
 feature('玄關的拉門', () => {

@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { beatAt, beatsLength, fillAt, RICE_BEATS, sideChance, SOUP_BEATS } from '@/game/sides'
+import { beatAt, beatsLength, fillAt, RICE_BEATS, sideChance, SOUP_BEATS } from '@/game/kitchen/sides'
 
 // (items 205, 206, the owner's, 2026-11-16: 「我看客人都沒叫白飯跟味噌湯」「打飯的動畫？我要看到好的動畫品質」)
 feature('白飯與味噌湯（第 205、206 項）', () => {

@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { gpuTier, type DeviceInfo } from '@/game/gpuTier'
+import { gpuTier, type DeviceInfo } from '@/game/system/gpuTier'
 
 // (the names as Chrome on Windows gives them, through ANGLE)
 const angle = (vendor: string, name: string) => `ANGLE (${vendor}, ${name} (0x00001234) Direct3D11 vs_5_0 ps_5_0, D3D11)`

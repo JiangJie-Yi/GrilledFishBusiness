@@ -3,8 +3,8 @@
 // room with a nod, and through it fading; coming in, through the door fading in, and on to their place. Each walker (Roasting's crew,
 // GuestBar3D's servers and stock keeper) steps its own along in its own frame; where they all are in the world is kept here, to keep apart.
 import * as THREE from 'three'
-import { FADE_S, NOD_S, yieldTo } from '@/game/commute'
-import { clockIn, clockOut, STAFF_TALK, SWITCH_SPOT } from '@/game/shopState'
+import { FADE_S, NOD_S, yieldTo } from '@/game/staff/commute'
+import { clockIn, clockOut, STAFF_TALK, SWITCH_SPOT } from '@/game/world/shopState'
 import { minutesNow } from '@/ui/clockStore'
 import { getLights, pressLightSwitch } from '@/scene/lightsStore'
 import { LIGHTS_ON } from '@/data/commuteLines'

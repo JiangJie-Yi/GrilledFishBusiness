@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { BANKRUPT_AT, CAPITAL, SHOP_COST, bankrupt, savingsOf, warningsDue } from '@/game/economy'
+import { BANKRUPT_AT, CAPITAL, SHOP_COST, bankrupt, savingsOf, warningsDue } from '@/game/money/economy'
 
 feature('存款跌到 -10 萬就收店（店主 2026-11-17：「存款-10w就直接收店」）', () => {
   scenario('還沒到 -10 萬照常營業', ({ then, and }) => {

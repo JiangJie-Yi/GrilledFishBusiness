@@ -10,8 +10,8 @@
 //   pattern drawn as before (flowOf) otherwise, a rainy one drawn on a dry day made a steady one. A passing shower thins the door a little
 //   while it lasts (showerGap).
 // - Those who come in while it rains: most with an umbrella, some in a raincoat, a few with neither (each customer their own).
-import { unit2 } from './commute'
-import { flowOf, type FlowKind } from './flow'
+import { unit2 } from '@/game/staff/commute'
+import { flowOf, type FlowKind } from '@/game/guests/flow'
 
 export type Sky = 'clear' | 'cloudy' | 'rain'
 /** a business day's weather: its sky, and when it rains (session minutes: from that day's midnight, past 24 * 60 after the next) */

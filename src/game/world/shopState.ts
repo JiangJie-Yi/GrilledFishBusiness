@@ -1,6 +1,6 @@
 import { paceBoost, paceOf, SLACK_AFTER, TIRED_AT, type Role, type SkillId } from '@/data/staff'
-import { keep } from './hotKeep'
-import { urgePace } from './urge'
+import { keep } from '@/game/system/hotKeep'
+import { urgePace } from '@/game/staff/urge'
 
 /**
  * Where the shop is in closing (App writes it, the scenes read it): `closing` once the owner has shut up for the day, so no

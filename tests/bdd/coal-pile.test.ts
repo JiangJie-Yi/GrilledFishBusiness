@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { afterCharcoal, canAddCharcoal } from '@/game/economy'
-import { bedStick, CHUNK_R, COAL_MAX, COAL_PER_ADD, crumble, FEET, glowingFor, MAX_BED_LAYERS, MAX_LAYERS, placeStick, roomFor, STICK_HALF, STICK_R, surfaceY, throwForce, type Lay } from '@/game/coalPile'
+import { afterCharcoal, canAddCharcoal } from '@/game/money/economy'
+import { bedStick, CHUNK_R, COAL_MAX, COAL_PER_ADD, crumble, FEET, glowingFor, MAX_BED_LAYERS, MAX_LAYERS, placeStick, roomFor, STICK_HALF, STICK_R, surfaceY, throwForce, type Lay } from '@/game/kitchen/coalPile'
 
 const seeded = (seed: number) => () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
 const lay = (s: NonNullable<ReturnType<typeof placeStick>>): Lay => ({ x: s.x, z: s.z, yaw: s.yaw, y: s.rest.y, slope: s.rest.slope })

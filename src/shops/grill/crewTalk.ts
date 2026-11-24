@@ -14,9 +14,9 @@
 import { CREW_ANSWER, CREW_BUSY, CREW_CHAT, CREW_COAL, CREW_ECHO, CREW_PLATES, CREW_SELF, CREW_SELF_TIME, CREW_THANKS, CREW_WELCOME, OWNER_LIFT } from '@/data/crewLines'
 import type { Lang } from '@/data/i18n'
 import type { Role } from '@/data/staff'
-import { pairKey } from '@/game/affinity'
-import { ATMOS, CREW_ROLES, moodFor, ON_DUTY, STAFF_TALK } from '@/game/shopState'
-import { talkPart } from '@/game/talkTime'
+import { pairKey } from '@/game/staff/affinity'
+import { ATMOS, CREW_ROLES, moodFor, ON_DUTY, STAFF_TALK } from '@/game/world/shopState'
+import { talkPart } from '@/game/staff/talkTime'
 import { replaces } from '@/scene/hot'
 
 /** those in the shop and at work just now, the owner first */

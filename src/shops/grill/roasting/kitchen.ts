@@ -1,4 +1,4 @@
-import { type HearthZones } from '@/game/hearthGuard'
+import { type HearthZones } from '@/game/kitchen/hearthGuard'
 import * as THREE from 'three'
 import type { Look, Role } from '@/data/staff'
 import { ALONG, inKitchen, GRILL_COUNTERS, GRILL_OFFSET, GRILL_SCALE, SIDE_PULL, FIRE_SHIFT, KITCHEN_DROP, LAY, toGrillScene, CUBBY, CUBBY2, COOK_NOTCH, SOUS_NOTCH } from '@/shops/grill/bar'

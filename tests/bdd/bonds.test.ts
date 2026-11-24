@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { BOND_STAGES, CUT_BOND, LOW_BOND, PRAISE_AFTER_H, RAISE_STEP, canPraise, payBond, raiseBond, stageOf } from '@/game/affinity'
-import { ASK_AGAIN, DORM_CAP, MOVE_OUT_BOND, asksToday, hasRoom, lodgeDayBond, movesOut, takesOffer, wantsLodging } from '@/game/lodging'
+import { BOND_STAGES, CUT_BOND, LOW_BOND, PRAISE_AFTER_H, RAISE_STEP, canPraise, payBond, raiseBond, stageOf } from '@/game/staff/affinity'
+import { ASK_AGAIN, DORM_CAP, MOVE_OUT_BOND, asksToday, hasRoom, lodgeDayBond, movesOut, takesOffer, wantsLodging } from '@/game/staff/lodging'
 
 // (two ids found by their own hash: one who wants to live in, one who doesn't)
 const ids = Array.from({ length: 200 }, (_, k) => `grilledfish-w${k}`)

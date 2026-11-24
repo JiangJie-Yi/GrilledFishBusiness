@@ -2,7 +2,7 @@ import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
 import { DISHES } from '@/data/menu'
 import { suggestPrice, MENU_MAX, MENU_MIN } from '@/data/recipes'
-import { buyAllCost, CAPITAL, costOf, goodsOf, packOf, SHOP_COST, supplierDiscount } from '@/game/economy'
+import { buyAllCost, CAPITAL, costOf, goodsOf, packOf, SHOP_COST, supplierDiscount } from '@/game/money/economy'
 
 feature('成本與定價', () => {
   scenario('開店後老闆手上有 NT$200,000', ({ given, when, then }) => {

@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { FILL_MIN, FILL_S, fillToward, landed } from '@/game/fillUp'
+import { FILL_MIN, FILL_S, fillToward, landed } from '@/game/stock/fillUp'
 
 /** frames of 1/60 s until `shown` reaches `want`: how many seconds, and how many went in each frame at most */
 const run = (from: number, want: number, all: number) => {

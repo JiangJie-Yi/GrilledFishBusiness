@@ -1,8 +1,8 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { addDay, adviceOf, daySummary, KEEP_DAYS, soldBetween } from '@/game/daySummary'
-import type { Visit } from '@/game/reputation'
-import { caseCost, CASE_SIZE, unitCost } from '@/game/drinkStock'
+import { addDay, adviceOf, daySummary, KEEP_DAYS, soldBetween } from '@/game/money/daySummary'
+import type { Visit } from '@/game/guests/reputation'
+import { caseCost, CASE_SIZE, unitCost } from '@/game/stock/drinkStock'
 
 const open = { revenue: 10000, food: 4000, fuel: 500, wage: 3000, utility: 100 }
 const shut = { revenue: 16000, food: 6000, fuel: 800, wage: 4200, utility: 160 }

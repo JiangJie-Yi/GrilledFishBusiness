@@ -1,5 +1,5 @@
 import { expect } from 'vitest'
-import { drawOf, energyOver, freshMeter, LOADS, meterAdd, MONTH_BASE, nextDay, POWER_BASE, POWER_TIERS, tierCost, WATER_TIERS, BILL_DAYS, type Conditions } from '@/game/utilities'
+import { drawOf, energyOver, freshMeter, LOADS, meterAdd, MONTH_BASE, nextDay, POWER_BASE, POWER_TIERS, tierCost, WATER_TIERS, BILL_DAYS, type Conditions } from '@/game/money/utilities'
 import { YEN } from '@/data/osaka'
 import { feature, scenario } from './bdd'
 

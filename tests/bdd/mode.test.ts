@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { canCookByHand, holdsCameraOne, modeOf, showsProgress, showsStockFridge } from '@/game/mode'
+import { canCookByHand, holdsCameraOne, modeOf, showsProgress, showsStockFridge } from '@/game/kitchen/mode'
 
 feature('閉店、研製料理與營業', () => {
   scenario('店關著、沒切研製：自由視角，不能手動烤魚，也沒有食材冷藏櫃', ({ given, then, and }) => {

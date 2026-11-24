@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { URGE_COOLDOWN_S, URGE_PACE, URGE_S, urgeOk, urgePace, urgeWait } from '@/game/urge'
+import { URGE_COOLDOWN_S, URGE_PACE, URGE_S, urgeOk, urgePace, urgeWait } from '@/game/staff/urge'
 
 feature('催促員工（第 348 項：點員工可以催促）', () => {
   scenario('催促後一陣子做事比較快，時間到就恢復', ({ given, then, and }) => {

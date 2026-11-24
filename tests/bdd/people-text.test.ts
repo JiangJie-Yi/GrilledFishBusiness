@@ -2,7 +2,7 @@ import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
 import { BACKGROUNDS, INTRO, PAY, TRAITS } from '@/data/people'
 import { PEOPLE_TEXT, peopleIn } from '@/data/peopleText'
-import { CANDIDATES } from '@/game/hiring'
+import { CANDIDATES } from '@/game/staff/hiring'
 
 /** every phrase in data/people's pools */
 const phrases = () => {

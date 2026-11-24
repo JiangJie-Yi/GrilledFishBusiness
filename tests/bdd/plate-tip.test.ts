@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { PLATE_NAME, leftOn, plateSays } from '@/game/plateTip'
+import { PLATE_NAME, leftOn, plateSays } from '@/game/service/plateTip'
 import { tipIn } from '@/data/tipText'
 
 feature('盤子的滑鼠提示（店主要的，第 279 項）', () => {

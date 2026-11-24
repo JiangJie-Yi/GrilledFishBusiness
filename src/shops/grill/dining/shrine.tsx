@@ -9,7 +9,7 @@ import { reflectStudio, useStudio } from '@/scene/studio'
 import { useGLTF } from '@react-three/drei'
 import { tipOver, setShrineFlower, SHRINE_FLOWERS } from '@/shops/grill/bar'
 import { getEdit } from '@/shops/grill/edit'
-import { FLOWERS, nextFlower, type Flower } from '@/game/shrineFlowers'
+import { FLOWERS, nextFlower, type Flower } from '@/game/world/shrineFlowers'
 import { setTip } from '@/scene/hoverTip'
 import { canvasTex } from './base'
 

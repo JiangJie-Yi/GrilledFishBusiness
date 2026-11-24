@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { GO_SPAN, landingOf, pieceLeft, SHATTER_H, shardsOf, sweepOrder, sweeps } from '@/game/spills'
+import { GO_SPAN, landingOf, pieceLeft, SHATTER_H, shardsOf, sweepOrder, sweeps } from '@/game/service/spills'
 
 feature('飲料摔到地上', () => {
   scenario('玻璃瓶從 0.4 公尺以上摔下會破', ({ given, then, and }) => {

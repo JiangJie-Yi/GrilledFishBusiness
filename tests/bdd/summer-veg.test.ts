@@ -2,8 +2,8 @@ import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
 import { storageOf, stockNameOf } from '@/data/storage'
 import { DISHES } from '@/data/menu'
-import { COST_SHARE } from '@/game/economy'
-import { PAIRING } from '@/game/taste'
+import { COST_SHARE } from '@/game/money/economy'
+import { PAIRING } from '@/game/kitchen/taste'
 
 const NEW = ['Tomato', 'Cucumber', 'Eggplant', 'Piman', 'Paprika']
 const shop = DISHES.find((d) => d.id === 'grilledfish')!

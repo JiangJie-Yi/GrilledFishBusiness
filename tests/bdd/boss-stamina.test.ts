@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { FUTON_AT, FUTON_REST, LAY_TOTAL, RISE_TOTAL, WAKE_AT, bossRest, bossTire, bossWorn, layBeat, riseBeat, sleepsDown, wakesUp } from '@/game/bossStamina'
+import { FUTON_AT, FUTON_REST, LAY_TOTAL, RISE_TOTAL, WAKE_AT, bossRest, bossTire, bossWorn, layBeat, riseBeat, sleepsDown, wakesUp } from '@/game/staff/bossStamina'
 import { restPerHour } from '@/data/staff'
 
 feature('老闆的體力：營業時會累、休息會回來，累了在一樓打地舖睡', () => {

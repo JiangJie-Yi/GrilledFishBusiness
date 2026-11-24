@@ -1,7 +1,7 @@
 // What's kept where it's seen (items 274, 275, the owner's, 2026-11-17: 「調料有缺 跟庫存的對不上(比方說鹽巴、味精...)，這些可以放到料理台下的
 // 系統櫃門」「這個遊戲是模擬真實世界，不是亂塞些模型的」): every package, bottle, tray and bundle in the cupboards stands for stock of its own,
 // and as much of it is shown as there's stock: all of it at the usual stock and over, none at none, at least one while there's any.
-import { PAR } from './economy'
+import { PAR } from '@/game/money/economy'
 import { GARNISH_PAR, NORI, SEASON_PAR, isSeasonId } from './supplies'
 
 /** what's the usual stock of something: a seasoning's doses, nori's sheets, a food's portions */

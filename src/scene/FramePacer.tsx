@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, useSyncExternalStore } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { PACE, holdPace, newPace, paceFrame } from '@/game/framePace'
+import { PACE, holdPace, newPace, paceFrame } from '@/game/system/framePace'
 import { GAME_SPEED } from './speed'
 
 /** the frame rate it's held to once it's still lagging on a lighter canvas */

@@ -1,5 +1,5 @@
 import { expect } from 'vitest'
-import { agoOf, boughtVisits, rateShop, REVIEW_PACKS, sortReviews, starCounts, visitSides, visitStars, type Visit } from '@/game/reputation'
+import { agoOf, boughtVisits, rateShop, REVIEW_PACKS, sortReviews, starCounts, visitSides, visitStars, type Visit } from '@/game/guests/reputation'
 import { feature, scenario } from './bdd'
 
 const visit = (id: number, taste: number | null, o: Partial<Visit> = {}): Visit => ({ id, taste, waited: 40, walkedOut: false, gripes: [], ...o })

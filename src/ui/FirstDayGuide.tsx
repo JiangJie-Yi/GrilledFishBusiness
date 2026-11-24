@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Lang } from '@/data/i18n'
 import { tl } from '@/data/i18n'
-import { GUIDE_DOTS, dotOf, guideStep, type GuideState, type GuideStep } from '@/game/firstDay'
+import { GUIDE_DOTS, dotOf, guideStep, type GuideState, type GuideStep } from '@/game/play/firstDay'
 import { FitLine } from './FitLine'
 import { Glyph } from './GameIcons'
 import { usePanelSound } from './uiSound'

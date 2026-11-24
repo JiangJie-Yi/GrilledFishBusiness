@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { PLATE_SPREAD, plateSide, plateSpot, type PlateKind } from '@/game/plateSize'
+import { PLATE_SPREAD, plateSide, plateSpot, type PlateKind } from '@/game/service/plateSize'
 import { readyAlong, ALONG, platingOf, GRILL_BAR_TOP, GRILL_COUNTERS, GRILL_OFFSET, GRILL_SCALE, GRILL_SEATS, FIRE_SHIFT, LAY, toGrillScene, CUBBY, CUBBY2, COOK_NOTCH, seatTurn } from '@/shops/grill/bar'
 import { UP_AXIS } from './hearth'
 

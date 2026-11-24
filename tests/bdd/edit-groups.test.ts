@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { applyGroup, areasOf, chainOf, leavesOf, ROOM_TURN, undoGroup, viewOf, within, type ViewCam } from '@/game/editGroups'
+import { applyGroup, areasOf, chainOf, leavesOf, ROOM_TURN, undoGroup, viewOf, within, type ViewCam } from '@/game/system/editGroups'
 import { ALONG } from '@/shops/grill/bar'
 import { clickPick, dissolveGroup, getEdit, groupByViews, isPicked, makeGroup, pickToggle, registerMovable, select, setViewCams } from '@/shops/grill/edit'
 

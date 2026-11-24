@@ -1,7 +1,7 @@
 import { memo, useEffect } from 'react'
 import type { Lang } from '@/data/i18n'
 import { tl } from '@/data/i18n'
-import { URGE_PACE, URGE_S } from '@/game/urge'
+import { URGE_PACE, URGE_S } from '@/game/staff/urge'
 import { usePanelSound } from './uiSound'
 
 /**

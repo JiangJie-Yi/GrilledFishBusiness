@@ -1,8 +1,8 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
 import { FRIDGE_UNITS } from '@/shops/grill/bar'
-import { CASE_SIZE, depthOf, emptyFillable, emptyFridge, emptyGaps, restockRun, startBack, takeFromPlace, type Back, type Places } from '@/game/drinkStock'
-import { FRIDGE_SHORT, stockerChore } from '@/game/stocker'
+import { CASE_SIZE, depthOf, emptyFillable, emptyFridge, emptyGaps, restockRun, startBack, takeFromPlace, type Back, type Places } from '@/game/stock/drinkStock'
+import { FRIDGE_SHORT, stockerChore } from '@/game/stock/stocker'
 
 // (the Tester window's random-state checks and evening simulation of item 541, made scenarios (item 547): seeded, the same every run)
 

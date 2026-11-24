@@ -1,7 +1,7 @@
 import { memo, useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { surfaceY } from '@/game/coalPile'
+import { surfaceY } from '@/game/kitchen/coalPile'
 import { ashMaterial, useBinchotan } from '@/shops/grill/binchotanModel'
 import { ALONG, FIRE_SHIFT, LAY, COOK_NOTCH, SOUS_NOTCH } from '@/shops/grill/bar'
 

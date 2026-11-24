@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { flowerBuffs, nextFlower } from '@/game/shrineFlowers'
+import { flowerBuffs, nextFlower } from '@/game/world/shrineFlowers'
 
 feature('神龕供花各有不同的加持', () => {
   scenario('供榊與小菊，客人更有耐心', ({ given, when, then, and, but }) => {

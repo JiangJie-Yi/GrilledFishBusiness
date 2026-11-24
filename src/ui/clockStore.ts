@@ -1,7 +1,7 @@
 // The game's clock as it runs (game/clock): moved on by the app's second, read by the clock under the round buttons and by the app for
 // the time of day (only what each reads redraws it: the clock's face each minute, the app at dusk and dawn, a new day at midnight).
 import { useSyncExternalStore } from 'react'
-import { START, tick, type Clock } from '@/game/clock'
+import { START, tick, type Clock } from '@/game/world/clock'
 
 let clock: Clock = START
 const subs = new Set<() => void>()

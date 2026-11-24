@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { wcDarkness } from '@/game/roomLights'
+import { wcDarkness } from '@/game/world/roomLights'
 
 feature('廁所關燈後的暗度跟著天色：白天有窗戶的光，不會黑成晚上', () => {
   scenario('開著燈：不暗', ({ then }) => {

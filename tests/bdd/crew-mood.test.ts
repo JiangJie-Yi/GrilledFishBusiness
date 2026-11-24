@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { ALARM_MS, crewMood, loadOf, newCrewMood, PRESS_HOLD, SPELL_MS, SWEAT_AFTER_ALARM_MS, SWEAT_MS, URGE_MS, type CrewMoodIn } from '@/game/crewMood'
+import { ALARM_MS, crewMood, loadOf, newCrewMood, PRESS_HOLD, SPELL_MS, SWEAT_AFTER_ALARM_MS, SWEAT_MS, URGE_MS, type CrewMoodIn } from '@/game/staff/crewMood'
 
 /** one of the staff as the shop stands: an ordinary bond, an ordinary shop, nothing going on */
 const calm = (now: number, more: Partial<CrewMoodIn> = {}): CrewMoodIn => ({ now, tired: false, load: 0, bond: 50, atmos: 50, rushAt: -1e9, ...more })

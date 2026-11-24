@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { AVOID, AVOID_BY, BOARD_SLOTS, FAN_AZ, RING_AZ, RING_SLOTS, boardRoom, freeRingSlot, gapDeg } from '@/game/fireSlots'
-import { nextTrip } from '@/game/chefFlow'
+import { AVOID, AVOID_BY, BOARD_SLOTS, FAN_AZ, RING_AZ, RING_SLOTS, boardRoom, freeRingSlot, gapDeg } from '@/game/kitchen/fireSlots'
+import { nextTrip } from '@/game/kitchen/chefFlow'
 
 feature('灶台的固定位置：火邊、砧板（尖峰時段不再疊成一堆）', () => {
   scenario('火邊最多八串，每串一個固定的位置', ({ then, and }) => {

@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
-import { stockerChore } from '@/game/stocker'
-import { ROLL, SOAP, SOAP_FULL, SOAP_REFILL_AT, takeOne, takesTowel, topUp, TOWEL, TOWEL_FULL, TOWEL_REFILL_AT, WASHROOM_PACKS, WASHROOM_START, washroomOrder } from '@/game/washroom'
-import { startingSupplies, supplyName } from '@/game/supplies'
+import { stockerChore } from '@/game/stock/stocker'
+import { ROLL, SOAP, SOAP_FULL, SOAP_REFILL_AT, takeOne, takesTowel, topUp, TOWEL, TOWEL_FULL, TOWEL_REFILL_AT, WASHROOM_PACKS, WASHROOM_START, washroomOrder } from '@/game/guests/washroom'
+import { startingSupplies, supplyName } from '@/game/stock/supplies'
 import { feature, scenario } from './bdd'
 
 feature('洗手間的耗材：捲筒衛生紙、擦手紙（一盒最多 150 張）、洗手乳（按壓就用掉），備品都算在庫存的民生裡', () => {

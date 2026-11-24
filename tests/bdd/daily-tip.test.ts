@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { tipFor, tipShown, TIPS } from '@/game/dailyTip'
+import { tipFor, tipShown, TIPS } from '@/game/play/dailyTip'
 
 // (item 175: from the second day, one thing worth finding a day, while the shop's shut)
 feature('每天一個「今天可以試試」', () => {

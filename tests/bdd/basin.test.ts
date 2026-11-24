@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { basinStep, draining, emptyBasin, overflowing, DRAIN_S, FILL_S, FILM, type Basin } from '@/game/basin'
+import { basinStep, draining, emptyBasin, overflowing, DRAIN_S, FILL_S, FILM, type Basin } from '@/game/service/basin'
 
 /** the level after `secs` of the tap `running`, stepped a frame at a time */
 const after = (b: Basin, running: boolean, secs: number) => {

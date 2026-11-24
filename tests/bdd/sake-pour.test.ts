@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { POUR_BEATS, POUR_S, POUR_TOTAL, pourBeat, pouredBy, streaming, STREAM_FROM, STREAM_TO } from '@/game/sakePour'
+import { POUR_BEATS, POUR_S, POUR_TOTAL, pourBeat, pouredBy, streaming, STREAM_FROM, STREAM_TO } from '@/game/kitchen/sakePour'
 
 feature('客人點的清酒在備餐檯用手倒（第 177 項）', () => {
   scenario('倒一壺的步驟照順序：先擺德利、握瓶、提起、倒、放回、擺酒杯', ({ given, when, then, and }) => {

@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import type { WashBeat } from '@/game/handWash'
+import type { WashBeat } from '@/game/service/handWash'
 
 /**
  * Washing a plate up by hand, posed (item 174, the owner's, 2026-11-15: 「別再讓我看到這麼低水平的動畫」: the plates went from the stack to the

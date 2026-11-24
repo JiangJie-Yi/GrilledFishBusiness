@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { RAIN_EASE, businessDay, flowFor, rainAt, rainGear, showerGap, weatherOf, type Weather } from '@/game/weather'
+import { RAIN_EASE, businessDay, flowFor, rainAt, rainGear, showerGap, weatherOf, type Weather } from '@/game/world/weather'
 
 const days = Array.from({ length: 600 }, (_, i) => i + 1)
 

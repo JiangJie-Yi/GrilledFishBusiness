@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { FLOW_KINDS, FLOWS, flowOf, wantOf } from '@/game/flow'
+import { FLOW_KINDS, FLOWS, flowOf, wantOf } from '@/game/guests/flow'
 
 feature('自動營運的營業套路', () => {
   scenario('每次開店抽一種套路，連續兩次不重複，一週內每種都會出現', ({ when, then, and }) => {

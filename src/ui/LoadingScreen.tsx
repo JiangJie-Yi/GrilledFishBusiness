@@ -3,7 +3,7 @@ import { useProgress } from '@react-three/drei'
 import { GrillingFish } from './GrillingFish'
 import { laterPending, laterSeen, sceneDrawn } from '@/scene/Later'
 import { LOADING_LINES, lineStep } from '@/data/loadingLines'
-import { loadingPct, loadingStep } from '@/game/loadingCreep'
+import { loadingPct, loadingStep } from '@/game/system/loadingCreep'
 
 /** how long the loading may sit without any file coming in before it's called stuck (ms) */
 const STALL_MS = 20000

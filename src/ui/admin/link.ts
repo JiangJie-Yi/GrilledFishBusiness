@@ -4,8 +4,8 @@
 // BroadcastChannel: two tabs of the same browser, the same site's pages only. The game posts nothing till a back office has said hello (it
 // says so every two seconds), and stops five seconds after the last.
 import type { Lang } from '@/data/i18n'
-import type { DayRecord } from '@/game/daySummary'
-import type { Rating, Visit } from '@/game/reputation'
+import type { DayRecord } from '@/game/money/daySummary'
+import type { Rating, Visit } from '@/game/guests/reputation'
 
 export const ADMIN_CHANNEL = 'jgs-admin-1'
 /** what the game's page tells the back office, once a second */

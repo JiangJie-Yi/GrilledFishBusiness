@@ -1,6 +1,6 @@
 import { memo, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useSaid } from '@/ui/speechStore'
-import { CALM, calmLeft, canCalm, type CalmKind } from '@/game/calm'
+import { CALM, calmLeft, canCalm, type CalmKind } from '@/game/guests/calm'
 import { useFrame } from '@react-three/fiber'
 import { Html } from '@/scene/Html'
 import * as THREE from 'three'

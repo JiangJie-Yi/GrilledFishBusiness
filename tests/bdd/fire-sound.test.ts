@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { fireSound, murmur } from '@/game/fireSound'
+import { fireSound, murmur } from '@/game/kitchen/fireSound'
 
 feature('炭火的聲音', () => {
   scenario('沒有火就沒有聲音', ({ given, when, then }) => {

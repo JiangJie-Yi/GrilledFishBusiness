@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { platerFree, platerOf } from '@/game/kitchenCrew'
+import { platerFree, platerOf } from '@/game/kitchen/kitchenCrew'
 
 const HOUSE = { id: 'house-chef', role: 'chef' }
 feature('內場分工：老闆掌爐、二廚取料穿串、三廚擺盤顧火', () => {

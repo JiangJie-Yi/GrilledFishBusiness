@@ -3,7 +3,7 @@ import { feature, scenario } from './bdd'
 import {
   CASE_SIZE, buyCase, caseCost, depthOf, drinkCounts, emptyFillable, emptyFridge, emptyGaps, fillFromBack, moveBetween, putInPlace, readDrinks, restockRun,
   takeFromPlace, writeDrinks, type Back, type Places,
-} from '@/game/drinkStock'
+} from '@/game/stock/drinkStock'
 
 /** a fridge's places from what stands in each: [drink, how many] or null */
 const placesFrom = (rows: ([string, number] | null)[][]): Places => ({

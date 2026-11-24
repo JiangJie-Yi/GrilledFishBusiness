@@ -5,7 +5,7 @@
  * company's fee (item 210: a shop in Osaka), and the reviews bought and the shrine's offerings (item 203: they came out of the cash, never the
  * profit)), who came, how pleased they were, and the dish that sold best.
  */
-import { satisfaction, starsOf, type Visit } from './reputation'
+import { satisfaction, starsOf, type Visit } from '@/game/guests/reputation'
 
 export type Books = { revenue: number; food: number; fuel: number; wage: number; utility?: number; promo?: number; offering?: number
   /** of the wages, what was paid over the hour's pay for the hours past eight in the day's work (game/hours' payFor): in `wage` already */

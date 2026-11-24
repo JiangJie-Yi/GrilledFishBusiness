@@ -2,7 +2,7 @@
 // beneath it, tipped to rest on the two sides it touches, laid across them rather than along them, as a pile is built. Pure
 // numbers (in the pit's own frame, plan x / z and height y) so the pile can be worked out and tested apart from the drawing.
 
-import { CHARCOAL_BOOST, STICKS_PER_PORTION } from './economy'
+import { CHARCOAL_BOOST, STICKS_PER_PORTION } from '@/game/money/economy'
 
 /** a stick lying in the pile: its middle in plan, the way it points (plan angle), its middle's height, and how steeply it rises along its length */
 export type Lay = { x: number; z: number; yaw: number; y: number; slope: number }

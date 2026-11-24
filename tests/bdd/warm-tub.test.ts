@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { WARM_TUB_HOLDS, keptWarm, type TakeoutOrder } from '@/game/takeout'
+import { WARM_TUB_HOLDS, keptWarm, type TakeoutOrder } from '@/game/guests/takeout'
 
 const order = (id: number, ready: boolean, handed: boolean): TakeoutOrder =>
   ({ id, rider: false, items: 2, packed: ready ? 2 : 1, ready, taken: false, handed, gone: false })

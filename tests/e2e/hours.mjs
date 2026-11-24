@@ -1,4 +1,4 @@
-// The shop opens only in its hours, 16:30 to 04:30 (game/hours): the game's clock moved on to them before a script opens it.
+// The shop opens only in its hours, 16:30 to 04:30 (game/world/hours): the game's clock moved on to them before a script opens it.
 // In development the clock's set outright (__clock); a production build has none, so the clock's own sky button moves it on to dusk
 // (17:00, in the hours).
 const inHours = (min) => min >= 16 * 60 + 30 || min < 4 * 60 + 30

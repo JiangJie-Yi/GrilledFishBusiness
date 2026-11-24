@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { afterCharcoal, canAddCharcoal, CHARCOAL_BOOST, CHARCOAL_COST, coalCharge, FIRE_CATCH, heatStep, STICK_BOOST, STICK_COST, STICKS_PER_PORTION } from '@/game/economy'
+import { afterCharcoal, canAddCharcoal, CHARCOAL_BOOST, CHARCOAL_COST, coalCharge, FIRE_CATCH, heatStep, STICK_BOOST, STICK_COST, STICKS_PER_PORTION } from '@/game/money/economy'
 
 feature('火力與加炭', () => {
   scenario('火力還沒滿時可以加炭，火力會升高', ({ given, when, then }) => {

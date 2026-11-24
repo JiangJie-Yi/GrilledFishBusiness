@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { PLATE_DIMS, PLATE_SPREAD, plateFor, plateSide } from '@/game/plateSize'
+import { PLATE_DIMS, PLATE_SPREAD, plateFor, plateSide } from '@/game/service/plateSize'
 
 feature('盤子照份量配（店主 2026-11-16：「盤子種類自己設計吧，這麼大一個盤子就裝那點東西」）', () => {
   scenario('整條魚、魷魚、串物放長角皿', ({ then, and }) => {

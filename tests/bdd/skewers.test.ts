@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { SKEWER_POOL, WASH_LOW, pickUpDirty, putBackClean, skewerTotal, startSkewers, takeSkewer, usedSkewer, washAll, washGoes, washUrgent } from '@/game/skewers'
+import { SKEWER_POOL, WASH_LOW, pickUpDirty, putBackClean, skewerTotal, startSkewers, takeSkewer, usedSkewer, washAll, washGoes, washUrgent } from '@/game/kitchen/skewers'
 
 // (eighty: the owner's, 2026-11-17 「加到 80 支」; fifty before, and on a busy evening the clean ones ran out (item 220))
 feature('80 支鐵串循環', () => {

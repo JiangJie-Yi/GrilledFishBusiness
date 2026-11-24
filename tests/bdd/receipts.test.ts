@@ -1,9 +1,9 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { RECEIPT, RECEIPT_LOW, RECEIPT_PACK, RECEIPT_START, ROLL_SLIPS, printSlip, receiptOrder } from '@/game/receipts'
-import { startingSupplies } from '@/game/supplies'
-import { GRIPE_COST, rateShop, satisfaction, type Visit } from '@/game/reputation'
-import { restockOrder } from '@/game/economy'
+import { RECEIPT, RECEIPT_LOW, RECEIPT_PACK, RECEIPT_START, ROLL_SLIPS, printSlip, receiptOrder } from '@/game/money/receipts'
+import { startingSupplies } from '@/game/stock/supplies'
+import { GRIPE_COST, rateShop, satisfaction, type Visit } from '@/game/guests/reputation'
+import { restockOrder } from '@/game/money/economy'
 import { DISHES } from '@/data/menu'
 import type { Entry } from '@/data/recipes'
 

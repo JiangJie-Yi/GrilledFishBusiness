@@ -1,8 +1,8 @@
 import { expect } from 'vitest'
 import { CARD_FEE, MIN_WAGE, MIN_WAGE_YEN, PLATFORM_CUT, RENT_PER_DAY, RENT_YEN_MONTH, YEN, yen } from '@/data/osaka'
-import { cardFee, platformCut, rentDue } from '@/game/costs'
-import { cashInHand, CAPITAL, costOf } from '@/game/economy'
-import { daySummary } from '@/game/daySummary'
+import { cardFee, platformCut, rentDue } from '@/game/money/costs'
+import { cashInHand, CAPITAL, costOf } from '@/game/money/economy'
+import { daySummary } from '@/game/money/daySummary'
 import { feature, scenario } from './bdd'
 
 const none = { revenue: 0, food: 0, fuel: 0, wage: 0 }

@@ -1,8 +1,8 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
 import { afterRefund, BUSY_QUEUE, breakDown, DENOMS, deposit, dishLines, drawerFrom, drawerOpens, drawerTotal, openingFloat, owedAtTill, paysAtTill, paysByCard,
-  refundFor, refundOf, tabletActive, tabTotal, takeOut, type Tab } from '@/game/till'
-import { cashInHand, SHOP_COST, type CashBooks } from '@/game/economy'
+  refundFor, refundOf, tabletActive, tabTotal, takeOut, type Tab } from '@/game/money/till'
+import { cashInHand, SHOP_COST, type CashBooks } from '@/game/money/economy'
 
 feature('收銀櫃的平板與付款方式', () => {
   scenario('平時平板不啟用', ({ given, then }) => {

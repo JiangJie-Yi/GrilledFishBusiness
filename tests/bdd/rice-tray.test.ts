@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { TRAY_MAX, fromTray, trayWants, warmKama, emptyKama, setOn } from '@/game/rice'
+import { TRAY_MAX, fromTray, trayWants, warmKama, emptyKama, setOn } from '@/game/kitchen/rice'
 
 feature('三廚先捏好飯糰放在竹盤上（店主要的，第 129 項）', () => {
   scenario('竹盤沒滿、電鍋的飯煮好了，三廚才去捏', ({ then, and, but }) => {

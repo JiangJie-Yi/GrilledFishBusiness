@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { EMPTY_S, FILL_S, basinSays, waterTick } from '@/game/sinkWater'
+import { EMPTY_S, FILL_S, basinSays, waterTick } from '@/game/service/sinkWater'
 
 feature('流理台的塞子：塞上能蓄水，拔開就排掉，水不會溢出來', () => {
   scenario('塞著塞子開水，水位慢慢升高', ({ given, when, then }) => {

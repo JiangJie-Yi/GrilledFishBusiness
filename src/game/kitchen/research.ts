@@ -4,7 +4,7 @@ import type { Dish } from '@/data/menu'
 import { SEASONINGS, type Seasoning } from '@/data/recipes'
 import type { Lang } from '@/data/i18n'
 import type { Stage, Step } from '@/game/types'
-import { bestStage, PAIRING, PAIRING_DEFAULT, timingLoss } from '@/game/taste'
+import { bestStage, PAIRING, PAIRING_DEFAULT, timingLoss } from '@/game/kitchen/taste'
 
 export type Idea = { id: string; dabs: Seasoning[]; taste: number }
 

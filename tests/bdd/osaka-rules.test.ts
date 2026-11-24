@@ -1,9 +1,9 @@
 import { expect } from 'vitest'
-import { PRICE_SHY, takesAt } from '@/game/orderPick'
-import { hourGap } from '@/game/flow'
-import { REVIEW_ODDS, reviewChance, reviewsOf, writesReview, type Visit } from '@/game/reputation'
-import { breakDown, changeFrom, drawerTotal, openingFloat, payCash, tenderOf } from '@/game/till'
-import { ROLL_USES } from '@/game/restroom'
+import { PRICE_SHY, takesAt } from '@/game/kitchen/orderPick'
+import { hourGap } from '@/game/guests/flow'
+import { REVIEW_ODDS, reviewChance, reviewsOf, writesReview, type Visit } from '@/game/guests/reputation'
+import { breakDown, changeFrom, drawerTotal, openingFloat, payCash, tenderOf } from '@/game/money/till'
+import { ROLL_USES } from '@/game/guests/restroom'
 import { feature, scenario } from './bdd'
 
 const at = (h: number, m = 0) => h * 60 + m

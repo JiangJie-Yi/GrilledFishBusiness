@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { SAKE_MAKES, SAKE_NOTES, TASTE_BONUS, canTaste, readTasted, sideChance, taste, tastedSakes } from '@/game/sakeTasting'
-import { SAKE_BOTTLE_ML, SAKE_SIDE } from '@/game/sakeStand'
+import { SAKE_MAKES, SAKE_NOTES, TASTE_BONUS, canTaste, readTasted, sideChance, taste, tastedSakes } from '@/game/kitchen/sakeTasting'
+import { SAKE_BOTTLE_ML, SAKE_SIDE } from '@/game/kitchen/sakeStand'
 
 feature('酒台的試飲（第 363 項）', () => {
   scenario('只有閉店時老闆能在酒台倒酒試飲；營業中客人的酒由三廚在出餐口倒', ({ then, and }) => {

@@ -1,5 +1,5 @@
 import { UI, type Lang } from '@/data/i18n'
-import { starsOf } from '@/game/taste'
+import { starsOf } from '@/game/kitchen/taste'
 import { Stars } from './GameIcons'
 import { tl } from '@/data/i18n'
 

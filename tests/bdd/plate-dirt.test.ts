@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { CLEAN_AT, HAND_EACH, handTime, plateDirt, SOAK_S, soakStep, TAP_FASTER } from '@/game/plates'
+import { CLEAN_AT, HAND_EACH, handTime, plateDirt, SOAK_S, soakStep, TAP_FASTER } from '@/game/service/plates'
 
 feature('餐盤的髒污', () => {
   scenario('吃完的餐盤是髒的，吃得越多越髒', ({ given, when, then, and }) => {

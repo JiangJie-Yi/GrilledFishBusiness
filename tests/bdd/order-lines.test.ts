@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { orderSaid, saidAgain, TOGETHER_MS, withOrder, type OrderSaid } from '@/game/orderTally'
+import { orderSaid, saidAgain, TOGETHER_MS, withOrder, type OrderSaid } from '@/game/kitchen/orderTally'
 import { tallyNames } from '@/data/lines'
 
 const said = (guest: number, dish: string, at: number, line: number): OrderSaid => ({ ...orderSaid([], guest, dish, at), line })

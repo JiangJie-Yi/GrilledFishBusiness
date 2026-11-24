@@ -1,9 +1,9 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { MENU_BASICS, MENU_KINDS, menuKindOf, menuMix, mixFirst } from '@/game/menuMix'
+import { MENU_BASICS, MENU_KINDS, menuKindOf, menuMix, mixFirst } from '@/game/kitchen/menuMix'
 import { MENU_MIN } from '@/data/recipes'
 import { DISHES } from '@/data/menu'
-import { trialIdeas } from '@/game/research'
+import { trialIdeas } from '@/game/kitchen/research'
 
 // (item 617, the owner's 「然後改成最少20樣菜單才能開業」「要平均分類，白飯跟味僧湯不算，那是基本款」)
 const entry = (id: string, k = 0) => ({ key: `${id}:${k}`, parts: [{ id }] })

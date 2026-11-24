@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useSyncExternalStore } from 'react'
 import type { Lang } from '@/data/i18n'
 import { tl } from '@/data/i18n'
 import { OUTFIT_COLOURS, OUTFIT_PARTS, OUTFIT_PART_NAMES, type OutfitPart } from '@/data/bossOutfit'
-import { OUTFIT_DEFAULT, OUTFIT_KEY, getOutfit, setOutfit, subscribeOutfit, type Outfit } from '@/game/bossOutfit'
+import { OUTFIT_DEFAULT, OUTFIT_KEY, getOutfit, setOutfit, subscribeOutfit, type Outfit } from '@/game/staff/bossOutfit'
 import { usePanelSound } from './uiSound'
 
 /** how each part looks as he's made (its first colour has no dye of its own: his picture as it is) */

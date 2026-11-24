@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { PASTIME_MIN, TV_CHANNELS, TV_FREE, nextChannel, pastimeOf, tvNow, tvSwitched, upstairsDoing, type TvHold } from '@/game/dormTv'
+import { PASTIME_MIN, TV_CHANNELS, TV_FREE, nextChannel, pastimeOf, tvNow, tvSwitched, upstairsDoing, type TvHold } from '@/game/staff/dormTv'
 
 feature('二樓的電視（第 612、613 項）', () => {
   scenario('樓上有人想看就開著，沒人想看就關著', ({ given, then, and }) => {

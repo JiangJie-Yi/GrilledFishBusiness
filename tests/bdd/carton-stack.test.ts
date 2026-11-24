@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { CARTON_CASES, cartonStack } from '@/game/cartonStack'
+import { CARTON_CASES, cartonStack } from '@/game/stock/cartonStack'
 
 // (24 cans to each of these cases, as game/drinkStock's CASE_SIZE has them)
 const caseOf = () => 24

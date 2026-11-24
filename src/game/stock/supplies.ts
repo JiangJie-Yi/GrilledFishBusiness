@@ -2,12 +2,12 @@
 // dry powders at room temperature), and the binchotan for the fire, kept in a sack on the floor by the table and taken from it into the
 // crate on the table's top as the crate runs out. Each is bought in, held in stock and used up (the owner's: they aren't free).
 import { TISSUE, TISSUE_START } from './tissues'
-import { ROLL, SOAP, TOWEL, WASHROOM_START } from './washroom'
-import { RECEIPT, RECEIPT_START } from './receipts'
+import { ROLL, SOAP, TOWEL, WASHROOM_START } from '@/game/guests/washroom'
+import { RECEIPT, RECEIPT_START } from '@/game/money/receipts'
 import { householdName, householdStart, isHousehold } from './household'
 import { SEASONINGS, SEASON_COST, SEASON_NAME, type Seasoning } from '@/data/recipes'
 import type { Lang } from '@/data/i18n'
-import type { Stock } from './economy'
+import type { Stock } from '@/game/money/economy'
 import { KITCHEN_DISHES } from '@/data/kitchenDishes'
 
 /** a seasoning's place in the stock (counted in doses: one a dab) */

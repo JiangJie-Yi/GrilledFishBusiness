@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { isMac, wheelIntent } from '@/game/navInput'
+import { isMac, wheelIntent } from '@/game/system/navInput'
 
 feature('開發者模式在 Mac 上的觸控板與滑鼠', () => {
   scenario('捏合是縮放，雙指滑動是平移，滑鼠滾輪是推拉', ({ then, and }) => {

@@ -1,6 +1,6 @@
 import { memo, useEffect, useState } from 'react'
 import { Html } from '@/scene/Html'
-import { BOARD_SLOTS } from '@/game/fireSlots'
+import { BOARD_SLOTS } from '@/game/kitchen/fireSlots'
 import { NO_POINTER, zr } from '@/scene/htmlProps'
 import { Wisp } from './piece'
 

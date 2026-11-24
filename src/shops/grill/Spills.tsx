@@ -10,7 +10,7 @@ import * as THREE from 'three'
 import { reflectStudio, useStudio } from '@/scene/studio'
 import { warmLater } from '@/scene/Prewarm'
 import { NO_RAY } from '@/scene/pickable'
-import { pieceLeft, shardsOf, sweepOrder } from '@/game/spills'
+import { pieceLeft, shardsOf, sweepOrder } from '@/game/service/spills'
 import { SPILLS } from './bar'
 
 /** a shard: a piece of the bottle's curved wall (the owner's, 2026-11-11: the flat chips didn't look like broken glass), its edges broken

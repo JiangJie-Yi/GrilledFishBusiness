@@ -1,4 +1,4 @@
-import { MINUTES_PER_SECOND } from './clock'
+import { MINUTES_PER_SECOND } from '@/game/world/clock'
 // The plates: all of them kept on the dish racks (碗盤櫃). The kitchen (the third cook; with none, the second; with neither, the owner) brings
 // a few at a time across to the chef's plating place on the cook table, beside him, and he plates what's grilled there; a server comes into
 // the kitchen to him for each plate ready and carries it to its customer (no pass on the bar between: the owner's), clears the plates

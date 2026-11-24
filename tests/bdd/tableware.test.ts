@@ -1,8 +1,8 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { PER_CABINET, TABLEWARE, TRAYS, enoughFor, tablewareList, traysAt } from '@/game/tableware'
+import { PER_CABINET, TABLEWARE, TRAYS, enoughFor, tablewareList, traysAt } from '@/game/service/tableware'
 import { ROLES } from '@/data/staff'
-import { SOUP_BOWLS } from '@/game/soup'
+import { SOUP_BOWLS } from '@/game/kitchen/soup'
 
 feature('碗盤櫃裡的碗、筷子、湯匙：數量成比例', () => {
   scenario('吧台 8 個座位，每位三套（使用中、在洗、備用）', ({ then, and }) => {

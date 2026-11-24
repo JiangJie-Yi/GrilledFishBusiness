@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { SKIES, START, hhmm, isNight, nextSky, skyAt, themeAt, tick, type Sky } from '@/game/clock'
+import { SKIES, START, hhmm, isNight, nextSky, skyAt, themeAt, tick, type Sky } from '@/game/world/clock'
 
 /** how long a part of the day lasts, in game minutes */
 const lengthOf = (s: Sky) => {

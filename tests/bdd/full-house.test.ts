@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { REARM, fullHouse } from '@/game/fullHouse'
+import { REARM, fullHouse } from '@/game/money/fullHouse'
 
 // (item 209, the owner's, 2026-11-16: 「我要讓這遊戲看起來覺得好玩」: a busy night went by with nothing to say so)
 feature('大入：吧台坐滿時蓋一個大入的章（第 209 項）', () => {

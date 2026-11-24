@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { bestStage, moodOf, stageOf, starsOf, timingLoss } from '@/game/taste'
+import { bestStage, moodOf, stageOf, starsOf, timingLoss } from '@/game/kitchen/taste'
 
 feature('調味與口味評分', () => {
   scenario('烤的進度決定現在是哪個階段', ({ given, when, then }) => {

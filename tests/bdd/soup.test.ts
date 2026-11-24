@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { HEAT_S, SOUP_BOWLS, SOUP_LOW, emptyPot, heatNow, heatRate, nextHeat, potTick, setSoup, soupGoes, soupReady, takeBowl, topUpGoes } from '@/game/soup'
+import { HEAT_S, SOUP_BOWLS, SOUP_LOW, emptyPot, heatNow, heatRate, nextHeat, potTick, setSoup, soupGoes, soupReady, takeBowl, topUpGoes } from '@/game/kitchen/soup'
 
 feature('味噌湯：開店時湯鍋是空的，三廚煮好才有', () => {
   scenario('湯鍋空著才去煮', ({ then, but }) => {

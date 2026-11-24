@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { LODGERS } from '@/game/shopState'
-import { commuteOf, delayOf, lineOf, paceOf, talkersOf, yieldTo } from '@/game/commute'
+import { LODGERS } from '@/game/world/shopState'
+import { commuteOf, delayOf, lineOf, paceOf, talkersOf, yieldTo } from '@/game/staff/commute'
 import { CLOSE_DORM, CLOSE_HOME, OPEN_DORM, OPEN_HOME } from '@/data/commuteLines'
 
 feature('打烊與開店：員工上下班', () => {

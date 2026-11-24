@@ -1,8 +1,8 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { GUEST_FACES, LOOKS, guestFaceStrip, guestFrame, type FaceKind, type GuestFace } from './faceSheet'
-import { PHONE_OUT_S, phoneBeat, unit2, type PhoneAt, type PhoneBeat } from '@/game/phoneBeats'
-import { faceNow, newFaceLife, type FaceLife } from '@/game/faceLife'
-import { GAZE, LATE } from '@/game/shopState'
+import { PHONE_OUT_S, phoneBeat, unit2, type PhoneAt, type PhoneBeat } from '@/game/guests/phoneBeats'
+import { faceNow, newFaceLife, type FaceLife } from '@/game/staff/faceLife'
+import { GAZE, LATE } from '@/game/world/shopState'
 /** (where one's looking at a thing in the room, worked out) */
 const GZ_P = new THREE.Vector3()
 /** how tall each shape stands in its own units, its copies sharing its position data (the key); and a vector for the world's scale on one */
@@ -22,7 +22,7 @@ import { cloth } from './patterns'
 import type { Mood } from './people'
 import { warmLater } from './Prewarm'
 import { crownOf, puffBurst } from './angerPuffs'
-import { VINYL } from '@/game/rainGear'
+import { VINYL } from '@/game/guests/rainGear'
 import { ROD_TIP, canopyScale, coatPictures, rainMats, useKasa, type GearAt } from './rainGear3D'
 
 /*

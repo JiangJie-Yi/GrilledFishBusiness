@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { kitchenPath, outOfPieces, type Rect } from '@/game/kitchenPath'
+import { kitchenPath, outOfPieces, type Rect } from '@/game/kitchen/kitchenPath'
 
 // (item 333, the owner's, 2026-11-18: 「外場路線有問題，可否設置碰撞點?」)
 const MARGIN = 0.13

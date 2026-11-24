@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { DEPTS, newRegister, PLUS, pressKeys, pressKey, REG_TAG_TEXT, setMode, subtotalOf, turnDrawerKey, type RegKey, type RegTag } from '@/game/register'
+import { DEPTS, newRegister, PLUS, pressKeys, pressKey, REG_TAG_TEXT, setMode, subtotalOf, turnDrawerKey, type RegKey, type RegTag } from '@/game/money/register'
 import { REGISTER_MANUAL, type ManualPage } from '@/data/registerManual'
 
 const NOW = new Date(2026, 9, 25, 19, 5)

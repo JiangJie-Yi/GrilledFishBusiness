@@ -5,7 +5,7 @@ import * as THREE from 'three'
 import { inkModel } from '@/scene/inkHull'
 import { mergeByMaterial, plainColours } from '@/scene/StaticBatch'
 import { Steam } from '@/scene/Steam'
-import { stepOf } from '@/game/station'
+import { stepOf } from '@/game/kitchen/station'
 import { ALONG, KITCHEN, LAY, nameOver } from './bar'
 import { sizzleSound } from './chewSound'
 

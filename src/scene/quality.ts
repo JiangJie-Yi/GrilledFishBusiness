@@ -8,7 +8,7 @@
 // Every level loads only the dish on screen (the next is loaded when switched to), except high, which keeps all
 // three ready. `?q=low|medium|high` forces a level; a dropped WebGL context remembers to start one level lower.
 
-import { gpuTier } from '@/game/gpuTier'
+import { gpuTier } from '@/game/system/gpuTier'
 
 export type Tier = 'low' | 'medium' | 'high'
 

@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { besideFire, plateGoes, TONG_S, TONG_TAKE_S, tongTimes, TRAY_PLACES, trayPlace } from '@/game/tray'
-import { pickUpDirty, putBackClean, skewerTotal, SKEWER_POOL, startSkewers, takeSkewer, usedSkewer } from '@/game/skewers'
+import { besideFire, plateGoes, TONG_S, TONG_TAKE_S, tongTimes, TRAY_PLACES, trayPlace } from '@/game/service/tray'
+import { pickUpDirty, putBackClean, skewerTotal, SKEWER_POOL, startSkewers, takeSkewer, usedSkewer } from '@/game/kitchen/skewers'
 
 feature('營業時的方形鐵盤與夾子（出餐）', () => {
   scenario('開店時試吃碗收起來、換上方形鐵盤；閉店時鐵盤收起、試吃碗放回', ({ then, and }) => {

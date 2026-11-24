@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { PILE_START, bossCleans, pileLeft, staffSink } from '@/game/sinkPile'
-import { SOAP_PUMP, WASH_WET, handStep, pumpSoap, scrubbed, soapWith, washTips, type HandSink } from '@/game/handWash'
+import { PILE_START, bossCleans, pileLeft, staffSink } from '@/game/service/sinkPile'
+import { SOAP_PUMP, WASH_WET, handStep, pumpSoap, scrubbed, soapWith, washTips, type HandSink } from '@/game/service/handWash'
 
 feature('流理台那疊髒盤（店主要的，第 103 項）', () => {
   scenario('員工不碰那疊，只洗營業中收回來的', ({ given, then, and }) => {

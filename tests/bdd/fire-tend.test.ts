@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { BUSY_AT, BUSY_LOW, BUSY_WAIT_S, COAL_WAIT_S, FIRE_LOW, fireCall, fireLow, HOT_S, roastRate } from '@/game/fireTend'
+import { BUSY_AT, BUSY_LOW, BUSY_WAIT_S, COAL_WAIT_S, FIRE_LOW, fireCall, fireLow, HOT_S, roastRate } from '@/game/kitchen/fireTend'
 
 feature('三廚顧火', () => {
   scenario('火弱時叫三廚拿炭，等他倒進爐裡', ({ given, when, then }) => {

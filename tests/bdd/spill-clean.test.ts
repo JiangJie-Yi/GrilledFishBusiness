@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { nextClean } from '@/game/spills'
+import { nextClean } from '@/game/service/spills'
 
 feature('打破的飲料要好好打掃（店主要的，第 116 項）', () => {
   scenario('先掃碎玻璃，再用抹布擦乾', ({ given, then, and }) => {

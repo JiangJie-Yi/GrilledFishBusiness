@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
 import { OUTFIT_COLOURS } from '@/data/bossOutfit'
-import { OUTFIT_DEFAULT, colourOf, readOutfit, recolour, recolourPixels } from '@/game/bossOutfit'
+import { OUTFIT_DEFAULT, colourOf, readOutfit, recolour, recolourPixels } from '@/game/staff/bossOutfit'
 
 feature('老闆可以換衣服（第 376 項：「老闆可客製化服裝」）', () => {
   scenario('沒選過、或存的東西不對：照原本的樣子', ({ then, and }) => {

@@ -7,7 +7,7 @@ import { FOOD_KINDS, type FoodKind } from '@/data/foodKinds'
 import type { Dish } from '@/data/menu'
 import { findItem, partName, SEASONINGS, type Seasoning } from '@/data/recipes'
 import { KITCHEN_IDS } from '@/data/kitchenDishes'
-import { PAIRING, PAIRING_DEFAULT } from '@/game/taste'
+import { PAIRING, PAIRING_DEFAULT } from '@/game/kitchen/taste'
 
 export type Intent =
   /** cook this (dabs null: the chef's choice) */

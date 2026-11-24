@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { BODY, keepOut, nearTable, PIT_ROOM, type HearthZones } from '@/game/hearthGuard'
+import { BODY, keepOut, nearTable, PIT_ROOM, type HearthZones } from '@/game/kitchen/hearthGuard'
 
 // (the shop's own: the cook table, its hearth's frame, the owner's notch and the third cook's bay, in the table's frame (Roasting))
 const Z: HearthZones = {

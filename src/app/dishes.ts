@@ -1,5 +1,5 @@
 import { DISHES, type Dish as DishInfo } from '@/data/menu'
-import { RING_SLOTS } from '@/game/fireSlots'
+import { RING_SLOTS } from '@/game/kitchen/fireSlots'
 
 // distance between dishes on the carousel
 export const SPACING = 6

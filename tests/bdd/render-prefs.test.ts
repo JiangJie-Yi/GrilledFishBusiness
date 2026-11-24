@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { clearPref, prefOf, readPrefs, setPref, sigOf, writePrefs, type RenderPrefs } from '@/game/renderPrefs'
+import { clearPref, prefOf, readPrefs, setPref, sigOf, writePrefs, type RenderPrefs } from '@/game/system/renderPrefs'
 
 feature('開發者模式裡逐件設定渲染方式', () => {
   scenario('一件擺設改成平面光影，其他擺設不受影響', ({ given, when, then, and }) => {

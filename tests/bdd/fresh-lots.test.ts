@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { addLot, ageLots, lotGrades, lotsFrom, lotsTotal, settleLots, stalest, takeLots, tossSpoiled, type Lot } from '@/game/lots'
-import { INEDIBLE } from '@/game/freshness'
+import { addLot, ageLots, lotGrades, lotsFrom, lotsTotal, settleLots, stalest, takeLots, tossSpoiled, type Lot } from '@/game/stock/lots'
+import { INEDIBLE } from '@/game/stock/freshness'
 
 feature('食材分批：先進先出', () => {
   scenario('買新貨不會讓快壞的變新鮮', ({ given, when, then, and }) => {

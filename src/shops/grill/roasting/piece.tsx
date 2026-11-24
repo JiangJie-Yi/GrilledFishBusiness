@@ -1,5 +1,5 @@
 import { memo, useRef, useState, type RefObject } from 'react'
-import type { Visit } from '@/game/reputation'
+import type { Visit } from '@/game/guests/reputation'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { type Chef } from '@/data/chefs'

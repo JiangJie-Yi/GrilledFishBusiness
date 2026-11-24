@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { drawerTotal, openingFloat, payCash, takeAll, takeOut, takeTakings } from '@/game/till'
+import { drawerTotal, openingFloat, payCash, takeAll, takeOut, takeTakings } from '@/game/money/till'
 
 feature('收銀機的錢（第 366 項：收銀櫃的錢另外一個介面，跟總金額結合）', () => {
   scenario('取出營收時留下找零', ({ given, when, then, and }) => {

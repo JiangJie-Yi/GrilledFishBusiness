@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { reviewerName, reviewerNames, reviewerProfile, REVIEWER_NAMES } from '@/data/reviewers'
 import { guestLabel } from '@/data/guests'
-import { initialOf } from '@/game/avatars'
+import { initialOf } from '@/game/guests/avatars'
 import { feature, scenario } from './bdd'
 
 feature('評價上的名字：像地圖 App 的評論，每位客人有自己的名字，類型只是小標註', () => {

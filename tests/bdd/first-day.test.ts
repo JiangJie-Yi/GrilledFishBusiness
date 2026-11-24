@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { STOCKED_KINDS, dotOf, guideStep, type GuideState } from '@/game/firstDay'
+import { STOCKED_KINDS, dotOf, guideStep, type GuideState } from '@/game/play/firstDay'
 
 const fresh = (): GuideState => ({ introSeen: false, outroSeen: false, kinds: 0, cooks: 0, menu: 0, menuMin: 10, open: false, inHours: false, sold: false })
 

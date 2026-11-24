@@ -1,8 +1,8 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { lastCall, seatsOpen } from '@/game/hours'
+import { lastCall, seatsOpen } from '@/game/world/hours'
 import { canRide, kindOf, RIDER_KINDS } from '@/data/guests'
-import { fitsBeforeClose, LAST_CALL_GAP, PACK_MIN, TAKEOUT_GAP, TAKEOUT_MAX, takeoutGap, takeoutSize } from '@/game/takeout'
+import { fitsBeforeClose, LAST_CALL_GAP, PACK_MIN, TAKEOUT_GAP, TAKEOUT_MAX, takeoutGap, takeoutSize } from '@/game/guests/takeout'
 
 const at = (h: number, m = 0) => h * 60 + m
 

@@ -1,9 +1,9 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
 import { CARRY_BOWLS, WARE_ALL, WARE_LOW, WARE_WASH_AT, WASHER_BOWLS, cabinetAtStart, canFill, layPlace, leftAdded, leftBehind, lowOf, noWares, shortOf, sinkWareSays, takeForFill,
-  wareIntoWasher, wareTotal, wareTrip, wareUrgent, wareWashNow, type Wares } from '@/game/ware'
-import { TABLEWARE } from '@/game/tableware'
-import { nextChore, type Dryer } from '@/game/plates'
+  wareIntoWasher, wareTotal, wareTrip, wareUrgent, wareWashNow, type Wares } from '@/game/service/ware'
+import { TABLEWARE } from '@/game/service/tableware'
+import { nextChore, type Dryer } from '@/game/service/plates'
 
 const w = (p: Partial<Wares>): Wares => ({ ...noWares(), ...p })
 

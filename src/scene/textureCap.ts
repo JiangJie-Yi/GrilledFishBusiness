@@ -4,7 +4,7 @@
 // address to try another). A picture the game paints into its own canvas and repaints later (a sign once its font's in, the shop's day
 // and night) keeps its full canvas aside, and each time it's marked changed it's drawn into the small one again.
 import * as THREE from 'three'
-import { isMac } from '@/game/navInput'
+import { isMac } from '@/game/system/navInput'
 import { lowPower } from './power'
 import { QUALITY } from './quality'
 

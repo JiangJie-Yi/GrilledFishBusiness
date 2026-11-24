@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ADMIN_TEXT } from '@/data/adminText'
-import { remarkOf, visitSides, visitStars } from '@/game/reputation'
+import { remarkOf, visitSides, visitStars } from '@/game/guests/reputation'
 import { EDITOR_URL, GAME_URL } from '@/scene/toolPage'
 import { Glyph, StarIcon } from '@/ui/GameIcons'
 import type { GlyphId } from '@/ui/glyphs'

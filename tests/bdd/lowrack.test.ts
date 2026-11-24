@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { CARRY, LOW_FULL, LOW_LOW, lowGoes, lowToBring, plateSource, platesToBring } from '@/game/plates'
+import { CARRY, LOW_FULL, LOW_LOW, lowGoes, lowToBring, plateSource, platesToBring } from '@/game/service/plates'
 
 feature('矮碗盤架：灶台旁存一疊乾淨盤子，裝盤處先從這裡補', () => {
   scenario('裝盤處的盤子先從矮架拿，矮架空了才去碗盤櫃', ({ then, and }) => {

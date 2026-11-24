@@ -1,14 +1,14 @@
 // Money and stock: what things cost, what a dish on the menu takes out of stock, and whether it can be served.
 // Pure functions over the data in src/data, so App (and the tests) all reckon the same way.
-import { TISSUE, TISSUE_LOW, tissueOrder } from './tissues'
-import { ROLL, SOAP, TOWEL, WASHROOM_LOW, washroomOrder } from './washroom'
+import { TISSUE, TISSUE_LOW, tissueOrder } from '@/game/stock/tissues'
+import { ROLL, SOAP, TOWEL, WASHROOM_LOW, washroomOrder } from '@/game/guests/washroom'
 import { RECEIPT, RECEIPT_LOW, receiptOrder } from './receipts'
-import { HOUSEHOLD, HOUSEHOLD_LOW, householdOrder } from './household'
+import { HOUSEHOLD, HOUSEHOLD_LOW, householdOrder } from '@/game/stock/household'
 import { DISHES, type Dish } from '@/data/menu'
 import { findItem, SEASON_COST, suggestPrice, type Entry, type Part, type Seasoning } from '@/data/recipes'
-import { CHARCOAL, CHARCOAL_LOW, charcoalOrder, FRYOIL, GARNISH, GARNISH_GOODS, GARNISH_PAR, NORI, SEASON_GOODS, SEASON_PAR, seasonId, isSeasonId } from './supplies'
-import { RICE_FULL } from './rice'
-import { SOUP_BOWLS } from './soup'
+import { CHARCOAL, CHARCOAL_LOW, charcoalOrder, FRYOIL, GARNISH, GARNISH_GOODS, GARNISH_PAR, NORI, SEASON_GOODS, SEASON_PAR, seasonId, isSeasonId } from '@/game/stock/supplies'
+import { RICE_FULL } from '@/game/kitchen/rice'
+import { SOUP_BOWLS } from '@/game/kitchen/soup'
 import { storageOf } from '@/data/storage'
 
 export type Stock = Record<string, number>

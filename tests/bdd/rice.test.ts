@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { COOK_S, RICE_FULL, emptyKama, kamaTick, riceGoes, setOn, takeRice, warmKama } from '@/game/rice'
+import { COOK_S, RICE_FULL, emptyKama, kamaTick, riceGoes, setOn, takeRice, warmKama } from '@/game/kitchen/rice'
 
 feature('炊飯：白飯直接從電鍋取，電鍋空了才洗米再煮一鍋', () => {
   scenario('電鍋空著才去洗米煮飯', ({ then, but }) => {

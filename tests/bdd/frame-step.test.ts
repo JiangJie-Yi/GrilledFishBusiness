@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { frameStep, MAX_FRAME_S } from '@/game/framePace'
+import { frameStep, MAX_FRAME_S } from '@/game/system/framePace'
 
 // (how much of the game's time a figure or a timer takes from one frame: the shop's clock goes by the wall clock times the speed, so the
 // figures must take the same, or a slow machine at x2 has its customers and staff fall behind the clock)

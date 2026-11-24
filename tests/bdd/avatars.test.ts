@@ -1,5 +1,5 @@
 import { expect } from 'vitest'
-import { AVATAR_SHARES, avatarOf, COATS, initialOf, PETS, SCENES, type AvatarKind, type AvatarSpec } from '@/game/avatars'
+import { AVATAR_SHARES, avatarOf, COATS, initialOf, PETS, SCENES, type AvatarKind, type AvatarSpec } from '@/game/guests/avatars'
 import { feature, scenario } from './bdd'
 
 const many = (n: number) => Array.from({ length: n }, (_, i) => avatarOf(i + 1))

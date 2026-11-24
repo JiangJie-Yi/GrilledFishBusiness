@@ -1,7 +1,7 @@
-import { NORI } from '@/game/supplies'
+import { NORI } from '@/game/stock/supplies'
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { canServe, entryCost, needOf, portionsLeft, takeStock } from '@/game/economy'
+import { canServe, entryCost, needOf, portionsLeft, takeStock } from '@/game/money/economy'
 import type { Entry } from '@/data/recipes'
 
 const ayuSet: Entry = { key: 'ayu', shop: 'grilledfish', name: '鹽烤香魚套餐', ja: '鮎定食', price: 420, parts: [{ id: 'ayu' }] } as Entry

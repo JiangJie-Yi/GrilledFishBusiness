@@ -5,7 +5,7 @@
  */
 import type { BossSituation } from '@/data/bossLines'
 import type { TalkPart } from '@/data/crewLines'
-import { CLOSE_AT, LAST_CALL_MIN, OPEN_AT } from './hours'
+import { CLOSE_AT, LAST_CALL_MIN, OPEN_AT } from '@/game/world/hours'
 
 const H = 60
 /** the evening's rush from (18:30), over by (21:30) */

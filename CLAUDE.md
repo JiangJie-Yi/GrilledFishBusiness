@@ -65,7 +65,7 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  app/  ←  App.tsx
 | 資料夾 | 放什麼 | 可以引用 |
 |---|---|---|
 | `src/data/` | 靜態資料：菜單與食材（`menu.ts`）、菜名與調味（`recipes.ts`）、員工（`staff.ts`、`chefs.ts`）、客人（`guests.ts`）、台詞（`lines.ts`）、介面文字（`i18n.ts`） | 只能引用 data |
-| `src/game/` | **純邏輯**（不碰 React 和 three）：成本與庫存（`economy.ts`）、口味與評分（`taste.ts`）、研發與試做（`research.ts`）、共用型別（`types.ts`） | data |
+| `src/game/` | **純邏輯**（不碰 React 和 three），照領域分子資料夾（第 604 項）：`money/` 錢與帳（`economy.ts` 成本與定價、`till`、`daySummary`）、`kitchen/` 廚房與火（`taste.ts` 口味與評分、`research.ts` 研發、`fireTend`、`chefFlow`、`mode`）、`stock/` 庫存（`lots`、`drinkStock`、`freshness`）、`service/` 盤子與水槽（`plates`、`tray`、`sinkPile`）、`guests/` 客人（`stay`、`flow`、`reputation`、`takeout`）、`staff/` 員工（`hiring`、`shifts`、`commute`、`dormLife`）、`world/` 時間天氣燈（`clock`、`hours`、`weather`、`roomLights`、`shopState`）、`system/` 裝置與效能（`device`、`gpuTier`、`resume`）、`play/` 新手引導；共用型別 `types.ts` 在根 | data |
 | `src/scene/` | 各店共用的 3D 元件：`Dish`、`Steam`、`OpeningSpot`、裝置等級（`quality.ts`）、shader | data、game |
 | `src/ui/` | 2D 介面：菜單板、研發筆記、辦公室、歡迎頁、表情、頭像…… | data、game、scene |
 | `src/shops/grill/` | 烤魚店的 3D 與互動（Roasting、吧台、客人、收銀櫃…） | data、game、scene、ui |
@@ -144,18 +144,18 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  app/  ←  App.tsx
 - 吊掛或貼牆的擺設加進 `edit.ts` 的 `HANGS`（操作軸在中心；其他的在腳底中心）。
 - 新擺設的名稱只寫中文，日文補在 `data/editText.ts` 的 `PIECES_JA`（或 `WORDS_JA`）、英文補在 `PIECES_EN`。
 
-## 廚房三種模式（`game/mode.ts`）
+## 廚房三種模式（`game/kitchen/mode.ts`）
 
 完整說明在 `docs/DETAILS.md` 同名的一節（研製、營業、營業時間與深夜、員工上下班、內場分工、取料、電燈開關、晝夜、視角、日誌、結算…）。重點：
-- 三種模式由 `game/mode.ts` 決定（`modeOf`，BDD `mode`）：閉店時鏡頭在火烤灶台就是研製（手動夾、穿串、調味、看進度）；營業時廚房自己烤，沒有手動烤魚。
-- 營業時間 16:30–04:30（`game/hours.ts`，BDD `hours`）；過了午夜是深夜模式。
-- 營業時的分工（`game/kitchenCrew.ts`，BDD `kitchen-crew`）：老闆是大廚，掌爐、上火、取下；二廚取料、穿串；三廚擺盤、顧火、煮飯、洗串；外場上菜、收盤、洗碗；收銀結帳；倉儲補貨。
+- 三種模式由 `game/kitchen/mode.ts` 決定（`modeOf`，BDD `mode`）：閉店時鏡頭在火烤灶台就是研製（手動夾、穿串、調味、看進度）；營業時廚房自己烤，沒有手動烤魚。
+- 營業時間 16:30–04:30（`game/world/hours.ts`，BDD `hours`）；過了午夜是深夜模式。
+- 營業時的分工（`game/kitchen/kitchenCrew.ts`，BDD `kitchen-crew`）：老闆是大廚，掌爐、上火、取下；二廚取料、穿串；三廚擺盤、顧火、煮飯、洗串；外場上菜、收盤、洗碗；收銀結帳；倉儲補貨。
 
 ## 常見改動要碰哪裡
 
-- **加一道食材**：在 `data/menu.ts` 的店家 `items` 加一筆；成本比例加在 `game/economy.ts` 的 `COST_SHARE`；燒烤類要在 `game/taste.ts` 的 `PAIRING` 加上調味搭配（調味的最佳時機在 `TIMING`）；有特別菜名的話加在 `data/recipes.ts`（`SPECIAL` / `BREAD`）。燒烤的 3D 模型由 `blender/grilledfish.py` 產生。
-- **調整價格或成本**：`game/economy.ts`（`costOf`、`COST_SHARE`、`CAPITAL`、`SHOP_COST`）和 `data/recipes.ts` 的 `suggestPrice`、`SEASON_COST`。開店後手上是 NT$200,000（店主定的：資本 `CAPITAL` 30 萬 − 開業費用 `SHOP_COST` 10 萬；BDD `pricing`）。
-- **開店門檻和菜單上限**：`data/recipes.ts` 的 `MENU_MIN`、`MENU_MAX`；四類平均、白飯味噌湯不算的規則在 `game/menuMix.ts`（BDD `menu-mix`）。
+- **加一道食材**：在 `data/menu.ts` 的店家 `items` 加一筆；成本比例加在 `game/money/economy.ts` 的 `COST_SHARE`；燒烤類要在 `game/kitchen/taste.ts` 的 `PAIRING` 加上調味搭配（調味的最佳時機在 `TIMING`）；有特別菜名的話加在 `data/recipes.ts`（`SPECIAL` / `BREAD`）。燒烤的 3D 模型由 `blender/grilledfish.py` 產生。
+- **調整價格或成本**：`game/money/economy.ts`（`costOf`、`COST_SHARE`、`CAPITAL`、`SHOP_COST`）和 `data/recipes.ts` 的 `suggestPrice`、`SEASON_COST`。開店後手上是 NT$200,000（店主定的：資本 `CAPITAL` 30 萬 − 開業費用 `SHOP_COST` 10 萬；BDD `pricing`）。
+- **開店門檻和菜單上限**：`data/recipes.ts` 的 `MENU_MIN`、`MENU_MAX`；四類平均、白飯味噌湯不算的規則在 `game/kitchen/menuMix.ts`（BDD `menu-mix`）。
 - **加一間店**：`data/menu.ts` 加一個 Dish，`src/shops/<新店>/` 放它的 3D，`src/app/Scene.tsx` 掛上去，`data/staff.ts`、`data/recipes.ts` 補上它的資料，並在 `tests/architecture.test.ts` 的 `ALLOWED` 加上新資料夾。
 （根莖蔬菜與大蔥、應徵者、排班制、員工編制的細節在 `docs/DETAILS.md` 同名的一節。）
 
@@ -185,7 +185,7 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  app/  ←  App.tsx
 | `GuestBar3D.tsx` | 客人（進出、坐下、上廁所、拿飲料、換拖鞋、淡出）、外場服務生（從閘門進出，走進廚房到主廚旁端裝好的菜、收盤、洗碗、烘碗、搬回碗盤櫃）、廚房補盤的人（碗盤櫃 → 出餐口）的流程（`GuestBar3DImpl`）；其餘在 `guestbar/`（第 604 項從這個檔拆出）：倉儲 `stocker`、店面與門 `shopFront`、入口 `entrance`、暖簾與燈籠 `lanterns`、收銀台 `register`（`Register`）、玄關與鞋櫃 `genkan`、地板 `floors`、座位與雨具 `seats`、上菜與水槽的數值 `service`、盤子 `plates`、外帶架與長凳 `takeoutStand`、名牌與時鐘 `labels`、人物的外觀 `looks`、老闆走路 `ownerWalker`、走道與擠過去 `aisle`、員工的手勢 `staffPoses`、網格加描線 `part`、貼圖 `decorTex`、步速 `walking` |
 | `DiningRoom.tsx` | 牆面的組裝 `DiningWall` 與場內擺設 `ShopProps`；各區在 `dining/`（第 604 項從這個檔拆出）：畫 `art`、圓窗與竹簾 `roundWindow`、牆上的牌子 `wallSigns`、牆上的菜單木牌 `menuTags`、男女廁所 `wc`、倉庫 `storeRoom`、員工門與樓梯 `staffDoor`、角落的用品 `supplies`、神棚 `shrine`、神棚板與供品 `altar`（`Altar`）、吊燈 `pendant`、飲料櫃 `fridge`（`DrinkFridge`；櫃內陳列 `fridgeStock`、瓶子 `bottles`、瓶身標籤與材質 `bottleGeometry`、飲料種類 `drinkKinds`、陳列架尺寸 `shelves`、杯子 `cups`）、酒樽與柳樹 `props`、酒箱 `crates`、喇叭 `speaker`、逃生燈 `exitSign`、開關 `switches`、米袋 `riceSacks`；共用的 `base`（牆的尺寸、畫布貼圖、木板）、`ambient`（晝夜的光、語言） |
 | `Decor.tsx` | 料理台上的擺設：炭箱、扇子、行燈、飯桶與作業台 |
-| `ui/PhoneClosed.tsx` | 手機不用 3D（`game/device.ts` 的 `showsFlat`，BDD `device`：寬不到 600px、或高不到 500px（橫拿）、或瀏覽器說自己是手機（`phoneDevice`：userAgentData.mobile，沒有就看 iPhone、iPod、Android 手機……）；平板與電腦是網頁，一律完整的 3D，店主要的）：手機只顯示「手機版（2D）暫不開放」（直接放進 `body`、蓋住一切）。以前的 2D 手機版（`Grill2D`、`Grill2DArt`、2D 吧台 `ui/GuestCounter`、手機的客人看板與供酒按鈕、手機尺寸的 CSS）第 188 項整個拿掉了（店主 2026-11-16：「原本的2D手機板先移除，做專案減肥」） |
+| `ui/PhoneClosed.tsx` | 手機不用 3D（`game/system/device.ts` 的 `showsFlat`，BDD `device`：寬不到 600px、或高不到 500px（橫拿）、或瀏覽器說自己是手機（`phoneDevice`：userAgentData.mobile，沒有就看 iPhone、iPod、Android 手機……）；平板與電腦是網頁，一律完整的 3D，店主要的）：手機只顯示「手機版（2D）暫不開放」（直接放進 `body`、蓋住一切）。以前的 2D 手機版（`Grill2D`、`Grill2DArt`、2D 吧台 `ui/GuestCounter`、手機的客人看板與供酒按鈕、手機尺寸的 CSS）第 188 項整個拿掉了（店主 2026-11-16：「原本的2D手機板先移除，做專案減肥」） |
 
 每件擺設與每個流程的細節（客人、外場、灶台、廁所、飲料櫃、收銀、炊飯、鐵串、碗盤、評價、水電、時鐘…）在 `docs/DETAILS.md` 的「烤魚店的 3D 店面」一節，用搜尋找，只讀那一段。
 
@@ -215,7 +215,7 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  app/  ←  App.tsx
 
 ## 慣例
 
-- **網頁只用完整的 3D，手機暫不開放**（店主要的；`game/device.ts`，BDD `device`）：手機（尺寸或裝置，App 的 `usePhone`）只顯示「暫不開放」（`ui/PhoneClosed`），不跑任何 3D（以前的 2D 手機版第 188 項拿掉了；寬不到 600、高不到 500 一定是這張卡片，所以那些尺寸的 CSS 也一起拿掉）；電腦與平板是完整的 3D。**手機一開頁就不下載任何 3D 模型**（`scene/flatGate.ts`，`main.tsx` 最先 import：一開頁就是手機時，`useGLTF.preload`、`useLoader.preload` 什麼都不做；以前手機沒有 3D 畫面卻在背景下載了 54 個模型）。檢查：`tests/e2e/_device.mjs`（在 git 外：電腦、手機尺寸、手機裝置、平板各開一次，印出有沒有 3D 畫面、下載了哪些模型）。
+- **網頁只用完整的 3D，手機暫不開放**（店主要的；`game/system/device.ts`，BDD `device`）：手機（尺寸或裝置，App 的 `usePhone`）只顯示「暫不開放」（`ui/PhoneClosed`），不跑任何 3D（以前的 2D 手機版第 188 項拿掉了；寬不到 600、高不到 500 一定是這張卡片，所以那些尺寸的 CSS 也一起拿掉）；電腦與平板是完整的 3D。**手機一開頁就不下載任何 3D 模型**（`scene/flatGate.ts`，`main.tsx` 最先 import：一開頁就是手機時，`useGLTF.preload`、`useLoader.preload` 什麼都不做；以前手機沒有 3D 畫面卻在背景下載了 54 個模型）。檢查：`tests/e2e/_device.mjs`（在 git 外：電腦、手機尺寸、手機裝置、平板各開一次，印出有沒有 3D 畫面、下載了哪些模型）。
 - 程式註解用英文，風格跟周圍一致；介面文字中日雙語（`data/i18n.ts`、`data/lines.ts`）。
 
 ## 節省 token 的做法

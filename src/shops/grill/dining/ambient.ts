@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { getLights, onLights } from '@/scene/lightsStore'
-import { lampGlow } from '@/game/roomLights'
-import type { Sky } from '@/game/clock'
+import { lampGlow } from '@/game/world/roomLights'
+import type { Sky } from '@/game/world/clock'
 import { replaces } from '@/scene/hot'
 
 /**

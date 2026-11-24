@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { BLINK_GAP, faceNow, newFaceLife, type FaceMoment } from '@/game/faceLife'
+import { BLINK_GAP, faceNow, newFaceLife, type FaceMoment } from '@/game/staff/faceLife'
 
 /** a figure's face, a frame at a time (60 to the second) from `t0` to `t1`, wanting what `want(t)` says */
 function run(seed: number, t1: number, want: (t: number) => string = () => 'idle', o: (t: number) => { free?: boolean; turn?: number; talk?: boolean } = () => ({ free: true })) {

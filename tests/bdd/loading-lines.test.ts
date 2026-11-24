@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
 import { LINE_MIN_S, LOADING_LINES, lineStep, loadingLine } from '@/data/loadingLines'
-import { CREEP_SPAN, loadingPct, loadingStep } from '@/game/loadingCreep'
+import { CREEP_SPAN, loadingPct, loadingStep } from '@/game/system/loadingCreep'
 
 // (item 175, the first look: while it loads, what the shop's doing to get ready, in the order a shop's opened)
 feature('載入時的開店準備', () => {

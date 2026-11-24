@@ -15,7 +15,7 @@ import { beep, behindBody, chime, DRAWER_FRONT, DRAWER_KEY, showKeyTip, turnKey,
 import { Movable } from '@/shops/grill/Movable'
 import { getEdit } from '@/shops/grill/edit'
 import { changeOf, CoinPile, CoinStack, isNote, NoteStack, type CoinKind, type Note } from '@/shops/grill/Cash'
-import { takeOut, type Denom } from '@/game/till'
+import { takeOut, type Denom } from '@/game/money/till'
 import { TILL_CASH, TILL_STATE, POINTER_HINT, tipOver } from '@/shops/grill/bar'
 import { tl } from '@/data/i18n'
 import { PEOPLE_SCALE } from './staffPoses'

@@ -1,11 +1,11 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { CLEANER_SCRUBS, DISH_SOAP, DISH_SOAP_SQUEEZES, HOUSEHOLD, HOUSEHOLD_PACK, TOILET_CLEANER, householdName, householdOrder, takeDose } from '@/game/household'
-import { BRUSH_ONLY, freshRoom, scrubRoom } from '@/game/restroom'
-import { startingSupplies, supplyName } from '@/game/supplies'
-import { tablewareList, TABLEWARE } from '@/game/tableware'
-import { PLATES_ALL } from '@/game/plates'
-import { SKEWER_POOL } from '@/game/skewers'
+import { CLEANER_SCRUBS, DISH_SOAP, DISH_SOAP_SQUEEZES, HOUSEHOLD, HOUSEHOLD_PACK, TOILET_CLEANER, householdName, householdOrder, takeDose } from '@/game/stock/household'
+import { BRUSH_ONLY, freshRoom, scrubRoom } from '@/game/guests/restroom'
+import { startingSupplies, supplyName } from '@/game/stock/supplies'
+import { tablewareList, TABLEWARE } from '@/game/service/tableware'
+import { PLATES_ALL } from '@/game/service/plates'
+import { SKEWER_POOL } from '@/game/kitchen/skewers'
 
 feature('庫存的餐具與清潔用品（店主要的，第 83 項）', () => {
   scenario('耗材有洗碗精與廁所清潔劑，新店各有一組，可以一組一組訂', ({ then, and }) => {

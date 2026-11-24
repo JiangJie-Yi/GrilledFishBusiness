@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { PHONE_AWAY_S, PHONE_KINDS, PHONE_OUT_S, phoneBeat, type PhoneBeat } from '@/game/phoneBeats'
+import { PHONE_AWAY_S, PHONE_KINDS, PHONE_OUT_S, phoneBeat, type PhoneBeat } from '@/game/guests/phoneBeats'
 
 /** every beat of a spell, sampled every 50 ms: [beat, n, its length] in order, each once */
 const beatsOf = (seed: number, len: number) => {

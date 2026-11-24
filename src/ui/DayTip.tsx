@@ -2,7 +2,7 @@
 // the screen with one thing in the shop worth finding, and a button that takes them there (the view moved to it, or its panel opened): the
 // next day the next one; put off (Later), the same one again the next day.
 import { tl, type Lang } from '@/data/i18n'
-import type { TipId } from '@/game/dailyTip'
+import type { TipId } from '@/game/play/dailyTip'
 import { Glyph } from './GameIcons'
 import { FitLine } from './FitLine'
 import { usePanelSound } from './uiSound'
