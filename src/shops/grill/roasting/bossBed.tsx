@@ -398,6 +398,10 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
     // (those sat at the bar, who don't step aside, kept off in the room: his half and a body leaning back off its stool (item 659a); a square
     // that near costs him as much as walking 0.6 m)
     const SEATED_CLEAR = 0.45, SEATED_COST = 6
+    // (how far round where his way home starts, in walking squares (0.1 m), a free one to start it from is looked for (item 659a's second
+    // follow-up): beyond it, no way, and he goes as he did before the shop's map, square onto the aisle (of the Tester window's seven starts by
+    // the gates, 1.5 m found six, 2 m all seven)
+    const START_REACH = 20
     // (where he's let down kept further off: his half and theirs, from their body's middle (the Tester window's: a customer sat back at the bar
     // has their body 18 cm off their place; with the soft shades no longer pushing every spot out, he came down on them, 0.5 from their place))
     const DROP_CLEAR = 0.6
@@ -695,12 +699,6 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
       const goal = nearestFree(wk, end[0], end[1], 6)
       if (!goal) return null
       const [ib, jb] = goal
-      // (and from the nearest free square to where he is, as to where he's going (item 659a, the Tester window's: come down where the
-      // squares round him were all taken (between a stool and the bar), no way was found, and his first stretch home went straight, past a
-      // customer sat there 0.02 m from them))
-      const start = nearestFree(wk, ...wk.ij(a), 6)
-      if (!start) return null
-      const [ia, ja] = start
       // (round those not stepping aside for him (item 659a, the Tester window's: customers sat at the bar; his way, made on the map with no one
       // on it, cut past the bar's end seats 0.12 m from them): the squares within SEATED_CLEAR of each (`avoid`: their bodies, the world's x, z)
       // marked once, dearer to walk through (SEATED_COST a square, so he goes round if there's a way round, and past them only if there's none),
@@ -718,6 +716,36 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
           }
         }
       }
+      // (and from the nearest free square to where he is, as to where he's going (item 659a, the Tester window's: come down where the
+      // squares round him were all taken (between a stool and the bar), no way was found, and his first stretch home went straight, past a
+      // customer sat there 0.02 m from them); as far as START_REACH round him (the Tester's second: pulled to the bar's gate, the nearest was
+      // 1.1 to 1.3 m off), the nearest he can step straight over to without going by one of those sat there, else the nearest; one he can
+      // walk to the gates from (`reach`: the nearest free square to two of the Tester's seven was in a corner shut in by the stools, and no way
+      // was found from it); and that square his first corner, the step to it straight)
+      const [i0, j0] = wk.ij(a)
+      const can = (i: number, j: number) => free(i, j) && (!wk.reach || !!wk.reach[(j + n) * W + (i + n)])
+      let start: [number, number] | null = can(i0, j0) ? [i0, j0] : null
+      if (!start) {
+        let best = Infinity, bestBy = Infinity, by: [number, number] | null = null
+        const goesBy = (i: number, j: number) => {
+          if (!heavy) return false
+          const steps = Math.ceil(Math.hypot(i - i0, j - j0) * 2)
+          for (let k = 1; k <= steps; k++) {
+            const ii = Math.round(i0 + ((i - i0) * k) / steps), jj = Math.round(j0 + ((j - j0) * k) / steps)
+            if (ii >= -n && ii <= n && jj >= -n && jj <= n && heavy[(jj + n) * W + (ii + n)]) return true
+          }
+          return false
+        }
+        for (let dj = -START_REACH; dj <= START_REACH; dj++) for (let di = -START_REACH; di <= START_REACH; di++) {
+          const d = Math.hypot(di, dj)
+          if (d > START_REACH || d >= Math.max(best, bestBy) || !can(i0 + di, j0 + dj)) continue
+          if (d < best) { best = d; start = [i0 + di, j0 + dj] }
+          if (d < bestBy && !goesBy(i0 + di, j0 + dj)) { bestBy = d; by = [i0 + di, j0 + dj] }
+        }
+        if (by) start = by
+      }
+      if (!start) return null
+      const [ia, ja] = start
       // (A*: a heap of the squares to look at by how far they've come and how far there is to go)
       const cost = new Float32Array(W * W).fill(Infinity), from = new Int32Array(W * W).fill(-1)
       const heap: [number, number][] = []
@@ -758,6 +786,7 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
         return true
       }
       const out: THREE.Vector3[] = [a.clone()]
+      if (ia !== i0 || ja !== j0) out.push(f.at(ia * WALK_STEP, ja * WALK_STEP))
       let at = 0
       while (at < cells.length - 1) {
         let next = at + 1

@@ -194,10 +194,13 @@ const LIE_LIFT = 0.07 + 0.11
 const RISE_SKIP = 0.9 + 0.7
 /** (dev) sent to bed now, however tired */
 const TO_BED = { now: false }
+/** (dev: `__bossAway.on = false`, as it was before item 659a's second follow-up: put down away from his place (or carried, or on his way
+ * back), still taken to be at his fire, and pulled over to it) */
+const AWAY_RULE = { on: true }
 /** whether the shop was open the frame before (the module's, not his: he's drawn afresh as the shop shuts, and his own memory of it went
  * with the old one, the moment it shut never seen) */
 const SHOP_WAS = { open: false }
-if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __bossToBed: () => { TO_BED.now = true }, __bossBody: BOSS_BODY })
+if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __bossToBed: () => { TO_BED.now = true }, __bossBody: BOSS_BODY, __bossAway: AWAY_RULE })
 const alongPts = (pts: THREE.Vector3[], d: number, out: THREE.Vector3) => {
   for (let i = 1; i < pts.length; i++) {
     const seg = pts[i].distanceTo(pts[i - 1])
@@ -876,11 +879,18 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     let speed = 0
     // (asked to taste: down his aisle to where it passes nearest the bowl, turned to it, and there he eats it; then back to his round)
     // (or handed a drink: the same, and he drinks it)
+    // (put down away from his place, not from there: he's off back to it first (he's `wanted`), and then it's from his place, along his aisle,
+    // as ever (item 659a's second follow-up: it was a straight pull from where he'd been put, past whoever was between))
     const drinking = !BOSS_TASTE.at && !!BOSS_DRINK.at
     const want = BOSS_TASTE.at ?? BOSS_DRINK.at
-    const ask = !edit && want && m.parent ? m.parent.worldToLocal(want.clone()) : null
+    const ask = !edit && want && m.parent && !(AWAY_RULE.on && away.current) ? m.parent.worldToLocal(want.clone()) : null
     // (at his fire through business: there to take things on and off it (Roasting's, while he's seen to be))
-    const grill = open && !edit && !ask && !OWNER_OUT.on
+    const onDuty = open && !edit && !ask && !OWNER_OUT.on
+    // (but not while he's carried, put down away from it or on his way back from there (item 659a's second follow-up, the Tester window's:
+    // let go in the room with something to come off the fire, Roasting had him at it still, and its carry pulled him straight over to it, 2.3
+    // to 3.1 m/s for the second and a half before he set off home, past the customers sat at the bar 0.08 to 0.29 m from them); away from it,
+    // the kitchen does without him as while he tastes or drinks something, the food off the fire waiting for him)
+    const grill = onDuty && !(AWAY_RULE.on && (bedOn || away.current || carry.current))
     if (grill) OWNER_GRILL.seenAt = performance.now()
     // (his height on his way and at his futon as worked out above: the floor's under his way (the dining room's higher than the kitchen's),
     // not the ground's probe or the kitchen's floor his walk round keeps to)
@@ -1230,7 +1240,8 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     if (parts.tongs) {
       // (kept in his hand through the breath between turning things at his fire (item 203: put out of being every 8.5 s, at each change of
       // his round, and back))
-      parts.tongs.scale.setScalar(act === 'tongs' || (grill && act === 'idle') ? 1 : 0)
+      // (and in his hand still where he's been taken from it in business: he didn't put them down)
+      parts.tongs.scale.setScalar(act === 'tongs' || (onDuty && act === 'idle') ? 1 : 0)
       parts.tongs.position.copy(hand).add(new THREE.Vector3(-0.02, 0.0, 0.02))
       parts.tongs.rotation.set(0.5 - Math.max(0, Math.sin(s.t * 2.2)) ** 6 * 0.5, -0.25, 0)
     }
@@ -1308,6 +1319,9 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     dropStop.current?.()
     dropStop.current = null
     carry.current = { on: true, px: x, py: y, from: [s.x, s.z], to: [s.x, s.z], until: 0 }
+    // (gone from his fire this moment, not a second on (Roasting's grace for him: a piece it took up for him meanwhile went to where his
+    // hands had been))
+    if (AWAY_RULE.on) OWNER_GRILL.seenAt = -1e9
     if (controls) controls.enabled = false
     GRABBING.on = true
     if (el?.style) el.style.cursor = CURSOR_HOLD
