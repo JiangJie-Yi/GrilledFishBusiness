@@ -18,6 +18,15 @@ import { holdVeil, laterPending, laterSeen, sceneDrawn } from './Later'
 const later = new Set<THREE.Object3D>()
 /** once the page's compiling is done: compiles what's given it straight away (a template that came after) */
 let warmNow: ((o: THREE.Object3D) => void) | null = null
+/** (item 652, the Optimization window's) whether the warming's done (its programs, its shadows; the loading's veil let go), and those
+ * waiting for it: work of their own that's not to be laid over the loading's paced first frames */
+const WARMED = { done: false, waiting: new Set<() => void>() }
+/** `f` once the warming's done (at once if it is); what it gives back calls it off */
+export function whenWarm(f: () => void): () => void {
+  if (WARMED.done) { f(); return () => {} }
+  WARMED.waiting.add(f)
+  return () => { WARMED.waiting.delete(f) }
+}
 /** a template of things made only later (copies of it, on its materials), to compile with the scene while the page loads */
 export function warmLater(o: THREE.Object3D) {
   if (warmNow) warmNow(o)
@@ -133,7 +142,12 @@ export const Prewarm = memo(function Prewarm() {
         })
         // (and the shadows' programs for the skinned and the instanced, the lights all in)
         .then(() => warmShadows(scene))
-        .finally(() => { unpace(); release() })
+        .finally(() => {
+          unpace(); release()
+          WARMED.done = true
+          for (const f of [...WARMED.waiting]) f()
+          WARMED.waiting.clear()
+        })
     }, 250)
     return () => { window.clearInterval(tick); unpace(); release(); warmNow = null; unkeep(); unidle(); unupload() }
   }, [gl, scene, camera])

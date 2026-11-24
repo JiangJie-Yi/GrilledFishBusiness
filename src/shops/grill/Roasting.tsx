@@ -107,7 +107,7 @@ import { loadOf } from '@/game/crewMood'
 const GAZE_AT = new THREE.Vector3()
 import { aisleCornerOf, aisleOf, FIGURES, CARRIED, FED, EAT_PHASE, PLATE_FACES, SEATS_SAT, DRAWER_KICK, TISSUE_REACH_MS, SAY_SEATED, BOWLS, RICE_SEATS, SIDE_SALE, FIRE_TEND, SKEWERS, SEAT_MOVE, STAFF_DOOR_HOLD, CUBBY_KICK, seatLabel, CHOPS_UP, CHOPS_USED, CHOPS_OFF, CHOPS_LOOSE, SEAT_LEFT, SEATS_UNCLEARED, GRIPES, gripe, CUBBY_OPEN, meterWater, KITCHEN_ROUTE, askPantry, shutPantry, SUPPLIES, PLACE, sharedAlong, SICK, LIP_H, PLATING, READY_SLOTS, readyAlong, PLATES_OUT, PLATER_OUT, OWNER_GRILL, FETCHER, SEAT_STICKS, SEAT_BONES, WHOLE_FISH, RICE, seatAlong, tipOver, ALONG, handOver, genkanY, ONIGIRI_TRAY, FLOOR_NEAR, staffWayOut, doorOutOf, inKitchen, alongPath, pathLength, drinkFor, type DrinkId, sauceSide, POINTER_HINT, PLATES_SET, SEATS_TAKEN, SERVICE, PANTRY, KITCHEN_FOLK, platingOf, BAR_GATES, gateCut, gateOf, type Gate, TILL, inGenkan, GRILL_BAR_TOP, GRILL_COUNTERS, GRILL_OFFSET, GRILL_SCALE, GRILL_SEATS, SIDE_PULL, FIRE_SHIFT, KITCHEN_DROP, LAY, toGrillScene, CUBBY, CUBBY2, CUBBY_FLOOR_Y, CUBBY_SHELF_Y, COOK_NOTCH, SOUS_NOTCH, nameOver, BAR_BASE_Z, SOY_DISH_AT, seatTurn, roomOf, type Counter } from './bar'
 import { freshFactor, sickChance } from '@/game/freshness'
-import { warmLater } from '@/scene/Prewarm'
+import { warmLater, whenWarm } from '@/scene/Prewarm'
 import { NO_POINTER, zr } from '@/scene/htmlProps'
 
 export { BAR_AT, BAR_TOP }
@@ -4577,12 +4577,18 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
       }
       mapRaf = requestAnimationFrame(step)
     }
-    // (once the page has done loading: its first seconds are its own pictures and programs)
-    mapLater = window.setTimeout(buildShopMap, 6000)
+    // (once the page has done loading (scene/Prewarm's warming done: its first frames are paced for its own programs and pictures), when
+    // it's idle (the Optimization window's: a fixed six seconds laid it over the loading's pacing))
+    const idleThen = (f: () => void) => {
+      const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback
+      if (ric) ric(f, { timeout: 2000 })
+      else mapLater = window.setTimeout(f, 200)
+    }
+    const unwarm = whenWarm(() => idleThen(buildShopMap))
     const unsub = subscribeEdit(() => {
       dropMeshes = null; shopMap = null; walk = null; mapJob++
       cancelAnimationFrame(mapRaf); window.clearTimeout(mapLater)
-      mapLater = window.setTimeout(buildShopMap, 1500)
+      mapLater = window.setTimeout(() => idleThen(buildShopMap), 1500)
     })
     BOSS_BED.drop = (atGrill, done) => {
       const g = ref.current
@@ -4593,19 +4599,10 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
       const p = unguard(g.localToWorld(onFloor(toBar(atGrill).setY(0))), tableOf())
       // (the shop's map made: at once)
       if (shopMap) { done(pick(shopMap, p, g)); return () => {} }
-      // (not yet (just loaded, or edit mode's just changed something): a map round him, a few milliseconds a frame)
-      const it = floorMapSteps(meshesNow(), g, p, p.y, REACH + 0.4, BOSS_TALL)
-      let raf = 0, live = true
-      const step = () => {
-        if (!live) return
-        const t = performance.now()
-        let r = it.next()
-        while (!r.done && performance.now() - t < 3) r = it.next()
-        if (!r.done) { raf = requestAnimationFrame(step); return }
-        done(pick(r.value, p, g))
-      }
-      raf = requestAnimationFrame(step)
-      return () => { live = false; cancelAnimationFrame(raf) }
+      // (not yet (just loaded, or edit mode's just changed something): down where he's held (out of the table's guard), nothing gone through
+      // for it (the Optimization window's))
+      done(g.worldToLocal(p.clone()))
+      return () => {}
     }
     /** the room's floor for his walking, on the shop's map: squares of 10 cm, each free if his body (a little narrower than where he'd stand:
      * he goes past things) is clear there, in the room, not in the genkan; worked out as asked and kept; and those he can walk to from the
@@ -4756,7 +4753,7 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
       }
       return path ? [fromGrill.clone(), ...path.slice(1).map(onFloor)] : null
     }
-    return () => { BOSS_BED.way = null; BOSS_BED.frame = null; BOSS_BED.drop = null; BOSS_BED.home = null; unsub(); mapJob++; cancelAnimationFrame(mapRaf); window.clearTimeout(mapLater) }
+    return () => { BOSS_BED.way = null; BOSS_BED.frame = null; BOSS_BED.drop = null; BOSS_BED.home = null; unsub(); unwarm(); mapJob++; cancelAnimationFrame(mapRaf); window.clearTimeout(mapLater) }
   }, [scene])
   return <group ref={ref} />
 })
