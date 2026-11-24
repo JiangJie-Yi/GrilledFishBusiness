@@ -105,14 +105,24 @@ import { GuestLabel, CUP_AHEAD, CUP_SIDE, SeatDrink, PersonClock } from './guest
 const TUCK = { on: true }
 const TUCK_HALF = 0.03, TUCK_P = new THREE.Vector3(), TUCK_OUT: [number, number] = [0, 0], TUCK_NONE: [number, number] = [0, 0]
 const TUCK_FRAMES = new WeakMap<THREE.Object3D, THREE.Object3D | null>()
+/** (item 687) how long a hand drawn in is kept in after it was last up against something (ms), and when each was last, left and right */
+const TUCK_HOLD = 300
+const TUCK_SEEN = new WeakMap<THREE.Object3D, [number, number]>()
 const tuckOf = (o: THREE.Object3D): [number, number] => {
   const taken = BOSS_BED.taken
   if (!TUCK.on || !taken || !o.visible) return TUCK_NONE
   let hp = TUCK_FRAMES.get(o)
   if (hp === undefined || (hp && !hp.parent)) { hp = o.getObjectByName('handL')?.parent ?? null; TUCK_FRAMES.set(o, hp) }
   if (!hp) return TUCK_NONE
-  TUCK_OUT[0] = taken(hp.localToWorld(TUCK_P.copy(FOLK_HAND_REST.L)), TUCK_HALF) ? 1 : 0
-  TUCK_OUT[1] = taken(hp.localToWorld(TUCK_P.copy(FOLK_HAND_REST.R)), TUCK_HALF) ? 1 : 0
+  // (item 687, the Tester window's: a hand drawn in and let out again a frame or two later, most of the times (where it'd hang along the edge of
+  // what's there, a few centimetres of the map's): drawn in, kept in till TUCK_HOLD after it was last up against something)
+  const now = performance.now()
+  let seen = TUCK_SEEN.get(o)
+  if (!seen) { seen = [-1e9, -1e9]; TUCK_SEEN.set(o, seen) }
+  if (taken(hp.localToWorld(TUCK_P.copy(FOLK_HAND_REST.L)), TUCK_HALF)) seen[0] = now
+  if (taken(hp.localToWorld(TUCK_P.copy(FOLK_HAND_REST.R)), TUCK_HALF)) seen[1] = now
+  TUCK_OUT[0] = now - seen[0] < TUCK_HOLD ? 1 : 0
+  TUCK_OUT[1] = now - seen[1] < TUCK_HOLD ? 1 : 0
   return TUCK_OUT
 }
 if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __tuck: TUCK })

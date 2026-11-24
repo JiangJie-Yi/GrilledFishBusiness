@@ -227,8 +227,9 @@ const TRAY_R = 0.1
  * back rim clear of it (item 628: at 0.36 the back of a server's tray was 2 cm into the samue) */
 export const TRAY_AT: [number, number, number] = [0, 0.4, CARRY_FRONT + TRAY_R + HOLD_AIR]
 const REST = { L: new THREE.Vector3(-0.31, 0.26, 0.05), R: new THREE.Vector3(0.31, 0.26, 0.05) }
-/** (item 676) a hand drawn in to their side as they squeeze past something: across from their middle, and before them (their own frame) */
-const TUCK_X = 0.19, TUCK_Z = 0.12
+/** (item 676) a hand drawn in to their side as they squeeze past something: across from their middle, and before them (their own frame);
+ * (item 687) before their belly to that side, just clear of it (its front 0.21 out at 0.15 across): at 0.19, 0.12 it was in their belly */
+const TUCK_X = 0.15, TUCK_Z = 0.28
 const REACH_A = new THREE.Vector3(), REACH_B = new THREE.Vector3()
 /** where a lean to their work bends them, a share of their height up from their feet (a counter's top on them) (item 387) */
 const LEAN_WAIST = 0.55

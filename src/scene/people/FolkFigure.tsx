@@ -72,8 +72,11 @@ const NECK = new THREE.Vector3(0, 0.56, 0)
 const REST = { L: new THREE.Vector3(-0.31, 0.26, 0.05), R: new THREE.Vector3(0.31, 0.26, 0.05) }
 /** (item 676) where each hand hangs at their side (the body's frame): for whoever moves them to look whether it's up against something */
 export const FOLK_HAND_REST = REST
-/** (item 676) a hand drawn in to their side as they squeeze past something: across from their middle, and before them (the body's frame) */
-const TUCK_X = 0.19, TUCK_Z = 0.12
+/** (item 676) a hand drawn in to their side as they squeeze past something: across from their middle, and before them (the body's frame).
+ * (Item 687, the Tester window's: at 0.19 across and 0.12 before them it was inside their belly (its side 0.23 out there, the hand 0.06
+ * round), not to be seen; now before their belly to that side, just clear of it (its front 0.22 out at 0.15 across): a hand in front of
+ * them, as one squeezing past holds it, 16 cm less out to the side than hanging) */
+const TUCK_X = 0.15, TUCK_Z = 0.29
 /** (item 676) the group above a figure that says which of its hands to draw in (tuckL / tuckR), found once */
 const TUCK_SAYS = new WeakMap<THREE.Object3D, THREE.Object3D | null>()
 const tuckSays = (o: THREE.Object3D) => {
