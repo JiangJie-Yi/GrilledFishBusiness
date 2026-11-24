@@ -1,0 +1,186 @@
+import { useEffect, useState } from 'react'
+import { tl, type Lang } from '@/data/i18n'
+import { caseCost, CASE_SIZE, comingOf, drinkCounts, fillFromBack, orderCase } from '@/game/stock/drinkStock'
+import { getClock } from '@/ui/kit/clockStore'
+import { FitLine } from '@/ui/kit/FitLine'
+import { setTip } from '@/scene/interact/hoverTip'
+import { DRINK_BACK, DRINK_COMING, DRINK_FRIDGE_TEMP, DRINKS, FRIDGE_STOCK, FRIDGE_UNITS, placesOf, pressDrinkTemp, SHOP_PURSE, type DrinkId } from '@/shops/grill/bar'
+import { DRINK_MAX, DRINK_MIN, servedWarm } from '@/game/stock/fridgeTemp'
+import { Glyph } from '@/ui/art/GameIcons'
+
+/** (item 615) a fridge's temperature as it is (game/fridgeTemp: it drifts outside React, read twice a second), red once it's too warm for
+ * a cold drink, and its setting a degree colder or warmer either side (as the display over its doors takes a left or a right click; the
+ * drinks' view doesn't reach up to that) */
+function LiveTemp({ n, lang }: { n: number; lang: Lang }) {
+  const read = () => { const u = DRINK_FRIDGE_TEMP.units[n]; return { t: Math.round(u?.now ?? 4), set: u?.set ?? 4 } }
+  const [s, setS] = useState(read)
+  useEffect(() => {
+    const id = window.setInterval(() => setS((was) => { const v = read(); return v.t === was.t && v.set === was.set ? was : v }), 500)
+    return () => window.clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [n])
+  const press = (dir: 1 | -1) => { pressDrinkTemp(n, dir); setS(read()) }
+  const set = tl(lang, `設定 ${s.set}°C`, `設定 ${s.set}°C`, `Set to ${s.set}°C`)
+  return (
+    <span className="chiller-temp">
+      <button type="button" className="chiller-temp-btn" disabled={s.set <= DRINK_MIN} onClick={() => press(-1)}
+        title={`${tl(lang, '調冷一度', '1度下げる', 'A degree colder')}（${set}）`}><Glyph id="minus" size={9} /></button>
+      <i className={servedWarm(s.t) ? 'is-warm' : undefined} title={servedWarm(s.t) ? `${set}｜${tl(lang, '太溫了：門開太久，拿出來的飲料不冰', 'ぬるい：扉の開けすぎ、出す飲み物が冷えていない', 'Too warm: the door was left open, drinks come out warm')}` : set}>{s.t}°C</i>
+      <button type="button" className="chiller-temp-btn" disabled={s.set >= DRINK_MAX} onClick={() => press(1)}
+        title={`${tl(lang, '調暖一度', '1度上げる', 'A degree warmer')}（${set}）`}><Glyph id="plus" size={9} /></button>
+    </span>
+  )
+}
+
+type Drink = (typeof DRINKS)[number]
+const HOMES = FRIDGE_UNITS.map((u) => u.shelves.map((sh) => sh.ids))
+/** each fridge's drinks, in the order they first stand on its shelves (bottom up) */
+const UNIT_DRINKS = FRIDGE_UNITS.map((u) => [...new Set(u.shelves.flatMap((sh) => sh.ids))])
+const drinkOf = (id: DrinkId) => DRINKS.find((d) => d.id === id)!
+
+/** a little picture of a drink as it stands in the fridge: a can, a bottle, or the little bottle of cultured milk; in its own colours */
+export function DrinkIcon({ d }: { d: Drink }) {
+  const [bg, fg] = d.label
+  const ink = '#3b2a20'
+  if (d.shape === 'can') {
+    return (
+      <svg className="drink-icon" viewBox="0 0 24 32" aria-hidden="true">
+        <rect x="5" y="3.5" width="14" height="25" rx="2.6" fill="#c8ccd2" stroke={ink} strokeWidth="1" />
+        <rect x="5.5" y="8" width="13" height="15.5" fill={bg} />
+        <rect x="7.5" y="13" width="9" height="4.5" rx="1" fill={fg} opacity="0.9" />
+        <rect x="7" y="2" width="10" height="2.4" rx="1.2" fill="#9aa0a8" stroke={ink} strokeWidth="0.8" />
+        <path d="M7 6.5h2" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
+      </svg>
+    )
+  }
+  if (d.shape === 'pack') {
+    return (
+      <svg className="drink-icon" viewBox="0 0 24 32" aria-hidden="true">
+        {/* (a paper pack: a brick, its sealed top folded down at its ends, its print's band, its straw stuck aslant to its side) */}
+        <path d="M6.5 9.5h11v19h-11z" fill={bg} stroke={ink} strokeWidth="1" strokeLinejoin="round" />
+        <path d="M6.5 9.5l1.8-2.4h7.4l1.8 2.4" fill={bg} stroke={ink} strokeWidth="0.9" strokeLinejoin="round" />
+        <rect x="7" y="24.5" width="10" height="3.5" fill={fg} />
+        <rect x="8" y="14" width="8" height="7" rx="1.2" fill={fg} opacity="0.85" />
+        <circle cx="14.2" cy="8.3" r="0.9" fill="#c8ccd2" stroke={ink} strokeWidth="0.5" />
+        <path d="M19 26.5l1.4-12.5" stroke={ink} strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M19 26.5l1.4-12.5" stroke="#f4f1ea" strokeWidth="0.8" strokeLinecap="round" />
+      </svg>
+    )
+  }
+  if (d.shape === 'small') {
+    return (
+      <svg className="drink-icon" viewBox="0 0 24 32" aria-hidden="true">
+        <path d="M8.5 9 C8.5 7 10 6 12 6 C14 6 15.5 7 15.5 9 L16.5 14 C17 17 16.5 25 15.5 28 L8.5 28 C7.5 25 7 17 7.5 14 Z" fill={d.color} stroke={ink} strokeWidth="1" />
+        <rect x="8.6" y="4" width="6.8" height="2.6" rx="1" fill={d.cap} stroke={ink} strokeWidth="0.8" />
+        <rect x="8.2" y="16" width="7.6" height="6" fill={bg} />
+        <path d="M9.8 18.5h4.4" stroke={fg} strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    )
+  }
+  return (
+    <svg className="drink-icon" viewBox="0 0 24 32" aria-hidden="true">
+      <path d="M10 2.5h4v6c0 1.4 3.5 2.6 3.5 6V28a1.5 1.5 0 0 1-1.5 1.5H8A1.5 1.5 0 0 1 6.5 28V14.5c0-3.4 3.5-4.6 3.5-6z"
+        fill={d.color} stroke={ink} strokeWidth="1" />
+      <rect x="9.6" y="1.4" width="4.8" height="2.6" rx="0.8" fill={d.cap} stroke={ink} strokeWidth="0.8" />
+      <rect x="7" y="16" width="10" height="8.5" fill={bg} />
+      <path d="M9 20.3h6" stroke={fg} strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M8.3 13.5v12" stroke="#fff" strokeWidth="1" strokeLinecap="round" opacity="0.5" />
+    </svg>
+  )
+}
+
+/**
+ * The drinks' stock, as the stock panel's 飲料 tab shows it (StockPanel; the back stock by the fridges opens it there): for each fridge every
+ * drink it holds, how many stand in it of the places meant for them and how many wait in the back, with a case to order in (paid from the
+ * shop's cash) and the fridge to fill from the back at a click; at its foot, every fridge filled from the back, and a case ordered of each
+ * drink the back hasn't enough of to fill its places. (Pure rules: game/drinkStock.)
+ */
+export function DrinkStockBody({ lang }: { lang: Lang }) {
+  // (the stock moves while it's open (customers, the stocker): looked at again a few times a second)
+  const [, tick] = useState(0)
+  useEffect(() => {
+    const t = window.setInterval(() => tick((n) => n + 1), 300)
+    return () => window.clearInterval(t)
+  }, [])
+  const cash = SHOP_PURSE.cash()
+  const changed = () => { FRIDGE_STOCK.ver++; DRINK_BACK.ver++; tick((n) => n + 1) }
+  // (ordered from the liquor shop, brought round DELIVERY_MIN later and paid for then (item 243: a case came the moment it was bought))
+  const buy = (id: DrinkId) => {
+    if (SHOP_PURSE.cash() < caseCost(id)) return
+    DRINK_COMING.list = orderCase(DRINK_COMING.list, id, getClock().day * 1440 + getClock().minute)
+    changed()
+  }
+  const fill = (only?: DrinkId) => {
+    FRIDGE_STOCK.units.forEach((_, u) => {
+      const r = fillFromBack(placesOf(u), HOMES[u], DRINK_BACK.back, only)
+      FRIDGE_STOCK.units[u] = r.rows
+      FRIDGE_STOCK.counts[u] = r.counts
+      DRINK_BACK.back = r.back
+    })
+    changed()
+  }
+  const counts = FRIDGE_STOCK.units.map((_, u) => drinkCounts(placesOf(u), HOMES[u]))
+  /** a drink's count over the fridges, and its places */
+  const total = (id: DrinkId) => counts.reduce((t, c) => ({ have: t.have + (c[id]?.have ?? 0), places: t.places + (c[id]?.places ?? 0) }), { have: 0, places: 0 })
+  useEffect(() => () => setTip(null), [])
+  /** the drinks the back can't fill their empty places from: a case of each of those is what the foot's button orders */
+  const short = UNIT_DRINKS.flat().filter((id) => { const t = total(id); return (DRINK_BACK.back[id] ?? 0) + comingOf(DRINK_COMING.list, id) * CASE_SIZE[id] < t.places - t.have })
+  const shortCost = short.reduce((n, id) => n + caseCost(id), 0)
+  const anyToFill = UNIT_DRINKS.flat().some((id) => { const t = total(id); return t.have < t.places && (DRINK_BACK.back[id] ?? 0) > 0 })
+  return (
+    <>
+      <div className="chiller-scroll">
+        {FRIDGE_UNITS.map((unit, u) => (
+          <section key={u} className={`chiller-zone ${u ? 'is-drinks-alcohol' : 'is-chilled'}`}>
+            <h3 className="chiller-zone-head"><span>{tl(lang, unit.sign[0], unit.sign[1], u ? 'Alcohol' : 'Drinks')}</span><LiveTemp n={u} lang={lang} /></h3>
+            <div className="chiller-bins">
+              {UNIT_DRINKS[u].map((id) => {
+                const d = drinkOf(id), c = counts[u][id] ?? { have: 0, places: 0, astray: 0 }, back = DRINK_BACK.back[id] ?? 0
+                const name = tl(lang, d.zh, d.ja, d.en)
+                const out = c.have <= 0
+                const cost = caseCost(id)
+                return (
+                  <div key={id} className={`chiller-bin drink-bin${out ? ' is-out' : ''}`}
+                    aria-label={`${name}：${tl(lang, '櫃中', '庫内', 'in the fridge')} ${c.have}/${c.places}，${tl(lang, '後場', 'バック', 'in the back')} ${back}`}>
+                    <span className="chiller-bin-head"><DrinkIcon d={d} /><FitLine className="chiller-bin-name">{name}</FitLine></span>
+                    <span className="drink-bin-sub">{tl(lang, `一箱 ${CASE_SIZE[id]} 瓶`, `1ケース ${CASE_SIZE[id]}本`, `${CASE_SIZE[id]} a case`)}</span>
+                    <span className={`chiller-level${out ? ' is-zero' : c.have < c.places ? ' is-low' : ''}`} aria-hidden="true">
+                      <i style={{ width: `${c.places ? Math.min(100, (c.have / c.places) * 100) : 0}%` }} />
+                    </span>
+                    <span className="chiller-bin-info" aria-hidden="true">
+                      <b className={out ? 'is-zero' : ''}>{tl(lang, '櫃中', '庫内', 'Fridge')} <em>{c.have}/{c.places}</em>
+                        {/* (and any of it put in another drink's places: not on its own shelf, said apart) */}
+                        {c.astray > 0 && (
+                          <i className="drink-astray" onPointerEnter={() => setTip({ title: tl(lang, `另有 ${c.astray} 瓶在別的格子`, `ほかの棚に ${c.astray} 本`, `${c.astray} more in other places`),
+                            hint: tl(lang, '被拖到別種飲料的位置，不在自己的架上', '別の飲み物の場所に移されていて、自分の棚にはない', 'Moved into another drink’s places, not on its own shelf') })}
+                          onPointerLeave={() => setTip(null)}>+{c.astray}</i>
+                        )}
+                      </b>
+                      <small>{tl(lang, '後場', 'バック', 'Back')} <em>{back}</em>{comingOf(DRINK_COMING.list, id) > 0 && (
+                        <i className="drink-coming" title={tl(lang, '酒屋送貨中', '配達待ち', 'On its way from the liquor shop')}> +{comingOf(DRINK_COMING.list, id) * CASE_SIZE[id]}</i>)}</small>
+                    </span>
+                    <span className="chiller-buy drink-bin-buy">
+                      <span role="button" tabIndex={0} className={`chiller-btn${cash >= cost ? '' : ' is-off'}`}
+                        title={tl(lang, `訂一箱（${CASE_SIZE[id]} 瓶，NT$${cost}）`, `1ケース注文（${CASE_SIZE[id]}本、NT$${cost}）`, `Order a case (${CASE_SIZE[id]}, NT$${cost})`)}
+                        onClick={() => buy(id)} onKeyDown={(e) => { if (e.key === 'Enter') buy(id) }}>{tl(lang, '訂一箱', '注文', 'Order')}</span>
+                      <span role="button" tabIndex={0} className={`chiller-btn chiller-fill${back > 0 && c.have < c.places ? '' : ' is-off'}`}
+                        title={tl(lang, '從後場補進櫃子', 'バックから補充', 'Fill from the back')}
+                        onClick={() => fill(id)} onKeyDown={(e) => { if (e.key === 'Enter') fill(id) }}>{tl(lang, '補', '補', 'Fill')}</span>
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        ))}
+      </div>
+      <footer className="drink-stock-foot">
+        <button type="button" className="tally-restock" disabled={!anyToFill} onClick={() => fill()}>{tl(lang, '全部補滿（從後場）', '全部補充（バックから）', 'Fill all (from the back)')}</button>
+        <button type="button" className="tally-restock" disabled={!short.length || cash < shortCost}
+          onClick={() => { for (const id of short) buy(id) }}>
+          {tl(lang, `缺的各訂一箱`, `足りない分を各1ケース`, `A case of each that's short`)}{short.length ? <> <b className="money">{shortCost.toLocaleString()}</b></> : null}
+        </button>
+      </footer>
+    </>
+  )
+}

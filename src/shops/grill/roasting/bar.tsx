@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import { StaticBatch } from '@/scene/render/StaticBatch'
-import { EditBlock } from '@/shops/grill/Movable'
+import { EditBlock } from '@/shops/grill/editor/Movable'
 import { BAR_GATES, GRILL_COUNTERS, GRILL_OFFSET, GRILL_SCALE } from '@/shops/grill/bar'
 import { BarGate } from './barGate'
 import { BarTop, LIP_TRIM, lipCorner, BarLip } from './barTop'

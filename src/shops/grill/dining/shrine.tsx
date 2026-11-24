@@ -1,4 +1,4 @@
-import { shrineDoor } from '@/shops/grill/shrineSound'
+import { shrineDoor } from '@/shops/grill/sounds/shrineSound'
 import { useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'

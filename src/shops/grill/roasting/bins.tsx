@@ -2,7 +2,7 @@ import { memo, useMemo } from 'react'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { brushText, signTexture } from '@/scene/props/signFont'
-import { forPhone } from '@/shops/grill/ware'
+import { forPhone } from '@/shops/grill/kitchen/ware'
 import { LAY_DIR, TRASH_R, TRASH_H } from './tuning'
 
 /** split bamboo in a 2-over-2 twill (網代編み), honey-coloured and a little smoked, wrapped round the basket */

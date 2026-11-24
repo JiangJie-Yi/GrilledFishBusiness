@@ -3,7 +3,7 @@ import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { StaticBatch } from '@/scene/render/StaticBatch'
 import { inkModel } from '@/scene/render/inkHull'
-import { Movable } from '@/shops/grill/Movable'
+import { Movable } from '@/shops/grill/editor/Movable'
 import { NOTCH_STEP_AT, NOTCH_STEP_YAW } from './kitchen'
 
 const STEP_URL = import.meta.env.BASE_URL + 'models/notchstep.glb'

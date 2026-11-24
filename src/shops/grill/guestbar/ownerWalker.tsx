@@ -2,7 +2,7 @@ import { memo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { TRAY_AT as HELD_AT, SweepBroom, ownerSweepPose, floorWipePose, OWNER_BEND } from '@/scene/people/StaffFigure'
-import { BossModel, drawnCentre } from '@/shops/grill/Boss'
+import { BossModel, drawnCentre } from '@/shops/grill/staff/Boss'
 import { tick } from '@/scene/kit/speed'
 import { OWNER_IN_STAFF, OWNER_HAND, OWNER_BONE, OWNER_TRAY_GEO } from './staffPoses'
 

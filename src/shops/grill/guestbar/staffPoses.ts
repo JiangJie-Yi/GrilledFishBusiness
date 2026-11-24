@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { rimmedTray } from '@/scene/people/trayGeometry'
-import { SERVE_TOP, newStationPose } from '@/shops/grill/SakeStation'
+import { SERVE_TOP, newStationPose } from '@/shops/grill/kitchen/SakeStation'
 import { RICE_BEATS, SOUP_BEATS, beatsLength } from '@/game/kitchen/sides'
 
 /** the customers (and their stools) at life size beside the bar, which is drawn to match them */

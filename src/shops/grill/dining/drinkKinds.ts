@@ -1,4 +1,4 @@
-import { glassShatter } from '@/shops/grill/restroomSound'
+import { glassShatter } from '@/shops/grill/sounds/restroomSound'
 import * as THREE from 'three'
 import { DRINKS, FRIDGE_STOCK, FRIDGE_UNITS, SPILLS, type DrinkId } from '@/shops/grill/bar'
 

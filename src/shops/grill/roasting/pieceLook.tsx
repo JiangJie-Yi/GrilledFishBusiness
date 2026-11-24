@@ -1,5 +1,5 @@
 import { isDummyMap, isFlatNormal } from '@/scene/render/materialNormalize'
-import { ironSkewer } from '@/shops/grill/skewerShape'
+import { ironSkewer } from '@/shops/grill/kitchen/skewerShape'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { OUTLINE_WIDTH } from '@/scene/props/Dish'

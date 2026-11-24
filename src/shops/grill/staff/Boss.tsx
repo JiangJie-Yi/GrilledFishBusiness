@@ -1,0 +1,1479 @@
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useFrame, useLoader, useThree } from '@react-three/fiber'
+import { useGLTF } from '@react-three/drei'
+import { Html } from '@/scene/interact/Html'
+import * as THREE from 'three'
+import { bakeable } from '@/scene/render/StaticBatch'
+import { OUTFIT_DEFAULT, colourOf, getOutfit, outfitKey, recolourPixels, subscribeOutfit, type Dye, type Outfit } from '@/game/staff/bossOutfit'
+import { OUTFIT_PARTS, type OutfitPart } from '@/data/bossOutfit'
+import { atlasModel, repaintPatch } from '@/scene/render/atlasMerge'
+import { airbrush, gradientMap } from '@/scene/people/Person3D'
+import { cloneFigure, paintable, releaseFigure, rigidFigure, type SkinPiece } from '@/scene/people/rigidSkin'
+import { getEdit } from '@/shops/grill/edit'
+import type { Lang } from '@/data/i18n'
+import { bedLineText, bossLineText, cashLineText, drinkLineText, lineIn, munchLineText, phoneLine, nextBossLine, tasteLineText, tasteVerdict, verdictLineText, type BossSituation } from '@/data/bossLines'
+import { bossSituation } from '@/game/staff/talkTime'
+import { getClock } from '@/ui/kit/clockStore'
+import { DrinkBottle } from '@/shops/grill/dining/bottles'
+import { gulpSound } from '@/shops/grill/sounds/chewSound'
+import { BOSS_BED, FIGURES, FRIDGE_STOCK, FUTON, KITCHEN_FOLK, NIGHT_WITH, OWNER_GRILL, OWNER_OUT, STAFF_DOOR_HOLD, type DrinkId } from '@/shops/grill/bar'
+import { dormDoing } from '@/game/staff/dormLife'
+import { BOSS_BODY, bossWorn, layBeat, riseBeat, sleepsDown, wakesUp } from '@/game/staff/bossStamina'
+import { footDust, newSteps } from '@/scene/effects/DustPuffs'
+const FEET = new THREE.Vector3()
+import { RUSH, SPEAKERS, STAFF_TALK } from '@/game/world/shopState'
+import { FigureHit, GRABBING } from '@/scene/people/FigureHit'
+import { glyphCursor } from '@/ui/art/glyphs'
+import { Glyph } from '@/ui/art/GameIcons'
+/** the skin's own colour on a figure (its BossSkin material's) */
+const skinOf = (r: THREE.Object3D) => {
+  let c: THREE.Color | null = null
+  r.traverse((o) => { const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined; if (!c && m?.name === 'BossSkin') c = m.color.clone() })
+  return c ?? new THREE.Color('#d99a68')
+}
+/** his name tag's words: his role, and his name when he's been given one */
+const bossName = () => SPEAKERS.get('owner') ?? '老闆'
+/** what's said of him as the pointer's over him, in the page's language: asleep, a press shakes him awake (item 624); up and about, he's
+ * taken hold of and carried (item 635). His clothes are chosen upstairs at the closet or the chest (item 636, the owner's 「老闆的衣服要上
+ * 樓點衣櫃才能」: a click on him opened them) */
+const pick3 = (zh: string, ja: string, en: string) => { const l = document.documentElement.lang; return l.startsWith('ja') ? ja : l.startsWith('en') ? en : zh }
+/** the hands over him (item 624, the owner's 「hover 會變成手的符號，需另外設計 cursor」): shaking him awake, taking hold, holding him up */
+const CURSOR_SHAKE = glyphCursor('handShake', [8, 8]), CURSOR_GRAB = glyphCursor('handOpen', [8, 8]), CURSOR_HOLD = glyphCursor('handFist', [8, 8])
+/** (item 624) how long he stirs, woken with nothing to get up for, before he's off again (ms); (item 635) how high he's held off the floor
+ * as he's carried (his parent's units); how near his round's line he must be let down to stand there (else he's put back where he was) */
+const STIR_MS = 2600, CARRY_UP = 0.16
+/** (item 652) how near his round's line (his frame) he must come down to be on his round from there, not put somewhere off it */
+const ON_ROUND = 0.1
+import { crewFaceSheet, crewFrame, faceRange, markFace, ownShape, setFace, squash as jelly, type CrewFace } from '@/scene/people/faceSheet'
+import { faceNow, newFaceLife, type FaceLife } from '@/game/staff/faceLife'
+import { turnEase } from './commuteWalk'
+import { NO_POINTER, zr } from '@/scene/interact/htmlProps'
+import { warmLater } from '@/scene/render/Prewarm'
+import { UCHIWA_URL, uchiwaInHand } from '@/scene/people/uchiwa'
+
+/**
+ * The owner (blender/boss.py): an Overcooked 2 cook (a big round head on a short plump body rounding off underneath, floating mitten
+ * hands) with the face on his picture: glasses, moustache, headband, kappōgi and checked trousers. Drawn in the people's soft paint (the
+ * same five-tone light and airbrush).
+ *
+ * While the shop's shut he keeps busy at his grill, moving as Overcooked's cooks do: a waddle when he walks (bobbing up at each step,
+ * rocking side to side, leaning in, his hands swinging), a quick lean-forward scurry when he runs, and both hands out in front when he
+ * holds something. His day goes round: turning things at the fire with his tongs, a walk down the aisle, fanning the fire from there
+ * with his uchiwa, a run back, a wave, a breather. He blinks every few seconds (now and then twice). In developer mode he stands still
+ * at his place.
+ */
+const URL = import.meta.env.BASE_URL + 'models/boss.glb'
+/** the small parts: no ink line round them */
+/** the head and what's on it, which take no shadow (as the customers' don't): the face's and the glasses' patches are see-through
+ * rectangles off the face, and the shadow pass (no alphaTest: they're hashed) cast them whole, black blocks over the eyes (the owner saw) */
+const HEAD = /^Boss(Head|Face|Glass|Nose|Moustache|Ear|Hair|Tenugui|Knot|Sideburn|Comb|Cap|Pencil)/
+const UNINKED = /(Eye|Shine|Brow|Cheek|Moustache|Mouth|Tongue|Print|Collar|Knot|Band|Cord|Nose|Thumb|Glass|Hem|Tongs|Fan|Sideburn|Pencil|Pin|Towel)/
+let made: THREE.Object3D | null = null
+
+// ---- his clothes recoloured (item 376, the owner's 「老闆可客製化服裝」: game/bossOutfit): he's made once; a change of clothes draws his
+// atlas's patches of them again (repaintPatch: his body's one picture, the coat, the apron and the trousers in it (textures/boss_regions.png
+// says which pixel's which, blender/boss.py), his headband's pictures) and colours his towel's vertices, and nothing else of him is made
+// again (his shape, his material, his shader, his bones' picture)
+const REGIONS_URL = import.meta.env.BASE_URL + 'textures/boss_regions.png'
+/** each part's own colour as painted (blender/boss.py's COAT, APRON, PANTS and the tenugui's), the recolouring's measure */
+const PART_BASE: Record<'coat' | 'apron' | 'trousers' | 'headband', [number, number, number]> = {
+  coat: [0.96, 0.94, 0.9], apron: [0.12, 0.16, 0.28], trousers: [0.2, 0.25, 0.4], headband: [0.16, 0.22, 0.42],
+}
+type Pic = CanvasImageSource & { width: number; height: number }
+/** what of him is dressed, found as he's made: his atlas's material, the pictures it was made with (his body's, his headband's), his
+ * towel's vertices in his one shape (their colour as made) */
+const DRESS: { mat: THREE.Material | null; body: Pic | null; bands: Pic[]; towel: { geo: THREE.BufferGeometry; from: number; count: number; was: Float32Array }[]; worn: string } =
+  { mat: null, body: null, bands: [], towel: [], worn: '' }
+if (import.meta.env?.DEV && typeof window !== 'undefined') (window as unknown as { __dress?: typeof DRESS }).__dress = DRESS
+/** a picture's pixels as made, and a canvas of its size to draw its recolouring in (kept: a click draws in it again) */
+const PIXELS = new Map<unknown, { src: Uint8ClampedArray; c: HTMLCanvasElement; g: CanvasRenderingContext2D; d: ImageData }>()
+function pixelsOf(img: Pic) {
+  let p = PIXELS.get(img)
+  if (!p) {
+    const c = document.createElement('canvas')
+    c.width = img.width
+    c.height = img.height
+    const g = c.getContext('2d', { willReadFrequently: true })!
+    g.drawImage(img, 0, 0)
+    const d = g.getImageData(0, 0, c.width, c.height)
+    p = { src: new Uint8ClampedArray(d.data), c, g, d }
+    PIXELS.set(img, p)
+  }
+  return p
+}
+/** which part each of the body's pixels is (0 none, 1 the coat, 2 the apron, 3 the trousers), from the regions' picture at its size */
+let partsOf: { img: unknown; at: Uint8Array } | null = null
+function regionsAt(regions: Pic, w: number, h: number) {
+  if (partsOf?.img === regions && partsOf.at.length === w * h) return partsOf.at
+  const c = document.createElement('canvas')
+  c.width = w
+  c.height = h
+  const g = c.getContext('2d', { willReadFrequently: true })!
+  g.drawImage(regions, 0, 0, w, h)
+  const m = g.getImageData(0, 0, w, h).data
+  const at = new Uint8Array(w * h)
+  for (let p = 0; p < at.length; p++) at[p] = m[p * 4] > 127 ? 1 : m[p * 4 + 1] > 127 ? 2 : m[p * 4 + 2] > 127 ? 3 : 0
+  partsOf = { img: regions, at }
+  return at
+}
+const dye = (part: keyof typeof PART_BASE, to: [number, number, number] | null) => (to ? { base: PART_BASE[part], target: to } : null)
+/** a picture of him drawn again in its dyes (`partOf` null: all of it by the first) */
+function repaint(img: Pic, partOf: Uint8Array | null, dyes: (Dye | null)[]) {
+  const p = pixelsOf(img)
+  recolourPixels(p.src, p.d.data, partOf, dyes)
+  p.g.putImageData(p.d, 0, 0)
+  repaintPatch(DRESS.mat!, img, p.c)
+}
+/** him dressed as chosen now and as it changes (an effect's: its clean-up stops it) */
+const wearing = (regions: Pic | null) => {
+  const go = () => dressBoss(getOutfit(), regions)
+  go()
+  return subscribeOutfit(go)
+}
+/** him (as made once) in `outfit`: what's changed since he was last dressed drawn again */
+export function dressBoss(outfit: Outfit, regions: Pic | null) {
+  if (!DRESS.mat || typeof document === 'undefined') return
+  const key = outfitKey(outfit) + (regions ? '' : '|plain')
+  if (key === DRESS.worn) return
+  const was = DRESS.worn ? DRESS.worn.split('|') : OUTFIT_PARTS.map((p) => OUTFIT_DEFAULT[p])
+  // (the body's picture left as made while there was no regions' picture to dress it by)
+  const wasPlain = DRESS.worn.endsWith('|plain')
+  const changed = (...ps: OutfitPart[]) => ps.some((p) => outfit[p] !== was[OUTFIT_PARTS.indexOf(p)]) || (!!regions && wasPlain)
+  DRESS.worn = key
+  if (DRESS.body && regions && changed('coat', 'apron', 'trousers')) {
+    repaint(DRESS.body, regionsAt(regions, DRESS.body.width, DRESS.body.height),
+      [dye('coat', colourOf(outfit, 'coat')), dye('apron', colourOf(outfit, 'apron')), dye('trousers', colourOf(outfit, 'trousers'))])
+  }
+  if (changed('headband')) for (const b of DRESS.bands) repaint(b, null, [dye('headband', colourOf(outfit, 'headband'))])
+  if (changed('towel')) {
+    const to = colourOf(outfit, 'towel')
+    const c = to && new THREE.Color().setRGB(to[0], to[1], to[2], THREE.SRGBColorSpace)
+    for (const t of DRESS.towel) {
+      const col = t.geo.attributes.color as THREE.BufferAttribute
+      const a = col.array as Float32Array
+      if (c) for (let i = 0; i < t.count; i++) { a[(t.from + i) * 3] = c.r; a[(t.from + i) * 3 + 1] = c.g; a[(t.from + i) * 3 + 2] = c.b }
+      else a.set(t.was, t.from * 3)
+      col.addUpdateRange(t.from * 3, t.count * 3)
+      col.needsUpdate = true
+    }
+  }
+}
+
+/** where his hands hang at rest (as modelled, the node's own frame) */
+const REST = { L: new THREE.Vector3(-0.31, 0.26, 0.05), R: new THREE.Vector3(0.31, 0.26, 0.05) }
+type Phase = { act: 'tongs' | 'walk' | 'fan' | 'run' | 'wave' | 'idle' | 'phone'; len: number }
+/** his round of the day, in seconds: the fire fanned from his place, turned to it (item 203: he walked 1.7 off down the aisle and fanned the
+ * air there, facing the way he faces at home); the run home kept, last, for after a taste or a drink taken down the aisle */
+// (and his phone a while, the shop shut and nothing to do (item 475, the owner's 「老闆也會滑手機，有生活感」))
+const ROUND: Phase[] = [
+  { act: 'tongs', len: 7 }, { act: 'fan', len: 5 }, { act: 'wave', len: 4 }, { act: 'idle', len: 4 }, { act: 'phone', len: 9 }, { act: 'run', len: 0 },
+]
+/** and while the shop's open, the head chef at his fire (his second cook at the board fetching and skewering): turning what's on it with
+ * his tongs, a breath between; what he takes on and off it, and fans, is Roasting's (OWNER_GRILL) */
+// (and a run back to it, after a taste or a drink taken down the aisle: at once past it when he's there)
+const ROUND_OPEN: Phase[] = [{ act: 'tongs', len: 6 }, { act: 'idle', len: 2.5 }, { act: 'run', len: 0 }]
+const WALK_SPEED = 0.9
+/** (item 444) his way to his futon the nights he's worn out, and back: where he is along it; laying it down, asleep, getting up; where its
+ * foot is and where he lies down on it (his own frame); how far he's lain back (0 standing .. 1 on his back) */
+/** (item 637) 'up': to the staff's door and through it, up the stair to her; 'upstairs': up there (the room upstairs draws him); then 'back' */
+type BedTrip = { phase: 'off' | 'go' | 'lay' | 'sleep' | 'rise' | 'back' | 'up' | 'upstairs'; pts: THREE.Vector3[]; len: number; d: number; t: number
+  foot: THREE.Vector3; feet: THREE.Vector3; off: THREE.Vector3; head: THREE.Vector3; bar: number; lie: number
+  /** (item 624) shaken awake with nothing to get up for: till when he stirs, sits up a little and lies down again; till when he's shaken */
+  stir?: number; shake?: number
+  /** (item 652) the way back being walked is from where the player put him down, not from his futon: he can be taken up again on it */
+  home?: boolean }
+/** (item 624) how far he lifts, stirring (0 lying .. 0.08: a stir under the quilt, not a sit up through it, item 631): and down over STIR_MS */
+const stirUp = (bd: BedTrip) => { const left = (bd.stir ?? 0) - performance.now(); if (left <= 0) return 0; const k = 1 - left / STIR_MS; return 0.08 * Math.sin(Math.PI * k) }
+/** scratch for carrying him (item 635): the pointer on the screen, its ray, the floor's plane, where it meets */
+const RAY_NDC = new THREE.Vector2(), CARRY_RAY = new THREE.Raycaster(), CARRY_PLANE = new THREE.Plane(), CARRY_AT = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0)
+/** how far in from the futon's foot his feet go as he lies down, so his head comes to the pillow (the bar's units) */
+const FEET_IN = 0.29
+/** lain on his back, how far up off the floor his pivot (his feet's middle) comes: the mattress and his back's depth (the bar's units) */
+const LIE_LIFT = 0.07 + 0.11
+/** wanted while still laying it down: straight to folding it up (the rise's sit and stand skipped) */
+const RISE_SKIP = 0.9 + 0.7
+/** (dev) sent to bed now, however tired */
+const TO_BED = { now: false }
+/** whether the shop was open the frame before (the module's, not his: he's drawn afresh as the shop shuts, and his own memory of it went
+ * with the old one, the moment it shut never seen) */
+const SHOP_WAS = { open: false }
+if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __bossToBed: () => { TO_BED.now = true }, __bossBody: BOSS_BODY })
+const alongPts = (pts: THREE.Vector3[], d: number, out: THREE.Vector3) => {
+  for (let i = 1; i < pts.length; i++) {
+    const seg = pts[i].distanceTo(pts[i - 1])
+    if (d <= seg || i === pts.length - 1) return out.copy(pts[i - 1]).lerp(pts[i], seg > 1e-9 ? Math.min(1, d / seg) : 1)
+    d -= seg
+  }
+  return out.copy(pts[pts.length - 1])
+}
+const lengthOf = (pts: THREE.Vector3[]) => pts.reduce((n, p, i) => (i ? n + p.distanceTo(pts[i - 1]) : 0), 0)
+const easeIO = (k: number) => k * k * (3 - 2 * k)
+const RUN_SPEED = 2.4
+
+/** `to`: the far end of his walk, in the frame he stands in (x, z), from his place at its origin, facing +z */
+/** a taste he's been asked for (Roasting, as the owner clicks something in the tasting bowl): where it is (world), and whether he's there
+ * to eat it yet; cleared when it's eaten */
+export const BOSS_TASTE = { at: null as THREE.Vector3 | null, arrived: false, since: 0,
+  /** he's biting into it now (Roasting, from the first bite): he says so, munching */
+  chewing: false,
+  /** its 美味 once he's swallowed it (Roasting): he says what he thinks of it, and it's cleared */
+  verdict: null as number | null,
+  /** where his chopsticks' tips are (the world), while he tastes: what he's tasting is held there (Roasting; item 112) */
+  tip: new THREE.Vector3(), tipOn: false }
+if (import.meta.env?.DEV && typeof window !== 'undefined') (window as unknown as { __bossTaste?: typeof BOSS_TASTE }).__bossTaste = BOSS_TASTE
+/** a drink set down on a table near him (DiningRoom's FridgeStock, as it's let go there): where it stands (world) and which it is (the drink out of the
+ * fridge, taken off the table as he picks it up); he goes over, drinks it and says so; cleared when it's drunk */
+/**
+ * How the boss answers what's done to him (the owner's): `hover`, a drink carried within his reach (he glows warm while it's held there);
+ * `glowAt`, a drink set down for him (a flash of the same glow, fading over a second); `joyAt`, the till's money taken (a line of delight
+ * over his head, a hop, coins and hearts rising). Times by performance.now().
+ */
+export const BOSS_FX = { hover: false, glowAt: -1e9, joyAt: -1e9 }
+const GLOW = new THREE.Color('#ffb648')
+const GLOW_LINE = new THREE.Color('#ffd24a')
+/**
+ * What he tastes with (item 112, the owner's, 2026-11-14: "tasting, he should hold a bowl and chopsticks"): a small rice bowl in his left
+ * hand, under his chin, and a pair of chopsticks in his right, what he tastes held at their tips. Drawn from the start (shrunk to nothing
+ * when he isn't tasting: nothing new for the renderer to make as he starts), toon-shaded as he is.
+ */
+const TASTE_BOWL_GEO = new THREE.LatheGeometry([[0.001, 0], [0.032, 0.002], [0.034, 0.008], [0.05, 0.02], [0.066, 0.048], [0.07, 0.056], [0.064, 0.056],
+  [0.06, 0.048], [0.045, 0.024], [0.001, 0.016]].map(([r, y]) => new THREE.Vector2(r, y)), 16)
+const TASTE_BOWL_MAT = new THREE.MeshToonMaterial({ color: '#f1ece2', side: THREE.DoubleSide })
+const TASTE_BAND_GEO = new THREE.CylinderGeometry(0.0672, 0.0662, 0.008, 16, 1, true).translate(0, 0.044, 0)
+const TASTE_BAND_MAT = new THREE.MeshToonMaterial({ color: '#2d4f86', side: THREE.DoubleSide })
+/** a chopstick: 0.22 long, square, tapering to its tip, the tip at +z */
+const CHOP_LEN = 0.22
+const CHOP_GEO = new THREE.CylinderGeometry(0.0022, 0.0042, CHOP_LEN, 4, 1).rotateX(Math.PI / 2).translate(0, 0, CHOP_LEN / 2)
+const CHOP_MAT = new THREE.MeshToonMaterial({ color: '#7a4a26' })
+const TIP_LOCAL = new THREE.Vector3(0, 0, CHOP_LEN)
+const SHRUNK = 0.0001
+/** the drink in his hand: its foot a little under his fist, a touch forward of it (the body's frame); and a scratch vector for the hand */
+const DRINK_IN_PALM = new THREE.Vector3(0, -0.05, 0.015)
+/**
+ * His phone (item 475, the owner's 「老闆也會滑手機，有生活感」): a dark slab in his right hand before his chest, its screen tipped up to his eyes,
+ * lit (unlit: no lamp added); on it a feed of posts that goes up a post at each flick of his thumb. In the scene from the first, hidden: its
+ * programs made with the rest at loading (warmLater), so put away it isn't drawn. In the body's units, as the bowl is
+ */
+const PHONE_W = 0.08, PHONE_H = 0.15, PHONE_D = 0.012
+const PHONE_BODY_GEO = new THREE.BoxGeometry(PHONE_W, PHONE_H, PHONE_D)
+const PHONE_SCREEN_GEO = new THREE.PlaneGeometry(PHONE_W * 0.86, PHONE_H * 0.86)
+// (its case the shop's stamp red, so from before him (its back's what's seen) it reads as a phone against his white coat; the camera's square
+// up in a back corner, dark)
+const PHONE_BODY_MAT = new THREE.MeshToonMaterial({ color: '#c8432b' })
+const PHONE_LENS_GEO = new THREE.BoxGeometry(0.022, 0.022, 0.003)
+const PHONE_LENS_MAT = new THREE.MeshToonMaterial({ color: '#26262b' })
+/** the feed: rounded posts down a tall picture, each a picture's block and two lines of text under it, in the app's own colours; shown a
+ * screen's height of it at a time, moved up as he flicks */
+const PHONE_FEED = (() => {
+  if (typeof document === 'undefined') return null
+  const W = 64, H = 512, c = document.createElement('canvas')
+  c.width = W; c.height = H
+  const g = c.getContext('2d')!
+  g.fillStyle = '#f4f1ea'; g.fillRect(0, 0, W, H)
+  const tones = ['#e8a87c', '#7fb3d5', '#a3d39c', '#f6c85f', '#c39bd3', '#f28b82', '#9ad0c2', '#f7b267']
+  for (let y = 4, k = 0; y < H - 4; y += 64, k++) {
+    g.fillStyle = '#ffffff'; g.fillRect(3, y, W - 6, 58)
+    g.fillStyle = tones[k % tones.length]; g.fillRect(6, y + 3, W - 12, 34)
+    g.fillStyle = '#b9b3a6'; g.fillRect(6, y + 41, W - 20, 4); g.fillRect(6, y + 49, W - 32, 4)
+  }
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace
+  t.wrapT = THREE.RepeatWrapping
+  t.repeat.set(1, 0.25)
+  return t
+})()
+const PHONE_SCREEN_MAT = new THREE.MeshBasicMaterial({ color: '#ffffff', map: PHONE_FEED })
+if (typeof document !== 'undefined') { const g = new THREE.Group(); g.add(new THREE.Mesh(PHONE_BODY_GEO, PHONE_BODY_MAT), new THREE.Mesh(PHONE_SCREEN_GEO, PHONE_SCREEN_MAT), new THREE.Mesh(PHONE_LENS_GEO, PHONE_LENS_MAT)); warmLater(g) }
+/** where it sits in his palm (lifted off it along the screen's face toward him: the hand behind it, not through the screen), and how far it's
+ * tipped back to face him (turned half round first: he faces the body's +z, the screen its own +z) */
+const PHONE_IN_PALM = new THREE.Vector3(0, 0.06, -0.04)
+const PHONE_TIP = -0.55
+/** the tasting bowl in his left palm: its foot a little under it */
+const BOWL_IN_PALM = new THREE.Vector3(0, -0.03, 0.02)
+/** the chopsticks held in his right fist: from its middle, up through it */
+const CHOPS_IN_PALM = new THREE.Vector3(0, 0.035, 0)
+const HAND_AT = new THREE.Vector3()
+const PALM_A = new THREE.Vector3()
+/** where to put a hand's bone, up and down in its own parent's frame, for its palm (drawn some way off it: drawnCentre) to come to `wy` in
+ * the world, the rest of where it's put (x, z) as given: worked out from where the palm comes with the bone at 0 and at 1 */
+function palmTo(bone: THREE.Object3D, palm: THREE.Vector3, at: THREE.Vector3, wy: number) {
+  const was = bone.position.clone()
+  bone.position.set(at.x, 0, at.z)
+  bone.updateWorldMatrix(true, false)
+  const y0 = bone.localToWorld(PALM_A.copy(palm)).y
+  bone.position.y = 1
+  bone.updateWorldMatrix(false, false)
+  const k = bone.localToWorld(PALM_A.copy(palm)).y - y0
+  bone.position.copy(was)
+  bone.updateWorldMatrix(false, false)
+  return Math.abs(k) > 1e-6 ? (wy - y0) / k : at.y
+}
+export const BOSS_DRINK = { at: null as THREE.Vector3 | null, id: null as DrinkId | null, item: null as unknown, arrived: false, since: 0 }
+if (import.meta.env?.DEV && typeof window !== 'undefined') (window as unknown as { __bossDrink?: typeof BOSS_DRINK }).__bossDrink = BOSS_DRINK
+if (import.meta.env?.DEV && typeof window !== 'undefined') (window as unknown as { __bossFx?: typeof BOSS_FX }).__bossFx = BOSS_FX
+/** the parts of him that move on their own (his bones, after his body): his hands, what they hold, his moustache (bobbing as he talks
+ * and breathes); his face is a painted patch, its expression a frame of its sheet (scene/faceSheet) */
+const BOSS_BONES = ['BossHandL', 'BossHandR', 'BossTongs', 'BossFan', 'BossMoustache']
+/**
+ * setExpression for the owner: a face he's to make for a while (`face` till `until`, performance.now()), over what he'd show anyway (the
+ * character viewer's buttons, a moment's joy or alarm); and `at`, when it was set, for the squash and stretch it sets off.
+ */
+export const BOSS_FACE = { face: null as CrewFace | null, until: 0, at: -1e9 }
+export function setBossExpression(face: CrewFace, seconds = 2) {
+  BOSS_FACE.face = face
+  BOSS_FACE.until = performance.now() + seconds * 1000
+  BOSS_FACE.at = performance.now()
+}
+if (import.meta.env?.DEV && typeof window !== 'undefined') (window as unknown as { __bossFace?: typeof BOSS_FACE }).__bossFace = BOSS_FACE
+/**
+ * The owner as he's drawn, made once: his figure in the room is it, the character viewer a copy. Drawn in two draws (the owner's: a person
+ * in one or two; he was 27, then 9): all of him one material (scene/atlasMerge: the pictures on his coat, apron, trousers, hair and towel
+ * packed into one atlas, the plain parts' colours carried by their vertices, his eyes flat (unlit) by their vertices' paint), all of him one
+ * mesh moved in parts by the groups that move them (scene/rigidSkin: his hands, the tongs and the fan, his eyes in a group at their middle
+ * that closes as he blinks, his smile and his open mouth, each scaled to nothing while it's not shown), and one ink line round his inked
+ * pieces, bending with him.
+ */
+function styledBoss(scene: THREE.Group, fan: THREE.Object3D) {
+  if (!made) {
+    const r = scene.clone(true)
+    // (what's to be dressed (item 376): his body's picture (the coat's material on his body), his headband's, his towel's meshes)
+    DRESS.bands = []
+    r.traverse((o) => {
+      const mm = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined
+      if (!mm || Array.isArray(mm)) return
+      const img = mm.map?.image as Pic | undefined
+      if (/^BossCoat/.test(mm.name) && o.name === 'BossBody' && img) DRESS.body = img
+      else if (/^BossTenugui/.test(mm.name) && img && !DRESS.bands.includes(img)) DRESS.bands.push(img)
+      else if (/^BossTowel/.test(mm.name)) o.userData.towel = true
+    })
+    r.updateMatrixWorld(true)
+    // ---- the groups that move his eyes and his mouth, at their middles (the rest are his own nodes)
+    const holder = (name: string, test: RegExp) => {
+      const meshes: THREE.Mesh[] = []
+      r.traverse((o) => { if ((o as THREE.Mesh).isMesh && test.test(o.name)) meshes.push(o as THREE.Mesh) })
+      if (!meshes.length) return
+      const g = new THREE.Group()
+      g.name = name
+      const box = new THREE.Box3()
+      for (const e of meshes) box.expandByObject(e)
+      const at = meshes[0].parent!
+      at.add(g)
+      g.position.copy(at.worldToLocal(box.getCenter(new THREE.Vector3())))
+      g.updateMatrixWorld(true)
+      for (const e of meshes) g.attach(e)
+    }
+    holder('BossMoustache', /^BossMoustache/)
+    // ---- his uchiwa the shop's own (item 511): the fan from its holder by the seasonings (scene/uchiwa), its size there, for the little
+    // round of plain paper on a stick boss.py gave him (half that size, nothing like the one he'd taken up): that one out of his one mesh,
+    // the shop's put on its node once the mesh is made (below)
+    for (const c of [...(r.getObjectByName('BossFan')?.children ?? [])]) c.removeFromParent()
+    // ---- his face's sheet of expressions and his glasses' frames painted, for the atlas to take in
+    r.traverse((o) => {
+      const mm = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined
+      // (the face is the head's own front: its sheet over the skin's colour, where nothing's drawn the skin)
+      if (mm?.name === 'BossFace') { mm.map = crewFaceSheet('boss'); mm.color.copy(skinOf(r)) }
+    })
+    // ---- all of him one material, his face's sheet in it too
+    // (his clothes' folds and weave in the light (item 375): their normal map packed beside his picture (blender/boss.py's _body_normals))
+    atlasModel(r, () => true, (atlas, normals) => paintable(airbrush(new THREE.MeshToonMaterial({ color: '#ffffff', map: atlas, vertexColors: true, gradientMap,
+      ...(normals ? { normalMap: normals } : {}) })), { decal: true }))
+    // ---- each piece of him in his frame, with its part, inked or not, flat or not
+    r.updateMatrixWorld(true)
+    const inv = r.matrixWorld.clone().invert()
+    const bones: THREE.Object3D[] = [r, ...BOSS_BONES.map((n) => r.getObjectByName(n) ?? (() => { const g = new THREE.Group(); g.name = n; r.add(g); return g })())]
+    const boneOf = (o: THREE.Object3D) => {
+      for (let q: THREE.Object3D | null = o; q && q !== r; q = q.parent) { const k = bones.indexOf(q); if (k > 0) return k }
+      return 0
+    }
+    const pieces: SkinPiece[] = []
+    const meshes: THREE.Mesh[] = []
+    r.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh) })
+    let mat: THREE.Material | null = null
+    let face = -1
+    const towels: number[] = []
+    for (const m of meshes) {
+      mat = m.material as THREE.Material
+      if (m.name === 'BossFace') face = pieces.length
+      if (m.userData.towel) towels.push(pieces.length)
+      pieces.push({ geo: bakeable(m.geometry, new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld)), bone: boneOf(m), inked: !UNINKED.test(m.name), shadowless: HEAD.test(m.name), decal: m.name === 'BossFace' })
+      m.removeFromParent()
+      m.geometry.dispose()
+    }
+    const { mesh } = rigidFigure(r, pieces, mat!, bones, 0.006)
+    markFace(mesh, faceRange(pieces, face))
+    // (his towel's vertices in his one shape, their colour as made, and his atlas: what dressBoss changes)
+    DRESS.mat = mat
+    DRESS.worn = ''
+    DRESS.towel = towels.map((k) => {
+      let from = 0
+      for (let i = 0; i < k; i++) from += pieces[i].geo.attributes.position.count
+      const count = pieces[k].geo.attributes.position.count
+      return { geo: mesh.geometry, from, count, was: (mesh.geometry.attributes.color.array as Float32Array).slice(from * 3, (from + count) * 3) }
+    })
+    for (const p of pieces) p.geo.dispose()
+    mesh.castShadow = true
+    mesh.receiveShadow = true
+    // (the shop's uchiwa on the node his fan's moved by: its own mesh, drawn only while it's in his hand)
+    const fanNode = r.getObjectByName('BossFan')
+    if (fanNode) { fanNode.add(uchiwaInHand(fan)); fanNode.visible = false }
+    // (what's held starts put away)
+    for (const n of ['BossTongs', 'BossFan']) r.getObjectByName(n)?.scale.setScalar(0)
+    // (every part as he stands at rest, before the shop's frame moves any of it: a copy of him made later is put back to it (BossModel))
+    const rest: number[][] = []
+    r.traverse((o) => rest.push([...o.position.toArray(), ...o.quaternion.toArray(), ...o.scale.toArray(), o.visible ? 1 : 0]))
+    r.userData.rest = rest
+    made = r
+  }
+  return made
+}
+/** the owner standing still, a copy of him (developer mode's character viewer) */
+export function BossModel({ face = 'idle' }: { face?: CrewFace }) {
+  const gltf = useGLTF(URL) as unknown as { scene: THREE.Group }
+  const fan = useGLTF(UCHIWA_URL) as unknown as { scene: THREE.Group }
+  const regions = useLoader(THREE.TextureLoader, REGIONS_URL)
+  const obj = useMemo(() => {
+    const o = cloneFigure(styledBoss(gltf.scene, fan.scene))
+    // (as he stands at rest, not as the one in the shop was the moment he was copied (item 637: upstairs, the fan in his hand and his arm
+    // up through the quilt, copied as he fanned the coals): every part put back as it was made, what he holds put away)
+    const rest = o.userData.rest as number[][] | undefined
+    let i = 0
+    if (rest) o.traverse((q) => { const t = rest[i++]; if (!t) return; q.position.fromArray(t, 0); q.quaternion.fromArray(t, 3); q.scale.fromArray(t, 7); q.visible = t[10] === 1 })
+    return o
+  }, [gltf, fan])
+  // (dressed as chosen: his atlas and his shape are the room's own, shared)
+  useLayoutEffect(() => wearing(regions.image as Pic), [obj, regions])
+  useEffect(() => () => releaseFigure(obj), [obj])
+  // (his face his own here (its UVs), so what he shows doesn't change him in the room)
+  useLayoutEffect(() => ownShape(obj), [obj])
+  // (the face asked for, a blink every few seconds over it, and a squash and stretch as it changes (the viewer's buttons))
+  const t0 = useRef({ face, at: -1e9 })
+  useFrame(({ clock }) => {
+    const T = clock.elapsedTime
+    if (t0.current.face !== face) t0.current = { face, at: T }
+    setFace(obj, face === 'idle' && T % 3.4 < 0.15 ? 'blink' : face)
+    const moustache = obj.getObjectByName('BossMoustache')
+    // (from where it sits, not from the figure's feet: set outright, it fell to the stand (the owner saw it there))
+    if (moustache) { moustache.userData.rest ??= moustache.position.y; moustache.position.y = moustache.userData.rest + Math.sin(T * 1.6) * 0.003 }
+    const [w, h] = jelly(T - t0.current.at)
+    obj.scale.set(w, h, w)
+  })
+  return <primitive object={obj} />
+}
+/** the way he walks (his own frame, from his place): out to the aisle behind him at `mouth` (straight back out of the cook table's notch,
+ * where he stands at the fire), then along it, `dir`, as far as `range` either way: what he's sent to (a taste, a drink) he goes to the
+ * nearest of it on the aisle, and back again by the same way (the owner saw him walk into the table, round the notch's corner and into the
+ * cubby beside it) */
+export type BossAisle = { mouth: [number, number]; dir: [number, number]; range: [number, number]
+  /** the notch's wooden step, under his place: he's up on it (`h` high) till he's come `to` that far out along his way out */
+  step?: { to: number; h: number } }
+/** the next place to make for on his way to `goal` (his frame): coming out of the notch, straight back to its mouth first; going back into
+ * it, along the aisle to the mouth first and then straight in; the goal itself otherwise. So he never cuts across the table's corner, and
+ * never turns back and forth on the way (a target that flipped between the mouth and the goal as he passed it made him shake) */
+export function bossStep(at: [number, number], goal: [number, number], aisle?: BossAisle): [number, number] {
+  if (!aisle) return goal
+  const [mx, mz] = aisle.mouth
+  const mo = Math.hypot(mx, mz)
+  if (mo < 0.01) return goal
+  const ox = mx / mo, oz = mz / mo
+  const inside = (x: number, z: number) => x * ox + z * oz < mo - 0.06
+  const a = inside(at[0], at[1])
+  if (a === inside(goal[0], goal[1])) return goal
+  if (a) return [mx, mz]
+  return Math.abs(at[0] * oz - at[1] * ox) > 0.04 ? [mx, mz] : goal
+}
+/** `to`: the far end of his walk; `aisle`: the way he walks (BossAisle); `open`: the shop's open (his chef has the grill, he stays put); he
+ * mutters in `lang` */
+export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }: { to?: [number, number]; aisle?: BossAisle; open?: boolean; lang?: Lang
+  children?: ReactNode }) {
+  // ---- muttering to himself, always: by the game's clock, open or shut (game/talkTime's bossSituation, data/bossLines; item 372), never the
+  // same twice running. Shut, with the place to himself, a line every 7 to 11 s; open, he's at the grill and the shop's talk is the crew's
+  // (crewTalk): a line every 14 to 24 s (it was every 5 to 7 s, open or shut, and over the shop's own calls he was never quiet)
+  const [say, setSay] = useState<{ text: string; key: number } | null>(null)
+  /** (he's said he's munching, this taste) */
+  const chewSaid = useRef(false)
+  // (a drink he's been handed, in his hand while he drinks it)
+  const [drinkId, setDrinkId] = useState<DrinkId | null>(null)
+  const drinkRef = useRef<THREE.Group>(null)
+  // (his phone (item 475): where its feed's got to, and when he last flicked it)
+  const phoneRef = useRef<THREE.Group>(null)
+  const feed = useRef<{ at: number; flick: number; face: CrewFace; faceTill: number; on: boolean }>({ at: 0, flick: 0, face: 'happy', faceTill: 0, on: false })
+  const bowlRef = useRef<THREE.Group>(null)
+  const chopsRef = useRef<THREE.Group>(null)
+  useEffect(() => {
+    let last: { s: BossSituation; i: number } | null = null
+    let n = 0
+    let h = 0
+    const next = () => {
+      // (one bubble over him at a time (the owner's): while he's saying something to the shop (a greeting, a welcome: STAFF_TALK), his
+      // muttering waits)
+      if (STAFF_TALK.some((w) => (w.id === 'owner' || SPEAKERS.get(w.id) === SPEAKERS.get('owner')) && w.until > performance.now())) { h = window.setTimeout(next, 800); return }
+      // (nothing muttered from under his quilt, or as he lays it down or folds it up (item 444))
+      if (BOSS_BODY.bed !== 'off') { h = window.setTimeout(next, 1500); return }
+      // (nor over his phone (item 475): what he reads off it is what he says then)
+      if (feed.current.on) { h = window.setTimeout(next, 1500); return }
+      const s = bossSituation(getClock().minute, open)
+      const i = nextBossLine(s, last?.s === s ? last.i : null, Math.random())
+      last = { s, i }
+      setSay({ text: bossLineText(s, i, lang), key: ++n })
+      h = window.setTimeout(() => { setSay(null); h = window.setTimeout(next, open ? 10000 + Math.random() * 10000 : 3000 + Math.random() * 4000) }, 4200)
+    }
+    h = window.setTimeout(next, 1500)
+    // (a line said in the language just left goes with it)
+    return () => { window.clearTimeout(h); setSay(null) }
+  }, [open, lang])
+  const sayRef = useRef(say)
+  sayRef.current = say
+  const openRef = useRef(open)
+  const gltf = useGLTF(URL) as unknown as { scene: THREE.Group }
+  // (dressed as chosen (item 376): his clothes' patches of his atlas drawn again as they change, nothing else of him made again, nor drawn
+  // again by React)
+  const regions = useLoader(THREE.TextureLoader, REGIONS_URL)
+  const fan = useGLTF(UCHIWA_URL) as unknown as { scene: THREE.Group }
+  const root = useMemo(() => styledBoss(gltf.scene, fan.scene), [gltf, fan])
+  useLayoutEffect(() => wearing(regions.image as Pic), [root, regions])
+  const mover = useRef<THREE.Group>(null)
+  useEffect(() => {
+    const m = mover.current
+    if (!m) return
+    KITCHEN_FOLK.add(m)
+    FIGURES.set(m, 'owner')
+    return () => { KITCHEN_FOLK.delete(m); FIGURES.delete(m) }
+  }, [])
+  const body = useRef<THREE.Group>(null)
+  const parts = useMemo(() => ({
+    handR: root.getObjectByName('BossHandR'),
+    handL: root.getObjectByName('BossHandL'),
+    tongs: root.getObjectByName('BossTongs'),
+    fan: root.getObjectByName('BossFan'),
+    moustache: root.getObjectByName('BossMoustache'),
+  }), [root])
+  // (his moustache at rest, to bob from)
+  const tache = useMemo(() => parts.moustache?.position.clone() ?? new THREE.Vector3(), [parts])
+  /** the face he made last frame (a change sets off a squash and stretch) */
+  const faceWas = useRef<CrewFace>('idle')
+  /** his face's life (game/faceLife, item 368) */
+  const bossLife = useRef<FaceLife | null>(null)
+  /** the last line he started to say */
+  const saidKey = useRef(0)
+  /** where his right hand is really drawn, in the hand bone's own frame (worked out once): the bone's origin isn't at the hand (he's one
+   * skinned mesh, his parts' vertices hung from their bones some way off), so what he holds hangs from this */
+  const palm = useRef<THREE.Vector3 | null>(null)
+  const palmL = useRef<THREE.Vector3 | null>(null)
+  /** his palms' heights in the world as they're eased to where they're wanted at the fire (NaN: not at it) */
+  const palmY = useRef({ r: NaN, l: NaN })
+  const st = useRef({ last: 0, phase: 0, t: 0, x: 0, z: 0, yaw: 0, stride: 0, blinkAt: 2, blinks: 0, y: 0, vy: 0, ground: 0, probeAt: -1, probeX: 0, probeZ: 0, probeEdit: false })
+  const bed = useRef<BedTrip>({ phase: 'off', pts: [], len: 0, d: 0, t: 0, foot: new THREE.Vector3(), feet: new THREE.Vector3(), off: new THREE.Vector3(), head: new THREE.Vector3(), bar: 1, lie: 0 })
+  /** (item 637) the business day whose night he last went up for (once a night) */
+  const nightGone = useRef(-1)
+  /** (item 635, the owner's 「老闆可以用滑鼠左鍵拖曳」) him carried by the pointer: where it is, where he was taken from (his parent's frame);
+   * let go, where he's settling to and till when */
+  const carry = useRef<{ on: boolean; px: number; py: number; from: [number, number]; to: [number, number]; until: number } | null>(null)
+  /** (item 652) put down off his round's line by the player: since when (performance.now()), how long he stays there before going back of
+   * his own accord (sooner if he's wanted: the shop open, a taste or a drink for him, bed) */
+  const away = useRef<{ since: number; stay: number } | null>(null)
+  /** (item 652) each let-go's number: where he's to stand is worked out a moment after, and taken up again meanwhile, that one's dropped */
+  const dropToken = useRef(0)
+  /** (item 652) calls off the working out of where he's to stand, under way since he was let go */
+  const dropStop = useRef<(() => void) | null>(null)
+  const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null
+  // (asleep on it: the Zz over him)
+  const [asleep, setAsleep] = useState(false)
+  const scene = useThree((s) => s.scene)
+  const camera = useThree((s) => s.camera)
+  const gl = useThree((s) => s.gl)
+  const ray = useMemo(() => new THREE.Raycaster(), [])
+  /** what's under him (in his frame's height): the first solid surface straight down from his middle, anything drawn but himself and the
+   * editor's handles; the floor where he stands if nothing's found */
+  const groundBelow = (m: THREE.Object3D, x: number, z: number) => {
+    const frame = m.parent
+    if (!frame) return 0
+    const from = frame.localToWorld(new THREE.Vector3(x, 0.5, z))
+    ray.set(from, new THREE.Vector3(0, -1, 0))
+    // (the camera too: the scene's sprites (labels, glints) need it to be tested at all)
+    ray.camera = camera
+    // (only what could be under his feet, each tested on its own: what's shown (not the originals a batch has hidden, thousands of them),
+    // solid, not him, and no one else (a character's skinned body is costly to test, each vertex posed by its bones, and never the ground).
+    // Through the whole room as it was, tested and then thrown out, it was a fifth of a frame a time)
+    const hits: THREE.Intersection[] = []
+    const look = (o: THREE.Object3D) => {
+      if (!o.visible || o === m || o.userData.editHandle || o.name === 'edit-gizmo') return
+      const mesh = o as THREE.Mesh
+      if (mesh.isMesh && !(mesh as THREE.SkinnedMesh).isSkinnedMesh && solidStuff(mesh)) ray.intersectObject(mesh, false, hits)
+      for (const c of o.children) look(c)
+    }
+    look(scene)
+    hits.sort((a, b) => a.distance - b.distance)
+    return hits.length ? frame.worldToLocal(hits[0].point.clone()).y : 0
+  }
+  // ---- his own materials (so nothing else glows with him) and his ink line, for the glow over him when a drink's held to him
+  const { mats, inks } = useMemo(() => {
+    const set = new Set<THREE.Material>()
+    const ink: THREE.Object3D[] = []
+    root.traverse((o) => {
+      const m = (o as THREE.Mesh).material
+      if (!m) return
+      // (the ink line round him is drawn on its own back faces: it turns gold round him as he glows)
+      if (/outline/i.test(o.name) || (!Array.isArray(m) && m.side === THREE.BackSide)) {
+        ink.push(o)
+        // (his own copy of the line's material (it's shared by width with everyone's), so it can turn gold round him alone as he glows)
+        const sm = m as THREE.ShaderMaterial
+        if (!Array.isArray(m) && sm.isShaderMaterial && sm.uniforms?.uColor) (o as THREE.Mesh).material = sm.clone()
+        return
+      }
+      for (const x of Array.isArray(m) ? m : [m]) set.add(x)
+    })
+    // (hashed from the start: a fade only moves their opacity (at full, nothing's cut); switched on and off with each, the program each way
+    // was let go and linked again, a hitch every time he stepped in front of the camera or out of its way. One that's blended already
+    // fades by its blending: hashed, its soft edges would be cut to a dither for good)
+    for (const x of set) if (!x.transparent) { x.alphaHash = true; x.needsUpdate = true }
+    return { mats: [...set], inks: ink }
+  }, [root])
+  const glowWas = useRef(0)
+  const glowBase = useMemo(() => new Map<THREE.Material, { c: THREE.Color; i: number }>(), [])
+  // (what floats up over his head: his gulps while he drinks, his coins and hearts at the till's money)
+  const [gulu, setGulu] = useState(0)
+  const [joy, setJoy] = useState(0)
+  const gulps = useRef({ next: 0, n: 0 })
+  const joySeen = useRef(BOSS_FX.joyAt)
+  /** what floats over him (his words, gulps, coins): drei's Html draws them whether he's shown or not, so with him out on the floor his
+   * words hung on at his empty place; hidden with him */
+  const floats = useRef(new Set<HTMLElement>())
+  const floatEl = useCallback((el: HTMLElement | null) => { if (el) floats.current.add(el) }, [])
+  useFrame(({ clock }) => {
+    const m = mover.current
+    if (!m) return
+    // (out on the floor serving, drawn there by GuestBar3D: not here at his place meanwhile)
+    // (nor while he's upstairs with her (item 637))
+    m.visible = !OWNER_OUT.on && bed.current.phase !== 'upstairs'
+    for (const el of floats.current) {
+      if (!el.isConnected) { floats.current.delete(el); continue }
+      const vis = m.visible ? '' : 'hidden'
+      if (el.style.visibility !== vis) el.style.visibility = vis
+    }
+    // (always solid (the owner's, 2026-11-10): he faded to a dithered ghost of himself whenever he stood between the camera and what it was
+    // on, and at the fire, the grill's own view, that was a snow of dots over half the hearth)
+    // (the glow: steady and breathing while a drink's held over him, a flash fading over a second when one's set down for him)
+    const since = (performance.now() - BOSS_FX.glowAt) / 1000
+    const flash = since < 0 ? 0 : since < 0.15 ? since / 0.15 * 0.8 : Math.max(0, 0.8 * (1 - (since - 0.15) / 0.85))
+    const g = Math.max(BOSS_FX.hover && !getEdit().on ? 0.75 + 0.25 * Math.sin(clock.elapsedTime * 6) : 0, flash / 0.8)
+    if (g !== glowWas.current) {
+      glowWas.current = g
+      // (his body only a little lifted with the warm light; the glow's in his line, gone a bright gold and thicker, round him)
+      for (const x of mats) {
+        const t = x as THREE.MeshToonMaterial
+        if (!t.emissive) continue
+        if (!glowBase.has(t)) glowBase.set(t, { c: t.emissive.clone(), i: t.emissiveIntensity })
+        const base = glowBase.get(t)!
+        if (g > 0) { t.emissive.copy(GLOW); t.emissiveIntensity = 0.14 * g } else { t.emissive.copy(base.c); t.emissiveIntensity = base.i }
+      }
+      for (const o of inks) {
+        const sm = (o as THREE.Mesh).material as THREE.ShaderMaterial
+        if (!sm.uniforms?.uColor) continue
+        if (!glowBase.has(sm)) glowBase.set(sm, { c: sm.uniforms.uColor.value.clone(), i: sm.uniforms.uWidth.value })
+        const base = glowBase.get(sm)!
+        sm.uniforms.uColor.value.copy(base.c).lerp(GLOW_LINE, g)
+        sm.uniforms.uWidth.value = base.i * (1 + 1.4 * g)
+      }
+    }
+  })
+  // (his footfalls' puffs of dust, and how tall he stands in the world, measured once)
+  const steps = useRef(newSteps())
+  const tall = useRef(0)
+  useFrame(({ clock }) => {
+    const s = st.current
+    const T = clock.elapsedTime
+    // (the step from the clock itself, as the frame's delta runs short while the frames are paced)
+    const dt = Math.min(Math.max(0, T - s.last), 0.1)
+    s.last = T
+    if (import.meta.env.DEV) root.userData.st = s
+    const m = mover.current, b = body.current
+    if (!m || !b) return
+    const edit = getEdit().on
+    // (the shop opening or shutting: he starts his round over, from his place)
+    const shutting = SHOP_WAS.open && !open
+    SHOP_WAS.open = open
+    if (openRef.current !== open) { openRef.current = open; s.phase = 0; s.t = 0; s.x = 0; s.z = 0; away.current = null }
+    if (edit) away.current = null
+    // ---- (item 444) the nights he's worn out, as the shop's shut: off to the stair's foot by the staff's door, his futon down there, in under
+    // it, asleep; up again rested, or wanted (the shop opening, the player at his fire), the futon folded and taken off, back to his fire
+    const bd = bed.current, ff = BOSS_BED.futon
+    // (item 659: on his way home from where he was put down: the others give him room)
+    BOSS_BED.passing = !edit && bd.phase === 'back' && !!bd.home
+    if (edit && bd.phase !== 'off') { bd.phase = 'off'; ff.on = false; BOSS_BODY.bed = 'off'; setAsleep(false); s.x = 0; s.z = 0; s.y = 0; NIGHT_WITH.up = false }
+    // (no futon down unless he's at it: laying it, in it, or up and folding it (item 561, the owner's 「老闆起身厚，棉被殘留」: he was
+    // back at his fire, his own night's state begun again (drawn anew: a change of the code while he slept), and the futon, the shop's,
+    // was left lying out by the staff's door)
+    if (ff.on && bd.phase !== 'lay' && bd.phase !== 'sleep' && bd.phase !== 'rise') { ff.on = false; ff.fold = 0; ff.cover = 0; ff.unroll = 0; ff.pillow = 0 }
+    // (...nor asleep in the shop's eyes (App rests him by it, the office says so) when he isn't on his way or at it)
+    if (bd.phase === 'off' && BOSS_BODY.bed !== 'off') BOSS_BODY.bed = 'off'
+    // ---- (item 637, the owner's 「只要住宿是女生，好感度達到一定程度，在睡覺時間上樓有機率會恩愛」) a night together upstairs (App's
+    // NIGHT_WITH, settled as the shop shut): not to his futon but out by the staff's door and up the stair to her, once that night, worn out
+    // or not; the room upstairs draws him by her while he's up there; down again and back to his fire as she wakes (eleven: game/dormLife),
+    // or wanted (the shop opening, the player come to his fire)
+    if (bd.phase === 'off' && !edit && !open && !away.current && m.parent && NIGHT_WITH.id && NIGHT_WITH.day !== nightGone.current && BOSS_BED.way && BOSS_BED.frame
+      && dormDoing(getClock().minute) === 'sleep') {
+      const frame = BOSS_BED.frame
+      const w = BOSS_BED.way(frame.worldToLocal(m.getWorldPosition(new THREE.Vector3())))
+      if (w) {
+        nightGone.current = NIGHT_WITH.day
+        TO_BED.now = false
+        const mine = (p: THREE.Vector3) => m.parent!.worldToLocal(frame.localToWorld(p.clone()))
+        // (his way to his futon as far as its last turn by the door, then to the door's mouth and through it)
+        bd.pts = [...w.path.slice(0, -2), w.doorFront, w.door].map(mine)
+        bd.len = lengthOf(bd.pts)
+        bd.d = 0; bd.t = 0; bd.lie = 0
+        bd.phase = 'up'
+        BOSS_BODY.bed = 'going'; BOSS_BODY.since = performance.now()
+      }
+    }
+    // (item 652: put down away from his place, he goes home when it's time for something (the shop open, a taste or a drink for him, bed), or
+    // once he's stood there a while: his way back across the kitchen, or in from the room through the bar's gate (BOSS_BED.home), walked as
+    // his way back from his futon is; till then he stands where he was put, at what he can do anywhere)
+    if (away.current && bd.phase === 'off' && !edit && !carry.current && m.parent && BOSS_BED.frame) {
+      const wanted = open || !!(BOSS_TASTE.at ?? BOSS_DRINK.at) || TO_BED.now || (shutting && sleepsDown(BOSS_BODY.fatigue))
+      // (wanted, he's off after a moment's look round (he's come down where he was put first); else once he's stood there a while)
+      if (performance.now() - away.current.since > (wanted ? 1500 : away.current.stay * 1000)) {
+        const frame = BOSS_BED.frame
+        const here = frame.worldToLocal(m.getWorldPosition(new THREE.Vector3()))
+        const place = frame.worldToLocal(m.parent.localToWorld(new THREE.Vector3(0, 0, 0)))
+        const way = BOSS_BED.home?.(here, place) ?? [here, place]
+        const mine = (p: THREE.Vector3) => m.parent!.worldToLocal(frame.localToWorld(p.clone()))
+        bd.pts = way.map(mine)
+        bd.len = lengthOf(bd.pts)
+        bd.d = 0; bd.t = 0
+        bd.phase = 'back'; bd.home = true
+        // (item 659: the way in the world, for those in it to stand aside off it)
+        BOSS_BED.wayW = way.map((p) => frame.localToWorld(p.clone()))
+        away.current = null
+      }
+    }
+    if (bd.phase === 'off' && !edit && !open && !away.current && m.parent && BOSS_BED.way && BOSS_BED.frame && ((shutting && sleepsDown(BOSS_BODY.fatigue)) || TO_BED.now)) {
+      TO_BED.now = false
+      const frame = BOSS_BED.frame
+      const w = BOSS_BED.way(frame.worldToLocal(m.getWorldPosition(new THREE.Vector3())))
+      if (w) {
+        const mine = (p: THREE.Vector3) => m.parent!.worldToLocal(frame.localToWorld(p.clone()))
+        bd.pts = w.path.map(mine)
+        bd.len = lengthOf(bd.pts)
+        bd.d = 0; bd.t = 0; bd.lie = 0
+        bd.foot = mine(w.foot); bd.head = mine(w.head)
+        bd.bar = bd.foot.distanceTo(bd.head) / FUTON.L
+        bd.feet = bd.foot.clone().lerp(bd.head, FEET_IN / FUTON.L)
+        bd.off = bd.foot.clone().lerp(bd.head, -0.14 / FUTON.L)
+        bd.phase = 'go'
+        BOSS_BODY.bed = 'going'; BOSS_BODY.since = performance.now()
+        // (a word as he sets off, worn out; gone again as his muttering's are)
+        const k = Date.now()
+        setSay({ text: bedLineText(Math.random(), lang), key: k })
+        window.setTimeout(() => setSay((v) => (v && v.key === k ? null : v)), 4200)
+        const dir = w.head.clone().sub(w.foot)
+        ff.foot.copy(w.foot); ff.yaw = Math.atan2(dir.x, dir.z)
+        ff.on = false; ff.unroll = 0; ff.pillow = 0; ff.cover = 0; ff.fold = 0
+      }
+    }
+    const bedOn = bd.phase !== 'off' && !edit
+    let bedSpeed = 0
+    const toward = (to: number, rate: number) => turnTo(s, to, dt, rate)
+    if (bedOn) {
+      const hd = Math.atan2(bd.head.x - bd.foot.x, bd.head.z - bd.foot.z)
+      if (bd.phase === 'go' || bd.phase === 'back' || bd.phase === 'up') {
+        // (along his way; wanted on the way there, he turns back)
+        if ((bd.phase === 'go' || bd.phase === 'up') && (BOSS_BED.wanted || BOSS_BED.callAt > BOSS_BODY.since)) { bd.phase = 'back'; bd.pts = bd.pts.slice().reverse(); bd.d = Math.max(0, bd.len - bd.d) }
+        // (the staff's door slid open for him as he comes to it, going up or coming down (DiningRoom's StaffDoor))
+        if ((bd.phase === 'up' && bd.len - bd.d < 0.9) || (bd.phase === 'back' && NIGHT_WITH.day === nightGone.current && bd.d < 0.6)) STAFF_DOOR_HOLD.until = performance.now() + 900
+        // (his own pace there; back at a run if the shop's opening without him)
+        bedSpeed = bd.phase === 'back' && open ? RUN_SPEED * 0.8 : WALK_SPEED
+        const was = alongPts(bd.pts, bd.d, new THREE.Vector3())
+        bd.d = Math.min(bd.len, bd.d + bedSpeed * dt)
+        const p = alongPts(bd.pts, bd.d, new THREE.Vector3())
+        s.stride += p.distanceTo(was)
+        s.x = p.x; s.z = p.z; s.y = p.y
+        if (p.distanceTo(was) > 1e-5) toward(Math.atan2(p.x - was.x, p.z - was.z), 8)
+        if (bd.d >= bd.len - 1e-6) {
+          if (bd.phase === 'up') { bd.phase = 'upstairs'; bd.t = 0; NIGHT_WITH.up = true; NIGHT_WITH.at = performance.now(); BOSS_BODY.bed = 'asleep'; BOSS_BODY.since = performance.now() }
+          else if (bd.phase === 'go') { bd.phase = 'lay'; bd.t = 0; BOSS_BODY.bed = 'laying'; BOSS_BODY.since = performance.now(); ff.on = true }
+          else { bd.phase = 'off'; bd.home = false; BOSS_BODY.bed = 'off'; s.x = 0; s.z = 0; s.y = 0; s.phase = 0; s.t = 0 }
+          bedSpeed = 0
+        }
+      } else if (bd.phase === 'upstairs') {
+        // (up there with her: rested as if asleep (App's bossRest); down the stair as she wakes, or wanted, and back the way he came)
+        bd.t += dt
+        if (BOSS_BED.wanted || BOSS_BED.callAt > BOSS_BODY.since || dormDoing(getClock().minute) !== 'sleep') {
+          NIGHT_WITH.up = false
+          bd.phase = 'back'; bd.pts = bd.pts.slice().reverse(); bd.d = 0; BOSS_BODY.bed = 'off'
+          STAFF_DOOR_HOLD.until = performance.now() + 900
+        }
+      } else if (bd.phase === 'lay') {
+        bd.t += dt
+        const beat = layBeat(bd.t)
+        if ((BOSS_BED.wanted || BOSS_BED.callAt > BOSS_BODY.since) && beat.phase !== 'asleep') { bd.phase = 'rise'; bd.t = RISE_SKIP }
+        if (beat.phase === 'unroll' || beat.phase === 'pillow') {
+          // (stood at its foot, bent to it, spreading it out along to its head, then the pillow down at its head)
+          ff.unroll = beat.phase === 'unroll' ? beat.k : 1
+          ff.pillow = beat.phase === 'pillow' ? beat.k : 0
+          s.x = bd.off.x; s.z = bd.off.z; s.y = bd.off.y
+          toward(hd, 8)
+        } else if (beat.phase === 'lie') {
+          // (a step on to where his feet go, turned round, his back to its head; then down onto his back, onto it)
+          ff.unroll = 1; ff.pillow = 1
+          const step = easeIO(Math.min(1, beat.k / 0.35)), down = easeIO(Math.max(0, (beat.k - 0.35) / 0.65))
+          s.x = bd.off.x + (bd.feet.x - bd.off.x) * step; s.z = bd.off.z + (bd.feet.z - bd.off.z) * step
+          s.y = bd.off.y + FUTON.top * bd.bar * step
+          toward(hd + Math.PI, 6)
+          bd.lie = down
+        } else {
+          ff.unroll = 1; ff.pillow = 1; bd.lie = 1
+          ff.cover = beat.phase === 'cover' ? beat.k : 1
+          if (beat.phase === 'asleep') { bd.phase = 'sleep'; BOSS_BODY.bed = 'asleep'; BOSS_BODY.since = performance.now(); setAsleep(true) }
+        }
+      } else if (bd.phase === 'sleep') {
+        // (item 624: shaken with nothing to get up for: he lifts a little and settles again, the quilt left over him (item 631: sat up
+        // half way with it slid down, he came up through it))
+        bd.lie = 1; ff.cover = 1
+        if (wakesUp(BOSS_BODY.fatigue, BOSS_BED.wanted || BOSS_BED.callAt > BOSS_BODY.since)) { bd.phase = 'rise'; bd.t = 0; BOSS_BODY.bed = 'rising'; BOSS_BODY.since = performance.now(); setAsleep(false) }
+      } else if (bd.phase === 'rise') {
+        bd.t += dt
+        const beat = riseBeat(bd.t)
+        if (beat.phase === 'sit') {
+          // (the quilt thrown back off him first, as he lies, then up he sits (item 631, the owner's 「睡覺動畫有破綻」: he sat up as it was
+          // thrown back, through it, his arms and his shirt out through its top))
+          ff.cover = 1 - easeIO(Math.min(1, beat.k / 0.45))
+          bd.lie = 1 - 0.62 * easeIO(Math.max(0, (beat.k - 0.45) / 0.55))
+        } else if (beat.phase === 'stand') {
+          // (up onto his feet, a step back off it to its foot, turned to fold it)
+          ff.cover = 0
+          bd.lie = 0.38 * (1 - easeIO(beat.k))
+          const k = easeIO(beat.k)
+          s.x = bd.feet.x + (bd.off.x - bd.feet.x) * k; s.z = bd.feet.z + (bd.off.z - bd.feet.z) * k
+          s.y = bd.off.y + FUTON.top * bd.bar * (1 - k)
+          toward(hd, 6)
+        } else if (beat.phase === 'fold') {
+          bd.lie = 0; ff.fold = beat.k
+          s.x = bd.off.x; s.z = bd.off.z; s.y = bd.off.y
+          toward(hd, 8)
+        } else {
+          // (folded and taken off; back to his fire the way he came)
+          ff.on = false; ff.fold = 0; ff.cover = 0; ff.unroll = 0; ff.pillow = 0
+          bd.phase = 'back'; bd.pts = bd.pts.slice().reverse(); bd.d = 0; BOSS_BODY.bed = 'off'
+        }
+      }
+    }
+    const ROUNDS = open ? ROUND_OPEN : ROUND
+    if (edit) { s.phase = 0; s.t = 0; s.x = 0; s.z = 0; s.yaw = 0 }
+    const ph = ROUNDS[s.phase % ROUNDS.length]
+    s.t += edit ? 0 : dt
+    // (where he's going: the far end on the walk out, home on the run back; what he's doing when he's there)
+    // (swallowed: what he thinks of it, said as he turns back)
+    if (BOSS_TASTE.verdict !== null) {
+      setSay({ text: verdictLineText(tasteVerdict(BOSS_TASTE.verdict), Math.random(), lang), key: Date.now() })
+      BOSS_TASTE.verdict = null
+      chewSaid.current = false
+    }
+    let act: Phase['act'] | 'taste' | 'drink' | 'hold' | 'dab' | 'pierce' = ph.act
+    // (item 652: stood where he was put, not at his fire: no tongs, no fan, no walk of his round from there; he looks about, waves, or has his
+    // phone out as his round comes to it)
+    if (away.current && (act === 'tongs' || act === 'fan' || act === 'walk' || act === 'run')) act = 'idle'
+    let speed = 0
+    // (asked to taste: down his aisle to where it passes nearest the bowl, turned to it, and there he eats it; then back to his round)
+    // (or handed a drink: the same, and he drinks it)
+    const drinking = !BOSS_TASTE.at && !!BOSS_DRINK.at
+    const want = BOSS_TASTE.at ?? BOSS_DRINK.at
+    const ask = !edit && want && m.parent ? m.parent.worldToLocal(want.clone()) : null
+    // (at his fire through business: there to take things on and off it (Roasting's, while he's seen to be))
+    const grill = open && !edit && !ask && !OWNER_OUT.on
+    if (grill) OWNER_GRILL.seenAt = performance.now()
+    // (his height on his way and at his futon as worked out above: the floor's under his way (the dining room's higher than the kitchen's),
+    // not the ground's probe or the kitchen's floor his walk round keeps to)
+    const bedY = s.y
+    // (item 635: carried by the pointer, or let go and settling where he's put: nothing else moves him meanwhile)
+    const cr = carry.current
+    if (cr && m.parent && !bedOn) {
+      if (cr.on) {
+        const rect = gl.domElement.getBoundingClientRect()
+        RAY_NDC.set(((cr.px - rect.left) / rect.width) * 2 - 1, -((cr.py - rect.top) / rect.height) * 2 + 1)
+        CARRY_RAY.setFromCamera(RAY_NDC, camera)
+        const floorY = m.parent.localToWorld(CARRY_AT.set(0, s.ground, 0)).y
+        if (CARRY_RAY.ray.intersectPlane(CARRY_PLANE.set(UP, -floorY), CARRY_AT)) {
+          m.parent.worldToLocal(CARRY_AT)
+          const k = Math.min(1, dt * 16), vx = (CARRY_AT.x - s.x) * k
+          s.x += vx; s.z += (CARRY_AT.z - s.z) * k
+          b.rotation.z = Math.max(-0.5, Math.min(0.5, -vx * 18))
+        }
+      } else {
+        const k = Math.max(0, Math.min(1, 1 - (cr.until - performance.now()) / 260))
+        s.x += (cr.to[0] - s.x) * k; s.z += (cr.to[1] - s.z) * k
+        if (k >= 1) carry.current = null
+      }
+      act = 'idle'
+      s.t = 0
+    } else if (bedOn) {
+      // (his futon (item 444): where he is and which way he faces worked out above; a walk's waddle while he walks)
+      speed = bedSpeed
+      act = 'idle'
+    } else if (ask) {
+      // (the nearest he can come to it: on the aisle, by way of the notch's mouth; with no aisle given, along his walk's line, not behind it)
+      let goal: [number, number]
+      if (aisle) {
+        const [mx, mz] = aisle.mouth, [ax, az] = aisle.dir
+        const k = Math.max(aisle.range[0], Math.min(aisle.range[1], (ask.x - mx) * ax + (ask.z - mz) * az))
+        goal = [mx + ax * k, mz + az * k]
+      } else {
+        const len = Math.hypot(to[0], to[1]) || 1
+        const k = Math.max(0, Math.min(len, (ask.x * to[0] + ask.z * to[1]) / len))
+        goal = [(to[0] / len) * k, (to[1] / len) * k]
+      }
+      const [wx, wz] = bossStep([s.x, s.z], goal, aisle)
+      const dx = wx - s.x, dz = wz - s.z
+      const d = Math.hypot(dx, dz)
+      if (Math.hypot(goal[0] - s.x, goal[1] - s.z) > 0.03) {
+        speed = RUN_SPEED
+        const stepL = Math.min(d, speed * dt)
+        if (d > 1e-6) { s.x += (dx / d) * stepL; s.z += (dz / d) * stepL }
+        s.stride += stepL
+        turnTo(s, Math.atan2(dx, dz), dt, 9)
+        if (drinking) BOSS_DRINK.arrived = false
+        else BOSS_TASTE.arrived = false
+      } else if (drinking) {
+        turnTo(s, Math.atan2(ask.x - s.x, ask.z - s.z), dt, 7)
+        if (!BOSS_DRINK.arrived) {
+          // (he picks it up off the table: it's in his hand now)
+          BOSS_DRINK.arrived = true; BOSS_DRINK.since = T
+          const i = FRIDGE_STOCK.out.indexOf(BOSS_DRINK.item as (typeof FRIDGE_STOCK.out)[number])
+          if (i >= 0) { FRIDGE_STOCK.out.splice(i, 1); FRIDGE_STOCK.ver++ }
+          setDrinkId(BOSS_DRINK.id)
+        }
+        if (T - BOSS_DRINK.since > 1.6 && T - BOSS_DRINK.since - dt <= 1.6) setSay({ text: drinkLineText(Math.random(), lang), key: Date.now() })
+        if (T - BOSS_DRINK.since > 4.2) { BOSS_DRINK.at = null; BOSS_DRINK.id = null; BOSS_DRINK.item = null; BOSS_DRINK.arrived = false; setDrinkId(null) }
+        act = 'drink'
+      } else {
+        turnTo(s, Math.atan2(ask.x - s.x, ask.z - s.z), dt, 7)
+        if (!BOSS_TASTE.arrived) { BOSS_TASTE.arrived = true; BOSS_TASTE.since = T; BOSS_TASTE.chewing = false; setSay({ text: tasteLineText(Math.random(), lang), key: Date.now() }) }
+        // (once he bites in, what he says turns to munching)
+        if (BOSS_TASTE.chewing && !chewSaid.current) { chewSaid.current = true; setSay({ text: munchLineText(Math.random(), lang), key: Date.now() }) }
+        // (never left standing there: whatever it was is gone by now)
+        if (T - BOSS_TASTE.since > 10) { BOSS_TASTE.at = null; BOSS_TASTE.arrived = false }
+        act = 'taste'
+      }
+      s.t = 0
+      // (and when he's done, he runs back to his place and starts his round again from there)
+      const runIx = ROUNDS.findIndex((x) => x.act === 'run')
+      s.phase = runIx >= 0 ? runIx : 0
+    } else if (grill && OWNER_GRILL.on && m.parent) {
+      // (a piece in his hands, the board to the fire or the fire to the plating place: stood where the carry has him in the notch, turned to
+      // it, leaning in as he reaches and sets it)
+      const at = m.parent.worldToLocal(HAND_AT.copy(OWNER_GRILL.stand))
+      // (eased over, at a step's pace at most (the owner's: at x2 he shot across the notch in two or three frames, a jitter), never past it)
+      const dx = at.x - s.x, dz = at.z - s.z, d = Math.hypot(dx, dz)
+      if (d > 1e-4) { const go = Math.min(d, d * Math.min(1, dt * 8), dt * 1.4); s.x += (dx / d) * go; s.z += (dz / d) * go }
+      const f = m.parent.worldToLocal(HAND_AT.copy(OWNER_GRILL.face))
+      turnTo(s, Math.atan2(f.x - s.x, f.z - s.z), dt, 10)
+      act = 'hold'
+    } else if (!edit && !OWNER_OUT.on && performance.now() < OWNER_GRILL.pierceUntil && m.parent) {
+      // (the player skewering something on the board by hand (item 105): he stops where he is, turns to it and pushes the rod through with them)
+      const f = m.parent.worldToLocal(HAND_AT.copy(OWNER_GRILL.pierceAt))
+      turnTo(s, Math.atan2(f.x - s.x, f.z - s.z), dt, 10)
+      act = 'pierce'
+    } else if (grill && performance.now() < OWNER_GRILL.dabUntil) {
+      // (seasoning something on the fire: turned to it, a hand out over it)
+      turnTo(s, 0, dt, 6)
+      act = 'dab'
+    } else if (grill && performance.now() < OWNER_GRILL.fanUntil) {
+      // (the coals fanned a moment, half way through something salted)
+      turnTo(s, 0, dt, 5)
+      act = 'fan'
+    } else if (act === 'walk' || act === 'run') {
+      // (out along the aisle and back home, by way of the notch's mouth)
+      const [gx, gz] = act === 'walk' ? to : [0, 0]
+      const [wx, wz] = bossStep([s.x, s.z], [gx, gz], aisle)
+      const dx = wx - s.x, dz = wz - s.z
+      const d = Math.hypot(dx, dz)
+      speed = act === 'walk' ? WALK_SPEED : RUN_SPEED
+      if (Math.hypot(gx - s.x, gz - s.z) < 0.02) {
+        s.x = gx; s.z = gz
+        s.phase = (s.phase + 1) % ROUNDS.length; s.t = 0
+        speed = 0
+      } else {
+        const step = Math.min(d, speed * dt)
+        if (d > 1e-6) { s.x += (dx / d) * step; s.z += (dz / d) * step }
+        s.stride += step
+        turnTo(s, Math.atan2(dx, dz), dt, 9)
+      }
+    } else {
+      // (at a stop he turns back to face the fire; on his phone (item 475), round the other way, his back to the work, facing the room (and
+      // the player's views: from behind him the phone was hidden by him), a little slower, as one taking a break; and a moment into it,
+      // something on it read out, with a face to it)
+      const onPhone = act === 'phone'
+      turnTo(s, onPhone ? Math.PI : 0, dt, onPhone ? 3.5 : 5)
+      if (onPhone && s.t > 3.2 && s.t - dt <= 3.2) {
+        const l = phoneLine(Math.random())
+        setSay({ text: lineIn(l, lang), key: Date.now() })
+        feed.current.face = l.face; feed.current.faceTill = T + 2.2
+      }
+      if (s.t > ph.len) { s.phase = (s.phase + 1) % ROUNDS.length; s.t = 0 }
+    }
+    if (edit) act = 'idle'
+    // ---- gravity: he stands on whatever's under him, and if he's left in the air (put up high in the editor) he drops onto it, with a
+    // little bounce; walking, on the floor itself (his frame's), not on what the ray finds under him as he passes (a step's edge, a sack, a
+    // door swung open), which had him bob up and down (the owner's); in the notch, on its wooden step, and stepping up onto it and down off
+    // it smoothly as he walks
+    const deck = aisle?.step
+    const out = deck ? (s.x * aisle!.mouth[0] + s.z * aisle!.mouth[1]) / (Math.hypot(aisle!.mouth[0], aisle!.mouth[1]) || 1) : 0
+    if (deck && out < deck.to) s.ground = deck.h
+    else if (speed > 0) s.ground = 0
+    // (looked for again only when it may have changed: he's stopped somewhere new, or the editor's on (anything under him may be moved) or
+    // has just gone off; standing at his place all through business, it was five rays a second through the room for the same answer)
+    else if (s.probeAt < 0 || Math.hypot(s.x - s.probeX, s.z - s.probeZ) > 0.005 || edit !== s.probeEdit || (edit && T - s.probeAt > 0.2)) {
+      s.probeAt = T; s.probeX = s.x; s.probeZ = s.z; s.probeEdit = edit
+      s.ground = groundBelow(m, s.x, s.z)
+    }
+    const scale = m.parent?.getWorldScale(new THREE.Vector3()).y || 1
+    if (speed > 0) { s.y += (s.ground - s.y) * Math.min(1, dt * 14); s.vy = 0 }
+    else if (s.y > s.ground + 1e-4 || s.vy > 0) {
+      s.vy -= (9 / scale) * dt
+      s.y += s.vy * dt
+      if (s.y <= s.ground) { s.y = s.ground; s.vy = s.vy < -1.2 ? -s.vy * 0.28 : 0 }
+    } else { s.y = s.ground; s.vy = 0 }
+    if (bedOn) { s.y = bedY; s.vy = 0 }
+    // (held up off the floor as he's carried (item 635); let go, his fall's the one above, a bounce as he lands)
+    if (carry.current?.on) { s.y = s.ground + CARRY_UP; s.vy = 0 }
+    m.position.set(s.x, s.y, s.z)
+    m.rotation.y = s.yaw
+
+    // ---- the body: a waddle (up at each step, rocking, leaning in) when moving, breathing when not
+    const step = s.stride * (speed > 1 ? 2.6 : 3.4)
+    const moving = speed > 0
+    // (his footfalls' puffs of dust (scene/DustPuffs); not the viewer's copy of him)
+    if (!tall.current) { const bx = new THREE.Box3().setFromObject(m); if (!bx.isEmpty()) tall.current = bx.max.y - bx.min.y }
+    if (tall.current && m.visible) footDust(steps.current, m.getWorldPosition(FEET), moving ? Math.min(1, 0.6 + speed * 0.4) : 0, tall.current, dt, 'boss')
+    const run = speed > 1
+    const bob = moving ? Math.abs(Math.sin(step * Math.PI)) * (run ? 0.055 : 0.035) : 0
+    const squash = moving ? 1 - Math.abs(Math.cos(step * Math.PI)) * 0.04 : 1 + Math.sin(T * 1.6) * 0.012
+    b.position.y = bob
+    // (and Overcooked's squash and stretch, as he starts to say something or his face changes (BOSS_FACE.at))
+    const [jw, jh] = jelly((performance.now() - BOSS_FACE.at) / 1000)
+    b.scale.set((2 - squash) * jw, squash * jh, (2 - squash) * jw)
+    const lean = moving ? (run ? 0.26 : 0.09) : act === 'hold' ? OWNER_GRILL.lean : act === 'fan' ? 0.06 : act === 'dab' ? 0.12 : act === 'pierce' ? 0.14 : act === 'phone' ? 0.1 : 0
+    b.rotation.x += (lean - b.rotation.x) * Math.min(1, dt * 8)
+    b.rotation.z = moving ? Math.sin(step * Math.PI) * (run ? 0.13 : 0.09) : Math.sin(T * 0.7) * 0.025
+    // (a little hop of joy as he waves)
+    if (act === 'wave') b.position.y += Math.max(0, Math.sin(s.t * 5)) * 0.015
+    // (item 444: on his futon: lain back about his feet onto his back, lifted onto it by his back's depth; breathing slow asleep; bent over it
+    // as he spreads it out and folds it up)
+    if (bedOn) {
+      const bend = bd.phase === 'lay' && bd.lie === 0 && !(ff.unroll >= 1 && ff.pillow >= 1) ? 0.5 : bd.phase === 'rise' && ff.fold > 0 && ff.fold < 1 ? 0.45 : 0
+      if (bd.lie > 0) {
+        // (item 624: stirring, he sits up a little and lies down again; shaken, he wobbles where he lies)
+        b.rotation.x = -bd.lie * (1 - stirUp(bd)) * Math.PI / 2
+        b.rotation.z = performance.now() < (bd.shake ?? 0) ? Math.sin(T * 42) * 0.08 : 0
+        b.position.y = bd.lie * LIE_LIFT * bd.bar
+        if (bd.phase === 'sleep') { const br = Math.sin(T * 1.3) * 0.02; b.scale.set(1 + br, 1, 1 + br * 1.4) }
+      } else if (bend) b.rotation.x = bend
+    }
+
+    // ---- the hands
+    const R = new THREE.Vector3(), L = new THREE.Vector3()
+    // (at the fire, how high their palms are is so far over the cook table's top (OWNER_GRILL.top) in the world, not from his own middle:
+    // he stands on the kitchen's floor, the table's top at his chest (he stood up on it before (the owner saw), and these were his own);
+    // worked out below (palmTo), NaN: the pose's own)
+    let wantR = NaN, wantL = NaN
+    const at = (over: number) => OWNER_GRILL.top + over
+    if (moving) {
+      // (swinging, opposite each other, forward and back with each step, a little up as they come forward)
+      const sw = Math.sin(step * Math.PI) * (run ? 0.13 : 0.08)
+      R.set(0, Math.max(0, sw) * 0.6 + (run ? 0.05 : 0), sw)
+      L.set(0, Math.max(0, -sw) * 0.6 + (run ? 0.05 : 0), -sw)
+    } else if (act === 'tongs') {
+      // (both hands out in front, the tongs in the right; every so often a quick turn of whatever's on the fire)
+      const flip = Math.max(0, Math.sin(s.t * 2.2)) ** 6
+      R.set(-0.08, 0, 0.3 + flip * 0.04); wantR = at(0.22) + flip * 0.1
+      L.set(0.1, 0, 0.28); wantL = at(0.18)
+    } else if (act === 'hold') {
+      // (both hands out before him: low and forward reaching for it, up holding it over the table, down with it to its place: as high in the
+      // world as Roasting has them (OWNER_GRILL.handY))
+      wantR = wantL = Number.isFinite(OWNER_GRILL.handY) ? OWNER_GRILL.handY : at(OWNER_GRILL.hold ? 0.2 : 0.1)
+      if (OWNER_GRILL.hold) { R.set(-0.07, 0, 0.3); L.set(0.07, 0, 0.3) } else { R.set(-0.05, 0, 0.34); L.set(0.06, 0, 0.3) }
+    } else if (act === 'dab') {
+      // (the right hand out over the fire: the fingers rubbing salt off in quick little flicks, a brush drawn to and fro, a spoon tapped;
+      // the left held at his chest)
+      const k = OWNER_GRILL.dab
+      // (up at what's on the skewers, near his own head's height (they stand near as tall as he does): salt from up over it)
+      if (k === 'pinch') { R.set(-0.05, 0, 0.34); wantR = at(0.55) + Math.max(0, Math.sin(T * 22)) * 0.03 }
+      else if (k === 'brush') { R.set(-0.05 + Math.sin(T * 9) * 0.06, 0, 0.36); wantR = at(0.45) }
+      else { R.set(-0.05, 0, 0.34); wantR = at(0.5) + Math.abs(Math.sin(T * 12)) * 0.04 }
+      L.set(0.08, 0, 0.16); wantL = at(0.15)
+    } else if (act === 'pierce') {
+      // (the left hand down on what's on the board, holding it; the right out at its side pushing the rod in across it, in two shoves (as the
+      // second cook's at the board: StaffFigure's pierce))
+      const k = 1 - Math.max(0, OWNER_GRILL.pierceUntil - performance.now()) / 900
+      const shove = Math.min(1, k * 2) * 0.5 + Math.max(0, Math.min(1, k * 2 - 1)) * 0.5
+      L.set(0.06, 0, 0.32); wantL = at(0.08)
+      R.set(-0.24 + 0.2 * shove, 0, 0.3); wantR = at(0.1)
+    } else if (act === 'fan') {
+      R.set(-0.06, 0, 0.3); wantR = at(0.25)
+      L.set(0.08, 0, 0.2); wantL = at(0.12) + Math.sin(T * 1.6) * 0.016
+    } else if (act === 'taste') {
+      // (the bowl held up under his chin in the left hand; the right with the chopsticks bringing a bite up from it to his mouth, chewing)
+      const chew = Math.max(0, Math.sin((T - BOSS_TASTE.since) * 7))
+      R.set(-0.06, 0.24 + chew * 0.03, 0.2)
+      L.set(0.05, 0.16, 0.22)
+    } else if (act === 'drink') {
+      // (the bottle up to his mouth in the right hand, tipped up as he drinks, then down with a sigh; the left on his belly)
+      const u = T - BOSS_DRINK.since
+      const up = Math.min(1, u / 0.4) * (1 - Math.max(0, Math.min(1, (u - 3.4) / 0.6)))
+      R.set(-0.05, 0.12 + up * 0.2, 0.2 - up * 0.04)
+      L.set(0.04, 0.02, 0.1)
+    } else if (act === 'phone') {
+      // (item 475: the phone up before his chest in his right hand, his thumb flicking it up now and then (the hand nudged up as it goes),
+      // the left hand low under it)
+      const fl = Math.max(0, 1 - (T - feed.current.flick) / 0.25)
+      R.set(-0.06, 0.29 + fl * 0.012, 0.26)
+      L.set(0.05, 0.18, 0.22)
+    } else if (act === 'wave') {
+      const w = Math.sin(s.t * 9)
+      R.set(0.02 + w * 0.04, 0.32, 0.06)
+      L.set(0, 0.012 * Math.sin(T * 1.6 + 1), 0)
+    } else {
+      R.set(0, 0.012 * Math.sin(T * 1.6), 0)
+      L.set(0, 0.012 * Math.sin(T * 1.6 + 1), 0)
+    }
+    // (the palms to their heights at the fire: eased there in the world, and held there whatever his lean (leaning in, his body tips his
+    // hands down with it, and eased in his own frame they lagged, dipping into the table's edge as he reached))
+    const sm = palmY.current
+    sm.r = Number.isFinite(wantR) ? (Number.isFinite(sm.r) ? sm.r + (wantR - sm.r) * Math.min(1, dt * 14) : OWNER_GRILL.hand.y) : NaN
+    sm.l = Number.isFinite(wantL) ? (Number.isFinite(sm.l) ? sm.l + (wantL - sm.l) * Math.min(1, dt * 14) : OWNER_GRILL.hand.y) : NaN
+    const holdR = Number.isFinite(sm.r) && parts.handR && palm.current ? palmTo(parts.handR, palm.current, R, sm.r) : NaN
+    const holdL = Number.isFinite(sm.l) && parts.handL && palmL.current ? palmTo(parts.handL, palmL.current, L, sm.l) : NaN
+    if (parts.handR) { parts.handR.position.lerp(R, Math.min(1, dt * 12)); if (Number.isFinite(holdR)) parts.handR.position.y = holdR }
+    if (parts.handL) { parts.handL.position.lerp(L, Math.min(1, dt * 12)); if (Number.isFinite(holdL)) parts.handL.position.y = holdL }
+    // (where his hands are, for what he carries: between his two palms as they're drawn (the hands' bones aren't on them: drawnCentre))
+    if (grill && parts.handR && parts.handL) {
+      parts.handR.updateWorldMatrix(true, false); parts.handL.updateWorldMatrix(true, false)
+      palm.current ??= drawnCentre(root, parts.handR)
+      palmL.current ??= drawnCentre(root, parts.handL)
+      parts.handR.localToWorld(OWNER_GRILL.hand.copy(palm.current))
+      OWNER_GRILL.hand.add(parts.handL.localToWorld(HAND_AT.copy(palmL.current))).multiplyScalar(0.5)
+    }
+    // ---- what's in his hand: the tongs at the fire, the fan down the aisle; held at the right hand, swinging with it
+    const hand = REST.R.clone().add(parts.handR?.position ?? new THREE.Vector3())
+    // (the drink in his hand, tipped up to his mouth as he drinks)
+    // (gulping while the bottle's tipped up: a glug every half second or so, and 咕嚕咕嚕～♪ floating up, once a drink)
+    if (act === 'drink') {
+      const u = T - BOSS_DRINK.since
+      const gp = gulps.current
+      if (u < 0.1) { gp.next = 0.45; gp.n = 0 }
+      if (u > gp.next && u < 3.4) { gp.next = u + 0.42 + Math.random() * 0.12; gulpSound(); if (gp.n++ === 0) setGulu((v) => v + 1) }
+    }
+    // (the till's money taken: a line of delight, a hop, coins and hearts)
+    if (BOSS_FX.joyAt !== joySeen.current) {
+      joySeen.current = BOSS_FX.joyAt
+      setSay({ text: cashLineText(Math.random(), lang), key: Date.now() })
+      setJoy((v) => v + 1)
+      if (s.vy === 0 && speed === 0) s.vy = 1.9 / scale
+    }
+    const joyU = (performance.now() - BOSS_FX.joyAt) / 1000
+    if (joyU < 1.2) b.position.y += Math.abs(Math.sin(joyU * Math.PI * 3)) * 0.04 * (1 - joyU / 1.2)
+    if (drinkRef.current) {
+      drinkRef.current.visible = act === 'drink'
+      if (act === 'drink') {
+        const u = T - BOSS_DRINK.since
+        const up = Math.min(1, u / 0.4) * (1 - Math.max(0, Math.min(1, (u - 3.4) / 0.6)))
+        // (in his right hand, where the hand really is (the hand's place in the model's own units was a body's width off it, up in his
+        // head: he drank from an empty hand, the owner saw); stood in his palm, tipped back toward his mouth some 55 degrees as he drinks)
+        const dr = drinkRef.current
+        if (parts.handR && dr.parent) {
+          parts.handR.updateWorldMatrix(true, false)
+          palm.current ??= drawnCentre(root, parts.handR)
+          dr.position.copy(dr.parent.worldToLocal(parts.handR.localToWorld(HAND_AT.copy(palm.current)))).add(DRINK_IN_PALM)
+        } else dr.position.copy(hand).add(DRINK_IN_PALM)
+        dr.rotation.x = -up * 0.95
+      }
+    }
+    // (his phone in his right palm, tipped up to his eyes; a flick every second or so, the feed up a post, eased (item 475))
+    if (phoneRef.current) {
+      const ph = phoneRef.current
+      ph.visible = feed.current.on = act === 'phone'
+      if (act === 'phone') {
+        if (T - feed.current.flick > 1.1 + (Math.sin(T * 3.7) + 1) * 0.6) { feed.current.flick = T; feed.current.at += 0.125 }
+        if (PHONE_FEED && feed.current.at > 1 && PHONE_FEED.offset.y > 1) { feed.current.at -= 1; PHONE_FEED.offset.y -= 1 }
+        if (PHONE_FEED) PHONE_FEED.offset.y += (feed.current.at - PHONE_FEED.offset.y) * Math.min(1, dt * 9)
+        if (parts.handR && ph.parent) {
+          parts.handR.updateWorldMatrix(true, false)
+          palm.current ??= drawnCentre(root, parts.handR)
+          ph.position.copy(ph.parent.worldToLocal(parts.handR.localToWorld(HAND_AT.copy(palm.current)))).add(PHONE_IN_PALM)
+        } else ph.position.copy(hand).add(PHONE_IN_PALM)
+        ph.rotation.set(PHONE_TIP, Math.PI, 0, 'YXZ')
+      }
+    }
+    // (tasting: the bowl in his left palm, the chopsticks in his right, their tips up toward his mouth; where the tips are, for what's held)
+    {
+      const tasting = act === 'taste' && !!parts.handR && !!parts.handL
+      const bw = bowlRef.current, ch = chopsRef.current
+      if (bw && ch) {
+        bw.scale.setScalar(tasting ? 1 : SHRUNK)
+        ch.scale.setScalar(tasting ? 1 : SHRUNK)
+        if (tasting && bw.parent && ch.parent) {
+          parts.handR!.updateWorldMatrix(true, false); parts.handL!.updateWorldMatrix(true, false)
+          palm.current ??= drawnCentre(root, parts.handR!)
+          palmL.current ??= drawnCentre(root, parts.handL!)
+          bw.position.copy(bw.parent.worldToLocal(parts.handL!.localToWorld(HAND_AT.copy(palmL.current)))).add(BOWL_IN_PALM)
+          ch.position.copy(ch.parent.worldToLocal(parts.handR!.localToWorld(HAND_AT.copy(palm.current)))).add(CHOPS_IN_PALM)
+          // (pointing forward and in across him toward the bowl, their tips a little up; lifted toward his mouth on each bite: turned about the
+          // vertical first, then tipped (his model stands turned half round in the body's frame: its front is the frame's -z))
+          const chew = Math.max(0, Math.sin((T - BOSS_TASTE.since) * 7))
+          ch.rotation.set(-0.25 - chew * 0.45, Math.PI + 0.55, 0, 'YXZ')
+          ch.updateWorldMatrix(true, false)
+          ch.localToWorld(BOSS_TASTE.tip.copy(TIP_LOCAL))
+        }
+      }
+      BOSS_TASTE.tipOn = tasting
+    }
+    if (parts.tongs) {
+      // (kept in his hand through the breath between turning things at his fire (item 203: put out of being every 8.5 s, at each change of
+      // his round, and back))
+      parts.tongs.scale.setScalar(act === 'tongs' || (grill && act === 'idle') ? 1 : 0)
+      parts.tongs.position.copy(hand).add(new THREE.Vector3(-0.02, 0.0, 0.02))
+      parts.tongs.rotation.set(0.5 - Math.max(0, Math.sin(s.t * 2.2)) ** 6 * 0.5, -0.25, 0)
+    }
+    // (his uchiwa the one from the holder on the table: that one's not drawn there while it's in his hand (Decor's Fan))
+    OWNER_GRILL.fanning = act === 'fan'
+    // (the one in its holder hidden or shown this same frame (item 522: left to its own frame, which comes before his, it was a frame late))
+    if (OWNER_GRILL.stood) OWNER_GRILL.stood.visible = act !== 'fan'
+    if (parts.fan) {
+      parts.fan.scale.setScalar(act === 'fan' ? 1 : 0)
+      parts.fan.visible = act === 'fan'
+      parts.fan.position.copy(hand).add(new THREE.Vector3(0, 0.0, 0.02))
+      // (fanned to and fro at the fire, quick)
+      parts.fan.rotation.set(-0.5 + Math.sin(T * 13) * 0.55, 0, -0.15)
+    }
+
+    // ---- his face (setExpression): what he's doing says it (focused at the fan and the tongs, a squeezed-shut gulp as he drinks and a
+    // satisfied "ha" between gulps, munching as he tastes, alarm as a customer complains of the wait (RUSH), proud at the till's money), a
+    // moment's face asked for over it (BOSS_FACE); while a line's up over his head his mouth flaps open and shut in syllables; a blink every
+    // few seconds, now and then twice
+    // (a word to the shop over his head now (a greeting, a welcome): his muttering's bubble gives way, one bubble at a time)
+    if (sayRef.current && STAFF_TALK.some((w) => (w.id === 'owner' || SPEAKERS.get(w.id) === SPEAKERS.get('owner')) && w.until > performance.now())) { sayRef.current = null; setSay(null) }
+    const talking = !!sayRef.current
+    const now = performance.now()
+    const gape = talking && Math.sin(T * 17) + Math.sin(T * 7.3) * 0.6 > 0.2
+    let face: CrewFace = act === 'fan' || act === 'tongs' || act === 'hold' || act === 'dab' ? 'focused' : act === 'taste' ? (Math.sin((T - BOSS_TASTE.since) * 7) > 0.3 ? 'drink' : 'happy')
+      : act === 'drink' ? ((T - BOSS_DRINK.since) % 1.4 < 1 ? 'drink' : 'talk') : now - RUSH.at < 2500 ? 'panic' : now - BOSS_FX.joyAt < 2000 ? 'proud'
+      : act === 'wave' ? 'happy' : act === 'phone' ? (T < feed.current.faceTill ? feed.current.face : 'focused') : 'idle'
+    if (BOSS_FACE.face && now < BOSS_FACE.until) face = BOSS_FACE.face
+    // (item 444: asleep, his eyes shut; worn out, or getting up off his futon, tired)
+    const bedPhase = bed.current.phase
+    if (bedPhase === 'sleep' || (bedPhase === 'lay' && bed.current.lie > 0.6)) face = 'blink'
+    else if (bedPhase !== 'off' || (bossWorn(BOSS_BODY.fatigue) && face === 'idle')) face = 'tired'
+    // (the face's life over it (item 368, game/faceLife): a blink at no fixed beat that closes and opens, now and then twice; a new face
+    // through a blink; the mouth in syllables while a line of his is up (his muttering or a word to the shop); a glance aside, idle)
+    const word = talking || STAFF_TALK.some((w) => w.id === 'owner' && w.until > now)
+    const fl = (bossLife.current ??= newFaceLife(4.2, face, T))
+    const lifeNow = faceNow(fl, T, face, { free: face === 'idle' && act === 'idle', talk: word })
+    face = crewFrame(lifeNow.face as CrewFace, lifeNow)
+    void gape
+    // (a new face (not a blink, not the flap of a word) sets off a squash and stretch; so does starting to talk)
+    const settled = (f: CrewFace) => (f === 'blink' || f === 'half' || f === 'talk' || f === 'talkWide' || f === 'lookL' || f === 'lookR' ? 'idle' : f)
+    if (settled(face) !== settled(faceWas.current)) BOSS_FACE.at = now
+    if (sayRef.current && sayRef.current.key !== saidKey.current) { saidKey.current = sayRef.current.key; BOSS_FACE.at = now }
+    faceWas.current = face
+    setFace(root, face)
+    // (his moustache bobbing: with each breath, and up and down as he talks)
+    if (parts.moustache) parts.moustache.position.set(tache.x, tache.y + Math.sin(T * 1.6) * 0.003 + (face === 'talk' ? 0.006 : 0), tache.z)
+  })
+  /** (item 624) shaken where he sleeps: up if there's something to get up for (the shop opening, someone at his fire: BOSS_BED.wanted),
+   * else he stirs, mutters and sleeps on */
+  const poke = () => {
+    const bd = bed.current, now = performance.now()
+    bd.shake = now + 380
+    if (BOSS_BED.wanted) { BOSS_BED.callAt = now; return }
+    bd.stir = now + STIR_MS
+    setSay({ text: pick3('嗯……還沒開店吧……讓我再睡一下……', 'んん……まだ開店前だろ……もうちょっと……', 'Mm... not open yet... five more minutes...'), key: Date.now() })
+  }
+  /** (item 635) whether he can be taken up just now: up and about at his round, not mid-task (a piece in his hands, tasting, drinking,
+   * away from his fire) */
+  // (item 652: and on his way back from where he was put, he can be taken up again)
+  const canCarry = useMemo(() => () => !getEdit().on && (bed.current.phase === 'off' || (bed.current.phase === 'back' && !!bed.current.home)) && !OWNER_GRILL.on
+    && !OWNER_OUT.on && !BOSS_TASTE.at && !BOSS_DRINK.at, [])
+  const bossHint = useMemo(() => () => (bed.current.phase === 'sleep' ? pick3('睡著了｜按一下搖醒他（沒事的話會再睡）', '眠っている｜クリックで揺り起こす（用がなければまた寝る）', 'Asleep | click to shake him awake (nothing to do, he sleeps on)')
+    : canCarry() ? pick3('按住拖著走，放在哪裡就站在哪裡', 'ドラッグで運べる（下ろした所に立つ）', "Drag to carry him (he stands where he's put)") : ''), [canCarry])
+  const bossCursor = useMemo(() => () => (bed.current.phase === 'sleep' ? CURSOR_SHAKE : canCarry() ? CURSOR_GRAB : null), [canCarry])
+  /** (item 635) taken up by the pointer: carried after it, held off the floor, swinging; let go, down on his round's line near there and on
+   * with his round from it; (item 652) let go anywhere else in the shop, down there (or as near it as he'd stand clear), where he stays a
+   * while before he finds his way back */
+  const takeUp = (x: number, y: number, el: HTMLElement | null) => {
+    const s = st.current
+    // (taken up again on his way back: that way's off, he's carried from where he is)
+    const bd0 = bed.current
+    if (bd0.phase === 'back' && bd0.home) { bd0.phase = 'off'; bd0.home = false }
+    away.current = null
+    dropStop.current?.()
+    dropStop.current = null
+    carry.current = { on: true, px: x, py: y, from: [s.x, s.z], to: [s.x, s.z], until: 0 }
+    if (controls) controls.enabled = false
+    GRABBING.on = true
+    if (el?.style) el.style.cursor = CURSOR_HOLD
+    document.body.style.cursor = CURSOR_HOLD
+    const move = (ev: PointerEvent) => { const c = carry.current; if (c) { c.px = ev.clientX; c.py = ev.clientY } }
+    const up = () => {
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up)
+      if (controls) controls.enabled = true
+      GRABBING.on = false
+      document.body.style.cursor = ''
+      if (el?.style && el.style.cursor === CURSOR_HOLD) el.style.cursor = ''
+      const c = carry.current
+      if (!c) return
+      // (item 652, the owner's 「老闆被拖曳是可以放下位置的」: he comes down where he's let go, or the nearest place round it he'd stand clear
+      // (BOSS_BED.drop: a stool, a table, a wall there, beside it; over the bar, its aisle or the kitchen); only with nowhere near to stand, back
+      // where he was taken from. (Item 635 had him down on the nearest point of his round's line, or back where he was, 「我的位子在這邊啦」.)
+      c.on = false
+      c.until = performance.now() + 260
+      // (down where he's held first; where he's to stand worked out over the next few frames (the Optimization window's: done as he was let
+      // go it held that frame, 32 ms here, some 130 on a slower laptop), and he steps over to it if it isn't there)
+      // (from where he's drawn, not where the pointer had him: held over the cook table, its guard draws him at its edge (HearthGuard), and
+      // slid on from inside it he went through it, the guard's nearest edge turning over on the way, 0.3 to 0.4 m in a frame (the Tester
+      // window's))
+      const mv = mover.current, fr = BOSS_BED.frame
+      if (mv) { st.current.x = mv.position.x; st.current.z = mv.position.z }
+      c.to = [st.current.x, st.current.z]
+      // (stood there meanwhile, not off on his round's walk from it)
+      away.current = { since: performance.now(), stay: 60 }
+      const ask = mv?.parent && fr ? fr.worldToLocal(mv.getWorldPosition(new THREE.Vector3())) : null
+      const token = ++dropToken.current
+      const settle = (spot: THREE.Vector3 | null) => {
+        // (taken up again meanwhile: this let-go's done with)
+        if (token !== dropToken.current || carry.current?.on) return
+        dropStop.current = null
+        const m2 = mover.current, f2 = BOSS_BED.frame
+        let to: [number, number] = c.from
+        if (spot && m2?.parent && f2) { const q = m2.parent.worldToLocal(f2.localToWorld(spot)); to = [q.x, q.z] }
+        else setSay({ text: pick3('欸欸，放不下去啦。', 'おいおい、そこには立てんよ。', "Hey now, I can't stand there."), key: Date.now() })
+        const s2 = st.current
+        // (down beside where he was let go over something, in the landing's quarter second, as he comes down (walked out of it, he was in the
+        // serving counter a while); nowhere to stand near, back where he was as quickly, as a thing put where it can't go springs back)
+        const over = Math.hypot(to[0] - s2.x, to[1] - s2.z)
+        if (over > 0.005) carry.current = { on: false, px: c.px, py: c.py, from: c.from, to, until: performance.now() + 260 }
+        // (on his round's line where he's come down (his place to the aisle's mouth, and along the aisle), he's on his round from there; off
+        // it, he's been put somewhere: he stays a while, then finds his way back)
+        const segs: [number, number, number, number][] = []
+        if (aisle) {
+          const [mx, mz] = aisle.mouth, [ax, az] = aisle.dir
+          segs.push([0, 0, mx, mz], [mx + ax * aisle.range[0], mz + az * aisle.range[0], mx + ax * aisle.range[1], mz + az * aisle.range[1]])
+        } else segs.push([0, 0, to[0], to[1]])
+        let off = Infinity
+        for (const [x0, z0, x1, z1] of segs) {
+          const dx = x1 - x0, dz = z1 - z0, l2 = dx * dx + dz * dz || 1
+          const k = Math.max(0, Math.min(1, ((to[0] - x0) * dx + (to[1] - z0) * dz) / l2))
+          off = Math.min(off, Math.hypot(x0 + dx * k - to[0], z0 + dz * k - to[1]))
+        }
+        away.current = null
+        if (off > ON_ROUND) {
+          away.current = { since: performance.now(), stay: 10 + Math.random() * 6 }
+          if (spot) {
+            const r = Math.floor(Math.random() * 3)
+            setSay({ text: [pick3('哦？放這邊啊，好吧。', 'おっ？ここか、まあいいか。', 'Oh? Here, then. Fine.'),
+              pick3('嗯……換個地方站站也不錯。', 'ふむ……たまには場所を変えるのも悪くない。', "Hm... a change of spot's not bad."),
+              pick3('哎呀，被搬來搬去的。', 'おやおや、あちこち運ばれるな。', 'Oh my, carted about.')][r], key: Date.now() })
+          }
+        }
+      }
+      dropStop.current?.()
+      if (ask && BOSS_BED.drop) dropStop.current = BOSS_BED.drop(ask, settle)
+      else settle(null)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+    // (the pointer taken away (a touch turned into a scroll, the window left): let go of him there as if it were let up (item 643: he went
+    // on following the pointer till the next press and release))
+    window.addEventListener('pointercancel', up)
+  }
+  return (
+    <group ref={mover} name="BossFollow">
+      {children}
+      {/* (named as the pointer's over him; never to be dragged) */}
+      {/* (clicked: his clothes to choose (item 376, App's panel)) */}
+      {/* (item 624: asleep, a press shakes him awake, his own hand over him; item 635: up and about, taken hold of and carried; item 636: his
+          clothes are upstairs, a click on him opened them) */}
+      <FigureHit title={bossName} hint={bossHint} cursor={bossCursor} grabbable={canCarry} onPointerDown={(e) => {
+        if ((e.nativeEvent as PointerEvent).button !== 0 || getEdit().on) return
+        e.stopPropagation()
+        if (bed.current.phase === 'sleep') { poke(); return }
+        if (canCarry()) takeUp(e.nativeEvent.clientX, e.nativeEvent.clientY, e.nativeEvent.target as HTMLElement | null)
+      }} />
+      {/* (what he's muttering, over his head) */}
+      {say && !getEdit().on && (
+        <Html position={[0, 1.42, 0]} center zIndexRange={zr(20, 10)} style={NO_POINTER}>
+          <div className="g3-label" ref={floatEl}><span key={say.key} className="g3-bubble g3-say boss-say"><b className="say-who">{SPEAKERS.get('owner') ?? '老闆'}</b>{say.text}</span></div>
+        </Html>
+      )}
+      {gulu > 0 && !getEdit().on && (
+        <Html position={[0.18, 1.2, 0]} center zIndexRange={zr(20, 10)} style={NO_POINTER}>
+          <span key={gulu} ref={floatEl} className="boss-float boss-gulu">{lang === 'ja' ? 'ゴクゴク〜' : lang === 'en' ? 'Glug glug~' : '咕嚕咕嚕～'}<Glyph id="note" size="0.95em" /></span>
+        </Html>
+      )}
+      {joy > 0 && !getEdit().on && (
+        <Html position={[0, 1.3, 0]} center zIndexRange={zr(20, 10)} style={NO_POINTER}>
+          <span key={joy} ref={floatEl} className="boss-joy" aria-hidden="true">
+            {(['coin', 'heart', 'coin', 'heart', 'coin', 'heart'] as const).map((c, i) => <i key={i} className={`is-${c}`} style={{ '--i': i } as React.CSSProperties}><Glyph id={c} size={18} /></i>)}
+          </span>
+        </Html>
+      )}
+      <group ref={body}><primitive object={root} />
+        {/* (asleep on his futon (item 444): Zz rising off his head, as he lies) */}
+        {asleep && !getEdit().on && (
+          <Html position={[0, 1.3, 0]} center zIndexRange={zr(20, 10)} style={NO_POINTER}>
+            <span ref={floatEl} className="boss-zz" aria-hidden="true"><i>Z</i><i>z</i><i>z</i></span>
+          </Html>
+        )}
+        <group ref={drinkRef} name="boss-drink-held" visible={false}>{drinkId && <DrinkBottle id={drinkId} wet />}</group>
+        <group ref={phoneRef} name="boss-phone" visible={false}>
+          <mesh geometry={PHONE_BODY_GEO} material={PHONE_BODY_MAT} />
+          <mesh geometry={PHONE_SCREEN_GEO} material={PHONE_SCREEN_MAT} position-z={PHONE_D / 2 + 0.0008} />
+          <mesh geometry={PHONE_LENS_GEO} material={PHONE_LENS_MAT} position={[PHONE_W / 2 - 0.02, PHONE_H / 2 - 0.02, -PHONE_D / 2 - 0.0015]} />
+        </group>
+        <group ref={bowlRef} name="boss-taste-bowl" scale={SHRUNK}>
+          <mesh geometry={TASTE_BOWL_GEO} material={TASTE_BOWL_MAT} /><mesh geometry={TASTE_BAND_GEO} material={TASTE_BAND_MAT} />
+        </group>
+        <group ref={chopsRef} name="boss-chopsticks" scale={SHRUNK}>
+          <mesh geometry={CHOP_GEO} material={CHOP_MAT} position-x={-0.006} /><mesh geometry={CHOP_GEO} material={CHOP_MAT} position-x={0.006} rotation-y={-0.04} />
+        </group>
+      </group>
+    </group>
+  )
+}
+
+/** the middle of the vertices a bone carries as they're drawn, in the bone's own frame (a rigidly skinned figure: each vertex one bone's) */
+export function drawnCentre(root: THREE.Object3D, bone: THREE.Object3D) {
+  let sm: THREE.SkinnedMesh | null = null
+  root.traverse((o) => { const m = o as THREE.SkinnedMesh; if (!sm && m.isSkinnedMesh && m.skeleton.bones.includes(bone as THREE.Bone)) sm = m })
+  const out = new THREE.Vector3()
+  if (!sm) return out
+  const m = sm as THREE.SkinnedMesh
+  m.updateWorldMatrix(true, false)
+  m.skeleton.update()
+  const bi = m.skeleton.bones.indexOf(bone as THREE.Bone), si = m.geometry.attributes.skinIndex, pos = m.geometry.attributes.position
+  const v = new THREE.Vector3()
+  let n = 0
+  for (let i = 0; i < pos.count; i++) {
+    if (si.getX(i) !== bi) continue
+    v.fromBufferAttribute(pos, i)
+    m.applyBoneTransform(i, v)
+    out.add(v.applyMatrix4(m.matrixWorld))
+    n++
+  }
+  return n ? bone.worldToLocal(out.divideScalar(n)) : out
+}
+/** whether a mesh is something to stand on: shown (it and all above it), not see-through or a shadow, not part of him, not the editor's handles */
+/** whether a mesh's material is something to stand on: not a shadow (the floor's shadow-catching sheet, blob shadows and other see-through
+ * decals laid over things), not unseen */
+function solidStuff(o: THREE.Mesh) {
+  const mat = o.material as THREE.Material | THREE.Material[]
+  for (const mm of Array.isArray(mat) ? mat : [mat]) {
+    if (!mm.visible || !mm.colorWrite || (mm as THREE.ShadowMaterial).isShadowMaterial || (mm.transparent && (mm.opacity < 0.2 || !mm.depthWrite))) return false
+  }
+  return true
+}
+/** turn toward a heading, the short way round, `rate` of what's left each second and no faster than anyone turns (commuteWalk's turnEase,
+ * item 242: a share of it each frame, he turned a quarter round in one slow frame) */
+function turnTo(s: { yaw: number }, to: number, dt: number, rate: number) {
+  s.yaw = turnEase(s.yaw, to, dt, rate)
+}
+useGLTF.preload(URL)

@@ -1,4 +1,4 @@
-import { lightSwitchSound } from '@/shops/grill/restroomSound'
+import { lightSwitchSound } from '@/shops/grill/sounds/restroomSound'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { SWITCH_SPOT } from '@/game/world/shopState'

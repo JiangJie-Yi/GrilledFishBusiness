@@ -4,7 +4,7 @@
 
 import { isMac } from '@/game/system/navInput'
 import { useSyncExternalStore } from 'react'
-import { clearAllRenderPrefs, clearRenderPref, onRenderPrefs, renderPrefOf, setRenderPref } from './renderPrefs'
+import { clearAllRenderPrefs, clearRenderPref, onRenderPrefs, renderPrefOf, setRenderPref } from '@/shops/grill/editor/renderPrefs'
 import { RENDER_DEFAULT, type RenderPref } from '@/game/system/renderPrefs'
 import { EDIT_TEXT, pieceName } from '@/data/editText'
 import type { Lang } from '@/data/i18n'

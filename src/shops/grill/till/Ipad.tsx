@@ -1,0 +1,383 @@
+import { useMemo } from 'react'
+import { useGLTF } from '@react-three/drei'
+import { useFrame } from '@react-three/fiber'
+import * as THREE from 'three'
+import { inkModel } from '@/scene/render/inkHull'
+import { plainColours, mergeByMaterial } from '@/scene/render/StaticBatch'
+import { TILL_STATE, tipOver } from '@/shops/grill/bar'
+import { getEdit } from '@/shops/grill/edit'
+import type { Lang } from '@/data/i18n'
+import { drawGlyph } from '@/ui/art/glyphs'
+import { sharedAudio } from '@/scene/interact/sfx'
+
+/**
+ * The till's order tablet on its stand, from blender/ipad.py, in the frame the till had it (the stand's middle at the origin, the screen
+ * toward +z), held landscape. Unlike the room's toon things it's finished as it really is: bead-blasted aluminium and glass that catch the
+ * room's light, the lenses dark and glossy, a faint reflection over the screen; the screen shows a till app the way a tablet's OS draws it.
+ */
+const IPAD_URL = import.meta.env.BASE_URL + 'models/ipad.glb'
+/** the parts too small or too flat for an ink line */
+const UNINKED = /^Ipad(Screen|Glass|FrontCam|Grille|Port|Connector|BackLens|BackIris|Lidar|Flash|MicHole|TopButton|Volume|Logo|StandFoot|StandLedgePad)/
+
+/** each of the model's materials as it really looks */
+function realMaterial(src: THREE.MeshStandardMaterial): THREE.Material {
+  switch (src.name) {
+    case 'IpadAlu':
+      // (silver: metal enough to catch the light, not so much that the room's warm lamps turn it to bronze)
+      return new THREE.MeshPhysicalMaterial({ color: '#e8ebf0', map: src.map, metalness: 0.3, roughness: 0.5, envMapIntensity: 0.45 })
+    case 'IpadStand':
+      return new THREE.MeshPhysicalMaterial({ color: '#d2d6dc', metalness: 0.3, roughness: 0.45, envMapIntensity: 0.45 })
+    case 'IpadGlass':
+      return new THREE.MeshPhysicalMaterial({ color: '#08090b', metalness: 0, roughness: 0.06, clearcoat: 1, clearcoatRoughness: 0.03 })
+    case 'IpadLens':
+      return new THREE.MeshPhysicalMaterial({ color: '#07080b', metalness: 0.1, roughness: 0.02, clearcoat: 1, clearcoatRoughness: 0.01 })
+    case 'IpadRing':
+      return new THREE.MeshPhysicalMaterial({ color: '#46494f', metalness: 0.95, roughness: 0.22 })
+    case 'IpadIris':
+      return new THREE.MeshPhysicalMaterial({ color: '#2b3f80', metalness: 0.6, roughness: 0.08, iridescence: 0.8 })
+    case 'IpadFlashGlass':
+      return new THREE.MeshPhysicalMaterial({ color: '#efe6cf', roughness: 0.15, clearcoat: 1 })
+    case 'IpadLogo':
+      // (polished, as the maker's mark is: a mirror in the bead-blasted back)
+      return new THREE.MeshPhysicalMaterial({ color: '#f1f3f6', metalness: 1, roughness: 0.06 })
+    case 'IpadLogoStone':
+      return new THREE.MeshPhysicalMaterial({ color: '#c3c7cd', metalness: 0.9, roughness: 0.28 })
+    case 'IpadRubber':
+      return new THREE.MeshStandardMaterial({ color: src.color.clone(), roughness: 0.9 })
+    default:
+      return new THREE.MeshStandardMaterial({ color: src.color.clone(), map: src.map, roughness: src.roughness, metalness: src.metalness })
+  }
+}
+
+/** a soft streak of light across the screen's glass, as a window or lamp leaves on it */
+const GLARE = (() => {
+  if (typeof document === 'undefined') return null
+  const c = document.createElement('canvas')
+  c.width = 256
+  c.height = 180
+  const g = c.getContext('2d')!
+  const grad = g.createLinearGradient(0, 0, 256, 180)
+  grad.addColorStop(0, 'rgba(255,255,255,0.10)')
+  grad.addColorStop(0.32, 'rgba(255,255,255,0.03)')
+  grad.addColorStop(0.42, 'rgba(255,255,255,0.09)')
+  grad.addColorStop(0.5, 'rgba(255,255,255,0)')
+  grad.addColorStop(1, 'rgba(255,255,255,0)')
+  g.fillStyle = grad
+  g.fillRect(0, 0, 256, 180)
+  return new THREE.CanvasTexture(c)
+})()
+
+/**
+ * The till app on the screen, landscape, as the tablet's OS draws its apps: the status bar (time, date, Wi-Fi, battery), the app's nav bar,
+ * category tabs as a segmented control, the menu as rounded cards, the order on the right with the subtotal, tax, total and a big blue pay
+ * button, and the home indicator at the foot. System fonts, its greys and its blue.
+ */
+// (the screen's own proportions: 2752 x 2064, 4:3)
+const W = 1024, H = 768
+const SANS = '-apple-system, "SF Pro Text", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Segoe UI", sans-serif'
+const BLUE = '#007aff'
+/** the menu: name, price, the picture's colour, and its tab (1 焼き物, 2 飲み物, 3 定食, 4 小鉢; tab 0 shows all) */
+const ITEMS: [string, number, string, number][] = [
+  ['鮎の塩焼き', 420, '#f2c38b', 1], ['秋刀魚', 380, '#9fb7d9', 1], ['鯖の塩焼き', 400, '#a9c8a0', 1], ['焼きおにぎり', 160, '#e9d79c', 1],
+  ['ししとう', 120, '#b9d79a', 1], ['エリンギ', 140, '#d9c4a6', 1], ['生ビール', 180, '#f4d36b', 2], ['烏龍茶', 120, '#c9a27a', 2],
+  ['鮎定食', 1200, '#e8b98a', 3], ['秋刀魚定食', 1100, '#a8bfe0', 3], ['味噌汁', 150, '#d6b48a', 4], ['枝豆', 300, '#9fcf8a', 4],
+]
+const TABS = ['すべて', '焼き物', '飲み物', '定食', '小鉢']
+/**
+ * The tablet as the owner works it, by touching its screen: asleep it wakes at a touch; awake, the category tabs choose what's shown, a menu
+ * card adds one of it to the order, a line of the order takes one off, 会計する settles it (a sheet with the total, then a fresh order), and a
+ * touch on the home bar (or a minute untouched) puts it back to sleep
+ */
+const POS = { awakeUntil: 0, tab: 0, order: new Map<string, number>(), paid: 0, paidAt: -1e9, seq: 42, rev: 0 }
+const shown = () => ITEMS.filter((it) => POS.tab === 0 || it[3] === POS.tab)
+const orderLines = () => [...POS.order].filter(([, n]) => n > 0).map(([name, n]) => [name, n, n * (ITEMS.find((i) => i[0] === name)?.[1] ?? 0)] as [string, number, number])
+/** the layout's measures, shared by the drawing and the touches */
+const TAB = { x: 24, y: 96, w: 644, h: 32 }, CARD = { x: 24, y: 142, w: 152, h: 168, gx: 12, gy: 10 }
+const PANEL = { x: 692, w: W - 692 - 20 }
+const PAY = { x: PANEL.x + 16, y: H - 104, w: PANEL.w - 32, h: 52 }
+const yen = (n: number) => '¥' + n.toLocaleString('ja-JP')
+const rr = (g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => { g.beginPath(); g.roundRect(x, y, w, h, r) }
+/** the till app as it stands (POS's tab and order) */
+function drawPos(g: CanvasRenderingContext2D) {
+  g.textBaseline = 'middle'
+  // the app's background, the system's grouped grey
+  g.fillStyle = '#f2f2f7'
+  g.fillRect(0, 0, W, H)
+  // the status bar: the time and the date at the left, Wi-Fi and the battery at the right
+  g.fillStyle = '#000'
+  g.font = `600 17px ${SANS}`
+  g.fillText('9:41', 22, 16)
+  g.font = `500 17px ${SANS}`
+  g.fillText('10月26日(日)', 66, 16)
+  g.textAlign = 'right'
+  g.fillText('100%', W - 54, 16)
+  g.textAlign = 'left'
+  rr(g, W - 46, 9, 26, 13, 4); g.lineWidth = 1.3; g.strokeStyle = '#000'; g.stroke()
+  rr(g, W - 44, 11, 22, 9, 2.5); g.fill()
+  g.fillRect(W - 19, 13, 2, 5)
+  for (let k = 0; k < 3; k++) {
+    g.beginPath(); g.arc(W - 112, 22, 4 + k * 4, -Math.PI * 0.75, -Math.PI * 0.25); g.lineWidth = 2.2; g.stroke()
+  }
+  // the nav bar: a large title, a search field, the buttons in the system blue
+  g.font = `700 34px ${SANS}`
+  g.fillText('お会計', 24, 64)
+  rr(g, 170, 48, 300, 34, 10); g.fillStyle = '#e3e3e8'; g.fill()
+  g.fillStyle = '#8e8e93'; g.font = `400 16px ${SANS}`; g.fillText('メニューを検索', 206, 66)
+  drawGlyph(g, 'search', 183, 58, 16, '#8e8e93')
+  g.fillStyle = BLUE; g.font = `500 17px ${SANS}`; g.textAlign = 'right'; g.fillText('履歴', 668, 65); g.textAlign = 'left'
+  // the category tabs, a segmented control
+  rr(g, TAB.x, TAB.y, TAB.w, TAB.h, 9); g.fillStyle = '#e3e3e8'; g.fill()
+  const tw = TAB.w / TABS.length
+  rr(g, TAB.x + 2 + tw * POS.tab, TAB.y + 2, tw - 4, 28, 7); g.fillStyle = '#fff'; g.shadowColor = 'rgba(0,0,0,0.12)'; g.shadowBlur = 4; g.fill(); g.shadowBlur = 0
+  g.font = `700 17px ${SANS}`; g.fillStyle = '#000'; g.textAlign = 'center'
+  TABS.forEach((t, i) => g.fillText(t, TAB.x + tw * (i + 0.5), TAB.y + 17))
+  g.textAlign = 'left'
+  // the menu as cards: a picture swatch, the name, the price
+  const cw = CARD.w, ch = CARD.h
+  shown().forEach(([name, price, col], i) => {
+    const x = CARD.x + (i % 4) * (cw + CARD.gx), y = CARD.y + Math.floor(i / 4) * (ch + CARD.gy)
+    rr(g, x, y, cw, ch, 14); g.fillStyle = '#fff'; g.shadowColor = 'rgba(0,0,0,0.08)'; g.shadowBlur = 8; g.shadowOffsetY = 2; g.fill()
+    g.shadowBlur = 0; g.shadowOffsetY = 0
+    g.save(); rr(g, x, y, cw, 92, 14); g.clip(); g.fillStyle = col; g.fillRect(x, y, cw, 92)
+    g.fillStyle = 'rgba(255,255,255,0.35)'; g.beginPath(); g.ellipse(x + cw / 2, y + 48, 40, 24, -0.3, 0, Math.PI * 2); g.fill(); g.restore()
+    g.fillStyle = '#000'; g.font = `700 21px ${SANS}`; g.fillText(name, x + 12, y + 118, cw - 20)
+    g.fillStyle = '#6c6c70'; g.font = `600 19px ${SANS}`; g.fillText(yen(price), x + 12, y + 146)
+    const n = POS.order.get(name) ?? 0
+    if (n > 0) { g.beginPath(); g.arc(x + cw - 18, y + 18, 11, 0, Math.PI * 2); g.fillStyle = BLUE; g.fill(); g.fillStyle = '#fff'; g.font = `700 13px ${SANS}`; g.textAlign = 'center'; g.fillText(String(n), x + cw - 18, y + 18); g.textAlign = 'left' }
+  })
+  // the order, a panel down the right: its lines, the sums, the pay button
+  const px = PANEL.x, pw = PANEL.w
+  rr(g, px, 48, pw, H - 74, 16); g.fillStyle = '#fff'; g.fill()
+  g.fillStyle = '#000'; g.font = `700 24px ${SANS}`; g.fillText('ご注文', px + 18, 76)
+  g.fillStyle = '#8e8e93'; g.font = `500 14px ${SANS}`; g.textAlign = 'right'; g.fillText(`#${String(POS.seq).padStart(4, '0')}`, px + pw - 16, 77); g.textAlign = 'left'
+  let y = 112
+  const lines = orderLines()
+  if (!lines.length) { g.fillStyle = '#8e8e93'; g.font = `500 18px ${SANS}`; g.fillText('メニューをタップして追加', px + 18, y + 10) }
+  for (const [name, n, sum] of lines.slice(0, 6)) {
+    g.fillStyle = '#000'; g.font = `600 20px ${SANS}`; g.fillText(name, px + 18, y)
+    g.fillStyle = '#8e8e93'; g.font = `500 16px ${SANS}`; g.fillText(`× ${n}`, px + 18, y + 24)
+    g.fillStyle = '#000'; g.font = `600 20px ${SANS}`; g.textAlign = 'right'; g.fillText(yen(sum), px + pw - 18, y + 6); g.textAlign = 'left'
+    g.fillStyle = '#e5e5ea'; g.fillRect(px + 18, y + 40, pw - 36, 1)
+    y += 60
+  }
+  const total = lines.reduce((a, o) => a + o[2], 0)
+  const row = (a: string, b: string, yy: number, big = false) => {
+    g.fillStyle = big ? '#000' : '#6c6c70'; g.font = `${big ? 700 : 600} ${big ? 28 : 18}px ${SANS}`
+    g.fillText(a, px + 18, yy); g.textAlign = 'right'; g.fillText(b, px + pw - 18, yy); g.textAlign = 'left'
+  }
+  row('小計', yen(total), H - 200)
+  row('内消費税 (10%)', yen(Math.round(total / 11)), H - 174)
+  row('合計', yen(total), H - 136, true)
+  rr(g, PAY.x, PAY.y, PAY.w, PAY.h, 14); g.fillStyle = lines.length ? BLUE : '#b8c9e0'; g.fill()
+  g.fillStyle = '#fff'; g.font = `700 24px ${SANS}`; g.textAlign = 'center'; g.fillText('会計する', px + pw / 2, H - 78); g.textAlign = 'left'
+  // the home indicator
+  rr(g, W / 2 - 70, H - 12, 140, 5, 3); g.fillStyle = '#1c1c1e'; g.fill()
+  // (settled just now: a sheet with what was paid, for a moment)
+  if (performance.now() - POS.paidAt < 2200) {
+    g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, 0, W, H)
+    rr(g, W / 2 - 220, H / 2 - 130, 440, 260, 26); g.fillStyle = '#fff'; g.fill()
+    g.textAlign = 'center'
+    g.beginPath(); g.arc(W / 2, H / 2 - 60, 30, 0, Math.PI * 2); g.fillStyle = '#34c759'; g.fill()
+    g.strokeStyle = '#fff'; g.lineWidth = 6; g.beginPath(); g.moveTo(W / 2 - 13, H / 2 - 60); g.lineTo(W / 2 - 3, H / 2 - 49); g.lineTo(W / 2 + 15, H / 2 - 72); g.stroke()
+    g.fillStyle = '#000'; g.font = `700 30px ${SANS}`; g.fillText('お会計完了', W / 2, H / 2 + 5)
+    g.font = `700 44px ${SANS}`; g.fillText(yen(POS.paid), W / 2, H / 2 + 60)
+    g.textAlign = 'left'
+  }
+}
+/** the till app drawn once as it starts (for anything that wants a picture of it) */
+export const TILL_APP = (() => {
+  if (typeof document === 'undefined') return null
+  const c = document.createElement('canvas')
+  c.width = W
+  c.height = H
+  drawPos(c.getContext('2d')!)
+  return c
+})()
+
+/**
+ * What the tablet shows, by what's going on at the till (TILL_STATE.tablet, from game/till): at rest, the lock screen (dark, the time and the
+ * shop's name, "待機中"); in use with a queue, the order screen (the POS above, the queue's count on it); taking a card, the order screen under
+ * a payment sheet (the amount, "カードを端末に"). Redrawn only when that changes.
+ */
+const SCREEN = (() => {
+  if (typeof document === 'undefined' || !TILL_APP) return null
+  const c = document.createElement('canvas')
+  c.width = W
+  c.height = H
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace
+  t.anisotropy = 8
+  return { c, g: c.getContext('2d')!, t, key: '' }
+})()
+function drawScreen(mode: 'idle' | 'queue' | 'card', bill: number, queue: number) {
+  if (!SCREEN || !TILL_APP) return
+  const key = `${mode}|${bill}|${queue}|${POS.rev}|${performance.now() - POS.paidAt < 2200}`
+  if (SCREEN.key === key) return
+  SCREEN.key = key
+  const g = SCREEN.g
+  g.textBaseline = 'middle'
+  g.textAlign = 'center'
+  if (mode === 'idle') {
+    // (asleep: a dark lock screen, the time large, the shop and the app's name under it)
+    const grad = g.createLinearGradient(0, 0, 0, H)
+    grad.addColorStop(0, '#1b1d27'); grad.addColorStop(1, '#0c0d12')
+    g.fillStyle = grad
+    g.fillRect(0, 0, W, H)
+    g.fillStyle = 'rgba(255,255,255,0.92)'
+    g.font = `200 150px ${SANS}`
+    g.fillText('9:41', W / 2, H * 0.36)
+    g.font = `500 28px ${SANS}`
+    g.fillText('10月26日 日曜日', W / 2, H * 0.17)
+    g.fillStyle = 'rgba(255,255,255,0.7)'
+    g.font = `600 30px ${SANS}`
+    g.fillText('聞野 POS ・ 待機中', W / 2, H * 0.62)
+    g.font = `400 22px ${SANS}`
+    g.fillText('混雑時・カード決済時に起動', W / 2, H * 0.68)
+    rr(g, W / 2 - 70, H - 12, 140, 5, 3); g.fillStyle = 'rgba(255,255,255,0.8)'; g.fill()
+  } else {
+    drawPos(g)
+    // (the queue's count on the order screen, a red badge at its top)
+    if (queue > 0) {
+      rr(g, W / 2 - 110, 30, 220, 40, 20); g.fillStyle = '#ff3b30'; g.fill()
+      g.fillStyle = '#fff'; g.font = `700 22px ${SANS}`
+      g.fillText(`会計待ち ${queue} 組`, W / 2, 50)
+    }
+    if (mode === 'card') {
+      // (the payment sheet over it: dimmed behind, a white card in the middle with the amount and what to do)
+      g.fillStyle = 'rgba(0,0,0,0.38)'
+      g.fillRect(0, 0, W, H)
+      rr(g, W / 2 - 250, H / 2 - 190, 500, 380, 28); g.fillStyle = '#fff'; g.fill()
+      g.fillStyle = '#8e8e93'; g.font = `600 24px ${SANS}`
+      g.fillText('クレジットカード決済', W / 2, H / 2 - 140)
+      g.fillStyle = '#000'; g.font = `700 78px ${SANS}`
+      g.fillText(yen(bill), W / 2, H / 2 - 50)
+      // (a card going into a reader, drawn simply)
+      rr(g, W / 2 - 60, H / 2 + 20, 120, 76, 10); g.fillStyle = '#2f7fd0'; g.fill()
+      g.fillStyle = '#e8c56a'; g.fillRect(W / 2 - 40, H / 2 + 44, 26, 20)
+      g.fillStyle = '#000'; g.font = `500 24px ${SANS}`
+      g.fillText('カードを端末に挿入してください', W / 2, H / 2 + 135)
+    }
+  }
+  g.textAlign = 'left'
+  SCREEN.t.needsUpdate = true
+}
+drawScreen('idle', 0, 0)
+
+/** a touch on the screen, at (x, y) in the screen's pixels */
+function touch(x: number, y: number) {
+  const now = performance.now()
+  const awake = now < POS.awakeUntil || TILL_STATE.tablet
+  POS.awakeUntil = now + 60000
+  POS.rev++
+  if (!awake || now - POS.paidAt < 2200) return
+  // (the home bar: back to sleep)
+  if (y > H - 34 && Math.abs(x - W / 2) < 120) { POS.awakeUntil = 0; return }
+  if (y >= TAB.y && y <= TAB.y + TAB.h && x >= TAB.x && x <= TAB.x + TAB.w) { POS.tab = Math.min(TABS.length - 1, Math.floor((x - TAB.x) / (TAB.w / TABS.length))); return }
+  if (x < PANEL.x - 10) {
+    const col = Math.floor((x - CARD.x) / (CARD.w + CARD.gx)), row = Math.floor((y - CARD.y) / (CARD.h + CARD.gy))
+    const inCard = x - CARD.x - col * (CARD.w + CARD.gx) <= CARD.w && y - CARD.y - row * (CARD.h + CARD.gy) <= CARD.h
+    const it = col >= 0 && col < 4 && row >= 0 && inCard ? shown()[row * 4 + col] : undefined
+    if (it) POS.order.set(it[0], (POS.order.get(it[0]) ?? 0) + 1)
+    return
+  }
+  if (x >= PAY.x && x <= PAY.x + PAY.w && y >= PAY.y && y <= PAY.y + PAY.h) {
+    const total = orderLines().reduce((a, o) => a + o[2], 0)
+    if (total > 0) { POS.paid = total; POS.paidAt = now; POS.order.clear(); POS.seq++ }
+    return
+  }
+  // (a line of the order: one fewer of it)
+  const line = orderLines()[Math.floor((y - 112 + 24) / 60)]
+  if (line && y > 88) { const n = (POS.order.get(line[0]) ?? 0) - 1; if (n > 0) POS.order.set(line[0], n); else POS.order.delete(line[0]) }
+}
+
+export function IpadModel({ lang = 'zh' }: { lang?: Lang }) {
+  const gltf = useGLTF(IPAD_URL) as unknown as { scene: THREE.Group }
+  const root = useMemo(() => {
+    const r = gltf.scene.clone(true)
+    const mats = new Map<THREE.Material, THREE.Material>()
+    let screen: THREE.Mesh | null = null
+    r.traverse((o) => {
+      const m = o as THREE.Mesh
+      if (!m.isMesh) return
+      if (m.name === 'IpadScreen') { screen = m; return }
+      const src = m.material as THREE.MeshStandardMaterial
+      let t = mats.get(src)
+      if (!t) { t = realMaterial(src); mats.set(src, t) }
+      m.material = t
+      m.castShadow = !UNINKED.test(m.name)
+    })
+    inkModel(r, (m) => UNINKED.test(m.name), { width: 0.0009, weld: true })
+    if (screen) {
+      const s = screen as THREE.Mesh
+      // (the app, as bright as a screen is: glTF's UVs run top to bottom, the canvas's bottom to top)
+      const g = s.geometry.clone()
+      const uv = g.attributes.uv
+      for (let i = 0; i < uv.count; i++) uv.setY(i, 1 - uv.getY(i))
+      s.geometry = g
+      s.material = new THREE.MeshBasicMaterial({ map: SCREEN?.t ?? null, toneMapped: false })
+      // (and the glare on its glass, a hair in front)
+      const glare = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: GLARE, transparent: true, depthWrite: false, toneMapped: false }))
+      glare.position.z = 0.0002
+      glare.renderOrder = 2
+      glare.raycast = () => {}
+      s.add(glare)
+    }
+    // (the case, the stand and the cable drawn a few parts at a time; the screen, drawn on as the till's worked, on its own)
+    plainColours(r)
+    mergeByMaterial(r, (o) => o.name === 'IpadScreen')
+    return r
+  }, [gltf])
+  // (what's on the screen follows the till: asleep, the order screen, or a card being taken)
+  // (and the owner's touches: awake while it's being worked, or while the till has it in use)
+  useFrame(() => {
+    const awake = performance.now() < POS.awakeUntil
+    drawScreen(TILL_STATE.tablet ? (TILL_STATE.k >= 0 && TILL_STATE.card ? 'card' : 'queue') : awake ? 'queue' : 'idle', TILL_STATE.bill, TILL_STATE.tablet ? TILL_STATE.queue : 0)
+  })
+  const tip = lang === 'ja' ? tipOver('タブレット', '画面をタップして操作') : tipOver('平板', '點螢幕操作：點單、分類、結帳')
+  return (
+    // (handlers on a group round it: a primitive's own aren't attached)
+    <group {...tip} onClick={(e: { stopPropagation: () => void; object: THREE.Object3D; uv?: THREE.Vector2 }) => {
+      e.stopPropagation()
+      if (getEdit().on) return
+      tapSound()
+      // (where on the screen: its UVs were flipped to run top to bottom as the canvas does)
+      if (e.object.name === 'IpadScreen' && e.uv) touch(e.uv.x * W, (1 - e.uv.y) * H)
+      else { POS.awakeUntil = performance.now() + 60000; POS.rev++ }
+    }}>
+      <primitive object={root} />
+    </group>
+  )
+}
+/** a touch on the glass: the tablet's soft keyboard click, a very short muffled tick (a burst of noise through a low filter, over a faint
+ * low knock) */
+let audio: AudioContext | null = null
+function tapSound() {
+  try {
+    audio ??= sharedAudio()
+    const t = audio.currentTime
+    const n = Math.floor(audio.sampleRate * 0.03)
+    const buf = audio.createBuffer(1, n, audio.sampleRate)
+    const d = buf.getChannelData(0)
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (n * 0.12))
+    const src = audio.createBufferSource()
+    src.buffer = buf
+    const f = audio.createBiquadFilter()
+    f.type = 'bandpass'
+    f.frequency.value = 2600
+    f.Q.value = 0.9
+    const g = audio.createGain()
+    g.gain.value = 0.22
+    src.connect(f).connect(g).connect(audio.destination)
+    src.start(t)
+    const o = audio.createOscillator()
+    const og = audio.createGain()
+    o.frequency.setValueAtTime(320, t)
+    o.frequency.exponentialRampToValueAtTime(140, t + 0.03)
+    og.gain.setValueAtTime(0.05, t)
+    og.gain.exponentialRampToValueAtTime(0.0001, t + 0.04)
+    o.connect(og).connect(audio.destination)
+    o.start(t)
+    o.stop(t + 0.05)
+  } catch { /* (no sound to be had: the tablet works all the same) */ }
+}
+useGLTF.preload(IPAD_URL)

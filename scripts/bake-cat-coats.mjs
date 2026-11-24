@@ -1,4 +1,4 @@
-// The beckoning cats' coats written into their models' pictures (item 429): src/shops/grill/catCoat.ts works a coat out on a cat's picture
+// The beckoning cats' coats written into their models' pictures (item 429): src/shops/grill/decor/catCoat.ts works a coat out on a cat's picture
 // as the cat loads, a tenth of a second a picture on the page's own thread (nine of them, nearly a second as the shop came up). Run once with
 // the dev server up, with the game working them out (LuckyCat's and OwnLuckyCat's coatPicture calls on): each picture's coat is taken from
 // the page (window.__coats, dev only, worked out only with ?bakecoats), matched to the model's own image it was made from (their sizes, and

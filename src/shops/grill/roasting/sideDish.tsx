@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import * as THREE from 'three'
 import { sameProps } from '@/scene/kit/sameProps'
-import { PLUM_WARE, wareGeometry } from '@/shops/grill/ware'
+import { PLUM_WARE, wareGeometry } from '@/shops/grill/kitchen/ware'
 import { DISH_R, wareOnce } from './tools'
 
 /** A small round side dish (小皿) for onigiri and mochi, of the same set as the plates (plum blossom), inked. */

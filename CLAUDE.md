@@ -68,7 +68,7 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  app/  ←  App.tsx
 | `src/game/` | **純邏輯**（不碰 React 和 three），照領域分子資料夾（第 604 項）：`money/` 錢與帳（`economy.ts` 成本與定價、`till`、`daySummary`）、`kitchen/` 廚房與火（`taste.ts` 口味與評分、`research.ts` 研發、`fireTend`、`chefFlow`、`mode`）、`stock/` 庫存（`lots`、`drinkStock`、`freshness`）、`service/` 盤子與水槽（`plates`、`tray`、`sinkPile`）、`guests/` 客人（`stay`、`flow`、`reputation`、`takeout`）、`staff/` 員工（`hiring`、`shifts`、`commute`、`dormLife`）、`world/` 時間天氣燈（`clock`、`hours`、`weather`、`roomLights`、`shopState`）、`system/` 裝置與效能（`device`、`gpuTier`、`resume`）、`play/` 新手引導；共用型別 `types.ts` 在根 | data |
 | `src/scene/` | 各店共用的 3D 元件，分子資料夾（第 604 項）：`people/` 人物（`FolkFigure`、`StaffFigure`、表情 `faceSheet`）、`render/` 繪製與效能（`StaticBatch`、`WorldBatch`、`Prewarm`、裝置等級 `quality`、`studio`、`AnchoredLight`、`flatGate`、`ktx2`）、`effects/` 煙霧水滴影子（`Steam`、`BlobShadow`）、`interact/` 指標與提示（`hoverGlow`、`hoverTip`、`Html`、`sfx`）、`props/` 共用的擺設元件（`Dish`、`OpeningSpot`、`FloorPiece`）、`kit/` 小工具（`sameProps`、`steadyProps`、`hot`、`speed`）、`shaders/` | data、game |
 | `src/ui/` | 2D 介面，分子資料夾（第 604 項）：`panels/` 面板（菜單 `Menu`、辦公室 `Office`、收銀 `TillPanel`、評價 `Reputation`…）、`hud/` 畫面上常駐的（時鐘 `GameClock`、現金、今日目標、視角提示…）、`screens/` 整頁畫面（歡迎頁、載入、打烊結算、手機暫不開放…）、`art/` 圖示與插畫（`glyphs`、`GameIcons`、頭像、食物圖）、`kit/` 共用的 store 與小工具（`clockStore`、`uiSound`、`useDrag`、`FitLine`）、`admin/` 後台 | data、game、scene |
-| `src/shops/grill/` | 烤魚店的 3D 與互動（Roasting、吧台、客人、收銀櫃…） | data、game、scene、ui |
+| `src/shops/grill/` | 烤魚店的 3D 與互動：根目錄是兩邊溝通用的共用狀態 `bar.ts`、開發者模式 `edit.ts` 與三個大檔（`Roasting`、`GuestBar3D`、`DiningRoom`，各自拆出的部分在 `roasting/`、`guestbar/`、`dining/`）；其餘分子資料夾（第 604 項）：`kitchen/` 爐火、料理台、水槽、碗盤與鐵串、`sounds/` 音效、`till/` 收銀台、`decor/` 擺設（`Decor`、招財貓、頭盔、牆上的照片…）、`staff/` 老闆與員工（`Boss`、他們說的話、上下班的路）、`rooms/` 宿舍與廁所、`editor/` 店面編輯器（`Movable`、動線圖、角色預覽）、`stock/` 庫存面板 | data、game、scene、ui |
 | `src/app/` | App 組起來用的部分（第 604 項從 `App.tsx` 搬出）：場景 `Scene.tsx`、場景裡的小元件 `sceneParts.tsx`（視角攝影機、影子、地板…）、鏡頭 `camera.ts`、光 `lighting.ts`、渲染器 `renderer.ts`、存檔的鍵 `keys.ts`、日誌 `chatLog.tsx`、時刻 `timing.ts`、菜與供品 `dishes.ts`、共用的 hook `hooks.ts` | 全部 |
 | `src/App.tsx` | 把各部分組起來：存檔、帳本、營業模擬的計時器、介面 | 全部 |
 | `src/styles/` | 介面的樣式，一區一檔（`menu.css`、`office.css`、`till.css`…）；`src/index.css` 只照層疊的順序 `@import` 它們（第 604 項：原本 7,958 行一個檔） | （CSS） |
@@ -134,7 +134,7 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  app/  ←  App.tsx
 - 本機的 Claude Code 在這個專案開始工作時，若 `git fetch origin` 後 `origin/cloud-work` 有 `main` 沒有的提交，且工作目錄乾淨：合併它、跑 `npx tsc -b && npm test`、通過後**不要推 `main`**，除非使用者說；有衝突或失敗就停下來告訴使用者。
 - 店面編輯器（`editor.html`，遊戲裡按 G 開）調的位置存在瀏覽器裡；確定後把面板上的 offset 數值告訴雲端 chat，由它寫成預設值。
 
-## 開發者模式（`src/shops/grill/edit.ts`、`Movable.tsx`）
+## 開發者模式（`src/shops/grill/edit.ts`、`editor/Movable.tsx`）
 
 完整說明（操作、熱鍵、選取、群組與分區、軸心、渲染設定、角色預覽、面板）在 `docs/DETAILS.md` 同名的一節。新增或調整擺設時要守的：
 - **開發者模式是獨立的店面編輯器**（`editor.html`，第 178 項；dev 是 http://localhost:5173/editor.html）：遊戲裡按 **G** 在遊戲頁原地進出編輯模式（第 233 項，店主要的：不用重新載入），**Shift+G** 在新分頁開這個獨立編輯器；編輯器一打開就在編輯模式（不用按 G、Esc 不會離開），上方選單與工具列、左邊階層、右邊屬性、下方狀態列；**Ctrl+S 儲存**、檔案選單「捨棄未儲存的修改」、「試玩」先存再開遊戲分頁；有未儲存的修改時標題與狀態列會說，離開前會問。程式與量測裡要在遊戲頁面原地開關：`__edit.toggle()`。
@@ -184,7 +184,7 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  app/  ←  App.tsx
 | `Roasting.tsx` | 烤物的流程與點餐（`RoastingImpl`：火上的串、廚房的人、客人點菜）；其餘在 `roasting/`（第 604 項從這個檔拆出）：廚房的尺寸與站位 `kitchen`、人員與搬運 `crew`、走路 `crewWalk`、爐床 `hearth`、爐床禁區與讓路 `hearthGuard`、料理台 `cookTable`、吧台 `bar`（檯面 `barTop`、檯面下 `barCounter`、擺動門 `barGate`、餐具與抽屜 `barTableware`、座位的名牌 `seatTags`、座位與出菜的位置 `barPlaces`）、老闆的床與地圖 `bossBed`、串與盤子 `piece`（外觀 `pieceLook`）、外帶 `takeout`、上菜 `serving`、托盤 `tray`、小菜 `sideDish`、垃圾桶與籃子 `bins`、冒出的字 `pops`、共用的木紋與形狀 `common`、數值 `tuning` |
 | `GuestBar3D.tsx` | 客人（進出、坐下、上廁所、拿飲料、換拖鞋、淡出）、外場服務生（從閘門進出，走進廚房到主廚旁端裝好的菜、收盤、洗碗、烘碗、搬回碗盤櫃）、廚房補盤的人（碗盤櫃 → 出餐口）的流程（`GuestBar3DImpl`）；其餘在 `guestbar/`（第 604 項從這個檔拆出）：倉儲 `stocker`、店面與門 `shopFront`、入口 `entrance`、暖簾與燈籠 `lanterns`、收銀台 `register`（`Register`）、玄關與鞋櫃 `genkan`、地板 `floors`、座位與雨具 `seats`、上菜與水槽的數值 `service`、盤子 `plates`、外帶架與長凳 `takeoutStand`、名牌與時鐘 `labels`、人物的外觀 `looks`、老闆走路 `ownerWalker`、走道與擠過去 `aisle`、員工的手勢 `staffPoses`、網格加描線 `part`、貼圖 `decorTex`、步速 `walking` |
 | `DiningRoom.tsx` | 牆面的組裝 `DiningWall` 與場內擺設 `ShopProps`；各區在 `dining/`（第 604 項從這個檔拆出）：畫 `art`、圓窗與竹簾 `roundWindow`、牆上的牌子 `wallSigns`、牆上的菜單木牌 `menuTags`、男女廁所 `wc`、倉庫 `storeRoom`、員工門與樓梯 `staffDoor`、角落的用品 `supplies`、神棚 `shrine`、神棚板與供品 `altar`（`Altar`）、吊燈 `pendant`、飲料櫃 `fridge`（`DrinkFridge`；櫃內陳列 `fridgeStock`、瓶子 `bottles`、瓶身標籤與材質 `bottleGeometry`、飲料種類 `drinkKinds`、陳列架尺寸 `shelves`、杯子 `cups`）、酒樽與柳樹 `props`、酒箱 `crates`、喇叭 `speaker`、逃生燈 `exitSign`、開關 `switches`、米袋 `riceSacks`；共用的 `base`（牆的尺寸、畫布貼圖、木板）、`ambient`（晝夜的光、語言） |
-| `Decor.tsx` | 料理台上的擺設：炭箱、扇子、行燈、飯桶與作業台 |
+| `decor/Decor.tsx` | 料理台上的擺設：炭箱、扇子、行燈、飯桶與作業台 |
 | `ui/screens/PhoneClosed.tsx` | 手機不用 3D（`game/system/device.ts` 的 `showsFlat`，BDD `device`：寬不到 600px、或高不到 500px（橫拿）、或瀏覽器說自己是手機（`phoneDevice`：userAgentData.mobile，沒有就看 iPhone、iPod、Android 手機……）；平板與電腦是網頁，一律完整的 3D，店主要的）：手機只顯示「手機版（2D）暫不開放」（直接放進 `body`、蓋住一切）。以前的 2D 手機版（`Grill2D`、`Grill2DArt`、2D 吧台 `ui/GuestCounter`、手機的客人看板與供酒按鈕、手機尺寸的 CSS）第 188 項整個拿掉了（店主 2026-11-16：「原本的2D手機板先移除，做專案減肥」） |
 
 每件擺設與每個流程的細節（客人、外場、灶台、廁所、飲料櫃、收銀、炊飯、鐵串、碗盤、評價、水電、時鐘…）在 `docs/DETAILS.md` 的「烤魚店的 3D 店面」一節，用搜尋找，只讀那一段。

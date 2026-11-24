@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { inkTogether } from '@/scene/render/inkHull'
-import { CARD_CHARS, CORK_NOTES, paintWallSigns, SIGNS_PX, WALL_LEDGE, WALL_PIECES, WALL_SIGNS, type WallPiece } from '@/shops/grill/wallPhotos'
+import { CARD_CHARS, CORK_NOTES, paintWallSigns, SIGNS_PX, WALL_LEDGE, WALL_PIECES, WALL_SIGNS, type WallPiece } from '@/shops/grill/decor/wallPhotos'
 import { signTexture } from '@/scene/props/signFont'
 import { nameOver } from '@/shops/grill/bar'
-import { Movable } from '@/shops/grill/Movable'
+import { Movable } from '@/shops/grill/editor/Movable'
 
 /**
  * The corner by the way in where the visitors have left their mark (item 295, the owner's, 2026-11-17: 「靠近玄關的門處牆壁會有些美食家的簽名及
