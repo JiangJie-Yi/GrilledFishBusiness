@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useRef } from 'react'
+import { NAMED_PIECES } from '@/data/editText'
 import { BOSS_BED, FLOOR_CHECK, FUTON, SEATS_SAT, seatsOf } from '@/shops/grill/bar'
 import { useGLTF } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
@@ -572,7 +573,11 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
           return cm.whose(u - CROSS_HALF, u + CROSS_HALF, v - CROSS_HALF, v + CROSS_HALF)
         }
         FLOOR_CHECK.pieceAt = (p) => {
-          for (let q: THREE.Object3D | null = meshAt(p); q; q = q.parent) if (q.userData.editId) return String(q.userData.editId)
+          // (or what isn't a piece of the editor's but is known by its name: the skewer buckets (item 678: 「穿過家具」, nothing said what))
+          for (let q: THREE.Object3D | null = meshAt(p); q; q = q.parent) {
+            if (q.userData.editId) return String(q.userData.editId)
+            if (NAMED_PIECES[q.name]) return q.name
+          }
           return ''
         }
         // (in development: the mesh itself, for the checks; and when it was made)

@@ -211,6 +211,9 @@ export const PASS_ROOM = 0.13
  * head and glasses 2 to 9 cm into it, coming round the counter's end with the fish (tests/e2e/sinkin.mjs, _route591.mjs). As much as
  * leaves the way between the counter's back and the freezer open (0.33 closed it: the fish fetched the long way round, a quarter slower) */
 export const HEAD_HIGH = ['sake-station-bottle']
+/** (item 678, the owner's 「這甚麼?」 on the map of the ways' 「穿過家具（4 條路）」) what stands on the kitchen's floor that isn't one of the editor's
+ * pieces, found by its name: the skewer buckets by the cook table (kitchen/SkewerStore), the owner's ways went through the used one */
+export const NAMED_BLOCKS = ['skewer-tray', 'skewer-holder']
 export const HEAD_ROOM = 0.27
 /** and the more a server's own place is kept off it, their hands hanging at their sides (the bar's units: 0.1, 20 cm in the world) */
 export const HOME_ROOM = 0.1

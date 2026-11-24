@@ -334,6 +334,13 @@ for (const [zh, en] of [['富士山', 'Mt Fuji'], ['浪花', 'Waves'], ['錦鯉'
   PIECES_EN[`掛軸（${zh}）`] = `Scroll (${en})`
 }
 PIECES_EN['圓窗'] = 'Round window'
+/** (item 678, the owner's 「這甚麼?」 on 「穿過家具（4 條路）」) what stands on the floor that isn't one of the editor's pieces, by its name in the
+ * scene, for the map of the ways to say what a way goes through: the skewer buckets by the cook table */
+export const NAMED_PIECES: Record<string, string> = { 'skewer-tray': '回收鐵串木桶', 'skewer-holder': '鐵串木桶' }
+PIECES_JA['回收鐵串木桶'] = '使用済み鉄串の木桶'
+PIECES_JA['鐵串木桶'] = '鉄串の木桶'
+PIECES_EN['回收鐵串木桶'] = 'Used skewer bucket'
+PIECES_EN['鐵串木桶'] = 'Skewer bucket'
 /** a piece's name in the panel's language */
 export function pieceName(zh: string, lang: Lang) {
   if (lang === 'en') {
