@@ -59,7 +59,7 @@ import { fairPrice } from '@/game/economy'
 import { getClock, minutesNow } from '@/ui/clockStore'
 import { crewAnswer, crewEcho } from './crewTalk'
 import { sideChance } from '@/game/sides'
-import { overstayed } from '@/game/stay'
+import { gaveUpOnNext, overstayed } from '@/game/stay'
 import { RICE_SIDE, riceName } from '@/data/sides'
 import { SHAPE_S, fromTray, takeRice } from '@/game/rice'
 import { SOUP_SERVE_S, SOUP_SIDE, soupReady, takeBowl } from '@/game/soup'
@@ -401,7 +401,7 @@ const EAT_SECONDS = 3
 /** a customer's piece takes longer, the food on the plate going bite by bite (the owner's: 8 to 14 seconds a dish; game time, so faster at
  * x2); and how long one who's eaten waits for the rest of what they ordered before getting up to pay for what they've had */
 const GUEST_EAT_SECONDS = 8
-const NEXT_DISH_WAIT = 25
+// (how long one who's eaten waits for the next before getting up: game/stay's NEXT_WAIT, item 630)
 const BITES_PER_PIECE = 4
 const UP = new THREE.Vector3(0, 1, 0)
 const ZERO = new THREE.Vector3()
@@ -8786,11 +8786,11 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       // at an empty plate for ever)
       // (or hurried out half an hour past closing (SHOP.hurry), nothing before them: up to pay for what they've had, the rest refunded)
       // (or sat their time out (game/stay, item 207): up to pay for what they've had, the rest given back)
-      if ((g.state === 'eating' && !FED.has(g.id) && now - (g.lastAte ?? now) > NEXT_DISH_WAIT + GUEST_EAT_SECONDS) || (SHOP.hurry && !FED.has(g.id))
+      if ((g.state === 'eating' && !FED.has(g.id) && gaveUpOnNext(g.lastAte ?? now, now)) || (SHOP.hurry && !FED.has(g.id))
         || (g.ate.length > 0 && !FED.has(g.id) && overstayed(g.since, now))) {
         const owed = [...g.orders]
         for (const a of g.ate) owed.splice(owed.indexOf(a), 1)
-        const why = SHOP.hurry && !FED.has(g.id) ? 'hurry' : g.state === 'eating' && now - (g.lastAte ?? now) > NEXT_DISH_WAIT + GUEST_EAT_SECONDS ? 'next' : 'stay'
+        const why = SHOP.hurry && !FED.has(g.id) ? 'hurry' : g.state === 'eating' && gaveUpOnNext(g.lastAte ?? now, now) ? 'next' : 'stay'
         g.state = 'done'
         if (!SHOP.hurry || g.ate.length === 0) gripe(g.id, 'wait')
         onWalkOut?.(owed, g.id, why)
