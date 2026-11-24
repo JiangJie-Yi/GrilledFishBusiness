@@ -24,7 +24,13 @@ type Away = { off: THREE.Vector3; offL: THREE.Vector3; drawn: THREE.Vector3; las
   /** (in development: how far they went on their own this frame, and how far the step aside moved them) */
   own?: number; aside?: number }
 const AWAYS = new Map<THREE.Object3D, Away>()
-if (import.meta.env.DEV && typeof window !== 'undefined') Object.assign(window, { __aways: AWAYS })
+/** (item 659 b, c; dev: `__awayFix.b` / `.c = false` as before) b: one who stops just before him steps aside sooner, the nearer he is
+ * (AWAY_STILL far off, down to AWAY_QUICK at his heels: he walks home at a jog, and in a quarter second was on them); c: one who sets off on
+ * their own while stood aside is let back onto their own way as they go (they carried the step aside off with them, 0.4 m off their way,
+ * till he was by) */
+const AWAY_FIX = { b: true, c: true }
+const AWAY_QUICK = 0.05, AWAY_JOG = 4
+if (import.meta.env.DEV && typeof window !== 'undefined') Object.assign(window, { __aways: AWAYS, __awayFix: AWAY_FIX })
 /** whether one's stepping aside for him just now, or back from it (item 659 d: their step's no walk of theirs to make way for) */
 export function steppingAside(o: THREE.Object3D) {
   const a = AWAYS.get(o)
@@ -90,7 +96,11 @@ function standAside(boss: THREE.Object3D | null) {
     if (import.meta.env.DEV) a.own = own
     AWAY_WANT.set(0, 0, 0)
     const inWay = on && off < AWAY_CLEAR + (a.to ? 0.15 : 0) && ahead > -AWAY_PAST && ahead < AWAY_AHEAD
-    if (inWay && !a.to && a.still >= AWAY_STILL && (!clear || clear(AWAY_W, AWAY_HALF))) {
+    // (set off on their own again: back onto their own way as they go, not drawn off it all the way)
+    if (AWAY_FIX.c && a.to && a.still === 0 && own > 0.004) a.to = null
+    // (how long they've to stand before they step aside: less the nearer he is, as long as he takes to come up to them)
+    const still = AWAY_FIX.b ? Math.min(AWAY_STILL, Math.max(AWAY_QUICK, (ahead - AWAY_CLEAR) / AWAY_JOG)) : AWAY_STILL
+    if (inWay && !a.to && a.still >= still && (!clear || clear(AWAY_W, AWAY_HALF))) {
       // (the nook: the nearest place round them, rings of 10 cm out to AWAY_REACH, sixteen ways each (back toward him only if nearer by a
       // hand), AWAY_OFF off his way ahead and clear for a body turned sideways)
       let best: THREE.Vector3 | null = null, bestCost = Infinity
