@@ -181,7 +181,7 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  app/  ←  App.tsx
 | 檔案 | 內容 |
 |---|---|
 | `bar.ts` | 店面的共用資料與純計算（不含 React）：吧台 `GRILL_COUNTERS`（`shift` 座位位移、`far` 牆距）、座位 `seatsOf`、整間地板 `roomOf`、閘門 `BAR_GATES`/`gateOf`、收銀台 `TILL`、廁所 `toiletsOf`、飲料櫃 `fridgeOf`/`DRINKS`、玄關 `GENKAN`/`inGenkan`、盤子堆 `PLATE_STACKS`、醬油碟位置 `sauceSide`；以及兩邊溝通用的狀態 `SERVICE`（裝好的菜與外場）、`PLATING`（主廚裝盤處的盤子與位置，`platingOf`）、`PLATES_OUT`、`PLATER_OUT`、`DRYER`、`SINK_BIN`、`SEAT_STICKS`、`SEATS_TAKEN`、`PLATES_SET`、`TOILETS`、`POINTER_HINT` |
-| `Roasting.tsx` | 爐火、料理台、吧台本體（`Bar`、`BarCounter`、`BarGate` 擺動門）、烤物的流程與點餐 |
+| `Roasting.tsx` | 烤物的流程與點餐（`RoastingImpl`：火上的串、廚房的人、客人點菜）；其餘在 `roasting/`（第 604 項從這個檔拆出）：廚房的尺寸與站位 `kitchen`、人員與搬運 `crew`、走路 `crewWalk`、爐床 `hearth`、爐床禁區與讓路 `hearthGuard`、料理台 `cookTable`、吧台 `bar`（檯面 `barTop`、檯面下 `barCounter`、擺動門 `barGate`、餐具與抽屜 `barTableware`、座位的名牌 `seatTags`、座位與出菜的位置 `barPlaces`）、老闆的床與地圖 `bossBed`、串與盤子 `piece`（外觀 `pieceLook`）、外帶 `takeout`、上菜 `serving`、托盤 `tray`、小菜 `sideDish`、垃圾桶與籃子 `bins`、冒出的字 `pops`、共用的木紋與形狀 `common`、數值 `tuning` |
 | `GuestBar3D.tsx` | 客人（進出、坐下、上廁所、拿飲料、換拖鞋、淡出）、外場服務生（從閘門進出，走進廚房到主廚旁端裝好的菜、收盤、洗碗、烘碗、搬回碗盤櫃）、廚房補盤的人（碗盤櫃 → 出餐口）、盤子、地板、玄關、收銀台 `Register` |
 | `DiningRoom.tsx` | 牆面的組裝 `DiningWall` 與場內擺設 `ShopProps`；各區在 `dining/`（第 604 項從這個檔拆出）：畫 `art`、圓窗與竹簾 `roundWindow`、牆上的牌子 `wallSigns`、牆上的菜單木牌 `menuTags`、男女廁所 `wc`、倉庫 `storeRoom`、員工門與樓梯 `staffDoor`、角落的用品 `supplies`、神棚 `shrine`、神棚板與供品 `altar`（`Altar`）、吊燈 `pendant`、飲料櫃 `fridge`（`DrinkFridge`；櫃內陳列 `fridgeStock`、瓶子 `bottles`、瓶身標籤與材質 `bottleGeometry`、飲料種類 `drinkKinds`、陳列架尺寸 `shelves`、杯子 `cups`）、酒樽與柳樹 `props`、酒箱 `crates`、喇叭 `speaker`、逃生燈 `exitSign`、開關 `switches`、米袋 `riceSacks`；共用的 `base`（牆的尺寸、畫布貼圖、木板）、`ambient`（晝夜的光、語言） |
 | `Decor.tsx` | 料理台上的擺設：炭箱、扇子、行燈、飯桶與作業台 |
