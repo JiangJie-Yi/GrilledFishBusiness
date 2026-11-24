@@ -5473,7 +5473,10 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       // (their tray down for an errand, and on the way back from one; up again for what's carried on it and at their place)
       if (TRAY_ERRANDS.has(w.phase)) w.trayDown = true
       else if (w.phase !== 'back') w.trayDown = false
-      if (o) o.userData.trayDown = !!w.trayDown
+      // (and put by from the first moment of tipping what's cleared into the sink (item 591): held before them as they came up, it was in the
+      // sink's cabinet below its top, 13 cm, for the frames their hands took to reach in (StaffFigure puts it by once they're half way); stood
+      // back no further, the step stool under them)
+      if (o) o.userData.trayDown = !!w.trayDown || w.phase === 'drop'
       // (washing up at the sink, by hand or into the washer: the scrubbing motion (StaffFigure's scrub))
       if (o) o.userData.scrub = w.phase === 'wash' || w.phase === 'handwash' ? w.t : undefined
       // (pouring a customer's sake themself (no plater): both hands where the pour has them (item 177)); and the tray it's carried out on

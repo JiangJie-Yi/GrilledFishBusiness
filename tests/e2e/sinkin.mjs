@@ -14,7 +14,7 @@ const { browser, page } = await boot({ width: 1440, height: 860 })
 await openShop(page, { x2: true, at: Number(process.env.AT ?? 18 * 60) })
 if (!process.env.CALM) await rush(page)
 await page.waitForTimeout(Number(process.env.WARM ?? 15000))
-const res = await page.evaluate(async ({ WATCH, STEP, TOL, only, who, BOX }) => {
+const res = await page.evaluate(async ({ WATCH, STEP, TOL, only, who, BOX, JOBTOL }) => {
   const T = window.__THREE, s = window.__scene
   const onlySet = only ? new Set(only.split(',')) : null
   // (the furniture: every edit piece's solid meshes, their boxes in their own frames; not what's carried or eaten, not see-through, not
@@ -133,7 +133,7 @@ const res = await page.evaluate(async ({ WATCH, STEP, TOL, only, who, BOX }) => 
         // flags their walk sets for the figure (lean, carry, prep, scrub…))
         let job = ''
         const ws = window.__waiters?.current ?? []
-        for (const w of ws) if (w?.pos && w.pos.distanceTo(f.o.position) < 0.02) job = `phase ${w.phase}`
+        for (const w of ws) if (w?.pos && w.pos.distanceTo(f.o.position) < +(JOBTOL || 0.02)) job = `phase ${w.phase}`
         if (f.o.name === 'plater-walker' || f.o.parent?.name === 'plater-walker') job = `plater ${window.__platerRun?.current?.phase ?? '?'}`
         const ud = f.o.userData ?? {}
         const flags = Object.entries(ud).filter(([k, x]) => k !== 'staffId' && k !== 'role' && (typeof x === 'number' ? Math.abs(x) > 0.01 : x === true))
@@ -149,7 +149,7 @@ const res = await page.evaluate(async ({ WATCH, STEP, TOL, only, who, BOX }) => 
   }
   return { samples, figs: figs.map((f) => `${f.sid}${f.role ? '/' + f.role : ''}`), solids: solids.length,
     hits: [...hits.entries()].sort((a, b) => b[1].deep - a[1].deep).map(([k, h]) => ({ k, ...h, deep: +h.deep.toFixed(3) })) }
-}, { WATCH, STEP, TOL, only: process.env.ONLY ?? '', who: process.env.WHO ?? '', BOX: !!process.env.BOX })
+}, { WATCH, STEP, TOL, only: process.env.ONLY ?? '', who: process.env.WHO ?? '', BOX: !!process.env.BOX, JOBTOL: process.env.JOBTOL })
 console.log(`samples ${res.samples}, figures ${res.figs.length} (${res.figs.join(' ')}), solid meshes ${res.solids}`)
 for (const h of res.hits.slice(0, Number(process.env.TOP ?? 25))) console.log(`  ${h.k}: ${h.n} looks, deepest ${h.deep} m (${h.pts} points, its ${h.part || '?'}) at ${JSON.stringify(h.at)}${h.job ? ' doing ' + h.job : ''}`)
 await browser.close()
