@@ -145,7 +145,8 @@ export const Prewarm = memo(function Prewarm() {
         .finally(() => {
           unpace(); release()
           WARMED.done = true
-          for (const f of [...WARMED.waiting]) f()
+          // (each on its own: one that throws doesn't keep the rest from theirs (the Optimization window's))
+          for (const f of [...WARMED.waiting]) { try { f() } catch (e) { console.error('[prewarm] whenWarm', e) } }
           WARMED.waiting.clear()
         })
     }, 250)
