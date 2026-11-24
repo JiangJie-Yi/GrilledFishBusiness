@@ -123,10 +123,14 @@ const tuckOf = (o: THREE.Object3D): [number, number] => {
   if (!seen) { seen = [-1e9, -1e9]; TUCK_SEEN.set(o, seen) }
   // (and only where it's drawn in to is clear: up against something before them too (stood at the sink's cabinet), a hand drawn in before
   // their belly went into it, 27 cm, where hanging it was clear of it)
-  if (taken(hp.localToWorld(TUCK_P.copy(FOLK_HAND_REST.L)), TUCK_HALF) && !taken(hp.localToWorld(TUCK_P.set(-TUCK_AT[0], FOLK_HAND_REST.L.y, TUCK_AT[1])), TUCK_HALF)) seen[0] = now
-  if (taken(hp.localToWorld(TUCK_P.copy(FOLK_HAND_REST.R)), TUCK_HALF) && !taken(hp.localToWorld(TUCK_P.set(TUCK_AT[0], FOLK_HAND_REST.R.y, TUCK_AT[1])), TUCK_HALF)) seen[1] = now
-  TUCK_OUT[0] = now - seen[0] < TUCK_HOLD ? 1 : 0
-  TUCK_OUT[1] = now - seen[1] < TUCK_HOLD ? 1 : 0
+  // (item 691: and let out at once, kept or not, as soon as where it's drawn to has something there: kept in its while as they turned to face
+  // the sink's cabinet, a hand drawn in went into the washer's open front, 25 cm, the Tester window's 690)
+  const frontL = taken(hp.localToWorld(TUCK_P.set(-TUCK_AT[0], FOLK_HAND_REST.L.y, TUCK_AT[1])), TUCK_HALF)
+  const frontR = taken(hp.localToWorld(TUCK_P.set(TUCK_AT[0], FOLK_HAND_REST.R.y, TUCK_AT[1])), TUCK_HALF)
+  if (!frontL && taken(hp.localToWorld(TUCK_P.copy(FOLK_HAND_REST.L)), TUCK_HALF)) seen[0] = now
+  if (!frontR && taken(hp.localToWorld(TUCK_P.copy(FOLK_HAND_REST.R)), TUCK_HALF)) seen[1] = now
+  TUCK_OUT[0] = !frontL && now - seen[0] < TUCK_HOLD ? 1 : 0
+  TUCK_OUT[1] = !frontR && now - seen[1] < TUCK_HOLD ? 1 : 0
   return TUCK_OUT
 }
 if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __tuck: TUCK })
@@ -141,10 +145,12 @@ if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window,
  * are on each other, and one is under the tap's stream if the stream comes down within it */
 const SINK_PLATE_R = { v: 0.1 }
 const RUB_SWAP = new THREE.Vector3()
-/** (item 675) a server's tray lifted over the sink's top (the bar's units): eased up over LIFT_D of their way up to it, up by LIFT_END short
+/** (item 675) a server's tray lifted over the sink's top (the bar's units): eased up over LIFT_UP of their way up to it, up by LIFT_END short
  * of where they stand at it (their hands, before them, as far again from its front as they'd be in it there); kept up LIFT_HOLD of the way
- * back, then eased down over LIFT_D; the hands' undersides (LIFT_HANDS of their own frame under the tray's height) LIFT_CLEAR over it */
-const LIFT_D = 0.35, LIFT_END = 0.25, LIFT_HOLD = 0.2, LIFT_CLEAR = 0.03, LIFT_HANDS = 0.1
+ * back, then eased down over LIFT_DOWN; the hands' undersides (LIFT_HANDS of their own frame under the tray's height) LIFT_CLEAR over it.
+ * (Item 691, the Tester window's 690: over 0.35 each way, at their 2.1 a second, it came down in a tenth of a second, as if dropped: up over
+ * 0.9 now, about 0.4 s, down over 1.2, about 0.6 s) */
+const LIFT_UP = 0.9, LIFT_DOWN = 1.2, LIFT_END = 0.25, LIFT_HOLD = 0.25, LIFT_CLEAR = 0.03, LIFT_HANDS = 0.13
 const LIFT_BOX = new THREE.Box3(), LIFT_P = new THREE.Vector3()
 /** (item 675) the skewers washed in the basin: in the right hand as it scrubs, held in its grip (the bar's units under the hand's middle) */
 const SK_WASH_DOWN = 0.02, SK_AT = new THREE.Vector3()
@@ -4867,8 +4873,11 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         const d = w.pos.clone().sub(counters[0].at), a = d.dot(counters[0].along), l = d.dot(counters[0].lay)
         return a > kitchen.along[0] && a < kitchen.along[1] && l > kitchen.lay[0] && l < kitchen.lay[1]
       }
+      // (item 691: up on the step stool with them too, as it lifts their figure (eased, stoolLift): left out, what was on the tray stayed down a
+      // stool's height under it as they stood at the sink and the first steps off it, 0.3 m, the Tester window's 690)
       const trayAt = () => w.pos.clone().add(new THREE.Vector3(...HELD_AT).setY(HELD_AT[1] + 0.02).multiplyScalar(STAFF_SCALE)
-        .applyAxisAngle(UP_Y, w.look ?? w.yaw)).add(new THREE.Vector3(0, (onDais() ? 0 : -rise) + (w.lift ?? 0), 0))
+        .applyAxisAngle(UP_Y, w.look ?? w.yaw)).add(new THREE.Vector3(0, (onDais() ? 0 : -rise) + (w.lift ?? 0)
+          + (waiterObjs.current[wi] ? stoolLifts.current.get(waiterObjs.current[wi]!) ?? 0 : 0), 0))
       const run = () => runs.current.find((x) => x.key === w.run)
       // (their way bent in past what stands out from the first counter's wall (item 387: aisleSqueeze); the way back's walked from its end,
       // where they are: bent from there)
@@ -5577,7 +5586,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       if (liftUp || liftAt || ((w.phase === 'back' || w.phase === 'unloadCarry' || w.phase === 'skHolderGo') && w.fromSink)) {
         // (kept up as they tip it in: let down at once, their hands went back into the cabinet before they reached into the basin)
         const d = rampedAlong(w.t, w.len), top = sinkTopBar(), fig = waiterObjs.current[wi]
-        const k = liftAt ? 1 : liftUp ? (LIFT_D - (w.len - d - LIFT_END)) / LIFT_D : (LIFT_D - (d - LIFT_HOLD)) / LIFT_D
+        const k = liftAt ? 1 : liftUp ? (LIFT_UP - (w.len - d - LIFT_END)) / LIFT_UP : (LIFT_DOWN - (d - LIFT_HOLD)) / LIFT_DOWN
         if (k > 0 && fig && Number.isFinite(top)) {
           // (from their figure's own feet (up on the dais, the step stool): the hands' undersides (LIFT_HANDS of their frame under the tray's
           // height) just over the top)
@@ -6802,7 +6811,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       {carryKit}
       {/* (a server's stack of dried plates, on their tray on the way from the dryer back to the racks) */}
       {waiters.current.map((_, wi) => (
-        <group key={`stack${wi}`} ref={(o) => { stackObjs.current[wi] = o }} visible={false} {...shownOver('洗好的盤子', '外場搬回碗盤架')}>
+        <group key={`stack${wi}`} name={`server-stack-${wi}`} ref={(o) => { stackObjs.current[wi] = o }} visible={false} {...shownOver('洗好的盤子', '外場搬回碗盤架')}>
           {Array.from({ length: 5 }, (_, i) => <group key={i} position={[0, i * NEST_GAP * IN_SINK, 0]} rotation-y={i * 1.1} scale={IN_SINK} name={`stack-plate-${i}`}><Plate design={i + 3} /></group>)}
         </group>
       ))}
