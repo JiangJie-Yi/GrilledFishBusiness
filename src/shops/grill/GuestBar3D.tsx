@@ -99,6 +99,13 @@ import { LONG_GEO, ROUND_GEO, Plate, PlateKinds, showKind, smearsOf, pickupReady
 import { WaitingBench, KraftBag, TakeoutStandModel, STAND_TOP, STAND_SLOTS, WARM_TUB_Z, WarmTub, STAND_TURN, STAND_LIFT, STAND_GIVE, TakeoutBag, RiderGear } from './guestbar/takeoutStand'
 import { GuestLabel, CUP_AHEAD, CUP_SIDE, SeatDrink, PersonClock } from './guestbar/labels'
 
+/** (item 659 d's next, the bar's frame) a server walking holds back for the owner on his way home ahead of them on their line: from
+ * SERVER_HOLD_AHEAD ahead (1.1 m in the world) to a stand at SERVER_HOLD_STOP (a body's width and a little), he within SERVER_HOLD_SIDE of
+ * their line; SERVER_HOLD_MOST at most at a time; dev `__serverHold.on = false` as before */
+const SERVER_HOLD = { on: true }
+const SERVER_HOLD_AHEAD = 0.55, SERVER_HOLD_STOP = 0.28, SERVER_HOLD_SIDE = 0.22, SERVER_HOLD_MOST = 1.5
+const SERVER_HOLD_AT = new THREE.Vector3()
+if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __serverHold: SERVER_HOLD })
 /** (dev, item 670) how many of the kitchen's ways had no way round what's there, even squeezed past it, and went through the least of it */
 const KITCHEN_THROUGH = { n: 0 }
 if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __kitchenThrough: KITCHEN_THROUGH })
@@ -1512,6 +1519,21 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
   const pathsMap = useRef({ at: 0, sig: '', staff: [] as PathRoute[] })
   /** (item 659) the owner's mover, found once */
   const bossMover = useRef<THREE.Object3D | null>(null)
+  /** (item 659 d's next) how long each server's been held back behind the owner (their pace's seconds) */
+  const heldFor = useRef<number[]>([])
+  /** how much of their step a server at `p` going `dir` (the bar's frame) holds back for the owner just ahead on their line (0 .. 1) */
+  const serverHold = (p: THREE.Vector3, dir: THREE.Vector3, wi: number, adv: number) => {
+    const b = bossMover.current ?? (bossMover.current = scene.getObjectByName('BossFollow') ?? null)
+    if (!SERVER_HOLD.on || !b?.parent || !b.visible || !frame.current) return 0
+    frame.current.worldToLocal(b.getWorldPosition(SERVER_HOLD_AT))
+    const rx = SERVER_HOLD_AT.x - p.x, rz = SERVER_HOLD_AT.z - p.z
+    const along = rx * dir.x + rz * dir.z, side = Math.abs(rx * dir.z - rz * dir.x)
+    if (along <= 0 || along > SERVER_HOLD_AHEAD || side > SERVER_HOLD_SIDE) { heldFor.current[wi] = 0; return 0 }
+    const was = heldFor.current[wi] ?? 0
+    if (was > SERVER_HOLD_MOST) return 0
+    heldFor.current[wi] = was + adv
+    return Math.max(0, Math.min(1, 1 - (along - SERVER_HOLD_STOP) / (SERVER_HOLD_AHEAD - SERVER_HOLD_STOP)))
+  }
   /** (item 629) where the map's ways go through something at a body's middle height (bar's FLOOR_CHECK, the shop's floor map, made with
    * the editor's map of the ways shown): along each way every 3 cm, but its first and last 12 (where one stands at a thing to use it) and
    * a customer's last step (onto their stool); each stretch of it in something, and the piece it's in (at its middle, or where it runs in
@@ -4700,14 +4722,20 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       const walk = (then: () => void) => {
         // (from a standstill they pick up their pace over the first fifth of a second, not off at full speed at once (item 183, the owner's:
         // "the staff are far too stiff"))
-        const d = rampedAlong(w.t, w.len)
-        const { p, dir } = alongPath(w.path, d)
+        let d = rampedAlong(w.t, w.len)
+        let { p, dir } = alongPath(w.path, d)
+        // (item 659 d's next: the owner on his way home just ahead of them, on their line: slowed behind him, at a stand at a body's width,
+        // so what they carry stays where it is on the tray (they're not pushed aside); stood, the stand-aside steps them off his way. No
+        // longer than SERVER_HOLD_MOST at a time)
+        const hold = BOSS_BED.passing && !ownerServes ? serverHold(p, dir, wi, adv) : 0
+        if (hold > 0) { w.t = Math.max(0, w.t - adv * hold); d = rampedAlong(w.t, w.len); ({ p, dir } = alongPath(w.path, d)) }
         w.pos.copy(p)
         if (dir.x || dir.z) w.yaw = Math.atan2(dir.x, dir.z)
         if (d >= w.len) { w.t = 0; then() }
       }
       const face = (at: THREE.Vector3) => { w.yaw = Math.atan2(at.x - w.pos.x, at.z - w.pos.z) }
-      w.t += step * paceOfStaff(servers[wi]?.id)
+      const adv = step * paceOfStaff(servers[wi]?.id)
+      w.t += adv
       // (the customer gone meanwhile: what was being carried to them put down, and the server goes back)
       if ((w.phase === 'fetch' || w.phase === 'pickup' || w.phase === 'go' || w.phase === 'set' || w.phase === 'toBowlWith' || w.phase === 'bowlWith') && !sitting(w.seat)) {
         dropBowls((b) => !(b.server === wi && b.with))
