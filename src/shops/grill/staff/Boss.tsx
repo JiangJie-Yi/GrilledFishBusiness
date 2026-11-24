@@ -695,7 +695,16 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     // (the shop opening or shutting: he starts his round over, from his place)
     const shutting = SHOP_WAS.open && !open
     SHOP_WAS.open = open
-    if (openRef.current !== open) { openRef.current = open; s.phase = 0; s.t = 0; s.x = 0; s.z = 0; away.current = null }
+    // (...from his place only if he's at it: not on his way to his futon, in it, getting up or on his way back from it (the Tester window's,
+    // item 671: asleep as the shop opened, he was put at his fire in a frame (7.8 m), sat up there, and was put back at the futon's foot to
+    // fold it), nor held up; put down somewhere, he goes home from there as the shop opens (it wants him), or stays his while as it shuts,
+    // unless he's off to bed: then from where he is)
+    if (openRef.current !== open) {
+      openRef.current = open; s.phase = 0; s.t = 0
+      const toBed = !open && !!away.current && sleepsDown(BOSS_BODY.fatigue)
+      if (toBed) away.current = null
+      if (bed.current.phase === 'off' && !away.current && !carry.current && !toBed) { s.x = 0; s.z = 0 }
+    }
     if (edit) away.current = null
     // ---- (item 444) the nights he's worn out, as the shop's shut: off to the stair's foot by the staff's door, his futon down there, in under
     // it, asleep; up again rested, or wanted (the shop opening, the player at his fire), the futon folded and taken off, back to his fire
