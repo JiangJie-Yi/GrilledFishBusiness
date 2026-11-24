@@ -8,6 +8,7 @@
 // - The beats each customer's own (by `seed`) and the same however often asked: what it is, how long (within its kind's range).
 // - Never a laugh straight after taking it out (nothing read yet), never two looks up in a row; the last beat runs on to the putting away
 //   rather than leave a scrap of one.
+import { unit2 } from './commute'
 
 export type PhoneBeat = 'out' | 'scroll' | 'read' | 'tap' | 'type' | 'up' | 'laugh' | 'away'
 /** how long taking it out and putting it back take (s) */
@@ -22,13 +23,8 @@ export const PHONE_KINDS: readonly (readonly [PhoneBeat, number, number, number]
   ['up', 0.12, 1.0, 1.6],
   ['laugh', 0.06, 1.0, 1.3],
 ]
-/** a number 0..1 from two whole numbers, the same each time (a small integer hash) */
-export function unit2(a: number, b: number) {
-  let h = (Math.imul(a | 0, 0x9e3779b1) ^ Math.imul((b | 0) + 0x7f4a7c15, 0x85ebca6b)) >>> 0
-  h = Math.imul(h ^ (h >>> 16), 0x7feb352d) >>> 0
-  h = Math.imul(h ^ (h >>> 15), 0x846ca68b) >>> 0
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967296
-}
+/** a number 0..1 from two whole numbers, the same each time (game/commute's, kept here by name for those that take it from here) */
+export { unit2 }
 
 /** a beat: which, how far through it (0..1), its number (the first after taking it out is 0), its whole length (s) */
 export type PhoneAt = { beat: PhoneBeat; k: number; n: number; len: number }

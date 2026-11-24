@@ -15,6 +15,15 @@ export function unit(id: string, salt = '') {
   for (const ch of id + '|' + salt) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0 }
   return (h % 100000) / 100000
 }
+/** a number 0..1 from two whole numbers, the same each time: an integer hash whose every bit turns on every bit of both (item 623: `unit`'s
+ * string hash, given "weather8", "weather9" and on, came out alike for days one after another: a week's clouds, twelve days clear running,
+ * rain on a tenth of the days for its 17%: the Tester window's 2,000 days) */
+export function unit2(a: number, b: number) {
+  let h = (Math.imul(a | 0, 0x9e3779b1) ^ Math.imul((b | 0) + 0x7f4a7c15, 0x85ebca6b)) >>> 0
+  h = Math.imul(h ^ (h >>> 16), 0x7feb352d) >>> 0
+  h = Math.imul(h ^ (h >>> 15), 0x846ca68b) >>> 0
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296
+}
 /** seconds each one finishes up for before they set off (a wipe of the counter, the last bowl to the sink, a stretch): 0.5 to 4 */
 export const delayOf = (id: string, day = 0) => 0.5 + 3.5 * unit(id, `delay${day}`)
 /** each one's own pace, 0.9 to 1.1 of everyone's */

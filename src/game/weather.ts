@@ -10,7 +10,7 @@
 //   pattern drawn as before (flowOf) otherwise, a rainy one drawn on a dry day made a steady one. A passing shower thins the door a little
 //   while it lasts (showerGap).
 // - Those who come in while it rains: most with an umbrella, some in a raincoat, a few with neither (each customer their own).
-import { unit } from './commute'
+import { unit2 } from './commute'
 import { flowOf, type FlowKind } from './flow'
 
 export type Sky = 'clear' | 'cloudy' | 'rain'
@@ -37,11 +37,13 @@ export function weatherOf(day: number): Weather {
   return w
 }
 function weatherFresh(day: number): Weather {
-  const r = unit(`weather${day}`), hard = 0.55 + 0.45 * unit(`rainHard${day}`)
+  const r = unit2(day, 1), hard = 0.55 + 0.45 * unit2(day, 2)
+  // (the shop's first day fine: its guide's day, its first customers (item 175); a wet first day had the rainy trade's few)
+  if (day <= 1) return { sky: 'clear', showers: [], hard }
   if (r < RAIN_DAY) return { sky: 'rain', showers: [{ from: 12 * 60, to: 36 * 60 }], hard }
   if (r < RAIN_DAY + CLOUDY_DAY) {
-    if (unit(`shower${day}`) >= SHOWER_CHANCE) return { sky: 'cloudy', showers: [], hard }
-    const from = 18 * 60 + Math.floor(unit(`showerAt${day}`) * 6 * 60), long = 40 + Math.floor(unit(`showerLong${day}`) * 80)
+    if (unit2(day, 3) >= SHOWER_CHANCE) return { sky: 'cloudy', showers: [], hard }
+    const from = 18 * 60 + Math.floor(unit2(day, 4) * 6 * 60), long = 40 + Math.floor(unit2(day, 5) * 80)
     return { sky: 'cloudy', showers: [{ from, to: from + long }], hard }
   }
   return { sky: 'clear', showers: [], hard }
@@ -74,6 +76,6 @@ export function flowFor(n: number, sky: Sky): FlowKind {
 /** what a customer coming in now has against the rain (by them): an umbrella, a raincoat, neither; nothing when it isn't raining */
 export function rainGear(id: number, rain: number): 'umbrella' | 'coat' | null {
   if (rain < 0.15) return null
-  const r = unit(`gear${id}`)
+  const r = unit2(id, 11)
   return r < 0.65 ? 'umbrella' : r < 0.85 ? 'coat' : null
 }

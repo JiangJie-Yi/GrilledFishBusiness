@@ -64,4 +64,23 @@ feature('天氣（第 623 項）', () => {
     })
     and('沒下雨：沒有人帶', () => { for (let i = 1; i < 50; i++) expect(rainGear(i, 0)).toBe(null) })
   })
+
+  scenario('開店第一天一定是晴天（第一天有引導，不要一開始就是雨天的冷清）', ({ then }) => {
+    then('第一天晴、沒有陣雨', () => {
+      expect(weatherOf(1).sky).toBe('clear')
+      expect(weatherOf(1).showers.length).toBe(0)
+    })
+  })
+
+  scenario('天氣不會一連好幾天都一樣：連號的日子各抽各的', ({ given, then }) => {
+    given('兩千天', (w) => { w.ws = Array.from({ length: 2000 }, (_, i) => weatherOf(i + 2)) })
+    then('最長連續同一種天氣不超過 14 天，雨天在一成三到兩成一之間', (w) => {
+      let run = 0, most = 0, prev = ''
+      for (const x of w.ws as Weather[]) { run = x.sky === prev ? run + 1 : 1; prev = x.sky; most = Math.max(most, run) }
+      expect(most).toBeLessThanOrEqual(14)
+      const rain = (w.ws as Weather[]).filter((x) => x.sky === 'rain').length / 2000
+      expect(rain).toBeGreaterThan(0.13)
+      expect(rain).toBeLessThan(0.21)
+    })
+  })
 })
