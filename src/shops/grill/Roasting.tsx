@@ -5,7 +5,7 @@ import { isDummyMap, isFlatNormal } from '@/scene/materialNormalize'
 import { SKEWER_POOL, skewerTotal, takeSkewer, usedSkewer, washAll } from '@/game/skewers'
 import { BOWL_HAND_MAX, BOWL_WARM_MAX, bowlPlace, warmToEat } from '@/game/plates'
 import { TONG_S, TONG_TAKE_S, TRAY_PLACES, trayPlace } from '@/game/tray'
-import { BOSS_BED, CALM_ASK, KITCHEN, DORM_LIFE, FIRE_FLARE, FUMING, FUTON, KAKUBAT } from './bar'
+import { BOSS_BED, CALM_ASK, FLOOR_CHECK, KITCHEN, DORM_LIFE, FIRE_FLARE, FUMING, FUTON, KAKUBAT } from './bar'
 import { calmedSince } from '@/game/calm'
 import { CALM_GUEST, CALM_OWNER, PROP_TALK } from '@/data/calmLines'
 import { SkewerStore } from './SkewerStore'
@@ -105,7 +105,7 @@ import { CREW_LOAD, GAZE, SHOP, STAFF_SAY, clockIn, idleTick, paceOfStaff, LATE,
 import { loadOf } from '@/game/crewMood'
 /** (where a customer's looking, worked out) */
 const GAZE_AT = new THREE.Vector3()
-import { aisleCornerOf, aisleOf, FIGURES, CARRIED, FED, EAT_PHASE, PLATE_FACES, SEATS_SAT, DRAWER_KICK, TISSUE_REACH_MS, SAY_SEATED, BOWLS, RICE_SEATS, SIDE_SALE, FIRE_TEND, SKEWERS, SEAT_MOVE, STAFF_DOOR_HOLD, CUBBY_KICK, seatLabel, CHOPS_UP, CHOPS_USED, CHOPS_OFF, CHOPS_LOOSE, SEAT_LEFT, SEATS_UNCLEARED, GRIPES, gripe, CUBBY_OPEN, meterWater, KITCHEN_ROUTE, askPantry, shutPantry, SUPPLIES, PLACE, sharedAlong, SICK, LIP_H, PLATING, READY_SLOTS, readyAlong, PLATES_OUT, PLATER_OUT, OWNER_GRILL, FETCHER, SEAT_STICKS, SEAT_BONES, WHOLE_FISH, RICE, seatAlong, tipOver, ALONG, handOver, genkanY, ONIGIRI_TRAY, FLOOR_NEAR, staffWayOut, doorOutOf, inKitchen, alongPath, pathLength, drinkFor, type DrinkId, sauceSide, POINTER_HINT, PLATES_SET, SEATS_TAKEN, SERVICE, PANTRY, KITCHEN_FOLK, platingOf, BAR_GATES, gateCut, gateOf, type Gate, TILL, inGenkan, GRILL_BAR_TOP, GRILL_COUNTERS, GRILL_OFFSET, GRILL_SCALE, GRILL_SEATS, SIDE_PULL, FIRE_SHIFT, KITCHEN_DROP, LAY, toGrillScene, CUBBY, CUBBY2, CUBBY_FLOOR_Y, CUBBY_SHELF_Y, COOK_NOTCH, SOUS_NOTCH, nameOver, BAR_BASE_Z, SOY_DISH_AT, seatTurn, roomOf, type Counter } from './bar'
+import { kitchenOf, aisleCornerOf, aisleOf, FIGURES, CARRIED, FED, EAT_PHASE, PLATE_FACES, SEATS_SAT, DRAWER_KICK, TISSUE_REACH_MS, SAY_SEATED, BOWLS, RICE_SEATS, SIDE_SALE, FIRE_TEND, SKEWERS, SEAT_MOVE, STAFF_DOOR_HOLD, CUBBY_KICK, seatLabel, CHOPS_UP, CHOPS_USED, CHOPS_OFF, CHOPS_LOOSE, SEAT_LEFT, SEATS_UNCLEARED, GRIPES, gripe, CUBBY_OPEN, meterWater, KITCHEN_ROUTE, askPantry, shutPantry, SUPPLIES, PLACE, sharedAlong, SICK, LIP_H, PLATING, READY_SLOTS, readyAlong, PLATES_OUT, PLATER_OUT, OWNER_GRILL, FETCHER, SEAT_STICKS, SEAT_BONES, WHOLE_FISH, RICE, seatAlong, tipOver, ALONG, handOver, genkanY, ONIGIRI_TRAY, FLOOR_NEAR, staffWayOut, doorOutOf, inKitchen, alongPath, pathLength, drinkFor, type DrinkId, sauceSide, POINTER_HINT, PLATES_SET, SEATS_TAKEN, SERVICE, PANTRY, KITCHEN_FOLK, platingOf, BAR_GATES, gateCut, gateOf, type Gate, TILL, inGenkan, GRILL_BAR_TOP, GRILL_COUNTERS, GRILL_OFFSET, GRILL_SCALE, GRILL_SEATS, SIDE_PULL, FIRE_SHIFT, KITCHEN_DROP, LAY, toGrillScene, CUBBY, CUBBY2, CUBBY_FLOOR_Y, CUBBY_SHELF_Y, COOK_NOTCH, SOUS_NOTCH, nameOver, BAR_BASE_Z, SOY_DISH_AT, seatTurn, roomOf, type Counter } from './bar'
 import { freshFactor, sickChance } from '@/game/freshness'
 import { warmLater, whenWarm } from '@/scene/Prewarm'
 import { NO_POINTER, zr } from '@/scene/htmlProps'
@@ -4228,7 +4228,12 @@ const NotchStep = memo(function NotchStep({ id = 'notchstep', label = '木台階
 // the bar's overhanging top, he stood through it))
 // (made a mesh at a step (item 652, the Optimization window's: the boss's drop map is some 340 thousand points, 32 ms here and some 130 on a
 // slower laptop in one frame; stepped, a few milliseconds a frame); floorMap below makes it all at once, as the futon's way wants it)
-function* floorMapSteps(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vector3, floorY: number, R = 4.5, top = 0.6) {
+// (`bottom`: from how high over the floor (item 629: a body's middle, knee up: the steps and the rugs not in it))
+// (`owners`: and whose each square is, the mesh that marked it last (item 629: what a way goes through, named); `raised`: a floor a
+// step up on the rest (the kitchen's: its rectangle in the first counter's frame, how much higher in the world), what's on it looked at
+// from it (item 629: the sink's step stool, stood on to wash up, was under the band from the room's floor, the kitchen's 16 cm short of it))
+function* floorMapSteps(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vector3, floorY: number, R = 4.5, top = 0.6, bottom = -0.25, owners = false,
+  raised: { along: [number, number]; lay: [number, number]; dy: number } | null = null) {
   let FLOOR_PTS = new Float64Array(5 * 4096), FLOOR_SEEN = new Int32Array(4096), FLOOR_STAMP = 0
   // (a step given back every so many points or triangles, inside a mesh too: one big merged mesh was 30 ms in a step)
   let work = 0
@@ -4238,7 +4243,22 @@ function* floorMapSteps(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vecto
   const U = dirOf(c.along), V = dirOf(c.lay)
   const CELL = 0.05, N = Math.round((2 * R) / CELL)
   const occ = new Uint8Array(N * N)
-  const lo = floorY - 0.25, hi = floorY + top
+  // (each square's mesh, its place in `meshes` one on; the one being looked into now)
+  const own = owners ? new Int32Array(N * N) : null
+  let cur = 0
+  const lo = floorY + bottom, hi = floorY + top
+  // (the raised floor's rectangle in squares of the map (u, v), and the band over both floors)
+  const dy = raised?.dy ?? 0
+  let ru0 = 0, ru1 = -1, rv0 = 0, rv1 = -1
+  if (raised) {
+    const us: number[] = [], vs: number[] = []
+    for (const a of raised.along) for (const l of raised.lay) {
+      const w = g.localToWorld(fromBar(c.at.clone().addScaledVector(c.along, a).addScaledVector(c.lay, l).setY(0)))
+      us.push(((w.x - c0.x) * U.x + (w.z - c0.z) * U.z + R) / CELL); vs.push(((w.x - c0.x) * V.x + (w.z - c0.z) * V.z + R) / CELL)
+    }
+    ru0 = Math.min(...us); ru1 = Math.max(...us); rv0 = Math.min(...vs); rv1 = Math.max(...vs)
+  }
+  const loAll = Math.min(lo, lo + dy), hiAll = Math.max(hi, hi + dy)
   const E1 = new THREE.Vector3(), E2 = new THREE.Vector3(), WB = new THREE.Box3(), WS = new THREE.Sphere()
   // (the square's reach in the world, the box round its corners: a mesh's box clear of it isn't looked into)
   let sx0 = Infinity, sx1 = -Infinity, sz0 = Infinity, sz1 = -Infinity
@@ -4246,26 +4266,28 @@ function* floorMapSteps(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vecto
     const x = c0.x + U.x * ka + V.x * kb, z = c0.z + U.z * ka + V.z * kb
     sx0 = Math.min(sx0, x); sx1 = Math.max(sx1, x); sz0 = Math.min(sz0, z); sz1 = Math.max(sz1, z)
   }
-  const mark = (i: number, j: number) => { if (i >= 0 && j >= 0 && i < N && j < N) occ[j * N + i] = 1 }
+  const mark = (i: number, j: number) => { if (i >= 0 && j >= 0 && i < N && j < N) { occ[j * N + i] = 1; if (own) own[j * N + i] = cur } }
   // (a triangle's edges, stepped along at half a square, and its inside where it isn't edge-on from above)
   const seg = (ax: number, ay: number, bx: number, by: number) => {
     const k = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) * 2))
     for (let q = 0; q <= k; q++) mark(Math.floor(ax + ((bx - ax) * q) / k), Math.floor(ay + ((by - ay) * q) / k))
   }
   // (the meshes bedFinds gathered, their matrices as they were drawn last: it isn't made to work them all out again (item 543))
-  for (const m of meshes) {
+  for (let mi = 0; mi < meshes.length; mi++) {
+    const m = meshes[mi]
+    cur = mi + 1
     const pos = m.geometry.attributes.position as THREE.BufferAttribute
     // (its box if it has one, or the ball round it the renderer made for culling: 3,340 of the meshes had no box, and making them took 44 ms
     // the first time he went to bed (item 543); one passed that might have been passed by is looked into for nothing, no more)
     const gb = m.geometry.boundingBox
     if (gb) {
       WB.copy(gb).applyMatrix4(m.matrixWorld)
-      if (WB.max.y < lo || WB.min.y > hi || WB.distanceToPoint(c0) > R * 1.5 || WB.max.x < sx0 || WB.min.x > sx1 || WB.max.z < sz0 || WB.min.z > sz1) continue
+      if (WB.max.y < loAll || WB.min.y > hiAll || WB.distanceToPoint(c0) > R * 1.5 || WB.max.x < sx0 || WB.min.x > sx1 || WB.max.z < sz0 || WB.min.z > sz1) continue
     } else {
       if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere()
       WS.copy(m.geometry.boundingSphere!).applyMatrix4(m.matrixWorld)
       const r = WS.radius, sc = WS.center
-      if (sc.y + r < lo || sc.y - r > hi || sc.distanceTo(c0) - r > R * 1.5 || sc.x + r < sx0 || sc.x - r > sx1 || sc.z + r < sz0 || sc.z - r > sz1) continue
+      if (sc.y + r < loAll || sc.y - r > hiAll || sc.distanceTo(c0) - r > R * 1.5 || sc.x + r < sx0 || sc.x - r > sx1 || sc.z + r < sz0 || sc.z - r > sz1) continue
     }
     // (its points' heights first, each once (the same sums as a point's own applyMatrix4); the rest of a point (across the world, and across
     // the map in squares (u, v)) only for a triangle in the band, once (item 543: most of a merged batch's points are well up off the floor))
@@ -4298,13 +4320,21 @@ function* floorMapSteps(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vecto
       const ia = ix ? ix[t] : t, ib = ix ? ix[t + 1] : t + 1, ic = ix ? ix[t + 2] : t + 2
       const a = 5 * ia, b = 5 * ib, d = 5 * ic
       const y0 = Math.min(P[a + 1], P[b + 1], P[d + 1]), y1 = Math.max(P[a + 1], P[b + 1], P[d + 1])
-      if (y1 < lo || y0 > hi) continue
+      if (y1 < loAll || y0 > hiAll) continue
       fill(ia); fill(ib); fill(ic)
+      // (on the raised floor (its middle): its band, and its floor, a step up)
+      let fl = floorY
+      if (raised) {
+        const cu = (P[a + 3] + P[b + 3] + P[d + 3]) / 3, cv = (P[a + 4] + P[b + 4] + P[d + 4]) / 3
+        const up = cu > ru0 && cu < ru1 && cv > rv0 && cv < rv1
+        if (up) fl = floorY + dy
+        if (y1 < (up ? lo + dy : lo) || y0 > (up ? hi + dy : hi)) continue
+      }
       // (a flat face low down is a floor's, the kitchen's or the room's, or a mat or a shadow on one: not in the way. Up to 20 cm over the
       // floor it's on: the kitchen's is 16 over the room's, a mat on it 2 or 3 (item 545: it was 25, and a board 9 cm high on the kitchen's
       // floor had its top at exactly that, the room's merged copy of it (its points kept to float32) on one side of it and the board itself
       // on the other: its top's diagonal across the map one way and not the other)
-      if (y1 < floorY + 0.2) {
+      if (y1 < fl + 0.2) {
         E1.set(P[b] - P[a], P[b + 1] - P[a + 1], P[b + 2] - P[a + 2])
         E2.set(P[d] - P[a], P[d + 1] - P[a + 1], P[d + 2] - P[a + 2])
         if (Math.abs(E1.cross(E2).normalize().y) > 0.9) continue
@@ -4320,7 +4350,7 @@ function* floorMapSteps(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vecto
       for (let jj = j0; jj <= j1; jj++) for (let ii = i0; ii <= i1; ii++) {
         const x = ii + 0.5, y = jj + 0.5
         const s1 = (bu - au) * (y - av) - (x - au) * (bv - av), s2 = (du - bu) * (y - bv) - (x - bu) * (dv - bv), s3 = (au - du) * (y - dv) - (x - du) * (av - dv)
-        if ((s1 >= 0 && s2 >= 0 && s3 >= 0) || (s1 <= 0 && s2 <= 0 && s3 <= 0)) occ[jj * N + ii] = 1
+        if ((s1 >= 0 && s2 >= 0 && s3 >= 0) || (s1 <= 0 && s2 <= 0 && s3 <= 0)) { occ[jj * N + ii] = 1; if (own) own[jj * N + ii] = cur }
       }
     }
     yield
@@ -4333,6 +4363,13 @@ function* floorMapSteps(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vecto
     if (ia < 0 || ja < 0 || ib > N || jb > N) return true
     return sum[jb * (N + 1) + ib] - sum[ja * (N + 1) + ib] - sum[jb * (N + 1) + ia] + sum[ja * (N + 1) + ia] > 0
   }
+  // (item 629: a mesh in a rectangle of it, the first square's of it that's taken; none asked for, or nothing there: null)
+  const whose = (u0: number, u1: number, v0: number, v1: number): THREE.Mesh | null => {
+    if (!own) return null
+    const ia = Math.max(0, Math.floor((u0 + R) / CELL)), ib = Math.min(N, Math.ceil((u1 + R) / CELL)), ja = Math.max(0, Math.floor((v0 + R) / CELL)), jb = Math.min(N, Math.ceil((v1 + R) / CELL))
+    for (let jj = ja; jj < jb; jj++) for (let ii = ia; ii < ib; ii++) { const k = own[jj * N + ii]; if (k) return meshes[k - 1] ?? null }
+    return null
+  }
   const at = (u: number, v: number) => c0.clone().addScaledVector(U, u).addScaledVector(V, v)
   // (in the shop: in the room's floor (its rectangle), all on the one floor, the kitchen's or the room's)
   const rm = roomOf(GRILL_COUNTERS)
@@ -4343,7 +4380,7 @@ function* floorMapSteps(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vecto
   }
   const level = (w: THREE.Vector3) => inKitchen(GRILL_COUNTERS, bar(w))
   if (import.meta.env.DEV) (window as unknown as { __futonMap?: unknown }).__futonMap = { N, occ, c0: c0.toArray(), U: U.toArray(), V: V.toArray(), R, CELL }
-  return { U, V, R, taken, at, inRoom, level }
+  return { U, V, R, taken, at, inRoom, level, whose }
 }
 function floorMap(meshes: THREE.Mesh[], g: THREE.Object3D, c0: THREE.Vector3, floorY: number, R = 4.5, top = 0.6) {
   const it = floorMapSteps(meshes, g, c0, floorY, R, top)
@@ -4479,6 +4516,9 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
     // there (floorMap, as the futon's place is found, looked at up to his height); his body's square BOSS_FEET each way, his belly and his
     // hands at his sides: a counter's top or a table's edge not over any of it)
     const BOSS_FEET = 0.16 * GRILL_SCALE, BOSS_TALL = 0.95 * GRILL_SCALE
+    // (item 629: a body's middle, knee to chest, over the room's floor (the world's measure), and how far round a way's point the piece
+    // it goes through is looked for, to name it)
+    const CROSS_BAND: [number, number] = [0.2 * GRILL_SCALE, 0.62 * GRILL_SCALE], CROSS_HALF = 0.025 * GRILL_SCALE
     // (looked for out to his own height round it: let go over the bar's middle, the aisle behind its stools or the kitchen in front of it;
     // the places round it nearest first, the first he'd stand clear at taken (the Optimization window's: the whole square was gone through
     // every time, 32 ms here, some 130 on a slower laptop, right as he was let go))
@@ -4557,14 +4597,23 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
       const centre = g.localToWorld(q.setY(GRILL_OFFSET.y))
       const R = (Math.max(rm.along[1] - rm.along[0], rm.lay[1] - rm.lay[0]) / 2 + 0.4) * GRILL_SCALE
       const mapStart = performance.now()
-      const it = floorMapSteps(meshesNow(), g, centre, centre.y, R, BOSS_TALL)
-      const step = () => {
-        if (job !== mapJob) return
-        const t = performance.now()
-        let r = it.next()
-        while (!r.done && performance.now() - t < 3) r = it.next()
-        if (!r.done) { mapRaf = requestAnimationFrame(step); return }
-        shopMap = r.value
+      // (in the editor a step a frame may take longer: nothing's being served while the pieces are laid out (item 629: the ways' crossings
+      // were 3.7 s coming))
+      const ed = getEdit(), slice = ed.on ? 8 : 3
+      /** a map made a step a frame, then `done` with it */
+      const stepped = <M,>(it: Generator<undefined, M>, done: (m: M) => void) => {
+        const step = () => {
+          if (job !== mapJob) return
+          const t = performance.now()
+          let r = it.next()
+          while (!r.done && performance.now() - t < slice) r = it.next()
+          if (!r.done) { mapRaf = requestAnimationFrame(step); return }
+          done(r.value)
+        }
+        mapRaf = requestAnimationFrame(step)
+      }
+      const walkMap = () => stepped(floorMapSteps(meshesNow(), g, centre, centre.y, R, BOSS_TALL), (m) => {
+        shopMap = m
         // (and its walking squares, and the room's floor that's reachable from the gates, the frame after)
         mapRaf = requestAnimationFrame(() => {
           if (job !== mapJob || !shopMap || !ref.current) return
@@ -4574,8 +4623,50 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
           walk = wk
           if (import.meta.env.DEV) Object.assign(window, { __mapTimes: { start: mapStart, made: t1, reachMs: performance.now() - t1 } })
         })
+      })
+      // (item 629: and, the editor's map of the ways shown, the floor at a body's middle height first: what a way goes through, named
+      // there. Only then: in the editor the room's merge is let go of (scene/WorldBatch), each piece's own meshes there to name it by; and
+      // what's drawn and solid only, not the editor's handles, an unseen hit box, a glow; the kitchen's floor a step up, looked at from it)
+      if (!ed.on || !ed.paths) { walkMap(); return }
+      // (nor what's in a group put away (a server not on tonight, their tray at their place: 5 of the kitchen's ways went "through" it), but
+      // a wall hidden while the camera's behind it; nor what people have on them: hung on a bone (a phone, an umbrella), a server's or a
+      // cook's own (a tray, a plate): they're not furniture)
+      const kept = (m: THREE.Object3D) => {
+        for (let q = m.parent; q; q = q.parent) {
+          if (!q.visible && !q.userData.hideRoot) return false
+          if ((q as THREE.Bone).isBone || q.userData.broom !== undefined || FIGURES.has(q)) return false
+        }
+        return true
       }
-      mapRaf = requestAnimationFrame(step)
+      const solid = meshesNow().filter((m) => !m.userData.editHandle && kept(m)
+        && !([] as THREE.Material[]).concat(m.material).every((x) => !x.visible || !x.colorWrite || x.opacity <= 0.02 || x.blending === THREE.AdditiveBlending))
+      const kr = kitchenOf(GRILL_COUNTERS)
+      const kdy = g.localToWorld(new THREE.Vector3(0, GRILL_OFFSET.y - KITCHEN_DROP, 0)).y - g.localToWorld(new THREE.Vector3(0, GRILL_OFFSET.y, 0)).y
+      stepped(floorMapSteps(solid, g, centre, centre.y, R, CROSS_BAND[1], CROSS_BAND[0], true, { along: kr.along, lay: kr.lay, dy: kdy }), (cm) => {
+        const o = cm.at(0, 0), P = new THREE.Vector3()
+        // (a point of the bar's frame on the map: P, from its middle; false with nothing to put it on)
+        const onMap = (p: THREE.Vector3) => { const gg = ref.current; if (!gg) return false; gg.localToWorld(P.copy(fromBar(p)).setY(0)).sub(o); return true }
+        // (the way's own line in something: the square it's on taken (a way along beside a thing, a hair off it, is not through it))
+        FLOOR_CHECK.inSomething = (p) => {
+          if (!onMap(p)) return false
+          const u = P.dot(cm.U), v = P.dot(cm.V)
+          return cm.taken(u - 1e-4, u + 1e-4, v - 1e-4, v + 1e-4)
+        }
+        // (and the piece there, a little round it)
+        const meshAt = (p: THREE.Vector3) => {
+          if (!onMap(p)) return null
+          const u = P.dot(cm.U), v = P.dot(cm.V)
+          return cm.whose(u - CROSS_HALF, u + CROSS_HALF, v - CROSS_HALF, v + CROSS_HALF)
+        }
+        FLOOR_CHECK.pieceAt = (p) => {
+          for (let q: THREE.Object3D | null = meshAt(p); q; q = q.parent) if (q.userData.editId) return String(q.userData.editId)
+          return ''
+        }
+        // (in development: the mesh itself, for the checks; and when it was made)
+        if (import.meta.env.DEV) Object.assign(FLOOR_CHECK, { meshAt, madeMs: performance.now() - mapStart })
+        FLOOR_CHECK.ver++
+        walkMap()
+      })
     }
     // (once the page has done loading (scene/Prewarm's warming done: its first frames are paced for its own programs and pictures), when
     // it's idle (the Optimization window's: a fixed six seconds laid it over the loading's pacing))
@@ -4587,8 +4678,10 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
     const unwarm = whenWarm(() => idleThen(buildShopMap))
     const unsub = subscribeEdit(() => {
       dropMeshes = null; shopMap = null; walk = null; mapJob++
+      FLOOR_CHECK.inSomething = null; FLOOR_CHECK.pieceAt = null; FLOOR_CHECK.ver++
       cancelAnimationFrame(mapRaf); window.clearTimeout(mapLater)
-      mapLater = window.setTimeout(() => idleThen(buildShopMap), 1500)
+      // (in the editor at once, a step a frame: the page isn't idle while it's drawn, and the ways' crossings waited 2 s for it (item 629))
+      mapLater = getEdit().on ? window.setTimeout(buildShopMap, 300) : window.setTimeout(() => idleThen(buildShopMap), 600)
     })
     BOSS_BED.drop = (atGrill, done) => {
       const g = ref.current
@@ -4753,7 +4846,7 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
       }
       return path ? [fromGrill.clone(), ...path.slice(1).map(onFloor)] : null
     }
-    return () => { BOSS_BED.way = null; BOSS_BED.frame = null; BOSS_BED.drop = null; BOSS_BED.home = null; unsub(); unwarm(); mapJob++; cancelAnimationFrame(mapRaf); window.clearTimeout(mapLater) }
+    return () => { BOSS_BED.way = null; BOSS_BED.frame = null; BOSS_BED.drop = null; BOSS_BED.home = null; unsub(); unwarm(); mapJob++; cancelAnimationFrame(mapRaf); window.clearTimeout(mapLater); FLOOR_CHECK.inSomething = null; FLOOR_CHECK.pieceAt = null }
   }, [scene])
   return <group ref={ref} />
 })

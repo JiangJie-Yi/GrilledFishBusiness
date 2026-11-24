@@ -116,7 +116,7 @@ import { LINES } from '@/data/lines'
 import { looksOf, newRoll, openRoom, penaltyOf, visitRoom } from '@/game/restroom'
 import { platerFree } from '@/game/kitchenCrew'
 import { plateGoes } from '@/game/tray'
-import { WARE, SEAT_LEFT, CHOPS_USED, CHOPS_OFF, CHOPS_LOOSE, SEATS_UNCLEARED } from './bar'
+import { WARE, SEAT_LEFT, CHOPS_USED, CHOPS_OFF, CHOPS_LOOSE, SEATS_UNCLEARED, FLOOR_CHECK, type PathCross } from './bar'
 import { CALM_ASK, FUMING, DRAIN_KINDS, EAT_PHASE, PLATE_FACES, SEATS_SAT, DRAWER_KICK, TISSUE_REACH_MS, seatTurn, GRATING, ONIGIRI_TRAY, HAND_WASH, FIGURES, CARRIED, SOY_DISH_AT, FETCHER, FIRE_TEND, SKEWERS, SEAT_MOVE, SEAT_PULL, STOOL_TUCK, SHOE_CELLS, aisleCornerOf, aisleOf, DRAWER_HELD, SHOP_PURSE, STOCKER_WC, SUPPLIES, CHOPS_UP, FED, BENCH, BENCH_SEATS, BENCH_EACH, BENCH_PLACE, BENCH2_ALONG, TAKEOUT_STAND, STAND_AT, cashierIn, nameOver, gripe, setTissues, tissuesAt, meterWater, OWNER_OUT, OWNER_SPOT, OWNER_YAW, FIRE_SHIFT, KITCHEN_ROUTE, PATH_MAP, type PathRoute, SERVE_COUNTER, PLACE, SICK, SHRINE_FLOWERS, PLATING, READY_SLOTS, PLATE_STACK_ALONG, PLATE_STACK_ACROSS, readyAlong, PLATES_OUT, PLATER_OUT, DRYER, DRAIN, PLATE_COUNT, SINK_BIN, SEAT_STICKS, SEAT_BONES, WC_W, WC_ROOM, RICE, SOUP, SOUP_SEATS, SAKE, SAKE_SEATS, LOW_RACK, takeDrink, KITCHEN_DROP, kitchenOf, kitchenGatesOf, AISLE, FLOOR_FAR, FLOOR_NEAR, PLATES_SET, SINK, PILE, KITCHEN_FOLK, GENKAN, inGenkan, sauceSide, SEATS_TAKEN, SERVICE, BAR_GATES, TILL, TILL_CASH, anyInStock, batchOf, payIn, TILL_STATE, PLATE_RACK, billOf, GUEST_BILLS, DRINKS, yen, payOf, TAKEOUT, takeoutOf, POINTER_HINT, tipOver, TOILETS, WC_GRUMBLE, DRINK_BACK, FRIDGE, FRIDGE_AT, FRIDGE_STATE, isCan, FRIDGE_STOCK, placesOf, FRIDGE_UNITS, drinkFor, farOf, fridgesOf, storeOf, STORE, STORE_STATE, fridgeUnitOf, gateOf, toiletsOf, type DrinkId, platingOf, roomOf, alongPath, doorOf, wayInOf, doorAt, doorOutOf, DOOR_LANE, pathLength, pathTo, seatsOf, singleCounter, type Counter, SPILLS, IRONS, type Spill, genkanY, soapPlate, scrubDose, SAY_SEATED, BOWLS, RICE_SEATS, STAFF_DOOR_HOLD, sakeLeft, ownerAway, ownerFree, ownerBack, DRINK_COMING, KITCHEN, DRINK_FRIDGE_TEMP } from './bar'
 import { servedWarm } from '@/game/fridgeTemp'
 import { BONES_GEO, HEAD_GEO } from './fishBones'
@@ -5906,6 +5906,35 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
    * ways (from each one's place, and the owner's, to the sink, the racks and the plating place), worked out again only when that's changed;
    * the ways being walked; the customers' from the door to each seat */
   const pathsMap = useRef({ at: 0, sig: '', staff: [] as PathRoute[] })
+  /** (item 629) where the map's ways go through something at a body's middle height (bar's FLOOR_CHECK, the shop's floor map, made with
+   * the editor's map of the ways shown): along each way every 3 cm, but its first and last 12 (where one stands at a thing to use it) and
+   * a customer's last step (onto their stool); each stretch of it in something, and the piece it's in (at its middle, or where it runs in
+   * or out: the editor's id for it, '' for a wall or a step) */
+  const crossingsOf = (routes: PathRoute[]): PathCross[] => {
+    const check = FLOOR_CHECK.inSomething, whose = FLOOR_CHECK.pieceAt
+    if (!check) return []
+    const out: PathCross[] = []
+    for (const r of routes) {
+      const pts = r.kind === 'guest' ? r.pts.slice(0, -1) : r.pts
+      if (pts.length < 2) continue
+      const end = pathLength(pts) - 0.12
+      let d0 = -1, d1 = -1
+      // (a stretch three looks long or more: a way's corner cut across a thing's edge isn't through it)
+      const close = () => {
+        if (d1 - d0 > 0.05) {
+          const a = alongPath(pts, d0).p.setY(0), b = alongPath(pts, d1).p.setY(0), mid = alongPath(pts, (d0 + d1) / 2).p.setY(0)
+          out.push({ who: r.who, key: r.key ?? r.to, a, b, piece: whose?.(mid) || whose?.(a) || whose?.(b) || '' })
+        }
+        d0 = d1 = -1
+      }
+      for (let d = 0.12; d <= end + 1e-6; d += 0.03) {
+        if (check(alongPath(pts, d).p.setY(0))) { if (d0 < 0) d0 = d; d1 = d }
+        else if (d0 >= 0) close()
+      }
+      if (d0 >= 0) close()
+    }
+    return out
+  }
   /** when the serving counter's marks were last read */
   const serveRead = useRef(0)
   const mapPaths = (now: number) => {
@@ -5938,6 +5967,11 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     if (bossWash.current) walking('owner', bossWash.current.path)
     const guestWays = seats.map((st, n): PathRoute => ({ kind: 'guest', who: 'guest', from: 'door', to: `seat-${n}`, pts: pathTo(counters, st) }))
     PATH_MAP.routes = [...pathsMap.current.staff, ...live, ...guestWays]
+    // (item 629, the owner's 「動線看一下，編輯器應表明避免穿越傢俱」: each way's stretches that go through something at a body's middle height,
+    // and what they go through, for the map to draw red and name)
+    const tc = performance.now()
+    PATH_MAP.cross = crossingsOf(PATH_MAP.routes)
+    if (import.meta.env.DEV) Object.assign(window, { __crossMs: performance.now() - tc })
     // (the places named on the floor: the staff's own and where they go, the door, each seat at its way's end)
     PATH_MAP.places = [...placesNow(), ...(guestWays.length ? [{ key: 'door', at: guestWays[0].pts[0] }] : []), ...guestWays.map((g) => ({ key: g.to, at: g.pts[g.pts.length - 1] }))]
     PATH_MAP.home = viaHome

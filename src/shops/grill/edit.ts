@@ -25,6 +25,8 @@ let lang: Lang = 'zh'
 const T = () => EDIT_TEXT[lang]
 /** the edit panel's words, in its language (the paths' map names its people and places with them) */
 export const editWords = () => T()
+/** a piece's name, by its id, in the edit panel's language ('' for one not known) (item 629: what a way on the paths' map goes through) */
+export const pieceLabel = (id: string) => { const e = registry.get(id); return e ? pieceName(e.label, lang) : '' }
 export function setEditLang(l: Lang) {
   if (lang === l) return
   lang = l

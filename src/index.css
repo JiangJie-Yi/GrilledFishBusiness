@@ -7949,6 +7949,8 @@ body.be-tool { --bt-menu: 34px; --bt-toolbar: 40px; --bt-top: calc(var(--bt-menu
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4); }
 .pm-tag.is-person { color: #101010; }
 .pm-tag.is-seat { padding: 1px 5px; background: rgba(79, 210, 110, 0.85); color: #0d2614; font-size: 10px; }
+/* (a way's stretch through a piece of furniture, red as its stretch is drawn (item 629)) */
+.pm-tag.is-through { padding: 1px 6px; background: rgba(206, 30, 18, 0.92); color: #fff; font-size: 10px; }
 /* (the sheets' and menus' coming in (item 179): translate, scale and opacity alone, which go on top of what's set as `transform` and run on
    the compositor, smooth while the main thread's drawing the 3D view) */
 @keyframes sheet-in { from { opacity: 0; translate: 0 18px; scale: 0.98; } }

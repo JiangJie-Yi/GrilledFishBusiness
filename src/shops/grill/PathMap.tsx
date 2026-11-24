@@ -12,7 +12,7 @@ import { useFrame } from '@react-three/fiber'
 import { Html } from '@/scene/Html'
 import * as THREE from 'three'
 import { PATH_MAP, type PathRoute } from './bar'
-import { editWords, useEditSel } from './edit'
+import { editWords, pieceLabel, useEditSel } from './edit'
 import { NO_POINTER, zr } from '@/scene/htmlProps'
 
 /** each person's colour on the map (item 189): the servers blue, violet, teal; the owner amber; the plater pink; the customers green */
@@ -32,7 +32,7 @@ export function placeName(key: string) {
 }
 /** how far over the floor it's drawn, and how wide its bands are and how strong (the bar's units) */
 const LIFT = 0.015
-const WIDE = { staff: 0.035, live: 0.055, guest: 0.028, edge: 0.025 }
+const WIDE = { staff: 0.035, live: 0.055, guest: 0.028, edge: 0.025, cross: 0.075 }
 const ALPHA = { staff: 0.6, live: 0.95, guest: 0.55 }
 const RISE = { staff: 2, live: 3, guest: 2.5 }
 
@@ -46,6 +46,9 @@ function band(out: number[], col: number[], a: THREE.Vector3, b: THREE.Vector3, 
 }
 
 type Place = { key: string; at: [number, number, number] }
+/** (item 629) the ways' stretches through something, named on the floor at their middle: one tag for a piece where several go through it
+ * near one another, and how many ways */
+type Through = { key: string; at: [number, number, number]; piece: string; n: number }
 
 // (item 374: drawn again only when its own props change, not each time what holds it is drawn)
 export const PathMap = memo(PathMapImpl)
@@ -58,17 +61,22 @@ function PathMapImpl() {
     const edge = new THREE.Mesh(new THREE.BufferGeometry(), flat('#ff5a4c', 0.95))
     // (every way in one: each person's colour and each way's strength by its corners)
     const ways = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, depthTest: false, side: THREE.DoubleSide }))
-    for (const o of [fill, edge, ways]) { o.renderOrder = 1001; o.raycast = noRay; o.frustumCulled = false; o.userData.ignoreRaycast = true }
-    return { fill, edge, ways }
+    // (item 629: a way's stretches through something, red over the ways)
+    const cross = new THREE.Mesh(new THREE.BufferGeometry(), flat('#ff2416', 0.95))
+    for (const o of [fill, edge, ways, cross]) { o.renderOrder = 1001; o.raycast = noRay; o.frustumCulled = false; o.userData.ignoreRaycast = true }
+    cross.renderOrder = 1002
+    return { fill, edge, ways, cross }
   }, [])
   useEffect(() => () => {
-    for (const o of [made.fill, made.edge, made.ways]) { o.geometry.dispose(); (o.material as THREE.Material).dispose() }
+    for (const o of [made.fill, made.edge, made.ways, made.cross]) { o.geometry.dispose(); (o.material as THREE.Material).dispose() }
   }, [made])
   // (the list's pointing let go as the map's put away)
   useEffect(() => { if (!on || !paths) PATH_MAP.hot = null }, [on, paths])
   const seen = useRef('')
   const [places, setPlaces] = useState<Place[]>([])
   const placesSig = useRef('')
+  const [throughs, setThroughs] = useState<Through[]>([])
+  const throughSig = useRef('')
   useFrame(() => {
     if (!on || !paths) return
     const key = `${PATH_MAP.v}|${PATH_MAP.hot}`
@@ -96,6 +104,23 @@ function PathMapImpl() {
     }
     made.ways.geometry.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
     made.ways.geometry.setAttribute('color', new THREE.Float32BufferAttribute(col, 4))
+    // (item 629: the stretches through something, red and wider over the ways, each named at its middle)
+    const xs: number[] = [], skip: number[] = []
+    for (const c of PATH_MAP.cross) {
+      const a = c.a.distanceTo(c.b) < 0.02 ? c.a.clone().addScaledVector(new THREE.Vector3(1, 0, 0), -0.015) : c.a
+      const b = c.a.distanceTo(c.b) < 0.02 ? c.b.clone().addScaledVector(new THREE.Vector3(1, 0, 0), 0.015) : c.b
+      band(xs, skip, a, b, WIDE.cross, LIFT * 8, [0, 0, 0, 0])
+    }
+    made.cross.geometry.setAttribute('position', new THREE.Float32BufferAttribute(xs, 3))
+    const heaps: { piece: string; x: number; z: number; n: number; ways: Set<string> }[] = []
+    for (const c of PATH_MAP.cross) {
+      const x = (c.a.x + c.b.x) / 2, z = (c.a.z + c.b.z) / 2
+      const h = heaps.find((q) => q.piece === c.piece && Math.hypot(q.x / q.n - x, q.z / q.n - z) < 0.4)
+      if (h) { h.x += x; h.z += z; h.n++; h.ways.add(c.key) } else heaps.push({ piece: c.piece, x, z, n: 1, ways: new Set([c.key]) })
+    }
+    const th = heaps.map((h, i): Through => ({ key: `${h.piece}#${i}`, at: [h.x / h.n, 0.03, h.z / h.n], piece: h.piece, n: h.ways.size }))
+    const tsig = th.map((t) => `${t.piece}:${t.n}:${t.at[0].toFixed(2)},${t.at[2].toFixed(2)}`).join('|')
+    if (tsig !== throughSig.current) { throughSig.current = tsig; setThroughs(th) }
     // (the places named on the floor: told again only when they've changed)
     const ps = PATH_MAP.places.map((p): Place => ({ key: p.key, at: [p.at.x, 0.02, p.at.z] }))
     const sig = ps.map((p) => `${p.key}:${p.at[0].toFixed(2)},${p.at[2].toFixed(2)}`).join('|')
@@ -107,6 +132,12 @@ function PathMapImpl() {
       <primitive object={made.fill} />
       <primitive object={made.edge} />
       <primitive object={made.ways} />
+      <primitive object={made.cross} />
+      {throughs.map((t) => (
+        <Html key={t.key} position={t.at} center zIndexRange={zr(21, 0)} style={NO_POINTER}>
+          <span className="pm-tag is-through">{(t.piece && pieceLabel(t.piece)) ? editWords().pathThrough(pieceLabel(t.piece), t.n) : editWords().pathThroughSome(t.n)}</span>
+        </Html>
+      ))}
       {places.map((p) => {
         const person = p.key.startsWith('server-') || p.key === 'owner'
         const seat = p.key.startsWith('seat-')

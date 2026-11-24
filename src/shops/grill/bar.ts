@@ -291,15 +291,26 @@ export const ownerBack = () => { OWNER_OUT.by = null; OWNER_OUT.on = false }
  * (`who`: 'server-<i>', 'owner', 'plater', 'guest'), from which place to which (PATH_MAP.places' keys), and, for the staff's usual ways, the key
  * the waypoints set for it by hand are kept under (`<from>><to>`: edit mode's vias) */
 export type PathRoute = { kind: 'staff' | 'live' | 'guest'; pts: THREE.Vector3[]; who: string; from: string; to: string; key?: string }
+/** (item 629) a stretch of a way on the paths' map that goes through something at a body's middle height: whose way, its key, the stretch
+ * (the bar's frame) and what it goes through (the editor's id for the piece; none known (a wall, a step): '') */
+export type PathCross = { who: string; key: string; a: THREE.Vector3; b: THREE.Vector3; piece: string }
+/** (item 629, the owner's 「動線看一下，編輯器應表明避免穿越傢俱」) whether a point (the bar's frame) is in something on the floor at a body's
+ * middle height (knee to chest: not the genkan's or the kitchen's step, not a rug, not what hangs over a head), on the shop's floor map
+ * (Roasting's, made after loading and again after edit mode's changed something); null till it's made; `ver` counts its makings */
+export const FLOOR_CHECK: { inSomething: ((p: THREE.Vector3) => boolean) | null
+  /** the editor's id for the piece a point's in there (the bar's frame; '' none) */
+  pieceAt: ((p: THREE.Vector3) => string) | null; ver: number } = keep(import.meta.hot, 'FLOOR_CHECK', { inSomething: null, pieceAt: null, ver: 0 })
 export const PATH_MAP: { v: number; blocks: { id: string; pts: THREE.Vector3[] }[]; routes: PathRoute[]
+  /** (item 629) the stretches of the ways that go through something, drawn red and named */
+  cross: PathCross[]
   /** the places the ways go between, named on the floor: the staff's own, the sink, the racks, the plating place's two sides, the door, the seats */
   places: { key: string; at: THREE.Vector3 }[]
   /** where the waypoints' moves are counted from (the origin of their pieces' frame) */
   home: THREE.Vector3 | null
   /** the person or the way the map's list is pointing at (a `who`, or a way's key): drawn bright, the rest faint */
   hot: string | null } =
-  keep(import.meta.hot, 'PATH_MAP', { v: 0, blocks: [], routes: [], places: [], home: null, hot: null })
-if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __pathMap: PATH_MAP })
+  keep(import.meta.hot, 'PATH_MAP', { v: 0, blocks: [], routes: [], cross: [], places: [], home: null, hot: null })
+if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __pathMap: PATH_MAP, __floorCheck: FLOOR_CHECK })
 /**
  * The fire's flare-ups (item 276, the owner's: 「這火也太旺? 真實世界是怎麼樣?」): binchotan burnt through hardly flames at all, its bed red
  * through under a skin of white ash, its heat given off as it glows; the flames stand up only a moment as fat drips onto it from what's
