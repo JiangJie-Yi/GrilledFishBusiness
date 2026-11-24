@@ -4709,11 +4709,26 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
     // (they move), so where he'd come down is kept clear of them as they are as he's let go: one of 39 drops onto a person came down on them,
     // 0.00 to 0.05 m from their middle. Clear: his half and theirs)
     const FOLK_CLEAR = 0.5
+    // (where he's let down kept further off: his half and theirs, from their body's middle (the Tester window's: a customer sat back at the bar
+    // has their body 18 cm off their place; with the soft shades no longer pushing every spot out, he came down on them, 0.5 from their place))
+    const DROP_CLEAR = 0.6
+    // (each one's body where it is: their FigureHit box, kept at their body's middle every frame, found once for each of them; else their place)
+    const bodies = new WeakMap<THREE.Object3D, THREE.Object3D | null>()
+    const bodyOf = (o: THREE.Object3D) => {
+      let h = bodies.get(o)
+      if (h === undefined || (h && !h.parent)) {
+        let found: THREE.Object3D | null = null
+        o.traverse((q) => { if (!found && q.userData.figureHit) found = q })
+        h = found
+        bodies.set(o, h)
+      }
+      return h ?? o
+    }
     const folkNow = () => {
       const out: number[] = [], w = new THREE.Vector3()
       for (const [o] of FIGURES) {
         if (!o.parent || !o.visible || o.name === 'BossFollow') continue
-        o.getWorldPosition(w)
+        bodyOf(o).getWorldPosition(w)
         out.push(w.x, w.z)
       }
       return out
@@ -4742,7 +4757,7 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
         if (f.taken(u - BOSS_FEET, u + BOSS_FEET, v - BOSS_FEET, v + BOSS_FEET)) continue
         const w = f.at(u, v)
         // (not on one of the people)
-        if (onFolk(w, folk)) continue
+        if (onFolk(w, folk, DROP_CLEAR)) continue
         const corners = [-1, 1].flatMap((su) => [-1, 1].map((sv) => f.at(u + su * BOSS_FEET, v + sv * BOSS_FEET)))
         if (![w, ...corners].every(f.inRoom) || inGenkan(GRILL_COUNTERS, bar(w))) continue
         const lv = f.level(w)
@@ -4882,7 +4897,7 @@ const BossBedWays = memo(function BossBedWays({ open, research }: { open: boolea
       const b = toBar(g.worldToLocal(p.clone())).setY(0), c0 = GRILL_COUNTERS[0], rm = roomOf(GRILL_COUNTERS)
       const al = b.clone().sub(c0.at).dot(c0.along), ly = b.clone().sub(c0.at).dot(c0.lay)
       const onShop = al > rm.along[0] + 0.1 && al < rm.along[1] - 0.1 && ly > rm.lay[0] + 0.1 && ly < rm.lay[1] - 0.1
-      done(onShop && !inGenkan(GRILL_COUNTERS, b) && !onFolk(p, folkNow()) ? g.worldToLocal(p.clone()) : null)
+      done(onShop && !inGenkan(GRILL_COUNTERS, b) && !onFolk(p, folkNow(), DROP_CLEAR) ? g.worldToLocal(p.clone()) : null)
       return () => {}
     }
     /** the room's floor for his walking, on the shop's map: squares of 10 cm, each free if his body (a little narrower than where he'd stand:
