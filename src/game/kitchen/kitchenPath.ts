@@ -81,16 +81,134 @@ export function reachSpot(p: P, from: P, room: Rect, blocks: Rect[], cell = 0.1)
 }
 
 /**
- * The way from `from` to `to` inside `room`, round the `blocks` (each already grown by how much room a person walking by needs): the
- * corners along it, from and to included; the straight line if nothing's in the way; null if there's no way at all. (`from` and `to`
- * themselves may stand a little inside a block: whoever's there stepped up to it.)
+ * How much of the room left round each block is given up, in turn, when there's no way with all of it (item 670, the owner's, 2026-11-24:
+ * 「注意一下動線，別讓腳色穿越」: a sack or a crate put down across the kitchen's way left the gaps round it narrower than a body and its
+ * room on both sides, no way was found, and the way was drawn straight from end to end through the warmer, the fryer and the serving
+ * counter; squeezed past, they brush by a thing's side, not through it)
  */
-export function kitchenPath(from: P, to: P, room: Rect, blocks: Rect[], cell = 0.1): P[] | null {
-  // (an end standing inside a block steps out of it first, and the way is found between where they step out to)
-  const a0 = stepOut(from, blocks, cell), b0 = stepOut(to, blocks, cell)
-  const ends = (mid: P[]): P[] => [from, ...(a0 !== from ? [a0] : []), ...mid, ...(b0 !== to ? [b0] : []), to]
-  const way = wayBetween(a0, b0, room, blocks, cell)
-  return way ? ends(way.slice(1, -1)) : null
+export const SQUEEZE = [0.065, 0.11] as const
+/** a block with `s` of the room round it given up (never past its own middle) */
+const shrunk = (r: Rect, s: number): Rect => {
+  const cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2
+  return { x0: Math.min(cx, r.x0 + s), z0: Math.min(cz, r.z0 + s), x1: Math.max(cx, r.x1 - s), z1: Math.max(cz, r.z1 - s) }
+}
+
+/**
+ * The way from `from` to `to` inside `room`, round the `blocks` (each already grown by how much room a person walking by needs): the
+ * corners along it, from and to included; the straight line if nothing's in the way; squeezed past them (SQUEEZE) if there's no way with
+ * all the room round them; null if there's no way at all. (`from` and `to` themselves may stand a little inside a block: whoever's there
+ * stepped up to it.)
+ */
+export function kitchenPath(from: P, to: P, room: Rect, blocks: Rect[], cell = 0.1, squeeze: readonly number[] = SQUEEZE): P[] | null {
+  for (let k = 0; k <= squeeze.length; k++) {
+    const bl = k ? blocks.map((r) => shrunk(r, squeeze[k - 1])) : blocks
+    // (an end standing inside a block steps out of it first, and the way is found between where they step out to)
+    const a0 = stepOut(from, bl, cell), b0 = stepOut(to, bl, cell)
+    const way = wayBetween(a0, b0, room, bl, cell)
+    if (way) return [from, ...(a0 !== from ? [a0] : []), ...way.slice(1, -1), ...(b0 !== to ? [b0] : []), to]
+  }
+  return null
+}
+
+/**
+ * (item 670) the nearest place to `p` one can stand at with `standRoom` more round them than the blocks have, that's walked to from `from`
+ * (squeezed past them if need be, as SQUEEZE): a server's place a piece was put down on, or round, stood clear of it the shortest way
+ * (standClear) landed in a nook shut in by the warmer and the miso pot, and every way from it went through the warmer. `p` itself if it's
+ * such a place; null if there's none in the room.
+ */
+export function reachableNear(p: P, from: P, room: Rect, blocks: Rect[], standRoom: number, cell = 0.1): P | null {
+  const walk = blocks.map((r) => shrunk(r, SQUEEZE[SQUEEZE.length - 1]))
+  const stand = blocks.map((r) => ({ x0: r.x0 - standRoom, z0: r.z0 - standRoom, x1: r.x1 + standRoom, z1: r.z1 + standRoom }))
+  const nx = Math.max(1, Math.ceil((room.x1 - room.x0) / cell)), nz = Math.max(1, Math.ceil((room.z1 - room.z0) / cell))
+  const idx = (i: number, j: number) => j * nx + i
+  const cx = (i: number) => room.x0 + (i + 0.5) * cell, cz = (j: number) => room.z0 + (j + 0.5) * cell
+  const free = new Uint8Array(nx * nz)
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) free[idx(i, j)] = walk.some((r) => inside(r, cx(i), cz(j))) ? 0 : 1
+  const s = stepOut(from, walk, cell)
+  const si = Math.min(nx - 1, Math.max(0, Math.floor((s[0] - room.x0) / cell))), sj = Math.min(nz - 1, Math.max(0, Math.floor((s[1] - room.z0) / cell)))
+  // (all that's walked to from there, square by square; a diagonal only past two clear squares, as the ways go)
+  const seen = new Uint8Array(nx * nz), queue = [idx(si, sj)]
+  seen[idx(si, sj)] = 1
+  while (queue.length) {
+    const k = queue.pop()!, i = k % nx, j = Math.floor(k / nx)
+    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+      if (!di && !dj) continue
+      const ni = i + di, nj = j + dj
+      if (ni < 0 || nj < 0 || ni >= nx || nj >= nz) continue
+      const k2 = idx(ni, nj)
+      if (seen[k2] || !free[k2] || (di && dj && (!free[idx(i + di, j)] || !free[idx(i, j + dj)]))) continue
+      seen[k2] = 1
+      queue.push(k2)
+    }
+  }
+  const pi = Math.floor((p[0] - room.x0) / cell), pj = Math.floor((p[1] - room.z0) / cell)
+  if (pi >= 0 && pj >= 0 && pi < nx && pj < nz && seen[idx(pi, pj)] && !stand.some((r) => inside(r, p[0], p[1]))) return p
+  let best: P | null = null, bestD = Infinity
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    if (!seen[idx(i, j)]) continue
+    const x = cx(i), z = cz(j), d = Math.hypot(x - p[0], z - p[1])
+    if (d < bestD && !stand.some((r) => inside(r, x, z))) { bestD = d; best = [x, z] }
+  }
+  return best
+}
+
+/** what a square in a block costs on the way through them (THROUGH squares clear for each of it) */
+const THROUGH = 12
+/**
+ * (item 670) the way from `from` to `to` when there's none round the blocks even squeezed past them (one's place shut in: a piece put down
+ * on it, or round it): across the grid, a square in a block (with the most of the room round it given up) costing THROUGH clear ones, so
+ * it's round them wherever it can be and across the least of them where it can't; a few corners where it's clear, square by square where
+ * it isn't. Never the straight line through all that's there (the way the staff's ways went before); [from, to] only if they're one square.
+ */
+export function kitchenPathThrough(from: P, to: P, room: Rect, blocks: Rect[], cell = 0.1): P[] {
+  const bl = blocks.map((r) => shrunk(r, SQUEEZE[SQUEEZE.length - 1]))
+  const nx = Math.max(1, Math.ceil((room.x1 - room.x0) / cell)), nz = Math.max(1, Math.ceil((room.z1 - room.z0) / cell))
+  const idx = (i: number, j: number) => j * nx + i
+  const cx = (i: number) => room.x0 + (i + 0.5) * cell, cz = (j: number) => room.z0 + (j + 0.5) * cell
+  const cellOf = (p: P): [number, number] => [Math.min(nx - 1, Math.max(0, Math.floor((p[0] - room.x0) / cell))), Math.min(nz - 1, Math.max(0, Math.floor((p[1] - room.z0) / cell)))]
+  const [si, sj] = cellOf(from), [ti, tj] = cellOf(to)
+  const s0 = idx(si, sj), goal = idx(ti, tj)
+  if (s0 === goal) return [from, to]
+  const cost = new Float32Array(nx * nz)
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) cost[idx(i, j)] = bl.some((r) => inside(r, cx(i), cz(j))) ? THROUGH : 0
+  const g = new Float32Array(nx * nz).fill(Infinity), came = new Int32Array(nx * nz).fill(-1), done = new Uint8Array(nx * nz)
+  const open: number[] = [s0]
+  g[s0] = 0
+  const h = (k: number) => Math.hypot((k % nx) - ti, Math.floor(k / nx) - tj)
+  while (open.length) {
+    let best = 0
+    for (let k = 1; k < open.length; k++) if (g[open[k]] + h(open[k]) < g[open[best]] + h(open[best])) best = k
+    const cur = open[best]
+    open.splice(best, 1)
+    if (cur === goal) break
+    if (done[cur]) continue
+    done[cur] = 1
+    const i = cur % nx, j = Math.floor(cur / nx)
+    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+      if (!di && !dj) continue
+      const ni = i + di, nj = j + dj
+      if (ni < 0 || nj < 0 || ni >= nx || nj >= nz) continue
+      const k = idx(ni, nj)
+      if (done[k]) continue
+      const step = di && dj ? Math.SQRT2 : 1
+      const ng = g[cur] + step * (1 + cost[k])
+      if (ng < g[k]) { g[k] = ng; came[k] = cur; open.push(k) }
+    }
+  }
+  if (came[goal] < 0) return [from, to]
+  const cells: P[] = []
+  for (let k = goal; k >= 0 && k !== s0; k = came[k]) cells.push([cx(k % nx), cz(Math.floor(k / nx))])
+  cells.reverse()
+  const pts: P[] = [from, ...cells.slice(0, -1), to]
+  const out: P[] = [from]
+  let a = 0
+  while (a < pts.length - 1) {
+    let b = pts.length - 1
+    while (b > a + 1 && !clear(pts[a], pts[b], bl, cell)) b--
+    out.push(pts[b])
+    a = b
+  }
+  return out
 }
 
 /** the corners of the way from a to b, both included (both standing clear of the blocks), or null */

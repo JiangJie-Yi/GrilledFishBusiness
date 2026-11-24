@@ -61,7 +61,7 @@ import { getEdit, offsetOf, setLocked } from './edit'
 import { WASH_GUIDE, basinHint, guideOff, guideOn } from '@/shops/grill/kitchen/Sink'
 import { paysAtTill } from '@/game/money/till'
 import { dryerPhase, DRY_S, DRYER_CAP, LOW_FULL, PLATES_ALL, STACK_CAP, dryerTick, dutyOf, lowGoes, lowToBring, nextChore, onTheWay, plateSource, platerGoes, platesToBring, playerLoad, putBack, rackAtStart, START_DIRTY, START_DRAIN, unload, washOne, DRAIN_CAP, drainTick, handOne, unbasket, CLEAN_AT, DIRT_BASE, handTime, plateDirt, soakStep } from '@/game/service/plates'
-import { kitchenPath, outOfPieces, reachSpot, standClear, type Rect } from '@/game/kitchen/kitchenPath'
+import { kitchenPath, kitchenPathThrough, outOfPieces, reachSpot, reachableNear, standClear, type Rect } from '@/game/kitchen/kitchenPath'
 import { PER_RACK } from '@/shops/grill/kitchen/PlateRack'
 import { RICE_FULL, SCOOP_S, SHAPE_EACH, TRAY_MAX, WASH_S, emptyKama, kamaTick, riceGoes, setOn, takeRice, trayWants } from '@/game/kitchen/rice'
 import { MAKE_S, SOUP_BOWLS, emptyPot, heatNow, heatRate, potTick, setSoup, soupGoes, soupReady, takeBowl, topUpGoes } from '@/game/kitchen/soup'
@@ -98,6 +98,10 @@ import { HER, WC_TO_SEAT, WC_SIT_LIFT, wcStayOf, HAND_S, HAND_DRY_S, REFILL_RATE
 import { LONG_GEO, ROUND_GEO, Plate, PlateKinds, showKind, smearsOf, pickupReady } from './guestbar/plates'
 import { WaitingBench, KraftBag, TakeoutStandModel, STAND_TOP, STAND_SLOTS, WARM_TUB_Z, WarmTub, STAND_TURN, STAND_LIFT, STAND_GIVE, TakeoutBag, RiderGear } from './guestbar/takeoutStand'
 import { GuestLabel, CUP_AHEAD, CUP_SIDE, SeatDrink, PersonClock } from './guestbar/labels'
+
+/** (dev, item 670) how many of the kitchen's ways had no way round what's there, even squeezed past it, and went through the least of it */
+const KITCHEN_THROUGH = { n: 0 }
+if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __kitchenThrough: KITCHEN_THROUGH })
 
 /** the counter itself (for the shops that don't draw their own): hinoki top, panelled dark front, a lip */
 function Counter({ length }: { length: number }) {
@@ -281,7 +285,14 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     if (!blocks.length) return h
     // (further off than a passer-by's room (item 590): stood waiting by the sink's end, a server's hand hanging at their side (StaffFigure's
     // REST, 0.51 out from their middle) was in its side panel 9 to 14 cm all the while)
-    const [a0, l0] = standClear(flat(h.at), blocks.map((r) => ({ x0: r.x0 - HOME_ROOM, z0: r.z0 - HOME_ROOM, x1: r.x1 + HOME_ROOM, z1: r.z1 + HOME_ROOM })))
+    let [a0, l0] = standClear(flat(h.at), blocks.map((r) => ({ x0: r.x0 - HOME_ROOM, z0: r.z0 - HOME_ROOM, x1: r.x1 + HOME_ROOM, z1: r.z1 + HOME_ROOM })))
+    // (and a place they can walk out of to their gate (item 670: a piece put down on a server's place or round it, the nearest place clear
+    // of it was a nook shut in by the warmer and the miso pot, and every way of theirs went through the warmer): the nearest that is)
+    if (h.way.length > 1) {
+      const k = kitchenOf(counters), area = { x0: k.along[0], z0: k.lay[0], x1: k.along[1], z1: k.lay[1] }
+      const near = reachableNear([a0, l0], flat(h.way[1]), area, blocks, HOME_ROOM)
+      if (near) [a0, l0] = near
+    }
     // (and what they hold before them (their tray, TRAY_REACH out) clear of what's there itself (a block less its passing room): stood waiting
     // facing the sink's end, the second server's tray and hands were in it all the while (item 590); stepped back from it till they're clear)
     const c0 = counters[0]
@@ -1481,8 +1492,13 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     const stops = [start, ...viaStops(from, to), end(to)]
     let out: THREE.Vector3[] = []
     for (let i = 1; i < stops.length; i++) {
-      const way = kitchenPath(flat(stops[i - 1]), flat(stops[i]), area, blocks)
-      const leg = way ? way.map(back) : [stops[i - 1].clone().setY(0), stops[i].clone().setY(0)]
+      // (no way round what's there even squeezed past it: the one through the least of it, not the straight line through it all (item 670,
+      // the owner's 「注意一下動線，別讓腳色穿越」: a sack put down across a way, the servers' ways went straight through the warmer and the
+      // serving counter))
+      const a = flat(stops[i - 1]), b = flat(stops[i])
+      let way = kitchenPath(a, b, area, blocks)
+      if (!way) { way = kitchenPathThrough(a, b, area, blocks); if (import.meta.env.DEV) KITCHEN_THROUGH.n++ }
+      const leg = way.map(back)
       out = i === 1 ? leg : [...out, ...leg.slice(1)]
     }
     // (and from just where they stand: one at their place in a piece's reach (the third cook in his bay at the cook table) moved out to the
@@ -1542,6 +1558,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     if (sig !== pathsMap.current.sig) {
       pathsMap.current.sig = sig
       placesMemo.current.at = -1e9
+      // (and where each server stands looked at again with it: a piece moved onto one's place (item 670))
+      clearHomes.current.clear()
       const pl = platingOf()
       // (each named: whose, from where to where (item 189))
       // (from where each server really stands: their place stepped clear of what's on the floor (clearHome), as they walk from it; the place
