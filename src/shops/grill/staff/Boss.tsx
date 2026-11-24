@@ -50,6 +50,8 @@ import { turnEase } from './commuteWalk'
 import { NO_POINTER, zr } from '@/scene/interact/htmlProps'
 import { warmLater } from '@/scene/render/Prewarm'
 import { UCHIWA_URL, uchiwaInHand } from '@/scene/people/uchiwa'
+import { GIVE, giveWay, type Floor, type GiveWay } from '@/game/staff/giveWay'
+import { steppingAside } from '@/shops/grill/roasting/hearthGuard'
 
 /**
  * The owner (blender/boss.py): an Overcooked 2 cook (a big round head on a short plump body rounding off underneath, floating mitten
@@ -200,7 +202,125 @@ const AWAY_RULE = { on: true }
 /** whether the shop was open the frame before (the module's, not his: he's drawn afresh as the shop shuts, and his own memory of it went
  * with the old one, the moment it shut never seen) */
 const SHOP_WAS = { open: false }
-if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __bossToBed: () => { TO_BED.now = true }, __bossBody: BOSS_BODY, __bossAway: AWAY_RULE })
+/** (item 659 d) making way for those walking near him on his way (game/giveWay): dev `__bossGive.on = false` as before (he kept to his way
+ * and pace, they to theirs, and went through each other); `k` and `side` as they are now, to be seen */
+const GIVE_RULE = { on: true, k: 1, side: 0 }
+if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __bossToBed: () => { TO_BED.now = true }, __bossBody: BOSS_BODY, __bossAway: AWAY_RULE, __bossGive: GIVE_RULE })
+/** how quick he slows to a stop and gets going again (his pace's share a second), how fast he steps aside at most (the world's metres a
+ * second), the longest he gives way to one meeting before going on regardless (one walking beside him that won't draw off), a body turned
+ * sideways' half (the stand-aside's), how much further round him those near are kept track of than are looked at (to know how they're
+ * going as they come to it) */
+const GIVE_STOP = 5, GIVE_GO = 2.2, GIVE_STEP = 1.5, GIVE_MOST = 2.5, GIVE_HALF = 0.14, GIVE_TRACK = 0.5
+/** his giving way: how fast he goes on (eased, 0 .. 1), how far he's stepped aside and where to (the world's x, z), how long he's been
+ * giving way, how long since anyone asked it of him */
+type Giving = { k: number; x: number; z: number; wantX: number; wantZ: number; for: number; calm: number }
+const newGiving = (): Giving => ({ k: 1, x: 0, z: 0, wantX: 0, wantZ: 0, for: 0, calm: 0 })
+/** each one near him: where their body was (the world's), how they're going (smoothed), when, and the frame they were last seen in (those
+ * not seen let go of) */
+type Going = { x: number; z: number; vx: number; vz: number; t: number; f: number }
+const GOING = new Map<THREE.Object3D, Going>()
+const GIVE_OTHERS: number[] = []
+const GIVE_OUT: GiveWay = { k: 1, dx: 0, dz: 0, near2: 0 }
+const GIVE_A = new THREE.Vector3(), GIVE_B = new THREE.Vector3(), GIVE_C = new THREE.Vector3()
+const GIVE_NOW = { me: null as THREE.Object3D | null, x: 0, z: 0, T: 0, f: 0, look2: 0 }
+/** each one's body (their FigureHit box, kept at their body's middle), found once */
+const GIVE_BODIES = new WeakMap<THREE.Object3D, THREE.Object3D | null>()
+const giveBody = (o: THREE.Object3D) => {
+  let h = GIVE_BODIES.get(o)
+  if (h === undefined || (h && !h.parent)) {
+    let found: THREE.Object3D | null = null
+    o.traverse((q) => { if (!found && q.userData.figureHit) found = q })
+    h = found
+    GIVE_BODIES.set(o, h)
+  }
+  return h ?? o
+}
+/** (FIGURES' forEach, the frame's: one each) where one is and how they're going, into GIVE_OTHERS if they're near enough and walking their
+ * own way (not stepping aside for him) */
+function noteGoing(_role: unknown, o: THREE.Object3D) {
+  const n = GIVE_NOW
+  if (o === n.me || !o.parent || !o.visible || o.name === 'BossFollow') return
+  giveBody(o).getWorldPosition(GIVE_C)
+  const dx = GIVE_C.x - n.x, dz = GIVE_C.z - n.z
+  if (dx * dx + dz * dz > n.look2) return
+  let g = GOING.get(o)
+  if (!g) { GOING.set(o, { x: GIVE_C.x, z: GIVE_C.z, vx: 0, vz: 0, t: n.T, f: n.f }); return }
+  const dt = n.T - g.t
+  if (dt > 1e-4) {
+    let vx = (GIVE_C.x - g.x) / dt, vz = (GIVE_C.z - g.z) / dt
+    // (a leap (a phase begun somewhere else) or a long gap is no walk)
+    if (vx * vx + vz * vz > 36 || dt > 0.25) { vx = 0; vz = 0 }
+    const a = Math.min(1, dt * 15)
+    g.vx += (vx - g.vx) * a; g.vz += (vz - g.vz) * a
+    g.x = GIVE_C.x; g.z = GIVE_C.z; g.t = n.T
+  }
+  g.f = n.f
+  // (one stepping aside for him: where they are only, their step no walk to make way for)
+  if (steppingAside(o)) GIVE_OTHERS.push(g.x, g.z, 0, 0)
+  else GIVE_OTHERS.push(g.x, g.z, g.vx, g.vz)
+}
+function dropGoing(g: Going, o: THREE.Object3D) { if (g.f !== GIVE_NOW.f) GOING.delete(o) }
+/** whether there's floor for him off where his way has him (GIVE_A, the world's) by (dx, dz): clear on the shop's map for a body turned
+ * sideways */
+const GIVE_FLOOR: Floor = {
+  clear(dx, dz) {
+    const clear = BOSS_BED.clear
+    if (!clear) return false
+    GIVE_C.set(GIVE_A.x + dx, GIVE_A.y, GIVE_A.z + dz)
+    return clear(GIVE_C, GIVE_HALF)
+  },
+}
+/**
+ * (item 659 d) the pace he goes on at along his way (0 .. 1, eased), making way for those walking near him (game/giveWay): `me` his mover,
+ * `par` its frame, `pace` his own (his frame's measure a second), `T` the clock; where he's to step aside to (the world's) left in `g`
+ */
+function giveWayNow(me: THREE.Object3D, par: THREE.Object3D, bd: BedTrip, pace: number, T: number, dt: number, g: Giving) {
+  let want = 1
+  g.wantX = 0; g.wantZ = 0
+  // (where his way has him and which way it goes, in the world; and how long the world's metre is in his frame's measure)
+  alongPts(bd.pts, bd.d, GIVE_A); par.localToWorld(GIVE_A)
+  const on = Math.min(bd.len, bd.d + 0.25), lookL = on - bd.d
+  alongPts(bd.pts, on, GIVE_B); par.localToWorld(GIVE_B)
+  let ux = GIVE_B.x - GIVE_A.x, uz = GIVE_B.z - GIVE_A.z
+  const uL = Math.hypot(ux, uz)
+  if (GIVE_RULE.on && uL > 1e-4 && lookL > 1e-4) {
+    ux /= uL; uz /= uL
+    const perM = uL / lookL
+    const n = GIVE_NOW
+    n.me = me; n.x = GIVE_A.x; n.z = GIVE_A.z; n.T = T; n.f++; n.look2 = (GIVE.look + GIVE_TRACK) ** 2
+    GIVE_OTHERS.length = 0
+    FIGURES.forEach(noteGoing)
+    GOING.forEach(dropGoing)
+    giveWay(GIVE_A.x, GIVE_A.z, ux, uz, pace * perM, g.x, g.z, GIVE_OTHERS, GIVE_FLOOR, GIVE_OUT)
+    want = GIVE_OUT.k
+    // (no step off his way near its end: he's to be on it as he gets there)
+    const near = Math.max(0, Math.min(1, ((bd.len - bd.d) * perM - 0.5) / 1.5))
+    g.wantX = GIVE_OUT.dx * near; g.wantZ = GIVE_OUT.dz * near
+  } else if (GOING.size) GOING.clear()
+  // (no longer than GIVE_MOST for one meeting: on regardless, till nobody's asked it of him for a moment)
+  if (want < 1) {
+    g.calm = 0; g.for += dt
+    if (g.for > GIVE_MOST) { want = 1; g.wantX = 0; g.wantZ = 0 }
+  } else { g.calm += dt; if (g.calm > 0.4) g.for = 0 }
+  g.k = want < g.k ? Math.max(want, g.k - GIVE_STOP * dt) : Math.min(want, g.k + GIVE_GO * dt)
+  if (import.meta.env.DEV) { GIVE_RULE.k = g.k; GIVE_RULE.side = Math.hypot(g.wantX, g.wantZ) }
+  return g.k
+}
+/** his step aside eased to where it's to be (no quicker than GIVE_STEP) and him drawn there (`s`, his frame's) from `p`, where his way has
+ * him; how far he stepped this frame (his frame's measure: his feet go with it) */
+function stepAsideNow(par: THREE.Object3D, p: THREE.Vector3, g: Giving, s: { x: number; z: number }, dt: number) {
+  const tx = g.wantX - g.x, tz = g.wantZ - g.z, d = Math.hypot(tx, tz)
+  let moved = 0
+  if (d > 1e-5) { moved = Math.min(GIVE_STEP * dt, d * Math.min(1, dt * 10)); g.x += (tx * moved) / d; g.z += (tz * moved) / d }
+  if (Math.abs(g.x) + Math.abs(g.z) < 1e-5) return 0
+  GIVE_C.copy(p); par.localToWorld(GIVE_C)
+  GIVE_C.x += g.x; GIVE_C.z += g.z; par.worldToLocal(GIVE_C)
+  s.x = GIVE_C.x; s.z = GIVE_C.z
+  // (the world's metre in his frame's: from the step's own two ends)
+  if (!moved) return 0
+  const localOff = Math.hypot(GIVE_C.x - p.x, GIVE_C.z - p.z), worldOff = Math.hypot(g.x, g.z)
+  return worldOff > 1e-6 ? (moved * localOff) / worldOff : 0
+}
 const alongPts = (pts: THREE.Vector3[], d: number, out: THREE.Vector3) => {
   for (let i = 1; i < pts.length; i++) {
     const seg = pts[i].distanceTo(pts[i - 1])
@@ -565,6 +685,8 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
   /** his palms' heights in the world as they're eased to where they're wanted at the fire (NaN: not at it) */
   const palmY = useRef({ r: NaN, l: NaN })
   const st = useRef({ last: 0, phase: 0, t: 0, x: 0, z: 0, yaw: 0, stride: 0, blinkAt: 2, blinks: 0, y: 0, vy: 0, ground: 0, probeAt: -1, probeX: 0, probeZ: 0, probeEdit: false })
+  // (item 659 d: his making way for those walking near him on his way)
+  const giving = useRef(newGiving())
   const bed = useRef<BedTrip>({ phase: 'off', pts: [], len: 0, d: 0, t: 0, foot: new THREE.Vector3(), feet: new THREE.Vector3(), off: new THREE.Vector3(), head: new THREE.Vector3(), bar: 1, lie: 0 })
   /** (item 637) the business day whose night he last went up for (once a night) */
   const nightGone = useRef(-1)
@@ -786,6 +908,9 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     const bedOn = bd.phase !== 'off' && !edit
     let bedSpeed = 0
     const toward = (to: number, rate: number) => turnTo(s, to, dt, rate)
+    // (item 659 d: off his way (at his place, taken up, laying his futon), none of his giving way kept)
+    const gv = giving.current
+    if (!(bedOn && (bd.phase === 'go' || bd.phase === 'back' || bd.phase === 'up')) && (gv.k !== 1 || gv.x || gv.z || gv.for)) { Object.assign(gv, newGiving()); GOING.clear() }
     if (bedOn) {
       const hd = Math.atan2(bd.head.x - bd.foot.x, bd.head.z - bd.foot.z)
       if (bd.phase === 'go' || bd.phase === 'back' || bd.phase === 'up') {
@@ -796,10 +921,15 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
         // (his own pace there; back at a run if the shop's opening without him)
         bedSpeed = bd.phase === 'back' && open ? RUN_SPEED * 0.8 : WALK_SPEED
         const was = alongPts(bd.pts, bd.d, new THREE.Vector3())
+        // (item 659 d: slowed or waiting for those walking near him, as they come by)
+        if (m.parent) bedSpeed *= giveWayNow(m, m.parent, bd, bedSpeed, T, dt, giving.current)
         bd.d = Math.min(bd.len, bd.d + bedSpeed * dt)
         const p = alongPts(bd.pts, bd.d, new THREE.Vector3())
         s.stride += p.distanceTo(was)
         s.x = p.x; s.z = p.z; s.y = p.y
+        // (and stepped off his way for one coming at him, his feet going with it)
+        const sidled = m.parent ? stepAsideNow(m.parent, p, giving.current, s, dt) : 0
+        if (sidled > 0) { s.stride += sidled; bedSpeed = Math.max(bedSpeed, sidled / Math.max(dt, 1e-4)) }
         if (p.distanceTo(was) > 1e-5) toward(Math.atan2(p.x - was.x, p.z - was.z), 8)
         if (bd.d >= bd.len - 1e-6) {
           if (bd.phase === 'up') { bd.phase = 'upstairs'; bd.t = 0; NIGHT_WITH.up = true; NIGHT_WITH.at = performance.now(); BOSS_BODY.bed = 'asleep'; BOSS_BODY.since = performance.now() }

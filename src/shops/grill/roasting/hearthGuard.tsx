@@ -25,6 +25,11 @@ type Away = { off: THREE.Vector3; offL: THREE.Vector3; drawn: THREE.Vector3; las
   own?: number; aside?: number }
 const AWAYS = new Map<THREE.Object3D, Away>()
 if (import.meta.env.DEV && typeof window !== 'undefined') Object.assign(window, { __aways: AWAYS })
+/** whether one's stepping aside for him just now, or back from it (item 659 d: their step's no walk of theirs to make way for) */
+export function steppingAside(o: THREE.Object3D) {
+  const a = AWAYS.get(o)
+  return !!a && (!!a.to || a.off.lengthSq() > 1e-4)
+}
 const AWAY_BOSS = new THREE.Vector3(), AWAY_W = new THREE.Vector3(), AWAY_TO = new THREE.Vector3(), AWAY_TRY = new THREE.Vector3(), AWAY_WANT = new THREE.Vector3()
 const AWAY_CLOCK = { at: 0 }
 /** where a point is along a way (its length from the start to the nearest point of it) and how far off it, from `from` along it on */
