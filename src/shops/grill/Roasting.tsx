@@ -1854,6 +1854,9 @@ function standAside(boss: THREE.Object3D | null) {
   AWAY_CLOCK.at = now
   const way = BOSS_BED.wayW, on = BOSS_BED.passing && !!boss && !!boss.parent && way.length > 1
   if (!on && !AWAYS.size) return
+  // (one gone (a customer out of the door, a cook home: taken out of FIGURES as they went, so never looked at below) let go of, not kept,
+  // and all of them with them, for the rest of the night (the Optimization window's))
+  if (AWAYS.size) AWAYS.forEach((_a, o) => { if (!o.parent || !FIGURES.has(o)) AWAYS.delete(o) })
   let bossAt = 0
   if (on && boss) { boss.getWorldPosition(AWAY_BOSS); bossAt = alongWay(way, AWAY_BOSS.x, AWAY_BOSS.z)[0] }
   const clear = BOSS_BED.clear
