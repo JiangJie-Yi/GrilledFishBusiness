@@ -231,6 +231,28 @@ const REST = { L: new THREE.Vector3(-0.31, 0.26, 0.05), R: new THREE.Vector3(0.3
  * (item 687) before their belly to that side, just clear of it (its front 0.21 out at 0.15 across): at 0.19, 0.12 it was in their belly */
 const TUCK_X = 0.15, TUCK_Z = 0.28
 const REACH_A = new THREE.Vector3(), REACH_B = new THREE.Vector3()
+/** (item 689) the fastest a hand goes (their own frame, a second of the game's), and a hand's move this frame kept to it: up, the height
+ * first and then out; down, out first and then the height (as a reach goes: straight across, a hand kept back cut through a counter's front
+ * edge on its way down into the sink, 7 cm) */
+const HAND_SPEED = 6
+const HAND_D = new THREE.Vector3()
+/** (item 689) how long a reach out to a job's places takes (and back), seconds of the game's */
+const REACH_S = 0.3
+function limitHand(hand: THREE.Object3D, was: THREE.Vector3, ready: boolean, dt: number) {
+  if (ready) {
+    HAND_D.subVectors(hand.position, was)
+    const d = HAND_D.length(), most = HAND_SPEED * dt
+    if (d > most && d > 1e-6) {
+      const h = Math.hypot(HAND_D.x, HAND_D.z)
+      let sy: number, sh: number
+      if (HAND_D.y > 0) { sy = Math.min(HAND_D.y, most); sh = Math.min(h, Math.sqrt(Math.max(0, most * most - sy * sy))) }
+      else { sh = Math.min(h, most); sy = -Math.min(-HAND_D.y, Math.sqrt(Math.max(0, most * most - sh * sh))) }
+      const k = h > 1e-6 ? sh / h : 0
+      hand.position.set(was.x + HAND_D.x * k, was.y + sy, was.z + HAND_D.z * k)
+    }
+  }
+  was.copy(hand.position)
+}
 /** where a lean to their work bends them, a share of their height up from their feet (a counter's top on them) (item 387) */
 const LEAN_WAIST = 0.55
 /** (a scratch vector: the figure's scale, for its emotes' height in its own frame, item 381) */
@@ -511,12 +533,16 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
   const bend = useRef(0)
   /** how far their hands are at a job's places (handsAt: eased there and back), and those places in their own frame, each to the hand on its side */
   const reachK = useRef(0)
+  /** (item 689) how far through reaching out (or back) they are, in time: reachK is it eased */
+  const reachLin = useRef(0)
   /** (item 676) how far each hand's drawn in (left, right), eased to what whoever moves them asks (job's tuckL / tuckR) */
   const tuckK = useRef([0, 0])
   /** (item 675) how far their hands are out to hold what they carry (a tray, the clipboard, the cashier's together): eased (-1: not yet set) */
   const holdK = useRef(-1)
   /** whether what they last held out was carried (a tray, the clipboard, what the chef brings back) or their hands just together (the cashier) */
   const heldAs = useRef(false)
+  /** (item 689) where each hand was drawn last frame (their own frame), for how far it may go in this one */
+  const handWas = useRef({ L: new THREE.Vector3(), R: new THREE.Vector3(), set: false })
   /** their face's life (game/faceLife, item 368), and which way they faced last frame (for the eyes to go first where they're turning) */
   const life = useRef<FaceLife | null>(null)
   const yawWas = useRef(0)
@@ -736,7 +762,10 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
     // brought up onto the counter, a cup set down): eased to them and back as it begins and ends; each place to the hand on its side (the one
     // further along their +x to the +x hand), so the two never cross)
     const reach = job?.handsAt
-    reachK.current += ((reach ? 1 : 0) - reachK.current) * Math.min(1, dt * 12)
+    // (item 689: out and back over REACH_S, eased at both ends: a twelfth of what's left a frame, at double speed in a slow frame it was all
+    // of it, the hand a metre in a frame to a plate on the bar)
+    reachLin.current = Math.min(1, Math.max(0, reachLin.current + (reach ? 1 : -1) * dt / REACH_S))
+    reachK.current = reachLin.current * reachLin.current * (3 - 2 * reachLin.current)
     if (reach) {
       fig.root.updateWorldMatrix(true, false)
       const a = fig.root.worldToLocal(REACH_A.copy(reach.left)), b = fig.root.worldToLocal(REACH_B.copy(reach.right))
@@ -853,6 +882,15 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
         hand.rotation.z *= 1 - reachK.current
       }
     }
+    // (item 689: no hand across more than HAND_SPEED of their own frame a second (the game's): a pose put on at once (the scrub at the sink,
+    // a stretch, the board's), a reach eased in a frame or two at double speed in a slow frame, and a hand went a metre in one frame (a
+    // reach to a plate 1.07, the plater's 0.97, the scrub 0.72); a hand moving as it should (the scrub's own round 2.2, the knife 0.6) is
+    // well within it)
+    // (reaching too: a job's places changed while the hand was out at them (from the plate on the bar to the cloth for the wipe) moved it a
+    // metre in a frame; kept to it the way up first or out first, it keeps clear of a counter's edge as the reach itself does)
+    if (fig.handL) limitHand(fig.handL, handWas.current.L, handWas.current.set, dt)
+    if (fig.handR) limitHand(fig.handR, handWas.current.R, handWas.current.set, dt)
+    handWas.current.set = true
     if (fig.fan && fig.handR) {
       const shown = cook && fanning.current
       fig.fan.scale.setScalar(shown ? 1 : 0)

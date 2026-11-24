@@ -77,6 +77,8 @@ export const FOLK_HAND_REST = REST
  * round), not to be seen; now before their belly to that side, just clear of it (its front 0.22 out at 0.15 across): a hand in front of
  * them, as one squeezing past holds it, 16 cm less out to the side than hanging) */
 const TUCK_X = 0.15, TUCK_Z = 0.29
+/** (item 687) how long a hand takes to be drawn in, or let out again (seconds of the game's) */
+const TUCK_EASE_S = 0.25
 /** (item 676) the group above a figure that says which of its hands to draw in (tuckL / tuckR), found once */
 const TUCK_SAYS = new WeakMap<THREE.Object3D, THREE.Object3D | null>()
 const tuckSays = (o: THREE.Object3D) => {
@@ -789,6 +791,8 @@ function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = nu
   const last = useRef<number | null>(null)
   const served = useRef<{ was: boolean; at: number }>({ was: eating, at: -99 })
   const eatLean = useRef(0)
+  /** (item 687) how far each hand's drawn in (left, right), eased in time to what whoever moves them says */
+  const tuckEase = useRef([0, 0])
   const leanWant = useRef(0)
   const faded = useRef(1)
   const look = useRef({ yaw: 0, pitch: 0 })
@@ -1126,10 +1130,15 @@ function FolkFigureImpl({ id, eating, walking, still, clock, talk = 0, mood = nu
       // (item 676, the owner's 「客人會穿越」: the hand on a side that's up against something as they walk by it drawn in to their side, as one does
       // squeezing past (whoever moves them says which, on their group: tuckL / tuckR); coming in by the cats' stand at the door, the passage
       // narrower than their arms, their hands went 13 to 19 cm into it)
-      if (walking && !gearOn) {
-        const ud = tuckSays(o)?.userData as { tuckL?: number; tuckR?: number } | undefined
-        if (ud?.tuckL) { lp.x += (-TUCK_X - lp.x) * ud.tuckL; lp.z += (TUCK_Z - lp.z) * ud.tuckL }
-        if (ud?.tuckR) { rp.x += (TUCK_X - rp.x) * ud.tuckR; rp.z += (TUCK_Z - rp.z) * ud.tuckR }
+      // (item 687, the Tester window's 688: drawn in and let out over TUCK_EASE_S, eased at both ends: told at once (0 or 1), the place the hand
+      // goes after moved 0.29 in a frame, the hand 15 cm in a slow one)
+      {
+        const ud = walking && !gearOn ? tuckSays(o)?.userData as { tuckL?: number; tuckR?: number } | undefined : undefined
+        const te = tuckEase.current, r = dt / TUCK_EASE_S
+        te[0] = Math.min(1, Math.max(0, te[0] + ((ud?.tuckL ?? 0) > 0 ? r : -r)))
+        te[1] = Math.min(1, Math.max(0, te[1] + ((ud?.tuckR ?? 0) > 0 ? r : -r)))
+        if (te[0] > 0) { const k = te[0] * te[0] * (3 - 2 * te[0]); lp.x += (-TUCK_X - lp.x) * k; lp.z += (TUCK_Z - lp.z) * k }
+        if (te[1] > 0) { const k = te[1] * te[1] * (3 - 2 * te[1]); rp.x += (TUCK_X - rp.x) * k; rp.z += (TUCK_Z - rp.z) * k }
       }
       L.position.lerp(lp, kL)
       Rh.position.lerp(rp, kR)

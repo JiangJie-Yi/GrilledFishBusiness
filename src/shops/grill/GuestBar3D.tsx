@@ -108,6 +108,8 @@ const TUCK_FRAMES = new WeakMap<THREE.Object3D, THREE.Object3D | null>()
 /** (item 687) how long a hand drawn in is kept in after it was last up against something (ms), and when each was last, left and right */
 const TUCK_HOLD = 300
 const TUCK_SEEN = new WeakMap<THREE.Object3D, [number, number]>()
+/** (item 687) where a hand's drawn in to, across and before them (the body's frame: FolkFigure's and StaffFigure's TUCK_X, TUCK_Z) */
+const TUCK_AT: [number, number] = [0.15, 0.29]
 const tuckOf = (o: THREE.Object3D): [number, number] => {
   const taken = BOSS_BED.taken
   if (!TUCK.on || !taken || !o.visible) return TUCK_NONE
@@ -119,8 +121,10 @@ const tuckOf = (o: THREE.Object3D): [number, number] => {
   const now = performance.now()
   let seen = TUCK_SEEN.get(o)
   if (!seen) { seen = [-1e9, -1e9]; TUCK_SEEN.set(o, seen) }
-  if (taken(hp.localToWorld(TUCK_P.copy(FOLK_HAND_REST.L)), TUCK_HALF)) seen[0] = now
-  if (taken(hp.localToWorld(TUCK_P.copy(FOLK_HAND_REST.R)), TUCK_HALF)) seen[1] = now
+  // (and only where it's drawn in to is clear: up against something before them too (stood at the sink's cabinet), a hand drawn in before
+  // their belly went into it, 27 cm, where hanging it was clear of it)
+  if (taken(hp.localToWorld(TUCK_P.copy(FOLK_HAND_REST.L)), TUCK_HALF) && !taken(hp.localToWorld(TUCK_P.set(-TUCK_AT[0], FOLK_HAND_REST.L.y, TUCK_AT[1])), TUCK_HALF)) seen[0] = now
+  if (taken(hp.localToWorld(TUCK_P.copy(FOLK_HAND_REST.R)), TUCK_HALF) && !taken(hp.localToWorld(TUCK_P.set(TUCK_AT[0], FOLK_HAND_REST.R.y, TUCK_AT[1])), TUCK_HALF)) seen[1] = now
   TUCK_OUT[0] = now - seen[0] < TUCK_HOLD ? 1 : 0
   TUCK_OUT[1] = now - seen[1] < TUCK_HOLD ? 1 : 0
   return TUCK_OUT
@@ -140,7 +144,7 @@ const RUB_SWAP = new THREE.Vector3()
 /** (item 675) a server's tray lifted over the sink's top (the bar's units): eased up over LIFT_D of their way up to it, up by LIFT_END short
  * of where they stand at it (their hands, before them, as far again from its front as they'd be in it there); kept up LIFT_HOLD of the way
  * back, then eased down over LIFT_D; the hands' undersides (LIFT_HANDS of their own frame under the tray's height) LIFT_CLEAR over it */
-const LIFT_D = 0.35, LIFT_END = 0.25, LIFT_HOLD = 0.2, LIFT_CLEAR = 0.01, LIFT_HANDS = 0.1
+const LIFT_D = 0.35, LIFT_END = 0.25, LIFT_HOLD = 0.2, LIFT_CLEAR = 0.03, LIFT_HANDS = 0.1
 const LIFT_BOX = new THREE.Box3(), LIFT_P = new THREE.Vector3()
 /** (item 675) the skewers washed in the basin: in the right hand as it scrubs, held in its grip (the bar's units under the hand's middle) */
 const SK_WASH_DOWN = 0.02, SK_AT = new THREE.Vector3()
@@ -4873,8 +4877,15 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         const zones = stoolLine && wallKeep.current.boxes.length ? aisleSqueeze(wallKeep.current.boxes, line, stoolLine.back, SERVER_HALF) : []
         const back = phase === 'back'
         const bent = squeezePath(back ? [...path].reverse() : path, c0, line, zones)
-        // (item 675: back from tipping what they cleared into the sink, their tray picked up off its top and lowered as they go)
-        w.fromSink = back && w.phase === 'drop'
+        // (item 675: back from tipping what they cleared into the sink, their tray picked up off its top and lowered as they go; item 689: and
+        // from washing up there, their hands up out of it over its top a step before they come down to their sides (let down at once, the
+        // hands went through its cabinet as they turned away from it, 13 cm))
+        w.fromSink = (back && (w.phase === 'drop' || w.phase === 'wash' || w.phase === 'handwash' || w.phase === 'skWash'))
+          // (and off to the racks with the washer's or the basket's plates on it (item 689: held at their waist, it was in the cabinet as they
+          // took them out, 7.5 cm): taken up over the top, lowered on the way)
+          || (phase === 'unloadCarry' && (w.phase === 'unloadTake' || w.phase === 'basketTake'))
+          // (and the washed skewers carried off to their holder: up out of the basin over the top first, the bundle with the hands)
+          || (phase === 'skHolderGo' && w.phase === 'skWash')
         w.path = back && bent !== path ? bent.reverse() : bent; w.len = pathLength(w.path); w.phase = phase; w.t = 0
       }
       const walk = (then: () => void) => {
@@ -5559,10 +5570,14 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       // over the first of the way from it after (held at their waist, it and the hands under it went into the sink's cabinet as they came up
       // and turned away, 7.5 and 25 cm): the hands under it just over the top, eased in and out along the way)
       w.lift = 0
-      if (w.phase === 'clearBack' || w.phase === 'drop' || (w.phase === 'back' && w.fromSink)) {
+      // (item 689: so too up to the washer or the draining basket for their plates, held up as they're taken onto it, and lowered on the way to
+      // the racks)
+      const liftUp = w.phase === 'clearBack' || w.phase === 'unloadGo' || w.phase === 'basketGo'
+      const liftAt = w.phase === 'drop' || w.phase === 'unloadTake' || w.phase === 'basketTake'
+      if (liftUp || liftAt || ((w.phase === 'back' || w.phase === 'unloadCarry' || w.phase === 'skHolderGo') && w.fromSink)) {
         // (kept up as they tip it in: let down at once, their hands went back into the cabinet before they reached into the basin)
         const d = rampedAlong(w.t, w.len), top = sinkTopBar(), fig = waiterObjs.current[wi]
-        const k = w.phase === 'drop' ? 1 : w.phase === 'clearBack' ? (LIFT_D - (w.len - d - LIFT_END)) / LIFT_D : (LIFT_D - (d - LIFT_HOLD)) / LIFT_D
+        const k = liftAt ? 1 : liftUp ? (LIFT_D - (w.len - d - LIFT_END)) / LIFT_D : (LIFT_D - (d - LIFT_HOLD)) / LIFT_D
         if (k > 0 && fig && Number.isFinite(top)) {
           // (from their figure's own feet (up on the dais, the step stool): the hands' undersides (LIFT_HANDS of their frame under the tray's
           // height) just over the top)
@@ -5660,8 +5675,13 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       if (o) o.userData.trayDown = !!w.trayDown || w.phase === 'drop'
       // (item 675: with it put by, what they've in their hands held before them as it would be: a takeaway's bag (drawn where a plate on the
       // tray rides), the skewers' bundle (on the tray's place but at the sink); else their hands at their sides)
-      if (o) o.userData.holding = w.phase === 'toTill' || w.phase === 'hand' || w.phase === 'toStand' || w.phase === 'standPut'
+      // (item 689: and as they tip what they've cleared into the sink, and up out of it after, their hands kept up over its top (let down to
+      // their sides as the tray was put by, their hands went down through its top's front before they reached into it))
+      // (and out for the takeaway's bag as they take it up (boxTake), so they're out for it as it's shown: let out as it showed, it hung a while
+      // 18 cm off their hands, the Tester window's 688)
+      if (o) o.userData.holding = w.phase === 'boxTake' || w.phase === 'toTill' || w.phase === 'hand' || w.phase === 'toStand' || w.phase === 'standPut'
         || w.phase === 'skSinkGo' || w.phase === 'skHolderGo' || w.phase === 'skPut' || (w.phase === 'skTake' && w.t > 0.3)
+        || w.phase === 'drop' || (w.phase === 'back' && !!w.fromSink && (w.lift ?? 0) > 0.001)
       // (item 675: lifted over the sink's top, in their own frame (StaffFigure lifts the tray and the hands under it))
       if (o) o.userData.trayLift = (w.lift ?? 0) / STAFF_SCALE
       // (item 676: a hand up against something as they go by it drawn in to their side (StaffFigure))
