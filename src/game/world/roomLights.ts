@@ -60,11 +60,14 @@ export const studioLight = (on: boolean, night: boolean) => (on ? (night ? 0.6 :
  * lamps off a little deeper. By night the lamps fill the moon's shadows in, faint; with them off the moon's are plain.
  */
 // (item 378, the owner's, 2026-11-19: 「白天的陰影感要明確」: by day they were faint (0.5) and blurred wide (8), straight under what cast them:
-// the day read as flat. Now a day's shadows are deep and clear-edged, thrown across the floor by a sun in at the window)
-export const shadowDepth = (on: boolean, night: boolean) => (night ? (on ? 0.28 : 0.75) : on ? 0.72 : 0.8)
-/** how far the shadows' edges blur (in the shadow map's texels, about 1.4 cm each across the shop): a little, not a hard cut; by day less
- * than by night (the sun's shadows clear, the moon's and the lamps' softer) */
-export const shadowSoft = (night: boolean) => (night ? 5 : 3)
+// the day read as flat; they were made deep (0.72) and clear-edged (3), thrown across the floor by a sun in at the window. Item 706, the
+// owner's, 2026-11-26: 「門口有陰影我可以接受，但是內能否白天不要有硬陰影，這樣很怪」: inside, by day, cut that hard they read wrong, as no
+// room under a roof's are: still thrown across the floor from the window's side, the sun's light and shade on each thing as it was, but
+// lighter (0.6, 0.68 with the lamps off) and soft-edged (shadowSoft))
+export const shadowDepth = (on: boolean, night: boolean) => (night ? (on ? 0.28 : 0.75) : on ? 0.6 : 0.68)
+/** how far the shadows' edges blur (in the shadow map's texels, about 1.4 cm each across the shop): by day wide (12, item 706: a soft
+ * shade, not a hard line, inside the shop), by night a little (the moon's and the lamps' under them) */
+export const shadowSoft = (night: boolean) => (night ? 5 : 12)
 /**
  * Where the key light shines from (a unit vector toward it). By day the sun high (about 55 degrees) out past the round window (item 378: it
  * was straight overhead, every shadow right under what cast it, and the day read as flat): its shadows thrown a little across the floor,

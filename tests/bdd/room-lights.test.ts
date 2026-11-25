@@ -104,13 +104,14 @@ feature('牆上的電燈開關', () => {
     and('晚上關燈只剩一點點', (w) => { expect(w.k[3]).toBeLessThan(0.2) })
   })
 
-  // (item 378, the owner's 「白天的陰影感要明確」: the day's shadows were faint and wide-blurred, straight under what cast them)
-  scenario('白天的影子明確：深、邊緣清楚，但不是全黑', ({ given, then, and }) => {
+  // (item 378, the owner's 「白天的陰影感要明確」: the day's shadows were faint and wide-blurred, straight under what cast them; item 706, the
+  // owner's 「門口有陰影我可以接受，但是內能否白天不要有硬陰影」: made deep and clear-edged, inside they read hard)
+  scenario('白天的影子看得出來，但店內不要硬邊：柔和、不全黑', ({ given, then, and }) => {
     given('白天與晚上、開燈與關燈', (w) => { w.d = [shadowDepth(true, false), shadowDepth(false, false), shadowDepth(true, true), shadowDepth(false, true)] })
-    then('白天開燈的影子明顯（七成以上的深）', (w) => { expect(w.d[0]).toBeGreaterThanOrEqual(0.7) })
+    then('白天開燈的影子看得出來（比以前的平光 0.5 深），但不是七成以上的深黑', (w) => { expect(w.d[0]).toBeGreaterThan(0.5); expect(w.d[0]).toBeLessThan(0.7) })
     and('白天關燈少了燈光補，影子更深一點，但還是不全黑', (w) => { expect(w.d[1]).toBeGreaterThan(w.d[0]); expect(w.d[1]).toBeLessThan(0.9) })
     and('晚上開著燈，影子幾乎被燈補亮；關燈後月光的影子才明顯', (w) => { expect(w.d[2]).toBeLessThan(w.d[0]); expect(w.d[3]).toBeGreaterThan(w.d[2]) })
-    and('影子的邊緣糊開一點，不是一刀切的硬邊；白天比晚上清楚', () => { expect(shadowSoft(false)).toBeGreaterThan(1.5); expect(shadowSoft(false)).toBeLessThan(shadowSoft(true)) })
+    and('白天影子的邊緣糊開得寬（十格以上），沒有一刀切的硬邊；晚上只糊一點', () => { expect(shadowSoft(false)).toBeGreaterThanOrEqual(10); expect(shadowSoft(true)).toBeLessThan(shadowSoft(false)) })
   })
 
   scenario('白天的太陽從圓窗那一側高高地斜照進來，影子投到旁邊的地板上', ({ given, then, and }) => {
