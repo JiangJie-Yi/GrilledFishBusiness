@@ -123,6 +123,9 @@ export const DOOR_SPILL = new THREE.MeshBasicMaterial({ map: DOOR_LIGHT.spill, t
 export const SPILL_IN = 1.2, SPILL_OUT = 0.19
 /** how open the way in is (0 shut, 1 its leaves run open: GenkanDoor's), for the day's spill through it */
 export const DOOR_OPEN = { k: 0 }
+/** (item 700) those stood just in from the door about to go out through it (one taking their umbrella out of the stand by the shoe
+ * cupboard): the door's held open for them as for one walking out toward it, not let shut on them and slid open again as they go */
+export const DOOR_BOUND = new WeakSet<THREE.Object3D>()
 /** the spill's strength for the part of the day, the door shut letting through this much of it (its frosted glass) */
 let doorSpillBase = 0
 const DOOR_SHUT_LIGHT = 0.45
@@ -237,7 +240,7 @@ function GenkanDoorImpl() {
       const age = now - was1.since
       if (now > was1.t) { was1.z = DOOR_P.z; was1.t = now }
       const wk = walkers.pool[ws.length] ?? (walkers.pool[ws.length] = { x: 0, z: 0, dz: 0, age: 0 })
-      wk.x = DOOR_P.x; wk.z = DOOR_P.z; wk.dz = dz; wk.age = age
+      wk.x = DOOR_P.x; wk.z = DOOR_P.z; wk.dz = DOOR_BOUND.has(o) ? Math.max(dz, 0.1) : dz; wk.age = age
       ws.push(wk)
       // (going through: kept to its open way, eased in and out of it either side of the leaves' line; only where they're drawn)
       const z0 = DOOR_WAY.z[0], z1 = DOOR_WAY.z[1]

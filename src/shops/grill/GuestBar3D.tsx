@@ -15,8 +15,8 @@ import { takeOne, takesTowel } from '@/game/guests/washroom'
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import {
-  COAT_OFF_S, COAT_ON_S, STAND_SLOTS as UMB_SLOTS, UMB_CLOSE_AT, UMB_IN_S, coatOffBeat, coatOnBeat, freeSlot, newCoatPose, umbInBeat,
-  umbOutBeat, umbOutS
+  COAT_OFF_S, COAT_ON_S, STAND_SLOTS as UMB_SLOTS, UMB_CLOSE_AT, UMB_DOOR_S, UMB_IN_S, UMB_PUT_S, UMB_TAKE_S, coatOffBeat, coatOnBeat,
+  freeSlot, newCoatPose, umbInBeat, umbOutBeat, umbOutS
 } from '@/game/guests/rainGear'
 import { QUALITY } from '@/scene/render/quality'
 import type { GuestView } from '@/game/types'
@@ -89,7 +89,7 @@ import { PEOPLE_SCALE, STAFF_SCALE, BALL_GEO, BALL_NORI_GEO, STATION_POSE, SAKE_
 import { OwnerWalker } from './guestbar/ownerWalker'
 import { STAFF_DOOR_AT, koiHang, FOLK_FIT } from './guestbar/decorTex'
 import { STOCKER_FIG, Stocker } from './guestbar/stocker'
-import { RAIN_NOW } from './guestbar/shopFront'
+import { DOOR_BOUND, RAIN_NOW } from './guestbar/shopFront'
 import { Entrance } from './guestbar/entrance'
 import { SHOE_CUBBIES, BenchShoes, SHOE_COLOURS } from './guestbar/genkan'
 import { GENKAN_SUNK, DiningFloor, RoomFloor } from './guestbar/floors'
@@ -2870,10 +2870,15 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         // moment), the next one in not there yet: kept unseen, their walk not begun, till that one's in (the Tester window's: on a rain day the
         // next one in was put down in the first, 31 times in three minutes))
         if (!s.from && doorLead.len && s.t < 0.5 && shown.some((o) => o !== s && o.phase === 'enter' && !o.from && (o.t > s.t || (o.t === s.t && o.id < s.id))
-          && o.t - (o.stepHold ?? 0) < (o.gear === 'umbrella' ? UMB_IN_S : DOOR_WAIT_S) + 0.4)) { s.t = 0; s.stepHold = 0 }
-        // (item 623: with an umbrella, the moment at the door is its closing and standing in the stand (UMB_IN_S))
+          // (item 700: one with an umbrella till it's in the stand just inside: their moment at the door, the walk in, their moment there)
+          && o.t - (o.stepHold ?? 0) < (o.gear === 'umbrella' ? UMB_IN_S + doorLead.len / (SPEED * walkSpeedOf(kindOf(o.id).kind)) : DOOR_WAIT_S) + 0.4)) {
+          s.t = 0; s.stepHold = 0
+        }
+        // (item 623: with an umbrella, the moment at the door is its closing and shaking out (UMB_DOOR_S); item 700, the stand in the genkan by
+        // the shoe cupboard: then in, and a stop just in from the door beside it to stand it in it (UMB_PUT_S), as a genkan's is used)
         const umbIn = s.gear === 'umbrella' && !s.from && !!doorLead.len
-        const raw = s.from || !doorLead.len ? raw0 : withPause(raw0, 0, (umbIn ? UMB_IN_S : DOOR_WAIT_S) * v)
+        const rawDoor = s.from || !doorLead.len ? raw0 : withPause(raw0, 0, (umbIn ? UMB_DOOR_S : DOOR_WAIT_S) * v)
+        const raw = umbIn ? withPause(rawDoor, doorLead.len, UMB_PUT_S * v) : rawDoor
         // (and with a raincoat, the stop at the step its taking off first (COAT_OFF_S), then the shoes)
         const coatS = s.gear === 'coat' ? COAT_OFF_S : 0
         // (behind their stool they stop, pull it out, step up onto it (the owner's), then sit and slide in with it)
@@ -2906,12 +2911,13 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           s.welcomed = true
           crewWelcome(lang)
         }
-        // (item 623, part three: at the door with an umbrella: closed, turned over, shaken, turned to the stand and stood in it, turned back;
-        // the beat's own clock the time they've been shown, its place in the stand taken as the hand goes out to it)
+        // (item 623, part three: at the door with an umbrella: closed, turned over, shaken; item 700: carried in furled, tip down, and just
+        // inside turned to the stand and stood in it, turned back; the beat's own clock the time they've been shown out at the door, held as
+        // they walk in, on by the time they've stood by the stand; its place in the stand taken as the hand goes out to it)
         if (umbIn && g) {
-          const bt = s.t - (s.stepHold ?? 0), ga = gearAtOf(s)
-          if (bt <= UMB_IN_S) {
-            const pose = umbInBeat(bt, ga.pose)
+          const bt = s.t - (s.stepHold ?? 0), ga = gearAtOf(s), put = (rawDoor - doorLead.len) / v
+          if (put <= UMB_PUT_S) {
+            const pose = umbInBeat(bt <= UMB_DOOR_S ? bt : UMB_DOOR_S + Math.max(0, put), ga.pose)
             ga.umb = s.umbC ?? 0
             if (pose.reach > 0 && (s.umbSlot ?? -1) < 0) {
               const used = Array.from({ length: UMB_SLOTS }, (_, i) => shown.some((o) => o !== s && o.umbSlot === i))
@@ -3235,7 +3241,12 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         const back = STOOL_LEAVE * Math.min(1, s.t / STOOL_PULL_S)
         // (and last, just in from the sliding door, a moment as they slide it open (item 410))
         const toDoor = payFirst ? withPause(withPause(raw, payAt, payHold), shoeAt, shoeHold) : withPause(withPause(raw, shoeAt, shoeHold), payAt, payHold)
-        const d = Math.max(0, Math.min(lp.len, Math.max(back, withPause(toDoor, lp.len - doorLead.len, doorLead.len ? DOOR_SLIDE_S * v : 0))))
+        // (item 700: with their umbrella in the stand by the shoe cupboard, that stop beside it, and longer: it's taken out first (UMB_TAKE_S);
+        // whether, fixed as they set off, as the raincoat's; the door held open for them meanwhile, not let shut and slid open again)
+        s.umbLeave ??= s.gear === 'umbrella' && !!s.umbIn
+        const inAt = lp.len - doorLead.len, inHold = doorLead.len ? (DOOR_SLIDE_S + (s.umbLeave ? UMB_TAKE_S : 0)) * v : 0
+        const d = Math.max(0, Math.min(lp.len, Math.max(back, withPause(toDoor, inAt, inHold))))
+        if (g) { if (s.umbLeave && toDoor >= inAt && toDoor < inAt + inHold) DOOR_BOUND.add(g); else DOOR_BOUND.delete(g) }
         const { p, dir } = alongPath(lp.path, lp.len - d)
         const home = Math.max(0, s.t - STOOL_HOME_AT)
         // (pushed home in under the counter, done as they turn to go at 0.8)
@@ -3267,16 +3278,21 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           }
           ga.worn = !s.coatOff
         }
-        // (and their umbrella out of the stand at the door: turned to it, taken out, raining opened over them, dry held furled; then they go)
-        if (s.gear === 'umbrella' && (s.umbIn || s.outT !== undefined) && g && d >= lp.len - 0.005) {
+        // (and their umbrella out of the stand (item 700: by the shoe cupboard, at the stop just in from the door): turned to it, taken out,
+        // turned back; carried out furled, tip down; out past the door, raining, opened over them, dry held furled; then they go. The beat's
+        // clock the time stood by the stand, held as they walk out, on by the time they've been out there; whether it's raining taken as
+        // it's taken out, so one going to open it out there isn't let fade as they walk out to it)
+        const take = s.umbLeave ? (toDoor - inAt) / v : -1
+        if (s.umbLeave && g && take >= 0) {
           const ga = gearAtOf(s)
-          if (s.outT === undefined) { s.outT = 0; s.outWet = RAIN_NOW.k > 0.15 }
-          else s.outT += tick(dt)
-          const pose = umbOutBeat(s.outT, !!s.outWet, ga.pose)
+          s.outWet ??= RAIN_NOW.k > 0.15
+          if (d >= lp.len - 0.005) s.outT = s.outT === undefined ? 0 : s.outT + tick(dt)
+          const ot = s.outT !== undefined ? UMB_TAKE_S + s.outT : Math.min(take, UMB_TAKE_S)
+          const pose = umbOutBeat(ot, s.outWet, ga.pose)
           ga.umb = s.umbC ?? 0
           ga.standAt = UMB_STAND.ready && (s.umbSlot ?? -1) >= 0 ? standGrip(s.umbSlot!, ga.standAt ?? new THREE.Vector3()) : null
           if (!pose.inStand && s.umbIn) { s.umbIn = false; if (ga.standAt) umbrellaSound(ga.standAt, 'out') }
-          if (s.outWet && (s.umbSaid ?? 0) < 3 && s.outT >= 1.45) { s.umbSaid = 3; umbrellaSound(g.getWorldPosition(GEAR_P), 'open') }
+          if (s.outWet && (s.umbSaid ?? 0) < 3 && ot >= UMB_TAKE_S + 0.35) { s.umbSaid = 3; umbrellaSound(g.getWorldPosition(GEAR_P), 'open') }
           if (ga.standAt && g.parent && pose.turn > 0) {
             const st = g.parent.worldToLocal(GEAR_Q.copy(ga.standAt))
             const ty = Math.atan2(st.x - g.position.x, st.z - g.position.z)
@@ -3317,7 +3333,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         // (past the sliding door they fade, down its step (item 410): over the last 0.3, not the last 0.9, which began in front of it)
         const leaveFade = doorLead.len ? 0.3 : 0.9
         // (item 623: not while they're at the stand taking their umbrella: they fade once they've it in hand, open or furled)
-        const atStand = s.gear === 'umbrella' && (s.umbIn || (s.outT !== undefined && s.outT < umbOutS(!!s.outWet)))
+        // (item 700: taken out just inside, and raining, not till it's opened out past the door)
+        const atStand = !!s.umbLeave && (s.umbIn || (!!s.outWet && (s.outT ?? 0) < umbOutS(true) - UMB_TAKE_S))
         if (atStand) s.fadeT = 0
         else if (lp.len - d < leaveFade) s.fadeT = (s.fadeT ?? 0) + dt
         s.fade = Math.max(0, Math.min(1, Math.max((lp.len - d) / leaveFade, 1 - (s.fadeT ?? 0) / FADE_S)))

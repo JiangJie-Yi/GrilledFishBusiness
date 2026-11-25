@@ -38,7 +38,8 @@ export function coatOf(id: number, kid: boolean): number {
   return r < 0.45 ? 0 : r < 0.75 ? 1 : 3
 }
 
-/** the stand's places: five round its inside and one in the middle, then three leant against its outside, by the door */
+/** the stand's places: six round its inside and three nearer its middle (item 700: in the genkan's corner by the shoe cupboard, walls on
+ * two sides and the way in on the third, none leant against its outside as on the step out at the door) */
 export const STAND_SLOTS = 9
 /** the first free place in the stand (`used`: each place, taken or not), -1 if there's none */
 export const freeSlot = (used: readonly boolean[]) => used.findIndex((u) => !u)
@@ -53,12 +54,17 @@ export const newUmbPose = (): UmbPose => ({ open: 1, flip: 0, shake: 0, reach: 0
 
 /** coming in, how long after they show at the door they start closing it (the door's sliding open for them meanwhile) */
 export const UMB_CLOSE_AT = 0.6
-/** coming in, how long their moment at the door takes from when they show (s): closed, turned over, shaken, put in the stand, turned back */
-export const UMB_IN_S = UMB_CLOSE_AT + 2.3
+/** coming in, their moment out at the door (s): closed, turned over, shaken; then they come in with it furled, tip down (item 700: the stand's
+ * inside now, by the shoe cupboard, as a genkan's is: an umbrella's closed and shaken out under the eave, not brought in dripping open) */
+export const UMB_DOOR_S = UMB_CLOSE_AT + 1.25
+/** coming in, their moment at the stand, stopped just in from the door beside it (s): turned to it, put in, turned back */
+export const UMB_PUT_S = 1.1
+/** coming in, both moments (s; the walk in between not counted) */
+export const UMB_IN_S = UMB_DOOR_S + UMB_PUT_S
 /**
- * Coming in with an umbrella (`t` s since they showed out on the step, under it): a moment under it as the door slides open; closed (0.5 s);
- * turned over, tip down (0.35); shaken twice; turned to the stand, the hand out to it high, the tip over the rim; lowered in (0.3) and let
- * go; turned back to the door. Writes into `p`.
+ * Coming in with an umbrella, on the beat's own clock `t` (s): out on the step under it from 0 to UMB_DOOR_S, a moment as the door slides
+ * open, closed (0.5 s), turned over, tip down (0.35), shaken twice; held at UMB_DOOR_S as they walk in with it; on from there by the stand,
+ * turned to it, the hand out to it high, the tip over the rim, lowered in (0.3) and let go, turned back. Writes into `p`.
  */
 export function umbInBeat(t: number, p: UmbPose): UmbPose {
   const a = t - UMB_CLOSE_AT
@@ -66,19 +72,22 @@ export function umbInBeat(t: number, p: UmbPose): UmbPose {
   p.flip = ss(a, 0.5, 0.85)
   const sh = (a - 0.85) / 0.35
   p.shake = sh > 0 && sh < 1 ? Math.sin(Math.PI * ((sh * 2) % 1)) ** 2 : 0
-  const back = ss(a, 2.0, 2.3)
-  p.turn = ss(a, 1.2, 1.45) * (1 - back)
-  p.reach = ss(a, 1.3, 1.7) * (1 - back)
-  p.lift = a < 1.7 ? 1 : 1 - ss(a, 1.7, 2.0)
-  p.inStand = a >= 2.0
+  const q = t - UMB_DOOR_S, back = ss(q, 0.8, 1.1)
+  p.turn = ss(q, 0, 0.25) * (1 - back)
+  p.reach = ss(q, 0.1, 0.5) * (1 - back)
+  p.lift = q < 0.5 ? 1 : 1 - ss(q, 0.5, 0.8)
+  p.inStand = q >= 0.8
   return p
 }
 
-/** going out, how long their moment at the stand takes (s): longer when it's raining (opened) */
-export const umbOutS = (raining: boolean) => (raining ? 1.95 : 1.1)
+/** going out, their moment at the stand just in from the door (s): turned to it, taken out, turned back to the door */
+export const UMB_TAKE_S = 1.1
+/** going out, both moments (s): at the stand, then (raining) out past the door, opened; dry, nothing more */
+export const umbOutS = (raining: boolean) => (raining ? UMB_TAKE_S + 0.85 : UMB_TAKE_S)
 /**
- * Going out with an umbrella in the stand (`t` s since they came out to the step): turned to the stand, the hand to its handle, taken and
- * pulled up out of it, the hand back; raining, turned over (tip up) and opened over them; dry, held furled, tip down. Writes into `p`.
+ * Going out with an umbrella in the stand, on the beat's own clock `t` (s): stopped by the stand just in from the door from 0 to UMB_TAKE_S,
+ * turned to it, the hand to its handle, taken and pulled up out of it, the hand back; held there as they walk out through the door, furled,
+ * tip down; out on the step, raining, turned over (tip up) and opened over them; dry, held furled, tip down. Writes into `p`.
  */
 export function umbOutBeat(t: number, raining: boolean, p: UmbPose): UmbPose {
   const back = ss(t, 0.8, 1.1)

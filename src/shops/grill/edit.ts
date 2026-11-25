@@ -414,6 +414,9 @@ const RELAIDS: [string, string[]][] = [
   // (the sake cups' glass stand forward on the shrine's shelf, its new default (item 611, the owner's 「清酒流理台Z:0.35 然後 Reset」): what was
   // kept for it dropped once)
   ['jgs-edit-relaid-46', ['shrinecups']],
+  // (the umbrella stand in from the step to the genkan's corner by the shoe cupboard (item 700, the owner's 「傘架請放在鞋櫃旁」): what was kept
+  // for it dropped once)
+  ['jgs-edit-relaid-47', ['kasatate']],
 ]
 const relaidDue = RELAIDS.filter(([k]) => { try { return !localStorage.getItem(k) } catch { return false } })
 const relaid = !relaidDue.length

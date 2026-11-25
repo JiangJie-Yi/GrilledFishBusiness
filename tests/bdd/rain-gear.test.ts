@@ -2,7 +2,7 @@ import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
 import {
   COAT_COLOURS, COAT_OFF_S, COAT_ON_S, STAND_SLOTS, UMB_COLOURS, UMB_IN_S, coatOf, coatOffBeat, coatOnBeat, freeSlot, gearOf, newCoatPose,
-  newUmbPose, umbInBeat, umbOutBeat, umbOutS, umbrellaOf,
+  newUmbPose, umbInBeat, umbOutBeat, umbOutS, umbrellaOf, UMB_DOOR_S, UMB_TAKE_S,
 } from '@/game/guests/rainGear'
 
 const ids = Array.from({ length: 400 }, (_, i) => i + 1)
@@ -42,10 +42,19 @@ feature('客人的傘與雨衣（第 623 項第三段）', () => {
     and('全滿沒有位置', () => { expect(freeSlot(new Array(STAND_SLOTS).fill(true))).toBe(-1) })
   })
 
-  scenario('進門收傘：撐著傘到門口，收起、倒過來甩兩下，轉身放進傘架，再轉回來進門', ({ given, then, and }) => {
+  scenario('進門收傘：撐著傘到門口，收起、倒過來甩兩下；進門後在鞋櫃旁的傘架放好，再轉回來', ({ given, then, and }) => {
     given('一個姿勢', (w) => { w.p = newUmbPose() })
     then('剛到門口時傘是撐開的', (w) => { umbInBeat(0.2, w.p); expect(w.p.open).toBe(1); expect(w.p.flip).toBe(0); expect(w.p.inStand).toBe(false) })
     and('收傘的時候還沒放進傘架', (w) => { umbInBeat(1.0, w.p); expect(w.p.open).toBeLessThan(1); expect(w.p.inStand).toBe(false) })
+    and('在門外的時間結束時傘已經收好、倒過來，手還沒伸出去：拿著走進門', (w) => {
+      umbInBeat(UMB_DOOR_S, w.p)
+      expect(w.p.open).toBe(0)
+      expect(w.p.flip).toBe(1)
+      expect(w.p.shake).toBe(0)
+      expect(w.p.reach).toBe(0)
+      expect(w.p.turn).toBe(0)
+      expect(w.p.inStand).toBe(false)
+    })
     and('伸手到傘架時傘已經收好、倒過來', (w) => {
       umbInBeat(UMB_IN_S - 0.6, w.p)
       expect(w.p.open).toBe(0)
@@ -61,10 +70,18 @@ feature('客人的傘與雨衣（第 623 項第三段）', () => {
     })
   })
 
-  scenario('出門拿傘：轉身從傘架拿起來；下雨就撐開，沒下雨就拿著', ({ given, then, and }) => {
+  scenario('出門拿傘：在門內的傘架拿起來，拿著走出門；下雨到門外才撐開，沒下雨就拿著', ({ given, then, and }) => {
     given('一個姿勢', (w) => { w.p = newUmbPose() })
     then('一開始傘還在傘架裡', (w) => { umbOutBeat(0, true, w.p); expect(w.p.inStand).toBe(true) })
     and('拿到手以後先往上提出傘架', (w) => { umbOutBeat(0.7, true, w.p); expect(w.p.inStand).toBe(false); expect(w.p.lift).toBeGreaterThan(0.5) })
+    and('在傘架旁的時間結束時傘收著、傘頭朝下，人轉回門口', (w) => {
+      umbOutBeat(UMB_TAKE_S, true, w.p)
+      expect(w.p.open).toBe(0)
+      expect(w.p.flip).toBe(1)
+      expect(w.p.turn).toBe(0)
+      expect(w.p.reach).toBe(0)
+      expect(w.p.inStand).toBe(false)
+    })
     and('下雨：最後撐開、傘頭朝上', (w) => { umbOutBeat(umbOutS(true), true, w.p); expect(w.p.open).toBe(1); expect(w.p.flip).toBe(0); expect(w.p.turn).toBe(0) })
     and('沒下雨：收著拿在手上，傘頭朝下，也比較快', (w) => {
       umbOutBeat(umbOutS(false), false, w.p)

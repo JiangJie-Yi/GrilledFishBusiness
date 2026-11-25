@@ -81,10 +81,13 @@ export type Shown = { id: number; seat: number; phase: 'enter' | 'sit' | 'leave'
   /** going out of the door: how long (s) they've been fading */
   fadeT?: number
   /** (item 623, part three) what they came in with against the rain (decided as they're put in, by the weather then), its colours; their
-   * umbrella's place in the stand out by the door (-1 none yet) and whether it stands there; their raincoat off (folded, with them); going
-   * out, how long they've been at the stand (s) and whether it's raining as they go; what their figure's told of it each frame */
+   * umbrella's place in the stand by the shoe cupboard (-1 none yet) and whether it stands there; their raincoat off (folded, with them);
+   * going out, how long they've been out past the door with it (s) and whether it's raining as they take it out; what their figure's told of
+   * it each frame */
   gear?: 'umbrella' | 'coat' | null; umbC?: number; coatC?: number; umbSlot?: number; umbIn?: boolean; coatOff?: boolean
   outT?: number; outWet?: boolean; gearAt?: GearAt
+  /** (item 700) going out, whether they'll take their umbrella out of the stand at the stop just in from the door: fixed as they set off */
+  umbLeave?: boolean
   /** (item 623) going out, whether they'll put their raincoat on at the step: fixed as they set off */
   coatLeave?: boolean
   /** (item 623) the last of their door moment's sounds played (closed, shaken; taken out, opened), so each plays once */
@@ -152,15 +155,19 @@ export const withPause = (d: number, at: number, hold: number) => (d < at ? d : 
  * A customer's moment at the genkan's step (`f` 0..1 through it; outside it, nothing): turned to the shoe cupboard, a little bow; their
  * cubby (by their seat) opened a moment, their shoes put in it coming in (`entering`), taken out of it going
  */
-// ---- (item 623, part three; the owner's 「進來的客人會穿雨衣或帶雨傘」) the rain's things: an umbrella closed at the door and stood in the
-// stand out on the step before the fixed leaf (Japanese shops keep theirs out by the door: the genkan inside is the takeaways' and the till's
-// queue's, and its way in the customers' own), taken out and opened going; a raincoat taken off at the genkan's step and folded, carried to
-// the stool and set down by it, put on again going. game/rainGear's rules and beats, scene/rainGear3D's shapes and materials.
-/** where the stand stands (the doorway's frame, look-door's): on the second stone step, before the fixed leaf, clear of the way in */
-export const KASA_AT: [number, number, number] = [-0.36, -0.341, 0.698]
-/** the stand's places (its own frame, its foot's middle): five round the jar's inside leant out a little and one in its middle, their points
- * on its floor; three leant against its outside, their points on the step, to its two sides (the step's too shallow before and behind it):
- * each its rod's and its furled canopy's placing, and where its grip is (the hand's place putting it in or taking it out) */
+// ---- (item 623, part three; the owner's 「進來的客人會穿雨衣或帶雨傘」) the rain's things: an umbrella closed and shaken out at the door and
+// stood in the stand just inside it, taken out there going and opened out past the door; a raincoat taken off at the genkan's step and
+// folded, carried to the stool and set down by it, put on again going. game/rainGear's rules and beats, scene/rainGear3D's shapes and
+// materials.
+/** where the stand stands (the doorway's frame, look-door's: x along the front, + toward the north wall, z out to the street): in the
+ * genkan, in the corner between the shoe cupboard's door end and the front wall (item 700, the owner's 「傘架請放在鞋櫃旁」; it stood out on
+ * the second stone step before the fixed leaf), clear of the north wall (x 0.498) by 1.3 cm, of the cupboard's end (z 0.089) by 4.7, of the
+ * door's frame (z 0.338) by 5.4, its foot on the stones' highest (domed, -0.090 to -0.093 there) */
+export const KASA_AT: [number, number, number] = [0.411, -0.0905, 0.21]
+/** the stand's places (its own frame, its foot's middle): six round the jar's inside leant out a little, three nearer its middle leant less,
+ * their points on its floor (item 700: in the corner, walls on two sides and the way in on the third, none leant against its outside as on
+ * the step: a full stand's handles spread over its mouth, as one's are): each its rod's and its furled canopy's placing, and where its grip
+ * is (the hand's place putting it in or taking it out) */
 const SLOT = (() => {
   const Y = new THREE.Vector3(0, 1, 0), ONE = new THREE.Vector3(1, 1, 1), furl = canopyScale(0, new THREE.Vector3())
   const rod: THREE.Matrix4[] = [], canopy: THREE.Matrix4[] = [], grip: THREE.Vector3[] = []
@@ -172,14 +179,15 @@ const SLOT = (() => {
     canopy.push(new THREE.Matrix4().compose(g.clone().addScaledVector(up, -ROD_TIP), q, furl))
     grip.push(g)
   }
-  for (let k = 0; k < 5; k++) {
-    const a = 0.3 + (2 * Math.PI * k) / 5, lean = 0.09
-    add(new THREE.Vector3(0.018 * Math.cos(a), KASA_FLOOR, 0.018 * Math.sin(a)), new THREE.Vector3(Math.sin(lean) * Math.cos(a), Math.cos(lean), Math.sin(lean) * Math.sin(a)), a + Math.PI)
+  // (round the inside: at the rim 0.048 out, within its 0.066; their furled canopies, 0.02 across, clear of each other above it)
+  for (let k = 0; k < 6; k++) {
+    const a = 0.3 + (2 * Math.PI * k) / 6, lean = 0.11
+    add(new THREE.Vector3(0.024 * Math.cos(a), KASA_FLOOR, 0.024 * Math.sin(a)), new THREE.Vector3(Math.sin(lean) * Math.cos(a), Math.cos(lean), Math.sin(lean) * Math.sin(a)), a + Math.PI)
   }
-  add(new THREE.Vector3(0, KASA_FLOOR, 0), Y.clone(), 1.2)
-  for (const [a, r] of [[0, 0.14], [Math.PI, 0.14], [0.5, 0.15]]) {
-    const lean = 0.2
-    add(new THREE.Vector3(r * Math.cos(a), 0.003, r * Math.sin(a)), new THREE.Vector3(-Math.sin(lean) * Math.cos(a), Math.cos(lean), -Math.sin(lean) * Math.sin(a)), a)
+  // (and nearer the middle, between the ring's: the last to be filled)
+  for (let k = 0; k < 3; k++) {
+    const a = 0.3 + Math.PI / 6 + (2 * Math.PI * k) / 3, lean = 0.04
+    add(new THREE.Vector3(0.008 * Math.cos(a), KASA_FLOOR, 0.008 * Math.sin(a)), new THREE.Vector3(Math.sin(lean) * Math.cos(a), Math.cos(lean), Math.sin(lean) * Math.sin(a)), a + 1.2)
   }
   return { rod, canopy, grip }
 })()
@@ -199,9 +207,10 @@ export const gearAtOf = (s: Shown) => (s.gearAt ??= { umb: -1, pose: newUmbPose(
 export const COAT_POSE = new Map<number, ReturnType<typeof newCoatPose>>()
 export const GEAR_P = new THREE.Vector3(), GEAR_Q = new THREE.Vector3()
 /**
- * The umbrella stand out on the step (blender/kasatate.py's KasaStand, a Shigaraki jar in namako blue) and the umbrellas stood in it: one
- * set of instances for their furled canopies (each its own colour) and one for their rods, as many as stand there; all of it there from the
- * shop's load (the stand empty on a dry day, as shops leave theirs out), its programs warmed then; nothing of it casts a shadow.
+ * The umbrella stand in the genkan by the shoe cupboard (blender/kasatate.py's KasaStand, a Shigaraki jar in namako blue) and the umbrellas
+ * stood in it: one set of instances for their furled canopies (each its own colour) and one for their rods, as many as stand there; all of it
+ * there from the shop's load (the stand empty on a dry day, as shops leave theirs out), its programs warmed then; nothing of it casts a
+ * shadow.
  */
 export const KasaStand = memo(function KasaStand() {
   const kasa = useKasa()
