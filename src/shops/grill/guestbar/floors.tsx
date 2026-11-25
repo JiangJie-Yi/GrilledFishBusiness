@@ -550,12 +550,148 @@ function RoomFloorImpl({ counters, drop }: { counters: Counter[]; drop: number }
       {/* (the room's open end at the door, from the boards down to the footing, is gone (item 407, the owner's 「這片到底是甚麼? 拿掉」): the
           genkan's stone lies 10 cm under the boards, and at the door it stood up over the genkan's stone like a low wall) */}
       </StaticBatch>
+      {/* (the earth it stands on, round it and out before the door (item 708)) */}
+      <ShopGround x={[-L1, -L0]} z={[A0, a1]} door={[-gl, -l0]} />
       {/* the genkan: its stones laid crazy-paving in pebble-wash, the shoe-off stone at the step, the threshold, the polished keyaki step
           (item 185: one flat picture of stones and two thin boards before) */}
       <GenkanFloor x={[-gl, -l0]} z={[g0, a1]} />
     </group>
   )
 }
+/** (item 708) the earth's picture's pixels to a bar unit (about 1.1 cm each); how far out round the building it reaches, how much farther
+ * out before the door, and over how much its edge fades into the night or the day round it; its height (2 mm under the street's ground,
+ * -0.46, where the door's bamboo and the stone steps stand) */
+const EARTH_PX = 88, EARTH_ROUND = 1.5, EARTH_DOOR = 3.0, EARTH_FADE = 0.6, EARTH_Y = -0.462
+/** a small seeded random (the earth the same every time it's made) */
+function seeded(seed: number) {
+  let a = seed >>> 0
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0
+    let t = a
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+/** a point round a rectangle's edge, `t` along it from its first corner (its four sides in turn) */
+function roundEdge(a0: number, b0: number, a1: number, b1: number, t: number): [number, number] {
+  const w = a1 - a0, h = b1 - b0
+  if (t < w) return [a0 + t, b0]
+  if (t < w + h) return [a1, b0 + t - w]
+  if (t < 2 * w + h) return [a1 - (t - w - h), b1]
+  return [a0, b1 - (t - 2 * w - h)]
+}
+/**
+ * The earth the shop stands on (item 708, the owner's 「然後模型周圍我需要一點泥土地，門口多一些」): one sheet of tamped earth under it, out
+ * EARTH_ROUND round the building and EARTH_DOOR before the door, in the floor's frame (x = -lay, z = along; `x`, `z` the building's
+ * footprint, `door` the doorway across x at the z[1] end). Its picture painted once: brown earth in lighter and darker patches, pebbles
+ * with their little shadows, grit; a trodden, paler way out from the door; a few weeds where it thins; its edge ragged and faded out to
+ * nothing. Outside the shop's indoor boxes (scene/render/indoorSun: under them), so the sun lies on it and the shadows of what's out of
+ * doors fall on it (the door's bamboo, the lantern, the facade); one see-through sheet, one draw, under the building's own soft shadow
+ */
+const ShopGround = memo(function ShopGround({ x, z, door }: { x: [number, number]; z: [number, number]; door: [number, number] }) {
+  const [x0, x1] = x, [z0, z1] = z, [d0, d1] = door
+  const made = useMemo(() => {
+    if (typeof document === 'undefined') return null
+    const X0 = x0 - EARTH_ROUND, X1 = x1 + EARTH_ROUND, Z0 = z0 - EARTH_ROUND, Z1 = z1 + EARTH_DOOR
+    const W = X1 - X0, H = Z1 - Z0
+    const cw = Math.min(1400, Math.round(W * EARTH_PX)), ch = Math.min(1400, Math.round(H * EARTH_PX))
+    const sx = cw / W, sz = ch / H
+    // (the picture's rows run along z from Z0 (its top: the plane's far edge as it's laid, flipY), its columns along x from X0)
+    const px = (v: number) => (v - X0) * sx, pz = (v: number) => (v - Z0) * sz
+    const rnd = seeded(708)
+    const c = document.createElement('canvas')
+    c.width = cw; c.height = ch
+    const g = c.getContext('2d')!
+    g.fillStyle = 'rgb(98,76,54)'
+    g.fillRect(0, 0, cw, ch)
+    const blob = (cx: number, cy: number, r: number, rgb: string, a: number) => {
+      const gr = g.createRadialGradient(cx, cy, 0, cx, cy, r)
+      gr.addColorStop(0, `rgba(${rgb},${a})`)
+      gr.addColorStop(1, `rgba(${rgb},0)`)
+      g.fillStyle = gr
+      g.fillRect(cx - r, cy - r, r * 2, r * 2)
+    }
+    // (patches, broad and soft: drier and paler, damper and darker)
+    const patch: [string, number][] = [['140,112,80', 0.18], ['70,54,40', 0.18], ['60,47,36', 0.14], ['124,100,72', 0.16]]
+    for (let i = 0; i < 170; i++) blob(rnd() * cw, rnd() * ch, (0.25 + rnd() * 0.7) * sx, ...patch[i % 4])
+    // (mottling)
+    for (let i = 0; i < 2600; i++) {
+      g.fillStyle = i % 2 ? 'rgba(132,106,78,0.12)' : 'rgba(62,48,36,0.12)'
+      g.beginPath(); g.arc(rnd() * cw, rnd() * ch, (0.02 + rnd() * 0.05) * sx, 0, Math.PI * 2); g.fill()
+    }
+    // (the way out from the door, trodden flat and paler)
+    g.save()
+    g.filter = `blur(${Math.round(0.25 * sx)}px)`
+    g.fillStyle = 'rgba(150,124,92,0.3)'
+    g.beginPath(); g.ellipse(px((d0 + d1) / 2), pz(z1 + 1.0), ((d1 - d0) / 2 + 0.25) * sx, 1.15 * sz, 0, 0, Math.PI * 2); g.fill()
+    g.restore()
+    // (pebbles, each with its little shadow under its far side)
+    const stone = ['rgb(150,142,128)', 'rgb(128,120,108)', 'rgb(170,162,148)', 'rgb(110,102,92)']
+    for (let i = 0; i < 900; i++) {
+      const cx = rnd() * cw, cy = rnd() * ch, r = (0.008 + rnd() * rnd() * 0.022) * sx, a = rnd() * Math.PI
+      g.fillStyle = 'rgba(40,30,22,0.35)'
+      g.beginPath(); g.ellipse(cx + r * 0.35, cy + r * 0.45, r, r * 0.7, a, 0, Math.PI * 2); g.fill()
+      g.fillStyle = stone[i % 4]
+      g.beginPath(); g.ellipse(cx, cy, r, r * 0.7, a, 0, Math.PI * 2); g.fill()
+    }
+    // (grit)
+    for (let i = 0; i < 14000; i++) {
+      g.fillStyle = i % 3 ? 'rgba(58,45,34,0.4)' : 'rgba(190,170,140,0.4)'
+      g.fillRect(rnd() * cw, rnd() * ch, 1, 1)
+    }
+    // (its shape: round the building, out before the door, its edge ragged and soft)
+    const near = 0.8
+    const rects: [number, number, number, number, number][] = [
+      [x0 - near, z0 - near, x1 + near, z1 + near, 0.6],
+      [d0 - 0.95, z1 - 0.2, d1 + 0.95, z1 + EARTH_DOOR - near - 0.15, 1.0],
+    ]
+    // (a few weeds where it thins, under the fade)
+    for (const [a0, b0, a1, b1] of rects) {
+      for (let i = 0; i < 60; i++) {
+        const side = Math.floor(rnd() * 4), t = rnd(), out = 0.05 + rnd() * 0.35
+        const [ex, ez] = side === 0 ? [a0 + t * (a1 - a0), b0 - out] : side === 1 ? [a1 + out, b0 + t * (b1 - b0)]
+          : side === 2 ? [a0 + t * (a1 - a0), b1 + out] : [a0 - out, b0 + t * (b1 - b0)]
+        const cx = px(ex), cy = pz(ez)
+        g.strokeStyle = rnd() < 0.5 ? 'rgba(78,98,52,0.7)' : 'rgba(96,112,60,0.65)'
+        g.lineWidth = 1.2
+        for (let j = 0; j < 4; j++) {
+          const a = -Math.PI / 2 + (rnd() - 0.5) * 1.6, l = (0.02 + rnd() * 0.03) * sx
+          g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a) * l, cy + Math.sin(a) * l); g.stroke()
+        }
+      }
+    }
+    const m = document.createElement('canvas')
+    m.width = cw; m.height = ch
+    const mg = m.getContext('2d')!
+    mg.filter = `blur(${Math.round(EARTH_FADE * sx * 0.45)}px)`
+    mg.fillStyle = '#fff'
+    mg.beginPath()
+    for (const [a0, b0, a1, b1, r] of rects) mg.roundRect(px(a0), pz(b0), (a1 - a0) * sx, (b1 - b0) * sz, r * sx)
+    mg.fill()
+    // (bumps out of its edge here and there: ragged, not holed)
+    for (const [a0, b0, a1, b1] of rects) {
+      const per = 2 * ((a1 - a0) + (b1 - b0))
+      for (let i = 0; i < per * 3; i++) {
+        const [ex, ez] = roundEdge(a0, b0, a1, b1, rnd() * per)
+        mg.beginPath(); mg.arc(px(ex + (rnd() - 0.5) * 0.3), pz(ez + (rnd() - 0.5) * 0.3), (0.12 + rnd() * 0.3) * sx, 0, Math.PI * 2); mg.fill()
+      }
+    }
+    g.globalCompositeOperation = 'destination-in'
+    g.drawImage(m, 0, 0)
+    const tex = new THREE.CanvasTexture(c)
+    tex.colorSpace = THREE.SRGBColorSpace
+    tex.anisotropy = 4
+    const mat = new THREE.MeshToonMaterial({ map: tex, transparent: true, depthWrite: false })
+    mat.name = 'ShopGround'
+    const geo = new THREE.PlaneGeometry(W, H)
+    return { tex, mat, geo, cx: (X0 + X1) / 2, cz: (Z0 + Z1) / 2 }
+  }, [x0, x1, z0, z1, d0, d1])
+  useEffect(() => () => { made?.tex.dispose(); made?.mat.dispose(); made?.geo.dispose() }, [made])
+  if (!made) return null
+  return <mesh name="shop-ground" geometry={made.geo} material={made.mat} position={[made.cx, EARTH_Y, made.cz]} rotation-x={-Math.PI / 2}
+    renderOrder={-2} receiveShadow raycast={() => null} />
+})
 /**
  * The genkan's floor and step (blender/genkanfloor.py, item 185, the owner's, 2026-11-15: "the genkan's doorway, its stone step and floor,
  * too plain"; it was one flat picture of a grid of grey slabs in thick pale joints, and the step two thin dark boards): natural stones laid
