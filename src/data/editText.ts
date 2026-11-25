@@ -336,6 +336,8 @@ for (const [zh, en] of [['富士山', 'Mt Fuji'], ['浪花', 'Waves'], ['錦鯉'
 PIECES_EN['圓窗'] = 'Round window'
 /** (item 678, the owner's 「這甚麼?」 on 「穿過家具（4 條路）」) what stands on the floor that isn't one of the editor's pieces, by its name in the
  * scene, for the map of the ways to say what a way goes through: the skewer buckets by the cook table */
+PIECES_JA['草蓆'] = 'ござ'
+PIECES_EN['草蓆'] = 'Rush mat'
 export const NAMED_PIECES: Record<string, string> = { 'skewer-tray': '回收燒烤串木桶', 'skewer-holder': '燒烤串木桶' }
 PIECES_JA['回收燒烤串木桶'] = '使用済み焼き串の木桶'
 PIECES_JA['燒烤串木桶'] = '焼き串の木桶'

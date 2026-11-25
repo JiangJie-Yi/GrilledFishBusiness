@@ -3,7 +3,7 @@ import { memo, Suspense, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { StaticBatch } from '@/scene/render/StaticBatch'
-import { GENKAN, fridgesOf, farOf, storeOf, STORE, FRIDGE, WC_W, lampsAlong, type Counter } from './bar'
+import { GENKAN, fridgesOf, farOf, storeOf, STORE, FRIDGE, WC_W, lampsAlong, RICE_MAT, type Counter } from './bar'
 import { EditBlock, Movable } from '@/shops/grill/editor/Movable'
 import { CatClock } from '@/shops/grill/decor/CatClock'
 import { Kabuto } from '@/shops/grill/decor/Kabuto'
@@ -379,7 +379,8 @@ function ShopPropsImpl({ counters }: { counters: Counter[] }) {
     <>
       <Movable id="speaker" label="音箱" baseTurn={[0, 45, 0]} baseScale={0.82}><group position={speaker.p} rotation-y={speaker.yaw}><WallSpeaker /></group></Movable>
       {/* (one stack, standing where the two used to) */}
-      <Movable id="sake" label="酒樽"><group ref={sake}><StaticBatch plain>
+      {/* (on the rush mat (item 717): stood its thickness up, not sunk into it) */}
+      <Movable id="sake" label="酒樽"><group ref={sake} position-y={RICE_MAT.t}><StaticBatch plain>
         <group position={at(3.55, 3.6)} rotation-y={face + 0.3}>
           <group rotation-y={Math.PI / 2}><SakeStack part={0} /></group>
         </group>
@@ -392,7 +393,7 @@ function ShopPropsImpl({ counters }: { counters: Counter[] }) {
           of more than one thing, and a batch is two (the owner saw its object and world places read the same)) */}
       {/* (the sacks of rice beside the sake, between it and the willow (the owner's circle)) */}
       <Movable id="ricesacks" label="白米袋">
-        <group position={at(3.5, 2.97)} rotation-y={face + 0.15}><RiceSacks /></group>
+        <group position-y={RICE_MAT.t}><group position={at(3.5, 2.97)} rotation-y={face + 0.15}><RiceSacks /></group></group>
       </Movable>
       <Movable id="willow" label="柳樹">
         <group position={at(3.55, 2.95)} rotation-y={1.4} scale={0.9}><StaticBatch plain><WillowModel /></StaticBatch></group>

@@ -5,7 +5,9 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { StaticBatch, mergeByMaterial } from '@/scene/render/StaticBatch'
 import { FloorPiece } from '@/scene/props/FloorPiece'
 import { inkModel } from '@/scene/render/inkHull'
-import { WC_W, WC_ROOM, kitchenOf, kitchenGatesOf, FLOOR_FAR, FLOOR_NEAR, GENKAN, storeOf, STORE, toiletsOf, roomOf, type Counter } from '@/shops/grill/bar'
+import { WC_W, WC_ROOM, kitchenOf, kitchenGatesOf, FLOOR_FAR, FLOOR_NEAR, GENKAN, storeOf, STORE, toiletsOf, roomOf, RICE_MAT, type Counter } from '@/shops/grill/bar'
+import { Movable } from '@/shops/grill/editor/Movable'
+import { signTexture } from '@/scene/props/signFont'
 
 /**
  * The customers' side of the shop floored in wide old boards: one even rectangle under the whole bar, the row of
@@ -552,12 +554,55 @@ function RoomFloorImpl({ counters, drop }: { counters: Counter[]; drop: number }
       </StaticBatch>
       {/* (the earth it stands on, round it and out before the door (item 708)) */}
       <ShopGround x={[-L1, -L0]} z={[A0, a1]} door={[-gl, -l0]} />
+      {/* (the rush mat under the rice by the sake (item 717)) */}
+      <Movable id="ricemat" label="草蓆" ground={0}><RiceMat /></Movable>
       {/* the genkan: its stones laid crazy-paving in pebble-wash, the shoe-off stone at the step, the threshold, the polished keyaki step
           (item 185: one flat picture of stones and two thin boards before) */}
       <GenkanFloor x={[-gl, -l0]} z={[g0, a1]} />
     </group>
   )
 }
+/**
+ * The rush mat (茣蓙) under the rice sacks and the sake barrels (item 717, the owner's 「紅框地板鋪草蓆」, bar.ts's RICE_MAT): pale rush woven
+ * along its length, the warp's threads across it now and then, a little blotched as a used one is; along its two long sides a binding of
+ * dark green cloth with a fine pale line in it. A thin board on the floor's boards (1 mm over them, not in one plane), its picture on its
+ * top, its sides the rush's colour; one draw
+ */
+const RICE_MAT_TEX = signTexture(512, 300, (g) => {
+  g.fillStyle = '#c4ab72'
+  g.fillRect(0, 0, 512, 300)
+  // (blotches: drier, paler; darker where it's been trodden and sat on)
+  let seed = 717
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
+  for (let i = 0; i < 40; i++) {
+    const x = rnd() * 512, y = rnd() * 300, r = 20 + rnd() * 70, light = i % 2
+    const gr = g.createRadialGradient(x, y, 0, x, y, r)
+    gr.addColorStop(0, light ? 'rgba(230,212,160,0.22)' : 'rgba(120,96,52,0.18)'); gr.addColorStop(1, 'rgba(0,0,0,0)')
+    g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2)
+  }
+  // (the rush along its length, a stalk a few pixels, each its own shade)
+  for (let y = 0; y < 300; y += 3) {
+    g.fillStyle = `rgba(${rnd() < 0.5 ? '100,78,40' : '240,226,180'},${0.12 + rnd() * 0.16})`
+    g.fillRect(0, y, 512, 1.4)
+  }
+  // (the warp's threads across it)
+  for (let x = 14; x < 512; x += 38) { g.fillStyle = 'rgba(90,70,40,0.42)'; g.fillRect(x, 0, 1.6, 300) }
+  // (its binding along both long sides: dark green cloth, a fine pale line along it)
+  for (const y0 of [0, 300 - 22]) {
+    g.fillStyle = '#26402f'; g.fillRect(0, y0, 512, 22)
+    g.fillStyle = 'rgba(214,200,160,0.55)'; g.fillRect(0, y0 + 10, 512, 1.5)
+    g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, y0 === 0 ? 21 : y0, 512, 1.5)
+  }
+})
+const RICE_MAT_MAT = new THREE.MeshToonMaterial({ map: RICE_MAT_TEX })
+const RiceMat = memo(function RiceMat() {
+  const [x0, x1] = RICE_MAT.x, [z0, z1] = RICE_MAT.z
+  const geo = useMemo(() => new THREE.BoxGeometry(x1 - x0, RICE_MAT.t - 0.001, z1 - z0), [x0, x1, z0, z1])
+  useEffect(() => () => geo.dispose(), [geo])
+  // (its long sides along x: the picture's binding along them, the box's top face's u along x and v along z)
+  return <mesh name="rice-mat" geometry={geo} material={RICE_MAT_MAT} position={[(x0 + x1) / 2, 0.001 + (RICE_MAT.t - 0.001) / 2, (z0 + z1) / 2]}
+    receiveShadow raycast={() => null} />
+})
 /** (item 708) the earth's picture's pixels to a bar unit (about 1.1 cm each); how far out round the building it reaches, how much farther
  * out before the door, and over how much its edge fades into the night or the day round it; its height (2 mm under the street's ground,
  * -0.46, where the door's bamboo and the stone steps stand) */

@@ -193,6 +193,14 @@ if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window,
  * 動作太慢」): how far through their patience they are (0..1, Roasting each tick), by their id; none, or 0, once their food's come */
 export const FUMING = keep(import.meta.hot, 'FUMING', new Map<number, number>())
 if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __fuming: FUMING })
+/**
+ * The rush mat under the rice by the sake (item 717, the owner's 「紅框地板鋪草蓆」): its place in the room floor's own frame (x = -lay, z =
+ * along; guestbar/floors' RoomFloor lays it), measured round the rice sacks and the sake barrels as they stand (tests/e2e/_rice717c.mjs:
+ * the sacks x -3.215..-2.726, z 2.711..3.849, the barrels x -4.394..-3.31, z 2.824..3.816), 5 cm out from them, in 1 cm from the floor's
+ * dark edging along its open side and its end (0.04 wide), clear of the willow's pot (from x -2.545); and how thick it is: the sacks and
+ * the barrels stood on it that much higher (DiningRoom), not sunk into it
+ */
+export const RICE_MAT = { x: [-4.42, -2.68] as [number, number], z: [2.66, 3.67] as [number, number], t: 0.006 }
 export const SHOE_CELLS = keep(import.meta.hot, 'SHOE_CELLS', { shoes: new Map<number, string>(), kick: new Map<number, number>(), at: new THREE.Vector3(), ready: false })
 if (import.meta.env?.DEV && typeof window !== 'undefined') (window as unknown as { __shoes?: typeof SHOE_CELLS }).__shoes = SHOE_CELLS
 export const TISSUES_KEY = 'jgs-tissues-1'
