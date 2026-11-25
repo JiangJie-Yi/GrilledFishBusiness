@@ -561,13 +561,15 @@ function WcSlats({ x, z, y }: { x: [number, number]; z: [number, number]; y: num
   )
 }
 /** the washrooms' finer things (blender/wcdecor.py; the owner's, 2026-11-11: the plants finer, the lamp less plain and brighter): the hanging
- * wall lantern, the moss ball on its dish, the camellia in its bamboo vase; in the room's toon light, the leaves and petals seen from both sides,
- * inked and folded together by material, made once each and copied (sharing their shapes) */
+ * wall lantern, the washstand's wall andon (item 702), the moss ball on its dish, the camellia in its bamboo vase; in the room's toon light,
+ * the leaves and petals seen from both sides, inked and folded together by material, made once each and copied (sharing their shapes) */
 const WCDECOR_URL = import.meta.env.BASE_URL + 'models/wcdecor.glb'
 useGLTF.preload(WCDECOR_URL)
 const WCDECOR_MADE = new Map<string, THREE.Object3D>()
 const THIN = /Leaf|Petal|Fern|LanternPaper/
-function useWcDecor(name: 'WcLantern' | 'Kokedama' | 'Camellia') {
+/** the lamps (their paper left on its own: the game lights it), not folded together as the plants are */
+const WC_LAMPS = new Set(['WcLantern', 'WcAndon'])
+function useWcDecor(name: 'WcLantern' | 'WcAndon' | 'Kokedama' | 'Camellia') {
   const gltf = useGLTF(WCDECOR_URL) as unknown as { scene: THREE.Group }
   return useMemo(() => {
     let base = WCDECOR_MADE.get(name)
@@ -590,8 +592,8 @@ function useWcDecor(name: 'WcLantern' | 'Kokedama' | 'Camellia') {
         m.receiveShadow = true
       })
       inkModel(r, (m) => THIN.test(((m as THREE.Mesh).material as THREE.Material | undefined)?.name ?? '') || /Paper/.test(m.name), { width: 0.0012, weld: true })
-      // (the lantern's paper left on its own: the game lights it)
-      if (name !== 'WcLantern') { plainColours(r); base = mergeByMaterial(r) } else base = r
+      // (a lamp's paper left on its own: the game lights it)
+      if (!WC_LAMPS.has(name)) { plainColours(r); base = mergeByMaterial(r) } else base = r
       WCDECOR_MADE.set(name, base)
     }
     return base.clone(true)
@@ -621,25 +623,34 @@ function WcHalo({ who, size, strength }: { who: 'm' | 'f'; size: number; strengt
   useFrame(() => { mat.opacity += ((getLights().wc[who] ? strength : 0) - mat.opacity) * 0.08 })
   return <mesh geometry={WC_HALO_GEO} material={mat} scale={size} renderOrder={5} raycast={() => null} />
 }
-/** a hanging wall lantern (掛け行灯, blender/wcdecor.py) on a wall: its backboard on the wall at `at`, the wall facing `yaw` (unturned, +z); its
- * washi lit on the switch by the door (WcLamp's way), a soft glow round it on the wall; `bright`, the one by the washroom's door, its glow
- * the stronger and wider */
-function WcSconce({ who, at, yaw, bright = false }: { who: 'm' | 'f'; at: [number, number, number]; yaw: number; bright?: boolean }) {
+/** a lamp's paper lit full, by kind: the lantern's plain washi tinted so; the andon's picture (its kumiko and the light's fall-off painted in)
+ * as it is */
+const WC_PAPER_LIT = { lantern: new THREE.Color('#fff1cc'), andon: new THREE.Color('#ffffff') }
+/** a lamp on a wall (blender/wcdecor.py): its backboard on the wall at `at`, the wall facing `yaw` (unturned, +z); its washi lit on the
+ * switch by the door (WcLamp's way), a soft glow round it on the wall; `bright`, the one by the washroom's door, its glow the stronger and
+ * wider. `kind`: the hanging wall lantern (掛け行灯 with its round shade: the toilet's own, over the toilet) or the wall andon (the
+ * washstand's, item 702) */
+function WcSconce({ who, at, yaw, bright = false, kind = 'lantern' }: { who: 'm' | 'f'; at: [number, number, number]; yaw: number; bright?: boolean; kind?: 'lantern' | 'andon' }) {
   // (the hanging wall lantern again, the better one (item 127, the owner's, 2026-11-15: "not the one it went back to: the upgraded one you
   // made"): blender/wcdecor.py's WcLantern, a round washi shade hung off a bent arm from a backboard on the wall, its paper lit on the
-  // switch; it had been put back to a small box of a lantern on 2026-11-12)
-  const obj = useWcDecor('WcLantern')
+  // switch; it had been put back to a small box of a lantern on 2026-11-12. By the washstand, the wall andon (item 702, the owner's,
+  // 2026-11-25: 「這兩個燈改日式一點，記得別改廁所馬桶上面那一顆燈」: the round shade a plain white tube): WcAndon, a walnut box with a
+  // little hipped roof on a backboard, washi behind a shoji's kumiko on its three sides; the toilet's own stays the lantern)
+  const obj = useWcDecor(kind === 'andon' ? 'WcAndon' : 'WcLantern')
   const paper = useRef<THREE.MeshBasicMaterial | null>(null)
   const k = useRef(0.4)
   useMemo(() => {
-    const m = new THREE.MeshBasicMaterial({ color: '#fff1cc', toneMapped: false })
+    // (the paper's own picture kept, the andon's kumiko painted in it; lit by the switch through its colour)
+    let map: THREE.Texture | null = null
+    obj.traverse((o) => { if ((o as THREE.Mesh).isMesh && /Paper/.test(o.name)) map ??= ((o as THREE.Mesh).material as THREE.MeshToonMaterial).map ?? null })
+    const m = new THREE.MeshBasicMaterial({ color: WC_PAPER_LIT[kind], map, toneMapped: false })
     obj.traverse((o) => { if ((o as THREE.Mesh).isMesh && /Paper/.test(o.name)) (o as THREE.Mesh).material = m })
     paper.current = m
-  }, [obj])
+  }, [obj, kind])
   useEffect(() => () => paper.current?.dispose(), [])
   useFrame(() => {
     k.current += ((getLights().wc[who] ? 1 : 0.12) - k.current) * 0.08
-    paper.current?.color.set('#fff1cc').multiplyScalar(k.current)
+    paper.current?.color.copy(WC_PAPER_LIT[kind]).multiplyScalar(k.current)
   })
   return (
     <group position={[at[0], at[1] - 0.08, at[2]]} rotation-y={yaw}>
@@ -846,7 +857,8 @@ function WcRoom({ w, h, who }: { w: number; h: number; who: 'm' | 'f' }) {
       <Movable id={`wc2-${who}-lamp`} label={`紙燈（${name}）`}>
       {/* a paper lamp on the wall toward the other toilet, on its arm: on a motion sensor, bright while someone's in or the door's open, dim
           otherwise */}
-      <WcSconce who={who} at={[D * 0.62, h - 0.02, -s * w / 2]} yaw={s > 0 ? 0 : Math.PI} bright />
+      {/* (a wall andon (item 702): the toilet's own lamp, over the toilet, is the round lantern still) */}
+      <WcSconce who={who} at={[D * 0.62, h - 0.02, -s * w / 2]} yaw={s > 0 ? 0 : Math.PI} bright kind="andon" />
       </Movable>
       {/* ---- the toilet's room, in its own frame: x from the way in (0) to its far end (E), z across it */}
       <group position={[SX, 0, s * w / 2]} rotation-y={-s * Math.PI / 2}>

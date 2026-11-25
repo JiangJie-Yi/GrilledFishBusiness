@@ -2,13 +2,16 @@
 
 - node "WcLantern": a hanging wall lantern (掛け行灯): a dark cedar backboard against the wall, a bent arm out from its top, from it a round
   washi shade hung between a turned top and foot of dark wood, four thin ribs down it, a small bronze cap over its top; "WcLanternPaper",
-  the shade's paper, the game lights it (its own glow, no light).
+  the shade's paper, the game lights it (its own glow, no light). The toilet's own lamp, over the toilet.
+- node "WcAndon" (item 702, the washstand's lamp): a small wall andon (掛け行灯), a box of four square walnut posts on a backboard, a base board
+  under it and a little hipped roof over it with a knob on its top; "WcAndonPaper", the washi on its three open sides, a shoji's kumiko and
+  the light's fall-off painted in its picture, the game lights it as the lantern's.
 - node "Kokedama" (the men's): a moss ball, its moss flecked darker and paler, a few sprigs of fern out of its top, on a shallow near-black
   stoneware dish with a pale glaze run at its rim.
 - node "Camellia" (the women's): a sprig of red camellia in a bamboo vase: the vase's nodes, a dark twig, five glossy dark leaves along it,
   one full flower (five cupped petals round a crown of yellow stamens) and a bud.
 
-The game's frame (y up), each on its own origin: the lantern's backboard's back on the wall (z = 0), out toward +z, its middle at y = 0;
+The game's frame (y up), each on its own origin: the lamps' backboards' backs on the wall (z = 0), out toward +z, their middles at y = 0;
 the plants' feet on their origins.
 
 Run:
@@ -189,6 +192,159 @@ lantern = join(lan, "WcLantern")
 paper = lathe("WcLanternPaper", [(LR, -LH / 2), (LR * 1.04, -LH / 4), (LR * 1.05, 0), (LR * 1.04, LH / 4), (LR, LH / 2)], 12, "paper", at=(0, 0, OUT))
 paper.parent = lantern
 
+# ---------------------------------------------------------------------------------------------------- the washstand's andon (item 702)
+# (the owner's, 2026-11-25: 「這兩個燈改日式一點，記得別改廁所馬桶上面那一顆燈」: the lamp by each washstand, the round shade above, a plain
+# white tube; now a small wall andon (掛け行灯): a box of four square walnut posts on a backboard, a base board under it and a
+# little hipped roof over it with a knob on its top, washi on its three open sides behind a shoji's kumiko of one upright and two cross bars
+# (painted in the paper's picture, not modelled bar by bar), the paper lit from within: brightest a little over its middle, its fibres
+# showing against the light. The toilet's own lamp over the toilet stays the lantern above.)
+# Its frame as the lantern's: the backboard's back on the wall (z = 0, 1.5 mm off it), out toward +z, its middle at y = 0.
+NA = 512
+ua, va = grid01(NA)
+# (the light inside: brightest a little over the middle, falling off to the posts and more to the ends, under the roof and over the base)
+lit = np.clip(1 - 0.5 * ((ua - 0.5) / 0.5) ** 2 - 0.75 * ((va - 0.56) / 0.5) ** 2, 0, 1)
+washi = mix((0.9, 0.66, 0.38), (1.0, 0.95, 0.84), lit ** 0.85)
+# (the paper's own thicker and thinner patches, and its kozo fibres, darker where they lie thick against the light)
+washi = washi * (0.93 + 0.07 * fbm(NA, 6, 6, 4))[..., None]
+fib = np.zeros((NA, NA), np.float32)
+r702 = np.random.default_rng(702)
+for _ in range(240):
+    fx, fy = r702.uniform(0, NA, 2)
+    fa, fl, fbend = r702.uniform(0, math.pi), r702.uniform(12, 52), r702.uniform(-0.04, 0.04)
+    for t in range(int(fl)):
+        fa += fbend
+        fib[int(fy + math.sin(fa) * t) % NA, int(fx + math.cos(fa) * t) % NA] += 1
+fib = (fib + np.roll(fib, 1, 0) + np.roll(fib, -1, 0) + np.roll(fib, 1, 1) + np.roll(fib, -1, 1)) / 5
+washi = mix(washi, (0.72, 0.52, 0.3), np.clip(fib * 0.55, 0, 0.32))
+# (the kumiko: the frame's rails painted along the top and bottom (the posts, modelled, cover the sides: MA behind each), one upright in
+# the middle and two cross bars, three rows; a soft shade on the paper along each, the frame's, as the light behind falls off at it)
+MA, RA = 0.072, 0.05
+
+
+def bar(d, half):
+    return 1 - smooth(half - 0.0025, half + 0.0025, d)
+
+
+rows = [RA + (1 - 2 * RA) * k / 3 for k in (1, 2)]
+bars = [(np.abs(ua - 0.5), 0.02)] + [(np.abs(va - r), 0.017) for r in rows]
+kumi = np.maximum.reduce([bar(d, hw) for d, hw in bars]
+                         + [1 - smooth(RA - 0.003, RA + 0.002, va), smooth(1 - RA - 0.002, 1 - RA + 0.003, va),
+                            1 - smooth(MA - 0.003, MA + 0.002, ua), smooth(1 - MA - 0.002, 1 - MA + 0.003, ua)])
+near = np.maximum.reduce([bar(d, hw + 0.033) for d, hw in bars]
+                         + [1 - smooth(RA, RA + 0.05, va), smooth(1 - RA - 0.05, 1 - RA, va), 1 - smooth(MA, MA + 0.05, ua), smooth(1 - MA - 0.05, 1 - MA, ua)])
+washi = washi * (1 - 0.12 * near)[..., None]
+walnut = mix((0.15, 0.085, 0.045), (0.21, 0.125, 0.065), fbm(NA, 3, 30, 3))
+# (and the bars' sides catching the light behind them, a thin warm edge each side of each, as a backlit lattice shows)
+rim = np.maximum.reduce([bar(d, hw) * smooth(hw - 0.007, hw - 0.0015, d) for d, hw in bars])
+walnut = mix(walnut, (0.46, 0.28, 0.13), rim * 0.5)
+andon_paper = mix(washi, walnut, kumi)
+NW = 256
+uw, vw = grid01(NW)
+# (the andon's walnut: a warm dark brown, its grain along u, a little lighter than the lantern's cedar so its posts read as wood in the
+# room's dim light)
+grain = smooth(0.45, 1.0, np.sin((vw * 18 + fbm(NW, 3, 6, 3) * 1.6) * 2 * math.pi) * 0.5 + 0.5)
+andon_wood = mix((0.27, 0.16, 0.09), (0.35, 0.215, 0.125), grain * 0.55)
+andon_wood = mix(andon_wood, (0.2, 0.115, 0.065), smooth(0.6, 0.9, fbm(NW, 4, 24, 3)) * 0.25)
+M["andon_wood"] = pbr("WcdAndonWood", (1, 1, 1), tex=image("wcd_andon_wood", np.clip(andon_wood, 0, 1).astype(np.float32)), rough=0.55)
+M["andon_paper"] = pbr("WcAndonPaper", (1, 1, 1), tex=image("wcd_andon_paper", np.clip(andon_paper, 0, 1).astype(np.float32)), rough=0.9)
+
+# (each face of a slab, its corners (0 or 1 along x, y, z) round it counter-clockwise seen from outside)
+SLAB = {"-x": [(0, 0, 0), (0, 0, 1), (0, 1, 1), (0, 1, 0)], "+x": [(1, 0, 1), (1, 0, 0), (1, 1, 0), (1, 1, 1)],
+        "-y": [(0, 0, 0), (1, 0, 0), (1, 0, 1), (0, 0, 1)], "+y": [(0, 1, 1), (1, 1, 1), (1, 1, 0), (0, 1, 0)],
+        "-z": [(1, 0, 0), (0, 0, 0), (0, 1, 0), (1, 1, 0)], "+z": [(0, 0, 1), (1, 0, 1), (1, 1, 1), (0, 1, 1)]}
+
+
+def wood_uv(f, uvl, along, s=8.0):
+    """a face's wood: its grain (the picture's u) along `along` (0, 1, 2: x, y, z) where that lies in the face, across it the face's other
+    way; on an end, the two ways across"""
+    n = [abs(f.normal.x), abs(f.normal.z), abs(f.normal.y)]   # (the game's x, y, z of its normal: P's axes back)
+    ax = [k for k in range(3) if k != n.index(max(n))]
+    a = along if along in ax else ax[0]
+    b = [k for k in ax if k != a][0]
+    for lp in f.loops:
+        g = (lp.vert.co.x, lp.vert.co.z, -lp.vert.co.y)
+        lp[uvl].uv = (g[a] * s, g[b] * s)
+
+
+def slab(name, x0, x1, y0, y1, z0, z1, mat, skip=(), along=1):
+    """a box from its bounds in the game's frame, without the faces in `skip` ("-x" … "+z": those against something, never seen), its
+    grain along `along`"""
+    bm = bmesh.new()
+    uvl = bm.loops.layers.uv.new()
+    X, Y, Z = (x0, x1), (y0, y1), (z0, z1)
+    v = {(i, j, k): bm.verts.new(P(X[i], Y[j], Z[k])) for i in (0, 1) for j in (0, 1) for k in (0, 1)}
+    for key, q in SLAB.items():
+        if key not in skip:
+            bm.faces.new([v[c] for c in q])
+    bm.normal_update()
+    for f in bm.faces:
+        wood_uv(f, uvl, along)
+    for vt in [vt for vt in bm.verts if not vt.link_faces]:
+        bm.verts.remove(vt)
+    return finish_obj(name, bm, mat, smooth_=False)
+
+
+# (the box: posts PT square at its corners, BW along the wall, BD out from the backboard, BH from the base board to the roof; the washi IN
+# inside the posts' faces, so they stand proud of it)
+BW, BD, BH, PT, IN = 0.11, 0.1, 0.144, 0.012, 0.004
+GAP, BT = 0.0015, 0.01
+Z0 = GAP + BT
+Z1 = Z0 + BD
+an = [slab("andonBoard", -0.064, 0.064, -0.106, 0.118, GAP, Z0, "andon_wood", skip=("-z",))]
+for sx in (-1, 1):
+    xo, xi = sx * BW / 2, sx * (BW / 2 - PT)
+    an.append(slab(f"andonPostF{sx}", min(xo, xi), max(xo, xi), -BH / 2 - 0.0005, BH / 2 + 0.0005, Z1 - PT, Z1, "andon_wood", skip=("-y", "+y")))
+    an.append(slab(f"andonPostB{sx}", min(xo, xi), max(xo, xi), -BH / 2 - 0.0005, BH / 2 + 0.0005, Z0, Z0 + PT, "andon_wood", skip=("-y", "+y", "-z")))
+# (the base board under it, a little proud of the posts, its back into the backboard 1 mm)
+an.append(slab("andonBase", -BW / 2 - 0.005, BW / 2 + 0.005, -BH / 2 - 0.012, -BH / 2, Z0 - 0.001, Z1 + 0.005, "andon_wood", skip=("-z",), along=0))
+# (the roof: its eaves 8 mm thick, out 13 mm past the posts at the front and sides, its back into the backboard 1 mm, hipped up to a little
+# flat top with a knob on it)
+RX, RZ0, RZ1, RY0, RY1, RYT = BW / 2 + 0.013, Z0 - 0.001, Z1 + 0.013, BH / 2, BH / 2 + 0.008, BH / 2 + 0.036
+TX, TZ = 0.016, 0.011
+TC = (RZ0 + RZ1) / 2
+bm = bmesh.new()
+uvl = bm.loops.layers.uv.new()
+rv = {}
+
+
+def rvert(x, y, z):
+    if (x, y, z) not in rv:
+        rv[(x, y, z)] = bm.verts.new(P(x, y, z))
+    return rv[(x, y, z)]
+
+
+roof_faces = [
+    [(-RX, RY0, RZ0), (RX, RY0, RZ0), (RX, RY0, RZ1), (-RX, RY0, RZ1)],                       # its underside
+    [(-RX, RY0, RZ1), (RX, RY0, RZ1), (RX, RY1, RZ1), (-RX, RY1, RZ1)],                       # the eaves' front
+    [(RX, RY0, RZ1), (RX, RY0, RZ0), (RX, RY1, RZ0), (RX, RY1, RZ1)],                         # and sides
+    [(-RX, RY0, RZ0), (-RX, RY0, RZ1), (-RX, RY1, RZ1), (-RX, RY1, RZ0)],
+    [(-RX, RY1, RZ1), (RX, RY1, RZ1), (TX, RYT, TC + TZ), (-TX, RYT, TC + TZ)],               # the four slopes
+    [(RX, RY1, RZ0), (-RX, RY1, RZ0), (-TX, RYT, TC - TZ), (TX, RYT, TC - TZ)],
+    [(RX, RY1, RZ1), (RX, RY1, RZ0), (TX, RYT, TC - TZ), (TX, RYT, TC + TZ)],
+    [(-RX, RY1, RZ0), (-RX, RY1, RZ1), (-TX, RYT, TC + TZ), (-TX, RYT, TC - TZ)],
+    [(-TX, RYT, TC + TZ), (TX, RYT, TC + TZ), (TX, RYT, TC - TZ), (-TX, RYT, TC - TZ)],       # its flat top
+]
+for q in roof_faces:
+    bm.faces.new([rvert(*c) for c in q])
+bm.normal_update()
+for f in bm.faces:
+    wood_uv(f, uvl, 0)
+an.append(finish_obj("andonRoof", bm, "andon_wood", smooth_=False))
+an.append(slab("andonKnob", -0.007, 0.007, RYT - 0.001, RYT + 0.01, TC - 0.007, TC + 0.007, "andon_wood", skip=("-y",)))
+andon = join(an, "WcAndon")
+# (the washi on its three open sides, each its own picture across it, seen from outside)
+bm = bmesh.new()
+uvl = bm.loops.layers.uv.new()
+XP, ZF, ZB = BW / 2 - IN, Z1 - IN, Z0 + IN
+for q in ([(-XP, ZF), (XP, ZF)], [(XP, ZF), (XP, ZB)], [(-XP, ZB), (-XP, ZF)]):
+    (xa, za), (xb, zb) = q
+    vs = [bm.verts.new(P(xa, -BH / 2, za)), bm.verts.new(P(xb, -BH / 2, zb)), bm.verts.new(P(xb, BH / 2, zb)), bm.verts.new(P(xa, BH / 2, za))]
+    f = bm.faces.new(vs)
+    for lp, uv in zip(f.loops, ((0, 0), (1, 0), (1, 1), (0, 1))):
+        lp[uvl].uv = uv
+andon_paper_obj = finish_obj("WcAndonPaper", bm, "andon_paper", smooth_=False)
+andon_paper_obj.parent = andon
+
 # ---------------------------------------------------------------------------------------------------- the moss ball on its dish
 dish = lathe("KokedamaDish", [(0.05, 0.0), (0.062, 0.006), (0.068, 0.016), (0.064, 0.02), (0.052, 0.012)], 16, "dish", cap_foot=True, cap_top=True,
              uv_v=[0.0, 0.3, 0.92, 1.0, 0.7])
@@ -245,11 +401,12 @@ camellia = join([vase] + nodes + [inside, twig] + leaves + petals + [stamen, bud
 
 kokedama.location = P(0.3, 0, 0)
 camellia.location = P(0.5, 0, 0)
+andon.location = P(-0.25, 0, 0)
 root = bpy.data.objects.new("WcDecor", None)
 bpy.context.collection.objects.link(root)
-for o in (lantern, kokedama, camellia):
+for o in (lantern, andon, kokedama, camellia):
     o.parent = root
-print("WCDECOR_TRIS", {o.name: sum(len(p.vertices) - 2 for p in o.data.polygons) for o in (lantern, paper, kokedama, camellia)})
+print("WCDECOR_TRIS", {o.name: sum(len(p.vertices) - 2 for p in o.data.polygons) for o in (lantern, paper, andon, andon_paper_obj, kokedama, camellia)})
 if PREVIEW:
     target = P(0.4, 0.14, 0)
     cam = bpy.data.objects.new("PreviewCam", bpy.data.cameras.new("PreviewCam"))
