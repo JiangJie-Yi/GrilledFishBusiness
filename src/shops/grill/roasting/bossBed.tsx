@@ -809,6 +809,8 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
       out.push(b.clone())
       return out
     }
+    // (item 696: the way-finder for his companion's walk to her stool and back)
+    BOSS_BED.route = (a, b) => roomWay(a, b)
     if (import.meta.env.DEV) Object.assign(window, { __bossWay: { roomWay, map: () => shopMap, walk: () => walk, seated: SEATED_WAY, folkNow, seatedNow: () => seatedNow((v) => (ref.current ? ref.current.localToWorld(fromBar(v).setY(0)) : null)) } })
     BOSS_BED.home = (fromGrill, toGrill) => {
       const route = KITCHEN_ROUTE.route
@@ -923,7 +925,7 @@ export const BossBedWays = memo(function BossBedWays({ open, research }: { open:
       }
       return path ? [fromGrill.clone(), ...path.slice(1).map(onFloor)] : null
     }
-    return () => { BOSS_BED.way = null; BOSS_BED.frame = null; BOSS_BED.drop = null; BOSS_BED.home = null; BOSS_BED.clear = null; BOSS_BED.taken = null; unsub(); unwarm(); mapJob++; cancelAnimationFrame(mapRaf); window.clearTimeout(mapLater); FLOOR_CHECK.inSomething = null; FLOOR_CHECK.pieceAt = null; if (import.meta.env.DEV) Object.assign(FLOOR_CHECK, { meshAt: null }) }
+    return () => { BOSS_BED.way = null; BOSS_BED.frame = null; BOSS_BED.drop = null; BOSS_BED.home = null; BOSS_BED.clear = null; BOSS_BED.taken = null; BOSS_BED.route = null; unsub(); unwarm(); mapJob++; cancelAnimationFrame(mapRaf); window.clearTimeout(mapLater); FLOOR_CHECK.inSomething = null; FLOOR_CHECK.pieceAt = null; if (import.meta.env.DEV) Object.assign(FLOOR_CHECK, { meshAt: null }) }
   }, [scene])
   return <group ref={ref} />
 })

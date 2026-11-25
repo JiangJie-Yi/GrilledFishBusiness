@@ -448,13 +448,17 @@ export const StaffFigure = memo(StaffFigureImpl)
 function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, face: faceAsked, playing = false }: { id: string; role: Role; look: StaffLook; moving?: boolean
   /** a face to make, whatever they're doing (the character viewer's buttons) */
   face?: CrewFace
-  /** sat (the cashier on the till's chair): leaning in a little, the hands up on the counter in front, now and then tapping at the keys */
-  seated?: boolean
+  /** sat (the cashier on the till's chair): leaning in a little, the hands up on the counter in front, now and then tapping at the keys;
+   * a number, sat at a counter that far up (their frame: item 696, the owner's companion on a bar stool, her hands round a cup of tea on
+   * the low bar), no keys tapped */
+  seated?: boolean | number
   /** at their handheld game whatever their idle says (upstairs on their cushion, items 612, 613: shops/grill/DormRoom), as one slacking is */
   playing?: boolean }) {
   const own = featuresOf(id, who)
   const h = own.h
   const seed = h % 997
+  // (sat at all: the till's chair (true) or a counter that far up (a number))
+  const sat = seated === true || typeof seated === 'number'
   const cook = role === 'chef' || role === 'sous'
   const v = variantOf(role, who.female)
   const gltf = useGLTF(url(v)) as unknown as { scene: THREE.Group }
@@ -685,7 +689,7 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
     fig.body.rotation.z = walk * Math.sin(ph) * 0.07 + (1 - walk) * Math.sin(t * 0.8 + seed * 2.1) * 0.022
     // (a bow of the head and shoulders at the door)
     const workLean = job?.lean ?? 0
-    fig.body.rotation.x = walk * 0.08 + (seated ? 0.07 : 0) + (job?.nod ?? 0) * 0.28 + workLean + (playing || (!id.startsWith('viewer-') && walk < 0.2 && activityOf(STAFF_IDLE.get(id)) === 'slack') ? 0.1 : 0)
+    fig.body.rotation.x = walk * 0.08 + (sat ? 0.07 : 0) + (job?.nod ?? 0) * 0.28 + workLean + (playing || (!id.startsWith('viewer-') && walk < 0.2 && activityOf(STAFF_IDLE.get(id)) === 'slack') ? 0.1 : 0)
       // (worn out, their head and shoulders down; pressed, leaning into their stride)
       + 0.13 * B.slump + 0.07 * B.hurry * walk
     // (a lean to their work bent at the waist, about where a counter's top comes on them, not from their feet: what's under it drawn back as
@@ -706,7 +710,7 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
     // thumbs going, the face of one deep in a game; not as they walk)
     const slack = (playing || (!id.startsWith('viewer-') && walk < 0.2 && activityOf(STAFF_IDLE.get(id)) === 'slack')) && job?.sweep === undefined && !job?.broom
     const word = STAFF_TALK.find((w) => w.id === id)
-    const tapping = seated && (t + seed) % 7 < 2.2
+    const tapping = seated === true && (t + seed) % 7 < 2.2
     let face: CrewFace = faceAsked ?? (now - RUSH.at < 2500 ? 'panic' : job?.prep || job?.fanNow || (cook && fanning.current) || tapping || job?.wipe !== undefined || job?.sweep !== undefined || job?.floorWipe !== undefined || slack ? 'focused'
       : job?.carry || job?.stretch || (job?.nod ?? 0) > 0.2 ? 'happy' : 'idle')
     // (item 368: the shop's mood on them a while (praise, a raise, a cut, a word with a colleague: CREW_MOOD) over their idle or their work's
@@ -742,7 +746,7 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
     // (a little nod of the head and shoulders as they start to say something, as one does greeting or serving (item 183))
     if (word) fig.body.rotation.x += Math.max(0, Math.sin(Math.min(1, (t - fw.saidAt) / 0.55) * Math.PI)) * 0.16
     // (and, standing free (not at a task that holds them: the till, a wipe, a sweep, a reach, the handheld), looking about now and then)
-    const free = !seated && !slack && !job?.handsAt && job?.wipe === undefined && job?.sweep === undefined && job?.floorWipe === undefined && !id.startsWith('viewer-')
+    const free = !sat && !slack && !job?.handsAt && job?.wipe === undefined && job?.sweep === undefined && job?.floorWipe === undefined && !id.startsWith('viewer-')
     fig.body.rotation.y = free ? (1 - walk) * (Math.sin(t * 0.31 + seed * 1.7) * 0.13 + Math.sin(t * 0.73 + seed) * 0.04) : 0
     // (no squash and stretch while they sweep, stooped: it pushed the broom's straw and the dustpan into the floor and lifted them off it)
     const stooped = job?.sweep !== undefined || job?.floorWipe !== undefined
@@ -800,11 +804,12 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
         hand.rotation.set(HANDHELD_TIP, 0, 0)
         continue
       }
-      if (seated) {
+      if (sat) {
         // (on the counter in front, a little apart; a spell of tapping at the keys every so often, a hand at a time) (0.45 up: at 0.4 they
         // rested 6 cm down in the till's counter all the while the cashier sat, item 387)
-        const tap = (t + seed) % 7 < 2.2 ? Math.max(0, Math.sin(t * 14 + (sd > 0 ? Math.PI : 0))) * 0.03 : 0
-        hand.position.set(sd * 0.15, 0.45 + tap, 0.34)
+        const tap = tapping ? Math.max(0, Math.sin(t * 14 + (sd > 0 ? Math.PI : 0))) * 0.03 : 0
+        // (at a counter of its own height (a number): the two hands nearer, round what's before them)
+        hand.position.set(sd * (typeof seated === 'number' ? 0.1 : 0.15), (typeof seated === 'number' ? seated : 0.45) + tap, typeof seated === 'number' ? 0.3 : 0.34)
         hand.rotation.set(-0.5, 0, 0)
         continue
       }

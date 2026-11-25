@@ -90,6 +90,7 @@ import { OwnerWalker } from './guestbar/ownerWalker'
 import { STAFF_DOOR_AT, koiHang, FOLK_FIT } from './guestbar/decorTex'
 import { STOCKER_FIG, Stocker } from './guestbar/stocker'
 import { DOOR_BOUND, RAIN_NOW } from './guestbar/shopFront'
+import { CompanionAtBar } from './staff/CompanionAtBar'
 import { Entrance } from './guestbar/entrance'
 import { SHOE_CUBBIES, BenchShoes, SHOE_COLOURS } from './guestbar/genkan'
 import { GENKAN_SUNK, DiningFloor, RoomFloor } from './guestbar/floors'
@@ -6879,6 +6880,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       ))}
       <Later stage={3}>
       {given && fridges && stocker && <Stocker counters={counters} fridges={fridges} who={stocker} />}
+      {/* (item 696: his companion down with him while the shop's shut by day, sat at the bar by his fire with her tea) */}
+      {given && <CompanionAtBar seats={seats} open={open} top={top} />}
       {/* (what the staff and the owner say as the day ends and begins, over their heads) */}
       {given && <StaffWords />}
       {/* (the worn out among the staff, while the shop's open: a debuff beside each (the owner's)) */}

@@ -8,7 +8,7 @@ import { CLIMB_S, downBeat, downLength, dormDoing, upBeat, upstairs } from '@/ga
 import { bedFit } from '@/game/staff/nightTogether'
 import { TV_FREE, nextChannel, pastimeOf, tvNow, tvSwitched, upstairsDoing, type TvHold } from '@/game/staff/dormTv'
 import { businessDay, rainAt, weatherOf } from '@/game/world/weather'
-import { SHOP } from '@/game/world/shopState'
+import { COMPANION, SHOP } from '@/game/world/shopState'
 import { toDorm } from '@/scene/props/floors'
 import { inkModel } from '@/scene/render/inkHull'
 import { mergeByMaterial } from '@/scene/render/StaticBatch'
@@ -229,6 +229,8 @@ function upNow(id: string, open: boolean, walk: number, off = false) {
   const upFor = up !== undefined ? (now - up) / 1000 : null
   // (off today: up here all day, resting, or asleep through its small hours; one just up the stair as the shift turned over to the next
   // day's still coming up it)
+  // (item 696: his companion down with him by day (GuestBar3D's CompanionAtBar): not up here meanwhile)
+  if (COMPANION.down && COMPANION.id === id) return { here: false, downFor, upFor }
   return { here: off || upstairs(open, SHOP.walking.has(id), downFor, downLength(walk), up !== undefined), downFor, upFor }
 }
 /** (each sleeper's futon down: laid as they come to it, the table folded away with it) */
