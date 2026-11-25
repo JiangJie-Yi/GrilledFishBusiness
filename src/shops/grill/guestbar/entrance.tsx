@@ -17,6 +17,11 @@ import { ShopFront, DOOR_SPILL, SPILL_IN, SPILL_OUT, DOOR_OPEN, RAIN_NOW, doorLi
 import { BIG_HANG, NorenModel, NOREN_REACH, NOREN_PUSH, NOREN_FOLD, NOREN_UNDER, NOREN_GOING, DOOR_GAP, norenBreeze, type ClothUniforms, NOREN_BIG, NOREN_WIDE, NOREN_CORD, CHOCHIN_PAIR, CHOCHIN_OFF, Chochin, FISH_LANTERN_OUT, FishLantern } from './lanterns'
 import { ShoeVases, CAT_STAND_Z, SHOE_CAB_Z, SHOE_CAB_X, ShoeCupboard, CAT_TOP, FELT_TOP, feltGeo, DOOR_CATS, REG_GEO } from './genkan'
 import { KASA_AT, KasaStand, RainGearWarm } from './seats'
+import { DoorBambooHit, DoorBambooModel } from '@/shops/grill/decor/BarFurnish'
+/** where the door's bamboo stands (the doorway's frame: x along the front, + toward the north wall; z out to the street): its box's foot
+ * on the street's ground right of the way in, 0.09 right of the fish lantern, under the eave (blender/bamboo.py's AT, the same) */
+const DOOR_BAMBOO_AT: [number, number, number] = [1.08, -0.46, 0.3]
+const DOOR_BAMBOO_SAYS = nameOver('【門口植栽】青竹', '燒杉木箱裡的一叢青竹，迎客，也替門口擋一點街上的目光')
 
 /**
  * The way in: a noren hanging just past the end of the bar, three panels that sway a little.
@@ -232,6 +237,13 @@ function EntranceImpl({ at, mark }: { at: THREE.Vector3; mark: string }) {
       {/* (item 623, part three: the umbrella stand out on the step before the fixed leaf, the customers' umbrellas stood in it while they're in) */}
       <Movable id="kasatate" label="傘架" ground={KASA_AT[1]}><group position={KASA_AT}><KasaStand /></group></Movable>
       <RainGearWarm />
+      {/* (item 703, the owner's 「這邊加上一株綠竹，要高的。」: a tall clump of green bamboo in a charred-cedar box out on the street's ground right
+          of the way in, under the eave, beside the fish lantern (blender/bamboo.py, its branches and leaves kept clear of the lantern and the
+          eave as measured there); only to look at: named when pointed at) */}
+      <Movable id="doorbamboo" label="門口綠竹" ground={DOOR_BAMBOO_AT[1]}>
+        <StaticBatch plain><group position={DOOR_BAMBOO_AT}><DoorBambooModel /></group></StaticBatch>
+        <group position={DOOR_BAMBOO_AT}><DoorBambooHit {...DOOR_BAMBOO_SAYS} /></group>
+      </Movable>
       <group position-x={DX}>
       {/* (the street's light out through the doorway, facing in only; and the day spilling in on the genkan's stones (item 306)) */}
       {/* (past the door, nothing: the street that stood out there (items 360, 386) taken away, item 397 (the owner's 「戶外景拿掉好了」): from out

@@ -11,6 +11,8 @@ import { inkModel } from '@/scene/render/inkHull'
 const STOOL_URL = import.meta.env.BASE_URL + 'models/stool.glb'
 const TILLSTOOL_URL = import.meta.env.BASE_URL + 'models/tillstool.glb'
 const BAMBOO_URL = import.meta.env.BASE_URL + 'models/bamboopot.glb'
+/** the tall clump of bamboo in its charred-cedar box out by the door (blender/bamboo.py, item 703) */
+const DOOR_BAMBOO_URL = import.meta.env.BASE_URL + 'models/bamboo.glb'
 const TOILET_URL = import.meta.env.BASE_URL + 'models/toilet.glb'
 const WASH_URL = import.meta.env.BASE_URL + 'models/washstand.glb'
 const GLOSSY = new Set(['StoolBrass', 'PotGlaze', 'WcChina', 'WcIvory', 'WcChrome', 'WcWater', 'WashBrass', 'WashMirror', 'WashBowl', 'WashSoap', 'WashFrame', 'BitWalnut',
@@ -105,6 +107,19 @@ export function BambooModel() {
   const obj = useMemo(() => toonOf(BAMBOO_URL, gltf.scene), [gltf])
   return <primitive object={obj} />
 }
+/** the tall clump of green bamboo out by the door (item 703), its box's foot's middle at its origin, in the doorway's frame's axes */
+export function DoorBambooModel() {
+  const gltf = useGLTF(DOOR_BAMBOO_URL) as unknown as { scene: THREE.Group }
+  const obj = useMemo(() => toonOf(DOOR_BAMBOO_URL, gltf.scene), [gltf])
+  return <primitive object={obj} />
+}
+/** an unseen box over the door's bamboo, the size of its box and culms (not its leaves' spread): what's said when it's pointed at */
+export function DoorBambooHit(props: { onPointerOver: (e: { stopPropagation: () => void }) => void; onPointerOut: () => void }) {
+  const gltf = useGLTF(DOOR_BAMBOO_URL) as unknown as { scene: THREE.Group }
+  const box = useMemo(() => new THREE.Box3().setFromObject(gltf.scene), [gltf])
+  const size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3())
+  return <mesh visible={false} position={mid} {...props}><boxGeometry args={[size.x * 0.6, size.y, size.z * 0.6]} /></mesh>
+}
 /** the toilet and its washlet (blender/wc.py), facing -x */
 export { toonOf }
 export function ToiletModel() {
@@ -123,3 +138,4 @@ useGLTF.preload(WASH_URL)
 useGLTF.preload(STOOL_URL)
 useGLTF.preload(TILLSTOOL_URL)
 useGLTF.preload(BAMBOO_URL)
+useGLTF.preload(DOOR_BAMBOO_URL)
