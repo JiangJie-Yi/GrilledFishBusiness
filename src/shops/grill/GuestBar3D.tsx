@@ -156,6 +156,9 @@ const SERVER_HOLD = { on: true }
 const SERVER_HOLD_AHEAD = 0.55, SERVER_HOLD_STOP = 0.28, SERVER_HOLD_SIDE = 0.22, SERVER_HOLD_MOST = 1.5
 const SERVER_HOLD_AT = new THREE.Vector3()
 if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __serverHold: SERVER_HOLD })
+/** (item 722) how long (s) the floor's server stands at their place with nothing to do before going down to wait by the takeaway stand: a
+ * moment, so one plate after another doesn't send them there and back between */
+const WAIT_AFTER = 2
 /** (item 680) a sink plate's half across (the bar's frame), as last measured where one was let go into the basin: two lying nearer than it
  * are on each other, and one is under the tap's stream if the stream comes down within it */
 const SINK_PLATE_R = { v: 0.1 }
@@ -446,6 +449,9 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     while (d < len && inGenkan(counters, from.clone().addScaledVector(dir, d + 0.02))) d += 0.02
     return from.clone().addScaledVector(dir, Math.max(0, d - 0.08))
   }
+  /** (item 722) whether a server on `duty` waits by the takeaway stand when there's nothing to do: the floor's server (or the only one), in
+   * a shop with its gates and the stand, open, not the owner serving it himself; the dishes' server stays by the sink's side, their place */
+  const waitsByStand = (duty: string) => !!given && !ownerServes && duty !== 'dish' && !!standTop.current && open && !SHOP.leaving
   /** the takeaway stand (where it's been put): its middle on the floor, where a server stands at its side nearest the kitchen to set a bag on
    * it, and the kitchen's edge nearest that (the route there) */
   const standSpots = () => {
@@ -539,6 +545,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
   type WaiterPhase = 'idle' | 'fetch' | 'pickup' | 'go' | 'set' | 'back' | 'clearGo' | 'clearTake' | 'clearBack' | 'drop'
     | 'washGo' | 'wash' | 'unloadGo' | 'unloadTake' | 'unloadCarry' | 'unloadPut' | 'handGo' | 'handwash' | 'basketGo' | 'basketTake'
     | 'toBox' | 'boxTake' | 'toTill' | 'hand' | 'toStand' | 'standPut'
+    // (item 722: the floor's server off to wait by the takeaway stand, nothing to do)
+    | 'toWait'
     | 'skTrayGo' | 'skTake' | 'skSinkGo' | 'skWash' | 'skHolderGo' | 'skPut'
     | 'tillGo' | 'tillAt'
     | 'sweepGo' | 'sweep' | 'wipeFloor'
@@ -567,6 +575,9 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
      * a clean pair at once it's wiped (-1: none to lay), from when */
     ware?: Wares; lay?: number; layT?: number
     path: THREE.Vector3[]; len: number; pos: THREE.Vector3; yaw: number
+    /** (item 722) where they stand waiting by the takeaway stand, with nothing to do (the floor's server: their place till there's
+     * something, every way out from it begun back at their place inside their gate); how long they've stood at that place with nothing */
+    waitAt?: THREE.Vector3; still?: number
     /** their walk home once the shop's shut, and in as it opens (commuteWalk); whether they're in yet */
     out?: Trip; in?: Trip; arrived?: boolean }[]>([])
   const waiterObjs = useRef<(THREE.Group | null)[]>([])
@@ -4896,7 +4907,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         }
       }
       // (nothing to do just now, or at something: for how they tire (game/shopState's STAFF_IDLE, data/staff's activityOf))
-      if (!ownerServes) idleTick(servers[wi]?.id, w.phase === 'idle' && w.run === null && !SHOP.leaving, dt)
+      if (!ownerServes) idleTick(servers[wi]?.id, (w.phase === 'idle' || w.phase === 'toWait') && w.run === null && !SHOP.leaving, dt)
       const duty = ownerServes ? 'all' : dutyOf(wi, nServers)
       // (the tray at their hands wherever they are: its height is as it's held standing up on the kitchen's dais, so down on the customers'
       // floor it comes down the dais's step with them (it stayed up, a plate riding 14 cm over their hands out on the floor))
@@ -4928,6 +4939,19 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           // (and the washed skewers carried off to their holder: up out of the basin over the top first, the bundle with the hands)
           || (phase === 'skHolderGo' && w.phase === 'skWash')
         w.path = back && bent !== path ? bent.reverse() : bent; w.len = pathLength(w.path); w.phase = phase; w.t = 0
+        // (item 722: off from waiting by the takeaway stand: a way begun at their place inside their gate (the ways out all are) set off on
+        // from the stand, round what's in the kitchen, straight on to its next turn (back in to their place first, they passed the stand again:
+        // the way to the chef goes round the cook table's end by it); one begun where they stand is from there already)
+        if (w.waitAt && phase !== 'toWait') {
+          w.waitAt = undefined
+          const flatTo = (a: THREE.Vector3, b: THREE.Vector3) => Math.hypot(a.x - b.x, a.z - b.z)
+          if (!back && w.path.length && flatTo(w.path[0], home.at) < 0.05 && flatTo(w.pos, home.at) > 0.05) {
+            const rest = w.path.length > 1 ? w.path.slice(1) : w.path
+            w.path = [...kitchenRoute(w.pos, rest[0]).slice(0, -1), ...rest]
+            w.len = pathLength(w.path)
+          }
+        }
+        w.still = 0
       }
       const walk = (then: () => void) => {
         // (from a standstill they pick up their pace over the first fifth of a second, not off at full speed at once (item 183, the owner's:
@@ -5000,7 +5024,9 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         if (w.t >= 0.25 && !(ownerServes && !ownerFree('serve'))) {
           w.t = 0
           // (not at their place: the day's first moment, stood where it was before the kitchen's floor was looked at (in the miso pot): over to it)
-          if (open && !SHOP.leaving && Math.hypot(w.pos.x - home.at.x, w.pos.z - home.at.z) > 0.05) { go(kitchenRoute(home.at, w.pos), 'back'); return }
+          // (or by the takeaway stand, waiting there (item 722))
+          const place = w.waitAt ?? home.at
+          if (open && !SHOP.leaving && Math.hypot(w.pos.x - place.x, w.pos.z - place.z) > 0.05) { go(kitchenRoute(home.at, w.pos), 'back'); return }
           // (a takeaway's box packed and its customer waiting for it in the genkan: out to them with it before anything else, no one
           // else's on the way with it)
           const box = takeoutWay && !SHOP.leaving ? TAKEOUT.orders.find((o) => o.ready && !o.taken && !boxClaimed.current.has(o.id) &&
@@ -5092,7 +5118,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           if (tc.who >= 0 && tc.staff < 0 && !cashierIn() && given) {
             tc.staff = wi
             const st = standSpots(), to = tillStaffSpot()
-            const path = [...kitchenRoute(home.at, st.edge), to]
+            // (from waiting by the stand (item 722): up to the kitchen's edge the way they came down, and on round to the till, as from their place)
+            const path = w.waitAt ? [w.pos.clone(), st.edge.clone(), to] : [...kitchenRoute(home.at, st.edge), to]
             path[0] = w.pos.clone()
             go(path, 'tillGo')
             return
@@ -5129,6 +5156,17 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           } else if (chore === 'skewers') {
             // (across the kitchen to the used skewers' bucket on the cook table's front, all of them out of it, to the sink with them)
             go(kitchenRoute(home.at, skewerSpot('skewer-tray', home.at)), 'skTrayGo')
+          } else if (!chore && waitsByStand(duty) && !w.waitAt) {
+            // (item 722, the owner's 「她在幹嘛?如果是閒置狀態請在外帶位」: nothing to do a moment (WAIT_AFTER), the floor's server goes
+            // down to the takeaway stand behind the cashier and waits there, facing out to the room and the door, where a takeaway's bag is
+            // set down; stood at their place inside their gate, they were by the cook table's pots, seeming to do nothing there)
+            w.still = (w.still ?? 0) + 0.25
+            if (w.still >= WAIT_AFTER) {
+              const st = standSpots()
+              const path = [...kitchenRoute(home.at, st.edge), st.reach]
+              path[0] = w.pos.clone()
+              go(path, 'toWait')
+            }
           }
         }
       } else if (w.phase === 'fetch') walk(() => { w.phase = 'pickup'; face(plating.at) })
@@ -5219,18 +5257,23 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           go(path, 'toTill')
         }
       } else if (w.phase === 'toStand') walk(() => { w.phase = 'standPut'; face(standSpots().at) })
+      // (there by the stand (item 722): waiting, turned the way their place faces, out to the room and the door)
+      else if (w.phase === 'toWait') walk(() => { w.phase = 'idle'; w.waitAt = w.pos.clone(); w.yaw = home.yaw; w.seat = -1 })
       else if (w.phase === 'standPut' && w.t > 0.45) {
         // (set down on it for the cashier; back the way they came)
         if (w.box !== undefined) TAKEOUT_STAND.bags.push(w.box)
         boxClaimed.current.delete(w.box ?? -1)
         w.box = undefined
+        // (the floor's server, who waits here anyway with nothing to do (item 722): stays, turned out to the room; walked back in to their
+        // place, they came straight out again)
+        if (waitsByStand(duty)) { w.phase = 'idle'; w.waitAt = w.pos.clone(); w.yaw = home.yaw; w.t = 0; w.still = 0 }
         // (the way they came, from their place to here: walked from its end, here, back to its start (the owner's item 36: given from here,
         // they were back inside their gate the moment they set off, walked out to the stand again, and were at their place again, at a jump
         // each time, every takeaway the cashier handed over)
         // (and from where that way began to their place round what's in the kitchen (item 173): the way out began at the serving counter
         // (item 167), and their place put straight before it, the last of it went straight through the low rack, the warmer and the cook
         // table's corner: pushed out of the table, a jump each time, a dozen a night)
-        go([...kitchenRoute(home.at, w.path[0] ?? w.pos).slice(0, -1), ...w.path.slice(0, -1).map((v) => v.clone()), w.pos.clone()], 'back')
+        else go([...kitchenRoute(home.at, w.path[0] ?? w.pos).slice(0, -1), ...w.path.slice(0, -1).map((v) => v.clone()), w.pos.clone()], 'back')
       } else if (w.phase === 'toTill') walk(() => {
         w.phase = 'hand'
         const v = visitors.current.get(w.box ?? -1)
@@ -5831,7 +5874,10 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         const id = servers[wi]?.id ?? `server${wi}`
         if (!w.out) {
           const h = homeOf(wi)
-          const way = [w.pos.clone(), ...h.way.slice(1).map((v) => v.clone()), ...(h.counter ? [aisleCorner(counters[h.counter])] : []), doorOf(counters)]
+          // (from waiting by the takeaway stand (item 722): back in to their place round what's in the kitchen first)
+          const from = w.waitAt && h.way.length > 1 ? kitchenRoute(w.pos, h.way[1]).slice(0, -1) : [w.pos.clone()]
+          w.waitAt = undefined
+          const way = [...from, ...h.way.slice(1).map((v) => v.clone()), ...(h.counter ? [aisleCorner(counters[h.counter])] : []), doorOf(counters)]
           way.push(...doorOutOf(counters))
           w.out = makeTrip(id, 'out', way, delayOf(id, SHOP.day), paceOf(id))
           SHOP.walking.add(id)
