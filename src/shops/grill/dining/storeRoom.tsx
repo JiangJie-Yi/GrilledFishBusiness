@@ -10,6 +10,10 @@ import { setTip } from '@/scene/interact/hoverTip'
 import { canvasTex } from './base'
 import { WcWall, WC_T, WcMass } from './wc'
 import { drinkLabel, lowestBack } from './crates'
+import { NO_RAY } from '@/scene/interact/pickable'
+import { lampLit } from '@/shops/grill/decor/lampShades'
+import { nightGlow } from './ambient'
+import { GLOW } from './shrine'
 
 /** the stock room's doorway's frame (items 430): its posts' width in the wall's line, its head's height over the opening */
 export const STORE_POST = STORE.post, STORE_HEAD = 0.07
@@ -72,6 +76,52 @@ function storeNorenMat(wide: number) {
  * changes (three's receiveShadow), no program */
 export function useNoSun(ref: RefObject<THREE.Object3D | null>) {
   useLayoutEffect(() => { ref.current?.traverse((o) => { if ((o as THREE.Mesh).isMesh && o.receiveShadow) o.receiveShadow = false }) })
+}
+/**
+ * The stock room's lamp (item 713, the owner's 「然後這上面掛一盞簡易吊燈。」, a red ring at the top of its far end wall over the stock): a
+ * plain enamel shade hung on a bracket from the top of that wall (the room's open over: nothing over it to hang from), as a store room's
+ * lamp is. An iron arm out from a wooden block on the wall with a brace under it, the cord down from its end into the shade's socket, the
+ * shade a dark green enamel cone lit white inside, its bulb showing under its rim, a soft glow round it; lit with the room's lights (the
+ * room circuit: lampLit, nightGlow), no light of its own (no lights added: every material would be made again). Its frame: on the wall's
+ * face (z 0, the room toward -z), x across the room, y down from the arm. About 200 triangles; three draws and the glow
+ */
+const LAMP_ARM = 0.42, LAMP_CORD = 0.3
+const LAMP_SHADE = new THREE.LatheGeometry([[0.104, -0.082], [0.098, -0.076], [0.06, -0.046], [0.024, -0.014], [0.017, 0]].map(([r, y]) => new THREE.Vector2(r, y)), 12)
+const LAMP_SOCKET = new THREE.CylinderGeometry(0.019, 0.021, 0.034, 8, 1, true)
+const LAMP_BULB = new THREE.IcosahedronGeometry(0.027, 0)
+const LAMP_CORD_GEO = new THREE.CylinderGeometry(0.0035, 0.0035, LAMP_CORD, 5, 1, true)
+const LAMP_ARM_GEO = new THREE.BoxGeometry(0.014, 0.014, LAMP_ARM)
+const LAMP_BRACE_GEO = new THREE.BoxGeometry(0.01, 0.01, Math.hypot(0.22, 0.2))
+const LAMP_BLOCK_GEO = new THREE.BoxGeometry(0.07, 0.09, 0.027)
+const LAMP_IRON = new THREE.MeshToonMaterial({ color: '#26231f' })
+const LAMP_WOOD = new THREE.MeshToonMaterial({ color: '#4a2f1c' })
+const LAMP_ENAMEL = new THREE.MeshToonMaterial({ color: '#2f5040' })
+/** its shade's white inside, lit (its back faces: the cone's own, drawn from inside it), and its bulb */
+const LAMP_INSIDE = lampLit(new THREE.MeshBasicMaterial({ color: '#fff3dc', toneMapped: false, side: THREE.BackSide }), { dim: 0.9 })
+const LAMP_GLASS = lampLit(new THREE.MeshBasicMaterial({ color: '#ffe9b8', toneMapped: false }), { dim: 0.6 })
+const LAMP_GLOW = nightGlow(new THREE.SpriteMaterial({ map: GLOW, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, color: '#ffd9a0' }), 0.3, 0.7)
+function StoreLamp({ at }: { at: [number, number, number] }) {
+  const shadeY = -LAMP_CORD - 0.034
+  return (
+    <group position={at}>
+      <StaticBatch plain>
+        {/* (its block on the wall, 2 mm into it (not in one plane with its face); the arm out from it; the brace from the wall under it up to
+            the arm's middle) */}
+        <mesh geometry={LAMP_BLOCK_GEO} material={LAMP_WOOD} position={[0, 0, -0.027 / 2 + 0.002]} />
+        <mesh geometry={LAMP_ARM_GEO} material={LAMP_IRON} position={[0, 0, -0.025 - LAMP_ARM / 2]} />
+        <mesh geometry={LAMP_BRACE_GEO} material={LAMP_IRON} position={[0, -0.1, -0.11]} rotation-x={Math.atan2(0.2, 0.22)} />
+        {/* (the cord down from the arm's end, into the socket over the shade) */}
+        <mesh geometry={LAMP_CORD_GEO} material={LAMP_IRON} position={[0, -LAMP_CORD / 2, -0.025 - LAMP_ARM + 0.012]} />
+        <mesh geometry={LAMP_SOCKET} material={LAMP_IRON} position={[0, -LAMP_CORD - 0.017 + 0.004, -0.025 - LAMP_ARM + 0.012]} />
+        <mesh geometry={LAMP_SHADE} material={LAMP_ENAMEL} position={[0, shadeY, -0.025 - LAMP_ARM + 0.012]} />
+      </StaticBatch>
+      <group position={[0, shadeY, -0.025 - LAMP_ARM + 0.012]}>
+        <mesh geometry={LAMP_SHADE} material={LAMP_INSIDE} raycast={NO_RAY} />
+        <mesh geometry={LAMP_BULB} material={LAMP_GLASS} position-y={-0.058} raycast={NO_RAY} />
+        <sprite scale={0.55} position-y={-0.06} material={LAMP_GLOW} raycast={NO_RAY} />
+      </group>
+    </group>
+  )
 }
 export function StoreRoom({ door, room, deep, fridges }: { door: [number, number]; room: [number, number]; deep: number; fridges: [number, number][] }) {
   const h = STORE.doorH, top = h + 0.3
@@ -194,6 +244,8 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
       <group ref={noren} name="look-store" position={[-0.05, h + STORE_HEAD - 0.02, (door[0] + door[1]) / 2]}>
         {[-1, 1].map((sd) => <StoreNorenPanel key={sd} sd={sd} wide={norenW} />)}
       </group>
+      {/* (its lamp, on a bracket from the top of its far end wall, over the stock (item 713)) */}
+      <StoreLamp at={[(WALL_OUT + deep) / 2, top - 0.1, zE - 0.006]} />
       {/* the doorway as one thing to point at: what's in there and what's lowest, a click opens the drinks' stock */}
       <mesh position={[-0.06, (h + STORE_HEAD) / 2, (door[0] + door[1]) / 2]} rotation-y={-Math.PI / 2} {...hit}>
         <planeGeometry args={[door[1] - door[0] + 2 * STORE_POST, h + STORE_HEAD]} />
