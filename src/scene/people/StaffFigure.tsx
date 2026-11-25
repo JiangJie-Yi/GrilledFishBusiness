@@ -230,6 +230,8 @@ const REST = { L: new THREE.Vector3(-0.31, 0.26, 0.05), R: new THREE.Vector3(0.3
 /** (item 676) a hand drawn in to their side as they squeeze past something: across from their middle, and before them (their own frame);
  * (item 687) before their belly to that side, just clear of it (its front 0.21 out at 0.15 across): at 0.19, 0.12 it was in their belly */
 const TUCK_X = 0.15, TUCK_Z = 0.28
+/** (item 693) how long a hand takes to be drawn in, or let out (seconds of the game's) */
+const TUCK_EASE_S = 0.2
 const REACH_A = new THREE.Vector3(), REACH_B = new THREE.Vector3()
 /** (item 689) the fastest a hand goes (their own frame, a second of the game's), and a hand's move this frame kept to it: up, the height
  * first and then out; down, out first and then the height (as a reach goes: straight across, a hand kept back cut through a counter's front
@@ -537,6 +539,8 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
   const reachLin = useRef(0)
   /** (item 676) how far each hand's drawn in (left, right), eased to what whoever moves them asks (job's tuckL / tuckR) */
   const tuckK = useRef([0, 0])
+  /** (item 693) how far through drawing each hand in (or letting it out) they are, in time: tuckK is it eased */
+  const tuckLin = useRef([0, 0])
   /** (item 675) how far their hands are out to hold what they carry (a tray, the clipboard, the cashier's together): eased (-1: not yet set) */
   const holdK = useRef(-1)
   /** whether what they last held out was carried (a tray, the clipboard, what the chef brings back) or their hands just together (the cashier) */
@@ -814,8 +818,14 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
       // (item 676: the hand on a side that's up against something as they go by it drawn in to their side, as one does squeezing past: a server
       // going by the cats' stand at the door to clear a place had a hand 23 cm in it)
       {
-        const ti = sd > 0 ? 1 : 0, want = going ? ((sd > 0 ? job?.tuckR : job?.tuckL) ?? 0) : 0
-        tuckK.current[ti] += (want - tuckK.current[ti]) * Math.min(1, dt * 12)
+        // (item 693: walking as they're seen to (`walk`, from how far they've gone), not only as whoever moves them says: the servers are moved by
+        // GuestBar3D, which says neither, and their hands were never drawn in, told to or not; a server going to the sink with their tray put by
+        // went along its cabinet with a hand into the washer's front)
+        const ti = sd > 0 ? 1 : 0, want = going || walk > 0.3 ? ((sd > 0 ? job?.tuckR : job?.tuckL) ?? 0) : 0
+        // (in and out over TUCK_EASE_S, eased at both ends (item 693: a twelfth of what was left a frame, a slow frame at double speed took it in
+        // at once, 0.2 to 0.33 of their frame, 30 to 55 cm, the Tester window's))
+        tuckLin.current[ti] = Math.min(1, Math.max(0, tuckLin.current[ti] + (want > 0.5 ? 1 : -1) * dt / TUCK_EASE_S))
+        tuckK.current[ti] = tuckLin.current[ti] * tuckLin.current[ti] * (3 - 2 * tuckLin.current[ti])
         const tk = tuckK.current[ti]
         const tkh = holder ? tk * (1 - hold) : hold < 1 ? tk : 0
         if (tkh > 0.002) { hand.position.x += (sd * TUCK_X - hand.position.x) * tkh; hand.position.z += (TUCK_Z - hand.position.z) * tkh }

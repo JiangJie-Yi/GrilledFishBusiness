@@ -66,16 +66,17 @@ export const LOOKS: Record<FaceKind, Look[]> = {
   male: [
     // (steady: almond eyes a little lidded, thick straight brows, a shadow under his nose)
     { eye: 'almond', lid: 0.14, size: 1, brow: 'thick', nose: 'shadow', mouth: 1, marks: [] },
-    // (bright: round white eyes, short brows, freckles, a wide mouth)
-    { eye: 'round', lid: 0, size: 1, brow: 'short', nose: 'plain', mouth: 1.15, marks: ['freckles'] },
+    // (bright: big bean eyes, short brows, freckles, a wide mouth (item 697, the owner's 「不要有這種眼睛，有點猙獰」: the round white eyes, wide
+    // open, a staring look, no face has them now))
+    { eye: 'bean', lid: 0, size: 1.1, brow: 'short', nose: 'plain', mouth: 1.15, marks: ['freckles'] },
     // (weary: heavy lids, stern brows, his nose's hook, stubble, bags under his eyes)
     { eye: 'almond', lid: 0.24, size: 0.95, brow: 'stern', nose: 'hook', mouth: 0.9, marks: ['stubble', 'bags'] },
   ],
   female: [
     // (poised: almond eyes, lashes, thin arched brows, red lips, a mole by her mouth)
     { eye: 'almond', lid: 0.08, size: 1, brow: 'thin', nose: 'plain', mouth: 0.95, lips: '#c4524a', marks: ['lashes', 'mole'] },
-    // (lively: round eyes and lashes, short brows, freckles)
-    { eye: 'round', lid: 0, size: 0.95, brow: 'short', nose: 'shadow', mouth: 0.85, marks: ['lashes', 'freckles'] },
+    // (lively: big bean eyes and lashes, short brows, freckles (item 697: the round white eyes were hers))
+    { eye: 'bean', lid: 0, size: 1.08, brow: 'short', nose: 'shadow', mouth: 0.85, marks: ['lashes', 'freckles'] },
     // (sweet: the bean eyes, lashes, thin brows, lips, rosy cheeks)
     { eye: 'bean', lid: 0, size: 1, brow: 'thin', nose: 'plain', mouth: 0.9, lips: '#b8483e', marks: ['lashes', 'rosy'] },
   ],
@@ -87,7 +88,8 @@ export const LOOKS: Record<FaceKind, Look[]> = {
   ],
   kid: [
     { eye: 'bean', lid: 0, size: 1.12, brow: 'short', nose: 'plain', mouth: 1, marks: ['freckles', 'rosy'] },
-    { eye: 'round', lid: 0, size: 1.05, brow: 'short', nose: 'plain', mouth: 1.05, marks: ['rosy'] },
+    // (item 697: bean eyes, not the round white ones)
+    { eye: 'bean', lid: 0, size: 1.18, brow: 'short', nose: 'plain', mouth: 1.05, marks: ['rosy'] },
   ],
 }
 /** a kind's design by its number (the first if there's no such) */

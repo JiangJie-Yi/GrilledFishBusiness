@@ -75,15 +75,20 @@ export function inkTogether(meshes: THREE.Mesh[], { width = 0.012, weld = false 
 }
 
 /**
- * give every mesh under root (a loaded model, not skinned) its ink outline, once; `skip` leaves out the transparent ones (glass).
- * `width` is the line's width in the model's own units; `weld` draws it round the shape with its normals averaged (for hard-edged models).
+ * give every mesh under root (a loaded model, not skinned, not instanced) its ink outline, once; `skip` leaves out the transparent ones
+ * (glass). `width` is the line's width in the model's own units; `weld` draws it round the shape with its normals averaged (for hard-edged
+ * models).
  */
 export function inkModel(root: THREE.Object3D, skip: (m: THREE.Mesh) => boolean = () => false, { width = 0.012, weld = false } = {}) {
   const hullMat = hullOf(width)
   const meshes: THREE.Mesh[] = []
   root.traverse((o) => {
     const m = o as THREE.Mesh
-    if (m.isMesh && !(m as THREE.SkinnedMesh).isSkinnedMesh && !HULL_MATS.has(m.material as THREE.Material) && !m.userData.inked && !skip(m)) meshes.push(m)
+    // (not an instanced one (item 704, the owner's 「這啥?」): its line a plain mesh, it was drawn once at its shape's own place, never where
+    // its copies are: the umbrella stand's furled canopies' line an open canopy's, and their rods', at the stand's foot, half under the step,
+    // put in the room's merged ink; seen in the wireframe view as a disc on the floor)
+    if (m.isMesh && !(m as THREE.SkinnedMesh).isSkinnedMesh && !(m as THREE.InstancedMesh).isInstancedMesh && !HULL_MATS.has(m.material as THREE.Material)
+      && !m.userData.inked && !skip(m)) meshes.push(m)
   })
   for (const m of meshes) {
     m.userData.inked = true

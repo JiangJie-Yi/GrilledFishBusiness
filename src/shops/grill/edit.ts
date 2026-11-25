@@ -57,6 +57,12 @@ export type Tool = 'select' | 'move' | 'rotate' | 'scale'
  * (degrees) and `s` how much larger (one number for all three axes). Each member still keeps its own place inside it.
  */
 export type Group = { name: string; members: string[]; pivot: V3; t: V3; yaw: number; s: number; r?: V3 }
+/** (items 698, 699) the shrine's wall's X, the way its group's and its area's panels' X goes in the room (their frame turned 0.6295 rad: the
+ * same wall as the cats' stand, CATS_SHIFT_3 the other way along it); the shrine's area and the signed board each 0.175 along it (the owner's,
+ * 2026-11-25) */
+const WALL_X: V3 = [Math.cos(0.6295299619991263), 0, -Math.sin(0.6295299619991263)]
+const SHRINE_SHIFT: V3 = [0.175 * WALL_X[0], 0, 0.175 * WALL_X[2]]
+const SIGN_SHIFT: V3 = [0.175 * WALL_X[0], 0, 0.175 * WALL_X[2]]
 /** a metre further along the wall, the same way as the 3.4 before it (unit (-0.8085, 0, 0.5891)) */
 const CATS_SHIFT_3: V3 = [-0.8085, 0, 0.5891]
 /** groups the shop comes with (the owner's own are added to them): the door's cat stand with its four cats; their pivot is found the first time
@@ -74,7 +80,9 @@ const DEFAULT_GROUPS: Record<string, { zh: string; ja: string; members: string[]
   // (and 20 cm lower (item 303, the owner's, 2026-11-17: 「小神龕的高度矮一些」): its shelf's foot 2.25 off the floor, 39 cm over a standing
   // head, its brackets 32 cm over the heads of those sat waiting on the bench under it)
   // (and the owner's, 2026-11-18 (item 351): 「小神龕區，整體Y:0.6 然後Reset」: the group's Y in its panel 0.6, made its place)
-  'grp-altar': { zh: '小神龕組', ja: '神棚', members: ['altar', 'altarfittings'], t: [-0.6466, 0.6, 0.4712] },
+  // (and the owner's, 2026-11-25 (item 698): 「小神龕區 X: 0.175 然後 Reset」: its view's area 0.175 along X in its own frame (the shrine's
+  // wall: WALL_X), made its place: the group's panel X -0.625 now; the cork board under its shelf with it (item 699))
+  'grp-altar': { zh: '小神龕組', ja: '神棚', members: ['altar', 'altarfittings'], t: [-0.6466 + SHRINE_SHIFT[0], 0.6, 0.4712 + SHRINE_SHIFT[2]] },
   // (the till and all of it: the counter, what stands on it and in it, its two seats, to be moved, turned and sized as one)
   'grp-till': { zh: '收銀櫃組', ja: 'レジ一式', members: ['till-counter', 'till-register', 'till-card', 'till-printer', 'till-tray', 'till-pens', 'till-bell',
     'till-mat', 'till-ingot', 'till-tree', 'till-cat', 'till-manual', 'till-ipad', 'till-stool-hi', 'till-stool-lo'] },
@@ -84,10 +92,14 @@ const DEFAULT_GROUPS: Record<string, { zh: string; ja: string; members: string[]
   // counter as one): the warmer with its miso pot and the rice ball counter with its cooker, side by side between the cook table and the till)
   'grp-ricestation': { zh: '料理台組', ja: '調理台一式', members: ['warmer', 'misopot', 'prepcounter', 'denkinabe', 'gasstove', 'fryer'] },
   // (the signed wall by the way in, every piece of it its own (items 402 and 406, the owner's 「物件要拆細、拆散 然後再group」): the cork board, its
-  // notes, the photographs, the signed pieces and the plaster's writing (wallPhotos' WALL_PIECES, CORK_NOTES))
-  'grp-signwall': { zh: '簽名留言牆', ja: 'サインと伝言の壁', members: ['sign-cork', 'sign-photo0', 'sign-photo1', 'sign-card1', 'sign-card2', 'sign-card3',
-    'sign-card4', 'sign-card5', 'sign-card6', 'cork-thanks', 'cork-boss', 'cork-fish', 'cork-toast', 'cork-night', 'cork-crayon', 'cork-english',
-    'cork-bday', 'cork-saba', 'cork-stamps', 'cork-title', 'sign-card7', 'sign-ledge'] },
+  // notes, the photographs, the signed pieces and the plaster's writing (wallPhotos' WALL_PIECES, CORK_NOTES). Two groups since item 699 (the
+  // owner's, 2026-11-25: 「留言板跟簽名要拆開看，簽名板 X: 0.175 然後也 Reset」): the cork board and its notes, under the shrine's shelf since
+  // item 616, moved with the shrine's area (SHRINE_SHIFT); the signed pieces, the photographs and their ledge by the way in, 0.175 along their
+  // wall too (its panel's X), made their place)
+  'grp-corkboard': { zh: '留言板', ja: '伝言板', members: ['sign-cork', 'cork-thanks', 'cork-boss', 'cork-fish', 'cork-toast', 'cork-night', 'cork-crayon',
+    'cork-english', 'cork-bday', 'cork-saba', 'cork-stamps', 'cork-title'], t: [...SHRINE_SHIFT] as V3 },
+  'grp-signboard': { zh: '簽名板', ja: 'サイン色紙', members: ['sign-photo0', 'sign-photo1', 'sign-card1', 'sign-card2', 'sign-card3', 'sign-card4', 'sign-card5',
+    'sign-card6', 'sign-card7', 'sign-ledge'], t: [...SIGN_SHIFT] as V3 },
   // (the sink and all that's on it and by it)
   'grp-sink': { zh: '流理台組', ja: '流し一式', members: ['sink', 'sink-basket', 'sink-scrub', 'sink-soap', 'sink-towel', 'sink-bin', 'sink-detergent', 'sink-sponge', 'stepstool'] },
   'grp-racks': { zh: '碗盤架組', ja: '食器棚', members: ['platerack', 'platerack2'] },
@@ -152,6 +164,11 @@ const loadGroups = (): Record<string, Group> => {
       if (done.delete(k)) localStorage.setItem('jgs-edit-group-foot-2', JSON.stringify([...done]))
     } catch { /* storage blocked */ }
   }
+  // (the signed wall's group a browser kept: let go, its pieces loose for the two groups it's made into (item 699, the owner's 「留言板跟簽名要拆開
+  // 看」); on every load (an open page may write it back), as the helmet's; an area holding it lets it go too, and its pieces join their views'
+  // areas afresh (groupByViews), each area's middle found again there)
+  if (g['grp-signwall']) delete g['grp-signwall']
+  for (const [k, x] of Object.entries(g)) if (x.members.includes('grp-signwall')) g[k] = { ...x, members: x.members.filter((m) => m !== 'grp-signwall') }
   for (const [id, d] of Object.entries(DEFAULT_GROUPS)) {
     // (not when the owner has already put any of its pieces in a group of their own, or broken it up; a view's area holding them gives them up
     // to it, and holds it in their place)
@@ -176,16 +193,6 @@ const loadGroups = (): Record<string, Group> => {
       for (const [n, x] of Object.entries(g)) if (n !== 'grp-doorcats' && x.members.includes('owncat')) g[n] = { ...x, members: x.members.filter((m) => m !== 'owncat') }
       g['grp-doorcats'] = { ...g['grp-doorcats'], members: [...k.members, 'owncat'] }
     }
-  }
-  // (the signed wall's group a browser kept (item 409): the plaster's writing gone from it, the ledge and the tanzaku put in it; on every
-  // load, as the cat's above)
-  // (and the cork board's notes made afresh (item 413): the seven old ones out of it, the eleven new ones in)
-  {
-    const k = g['grp-signwall']
-    const gone = (m: string) => m === 'sign-freehand' || /^sign-note\d$/.test(m)
-    const add = k ? ['sign-card7', 'sign-ledge', 'cork-thanks', 'cork-boss', 'cork-fish', 'cork-toast', 'cork-night', 'cork-crayon', 'cork-english', 'cork-bday',
-      'cork-saba', 'cork-stamps', 'cork-title'].filter((m) => !k.members.includes(m)) : []
-    if (k && (add.length || k.members.some(gone))) g['grp-signwall'] = { ...k, members: [...k.members.filter((m) => !gone(m)), ...add] }
   }
   // (groups a browser kept from before their default place was moved: moved on by as much, once (its key marks it done))
   for (const [key, id] of GENKAN_SHIFT) {
@@ -221,6 +228,19 @@ const loadGroups = (): Record<string, Group> => {
     if (!localStorage.getItem('jgs-edit-groupshift-7')) {
       if (g['grp-altar']) g['grp-altar'] = { ...g['grp-altar'], t: [...DEFAULT_GROUPS['grp-altar'].t!] as V3 }
       localStorage.setItem('jgs-edit-groupshift-7', '1'); localStorage.setItem(KEY_G, JSON.stringify(g))
+    }
+  } catch { /* storage blocked */ }
+  // (and 0.175 along its wall with its area (item 698, the owner's 「小神龕區 X: 0.175 然後 Reset，記得中心點(Center-based)要歸位」): its place
+  // kept in a browser given way to it once more, its area's own move back to none, and the two's pivots found again at their pieces' feet's
+  // middle (settleGroupFeet), not left where they were before the move)
+  try {
+    if (!localStorage.getItem('jgs-edit-groupshift-8')) {
+      if (g['grp-altar']) g['grp-altar'] = { ...g['grp-altar'], t: [...DEFAULT_GROUPS['grp-altar'].t!] as V3 }
+      if (g['grp-view-altar']) g['grp-view-altar'] = { ...g['grp-view-altar'], t: [0, 0, 0] }
+      const done = new Set<string>(JSON.parse(localStorage.getItem('jgs-edit-group-foot-2') ?? '[]'))
+      const a = done.delete('grp-altar'), b = done.delete('grp-view-altar')
+      if (a || b) localStorage.setItem('jgs-edit-group-foot-2', JSON.stringify([...done]))
+      localStorage.setItem('jgs-edit-groupshift-8', '1'); localStorage.setItem(KEY_G, JSON.stringify(g))
     }
   } catch { /* storage blocked */ }
   try {
