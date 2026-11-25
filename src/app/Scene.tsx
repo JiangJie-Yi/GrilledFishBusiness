@@ -44,7 +44,7 @@ import { SPACING, ITEM_IDS, slot, servings, onTable, orderedBase, type Frame } f
 import { IS_TOUCH } from '@/app/renderer'
 import { CAMERA_POSITION, OVERVIEW_TARGET, TOP_AT, TOP_UP, TOP_OPEN, OVERVIEW_POSITION, CAMERA_FOV, WIDE_FOV, FLY_S, UP_TURN, OWNER_FACING, cameraDistanceScale } from '@/app/camera'
 import { type Theme, LIGHTING, SPOT_POSITION, SPOT_SOFTNESS } from '@/app/lighting'
-import { ShadowPacer, FloorLayers, AxisWidget, ViewMarkers, FocusTracker, ViewCams, Drawn } from '@/app/sceneParts'
+import { ShadowPacer, FloorLayers, AxisWidget, ViewMarkers, FocusTracker, ViewCams, Drawn, IndoorSun } from '@/app/sceneParts'
 import { HOLD_POSE, viewCamPlaced } from '@/app/camera'
 
 type SceneProps = {
@@ -604,6 +604,8 @@ export function Scene({ omiki, active, orders, theme, sky, reducedMotion, fire, 
         shadow-mapSize={[QUALITY.shadowSize, QUALITY.shadowSize]} shadow-bias={-0.0008} shadow-normalBias={0.04} shadow-radius={shadowSoft(theme === 'dark')}
         shadow-camera-left={-14} shadow-camera-right={14} shadow-camera-top={14} shadow-camera-bottom={-14} shadow-camera-near={1} shadow-camera-far={48} />
       <ShadowPacer />
+      {/* (the sun only out of doors (item 721): where the shop's insides are) */}
+      <IndoorSun />
       <FloorLayers up={view === 'upstairs'} />
       {/* (the staff room upstairs, a scene of its own off to the side (item 325)); those living in it up there while the shop's shut (item 339) */}
       {dorm && (

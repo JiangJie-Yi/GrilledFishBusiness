@@ -4,6 +4,8 @@ import '@/scene/render/gpuSweep'
 import '@/scene/render/assetVersions'
 // (and a phone fetches none of the 3D shop: it draws it flat)
 import '@/scene/render/flatGate'
+// (the sun only out of doors (item 721): three's lighting chunk with the shop's indoor boxes in it, before any program's made)
+import '@/scene/render/indoorSun'
 // (models whose pictures are KTX2 read with a KTX2 loader, item 571)
 import '@/scene/render/ktx2'
 // (the pictures the game paints, kept off the graphics card: they survive its resets)

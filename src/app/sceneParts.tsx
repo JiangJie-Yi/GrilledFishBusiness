@@ -11,7 +11,43 @@ import { DORM_LAYER, FLOOR, lightsBoth } from '@/scene/props/floors'
 import { VIEW_SPOTS, viewKey, viewName, type ViewId } from '@/data/views'
 import { NO_POINTER, zr } from '@/scene/interact/htmlProps'
 import { OVERVIEW_TARGET } from '@/app/camera'
+import { setIndoorBox } from '@/scene/render/indoorSun'
+import { DORM_AT } from '@/shops/grill/rooms/DormRoom'
 import { VIEWCAM_TURN } from '@/app/camera'
+
+/** the shop's insides where the sun doesn't shine (item 721, scene/render/indoorSun), in the room floor's frame (bar units: x across the
+ * room, + to the round window's wall; y up from the boards; z along it, + to the door), measured (tests/e2e/_indoor721.mjs): the room with
+ * the toilets' strip behind it, between the plinth's faces round it (out of doors, the street's side seen from the street) and the walls
+ * within them (the round window's at 1.65, the plinth's face 1 cm past it at 1.66), up past anything in it, to the facade's back; the
+ * facade's own depth, under its eaves (the roof over it and the door's outer face out of doors); the stock room's deeper strip; each from
+ * 30 cm under the boards (the ground round the building, at -0.46, out of doors) */
+const SHOP_INDOORS: { min: THREE.Vector3Tuple; max: THREE.Vector3Tuple }[] = [
+  { min: [-4.465, -0.3, -5.435], max: [1.655, 9, 3.44] },
+  { min: [-4.465, -0.3, 3.4], max: [1.655, 2.3, 3.62] },
+  { min: [-4.465, -0.3, -5.675], max: [-1.84, 9, -5.4] },
+]
+/** how far in (bar units) the sun's gone entirely: its edge eased over 4 mm (the wall within it 5 mm in, the plinth 5 mm out), no stair of
+ * light and dark across what stands at the door's line */
+const INDOOR_SOFT = 0.004
+/** the dorm upstairs, a room off on its own (DormRoom's DORM_AT): all of it, nothing else out there */
+const DORM_INDOORS = { min: [DORM_AT.x - 15, DORM_AT.y - 12, DORM_AT.z - 15] as THREE.Vector3Tuple, max: [DORM_AT.x + 15, DORM_AT.y + 12, DORM_AT.z + 15] as THREE.Vector3Tuple }
+const WORLD_FRAME = new THREE.Matrix4()
+/** sets them, once the room's floor is there (its frame the shop's); taken away as it's gone */
+export const IndoorSun = memo(function IndoorSun() {
+  const scene = useThree((s) => s.scene)
+  const done = useRef(false)
+  useFrame(() => {
+    if (done.current) return
+    const f = scene.getObjectByName('room-floor')
+    if (!f) return
+    f.updateWorldMatrix(true, false)
+    SHOP_INDOORS.forEach((b, i) => setIndoorBox(i, { frame: f.matrixWorld, ...b, soft: INDOOR_SOFT }))
+    setIndoorBox(SHOP_INDOORS.length, { frame: WORLD_FRAME, ...DORM_INDOORS, soft: 0.1 })
+    done.current = true
+  })
+  useEffect(() => () => { for (let i = 0; i <= SHOP_INDOORS.length; i++) setIndoorBox(i, null) }, [])
+  return null
+})
 
 /** tells the loading veil how many draws each frame took (scene/Later's noteDrawn): it waits for the shop to be drawn, not only loaded */
 // (item 374: drawn again only as its own props change: it does its work in its frames and effects, and was drawn again with every redraw

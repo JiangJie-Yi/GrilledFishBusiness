@@ -16,6 +16,7 @@ import { StaffFigure } from '@/scene/people/StaffFigure'
 import { BossModel } from '@/shops/grill/staff/Boss'
 import { ShadeView, WireView } from './Movable'
 import { isInk } from '@/scene/render/inkHull'
+import { indoorSunPaused } from '@/scene/render/indoorSun'
 import type { CrewFace } from '@/scene/people/faceSheet'
 import { usePanelSound } from '@/ui/kit/uiSound'
 import { Glyph } from '@/ui/art/GameIcons'
@@ -318,7 +319,10 @@ export function CharacterViewer({ lang }: { lang: Lang }) {
       </header>
       {open && (<>
         <div className="char-view-stage">
-          <Canvas dpr={[1, 1.5]} camera={{ fov: 28, position: [0, 1.25, 5.2] }} gl={{ antialias: true, alpha: true }} frameloop={tucked ? 'never' : 'always'}>
+          <Canvas dpr={[1, 1.5]} camera={{ fov: 28, position: [0, 1.25, 5.2] }} gl={{ antialias: true, alpha: true }} frameloop={tucked ? 'never' : 'always'}
+            // (lit by its own lights: the shop's indoor boxes (item 721, the sun's taken off inside them) off while it draws, its figures stood
+            // at the world's middle, in the shop's)
+            onCreated={({ scene }) => { scene.onBeforeRender = () => indoorSunPaused(true); scene.onAfterRender = () => indoorSunPaused(false) }}>
             <Lights />
             <Stand />
             <Suspense fallback={null}>
