@@ -11,7 +11,7 @@ import { DORM_LAYER, FLOOR, lightsBoth } from '@/scene/props/floors'
 import { VIEW_SPOTS, viewKey, viewName, type ViewId } from '@/data/views'
 import { NO_POINTER, zr } from '@/scene/interact/htmlProps'
 import { OVERVIEW_TARGET } from '@/app/camera'
-import { setIndoorBox } from '@/scene/render/indoorSun'
+import { insideIndoors, setIndoorBox } from '@/scene/render/indoorSun'
 import { DORM_AT } from '@/shops/grill/rooms/DormRoom'
 import { VIEWCAM_TURN } from '@/app/camera'
 
@@ -69,6 +69,12 @@ export const SfxEar = memo(function SfxEar() {
  * the tables cast none (too small to show in a map spanning the shop), so the shadow maps draw a fraction of the meshes (three's shadow pass
  * tests layers against the view's camera, not the light's, so this is done by castShadow) */
 const CASTER_R = 0.3
+/** how far (world units) a caster's sphere must be clear of an indoor box's every side for the sun's map to leave it out: the walls, floor
+ * and roof round the boxes kept in it (they cast the building's shadow out of doors) */
+const SUN_IN_MARGIN = 0.15
+const SUN_AT = new THREE.Vector3()
+/** the casters left out of the sun's map this frame, back on */
+function castersBack(o: THREE.Mesh[]) { for (let i = 0; i < o.length; i++) o[i].castShadow = true; o.length = 0 }
 
 // (item 374: drawn again only as its own props change: it does its work in its frames and effects, and was drawn again with every redraw
 // of the page or the scene, about three times a second, for nothing)
@@ -77,16 +83,44 @@ export const ShadowPacer = memo(function ShadowPacer() {
   const scene = useThree((st) => st.scene)
   const n = useRef(0)
   const seen = useRef(-1)
-  useEffect(() => { gl.shadowMap.autoUpdate = false; gl.shadowMap.needsUpdate = true; return () => { gl.shadowMap.autoUpdate = true } }, [gl])
+  // (the sun's map and the other lights' drawn on frames of their own: the sun's without what's indoors (its shadow's unseen in there since
+  // item 721, scene/render/indoorSun), those casters' castShadow off for that one draw and back on after it; the spot's over the room with
+  // them all, a frame later. Each list kept and filled again in place, no garbage)
+  const sun = useRef<THREE.DirectionalLight | null>(null)
+  const others = useRef<THREE.SpotLight[]>([])
+  const casters = useRef<THREE.Mesh[]>([])
+  const off = useRef<THREE.Mesh[]>([])
+  useEffect(() => {
+    gl.shadowMap.autoUpdate = false; gl.shadowMap.needsUpdate = true
+    const back = () => castersBack(off.current)
+    const was = scene.onAfterRender
+    scene.onAfterRender = function (...a) { back(); was.apply(this, a) }
+    return () => {
+      back(); scene.onAfterRender = was; gl.shadowMap.autoUpdate = true
+      for (const l of [sun.current, ...others.current]) if (l?.shadow) l.shadow.autoUpdate = true
+    }
+  }, [gl, scene])
   const onePass = (mat: THREE.Material | undefined) => { if (mat && mat.transparent && mat.side === THREE.DoubleSide && !mat.forceSinglePass) mat.forceSinglePass = true }
   useFrame(({ clock }) => {
+    // (left out last frame and not put back, the frame not drawn)
+    if (off.current.length) castersBack(off.current)
     // (once a second and a half)
     if (clock.elapsedTime - seen.current > 1.5) {
       seen.current = clock.elapsedTime
       const v = new THREE.Vector3()
+      sun.current = null; others.current.length = 0; casters.current.length = 0
       scene.traverse((o) => {
         // (every light lit on both floors' layers (item 457, scene/floors): the same lights seen up or down, no program made afresh)
-        if ((o as THREE.Light).isLight) { if (!o.layers.isEnabled(DORM_LAYER)) o.layers.enable(DORM_LAYER); return }
+        if ((o as THREE.Light).isLight) {
+          if (!o.layers.isEnabled(DORM_LAYER)) o.layers.enable(DORM_LAYER)
+          const l = o as THREE.DirectionalLight
+          if (l.shadow) {
+            l.shadow.autoUpdate = false
+            if (l.isDirectionalLight && l.castShadow && !sun.current) sun.current = l
+            else others.current.push(l as unknown as THREE.SpotLight)
+          }
+          return
+        }
         const m = o as THREE.Mesh
         if (!m.isMesh) return
         // (and anything see-through and two-sided drawn in one pass: three otherwise draws it twice a frame, back faces then front, flagging
@@ -97,17 +131,41 @@ export const ShadowPacer = memo(function ShadowPacer() {
         const mats = m.material
         if (Array.isArray(mats)) mats.forEach(onePass)
         else onePass(mats)
-        if (m.userData.sunSeen === m.geometry) return
-        m.userData.sunSeen = m.geometry
-        const g = m.geometry
-        if (!g.boundingSphere) g.computeBoundingSphere()
-        m.getWorldScale(v)
-        const r = (g.boundingSphere?.radius ?? 0) * Math.max(v.x, v.y, v.z)
-        if (r < CASTER_R) m.castShadow = false
+        if (m.userData.sunSeen !== m.geometry) {
+          m.userData.sunSeen = m.geometry
+          const g = m.geometry
+          if (!g.boundingSphere) g.computeBoundingSphere()
+          m.getWorldScale(v)
+          const r = (g.boundingSphere?.radius ?? 0) * Math.max(v.x, v.y, v.z)
+          if (r < CASTER_R) m.castShadow = false
+        }
+        // (the sun's map may leave it out while it's indoors: not an instanced or batched one, whose sphere isn't its geometry's)
+        if (m.castShadow && !(m as THREE.InstancedMesh).isInstancedMesh && !(m as unknown as THREE.BatchedMesh).isBatchedMesh && m.geometry.boundingSphere) casters.current.push(m)
       })
     }
-    // (upstairs the shop isn't drawn, nor its shadows (item 457): its map kept as it was, drawn again once it's come back down to)
-    if (++n.current % 3 === 0 && !FLOOR.up) gl.shadowMap.needsUpdate = true
+    // (upstairs the shop isn't drawn, nor its shadows (item 457): its maps kept as they were, drawn again once it's come back down to)
+    const k = ++n.current % 3
+    if (FLOOR.up || k === 2) return
+    if (k === 0) {
+      const s = sun.current
+      if (!s) return
+      s.shadow.needsUpdate = true
+      // (what's in an indoor box, its sphere clear of the box's sides by SUN_IN_MARGIN, left out of this draw of the sun's map)
+      const list = casters.current, o = off.current
+      for (let i = 0; i < list.length; i++) {
+        const m = list[i]
+        if (!m.castShadow || !m.parent) continue
+        const b = m.geometry.boundingSphere
+        if (!b) continue
+        SUN_AT.copy(b.center).applyMatrix4(m.matrixWorld)
+        if (!insideIndoors(SUN_AT.x, SUN_AT.y, SUN_AT.z, b.radius * m.matrixWorld.getMaxScaleOnAxis(), SUN_IN_MARGIN)) continue
+        m.castShadow = false
+        o.push(m)
+      }
+    } else {
+      for (const l of others.current) l.shadow.needsUpdate = true
+    }
+    gl.shadowMap.needsUpdate = true
   })
   return null
 })

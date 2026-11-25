@@ -94,6 +94,23 @@ export function setIndoorBox(i: number, box: { frame: THREE.Matrix4; min: THREE.
   SOFT[i] = box.soft * s
   e[15] = paused ? 0 : SOFT[i]
 }
+/**
+ * Whether a sphere in the world (`x, y, z` its middle, `r` its radius) lies wholly within one of the indoor boxes, `margin` (world units)
+ * clear of its every side: what's in there casts no sun's shadow anyone sees (the sun's taken off inside, and out of doors the walls and roof
+ * round it cast theirs), so the sun's shadow map is drawn without it (app/sceneParts' ShadowPacer). None while they're paused.
+ */
+export function insideIndoors(x: number, y: number, z: number, r: number, margin: number) {
+  for (let i = 0; i < BOXES; i++) {
+    const e = MATS[i]
+    if (!e || e[15] <= 0) continue
+    const k = r + margin
+    if (Math.abs(e[0] * x + e[4] * y + e[8] * z + e[12]) + k > e[3]) continue
+    if (Math.abs(e[1] * x + e[5] * y + e[9] * z + e[13]) + k > e[7]) continue
+    if (Math.abs(e[2] * x + e[6] * y + e[10] * z + e[14]) + k > e[11]) continue
+    return true
+  }
+  return false
+}
 let paused = false
 /** while another canvas draws (the editor's character viewer): the boxes off, the sun everywhere; and back on */
 export function indoorSunPaused(on: boolean) {
