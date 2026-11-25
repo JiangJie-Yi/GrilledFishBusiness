@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
+import { tagPlace, tagSplit } from '@/game/kitchen/menuTags'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { inkTogether } from '@/scene/render/inkHull'
@@ -24,12 +25,15 @@ const TAG_PX: [number, number] = [56, 256]
 const TAG_FONT = '"LXGW WenKai TC", "Noto Serif TC", serif'
 /** a tag: a dish, or (`head`) the plaque before a section's dishes */
 type TagRow = { name: string; price: number; head?: boolean }
+/** how many go on the first row (item 716, game/kitchen/menuTags: the two rows even, broken where a section begins near the middle) */
+const splitOf = (rows: TagRow[]) => tagSplit(rows.map((r) => !!r.head), TAG_COLS)
 function paintTags(g: CanvasRenderingContext2D, rows: TagRow[]) {
   const [w, h] = TAG_PX
   g.setTransform(1, 0, 0, 1, 0, 0)
   g.clearRect(0, 0, w * TAG_COLS, h * 2)
+  const split = splitOf(rows)
   rows.forEach((r, k) => {
-    const x0 = (k % TAG_COLS) * w, y0 = Math.floor(k / TAG_COLS) * h
+    const place = tagPlace(k, split), x0 = place.col * w, y0 = place.row * h
     if (r.head) {
       // (a section's plaque (item 471, as the menu board's, item 470): indigo, darker at its edges, the section's name down it in washi
       // white, as big as fits, a thin rule over and under it; no price)
@@ -88,13 +92,16 @@ function paintTags(g: CanvasRenderingContext2D, rows: TagRow[]) {
   })
 }
 let TAG_ROWS_NOW: TagRow[] = []
+/** how many of them are on the first row (item 716; kept with them, so the hanging's frames needn't work it out again) */
+let TAG_SPLIT_NOW = 0
 const TAG_TEX = signTexture(TAG_PX[0] * TAG_COLS, TAG_PX[1] * 2, (g) => paintTags(g, TAG_ROWS_NOW))
 /** the tags' own canvas (the texture's may be a smaller copy: scene/textureCap) */
 const TAG_CANVAS = TAG_TEX?.image as HTMLCanvasElement | undefined
 const TAG_MAT = new THREE.MeshToonMaterial({ color: '#ffffff', map: TAG_TEX })
 const TAG_RAIL_MAT = new THREE.MeshToonMaterial({ color: '#3b2618' })
-/** the tags for `n` dishes along the wall from z0 to z1 (read from z1, the room's right), each a thin board out from the wall */
-function tagsGeometry(n: number, z0: number, z1: number) {
+/** the tags for `n` dishes along the wall from z0 to z1 (read from z1, the room's right), each a thin board out from the wall; `split` of
+ * them on the first row, the rest on the second (item 716), each row centred */
+function tagsGeometry(n: number, split: number, z0: number, z1: number) {
   const pos: number[] = [], uv: number[] = [], idx: number[] = []
   const W = TAG_PX[0] * TAG_COLS, H = TAG_PX[1] * 2
   const face = (pts: number[][], uvs: number[][]) => {
@@ -105,8 +112,8 @@ function tagsGeometry(n: number, z0: number, z1: number) {
   }
   const per = TAG_W + TAG_GAP
   for (let k = 0; k < n; k++) {
-    const row = Math.floor(k / TAG_COLS), col = k % TAG_COLS
-    const inRow = Math.min(TAG_COLS, n - row * TAG_COLS)
+    const { row, col } = tagPlace(k, split)
+    const inRow = row === 0 ? split : n - split
     // (each row centred on the stretch, from its right)
     const mid = (z0 + z1) / 2, start = mid + ((inRow - 1) * per) / 2
     const zc = start - col * per
@@ -225,7 +232,7 @@ export function MenuTags({ z0, z1 }: { z0: number; z1: number }) {
     const a = pos.array as Float32Array, w = uv.array as Float32Array
     fresh.forEach((k, i) => {
       const u = t === Infinity ? 1 : THREE.MathUtils.clamp((t - i * TAG_HANG_GAP) / TAG_HANG_S, 0, 1)
-      const top = TAG_ROWS[Math.floor(k / TAG_COLS)]
+      const top = TAG_ROWS[k < TAG_SPLIT_NOW ? 0 : 1]
       const long = 1 - (1 - Math.min(1, u / 0.45)) ** 3
       const swing = -0.32 * Math.abs(Math.sin(u * Math.PI * 2.2)) * (1 - u) ** 2
       const c = Math.cos(swing), s = Math.sin(swing)
@@ -252,7 +259,9 @@ export function MenuTags({ z0, z1 }: { z0: number; z1: number }) {
     TAG_ROWS_NOW = rows
     // (laid out again for so many: the tags, their line, the rails over them as wide as the rows they hang)
     parts.tags.geometry.dispose()
-    parts.tags.geometry = tagsGeometry(rows.length, z0, z1)
+    const split = splitOf(rows)
+    TAG_SPLIT_NOW = split
+    parts.tags.geometry = tagsGeometry(rows.length, split, z0, z1)
     if (parts.ink) { parts.ink.removeFromParent(); parts.ink.geometry.dispose(); parts.ink = null }
     const fresh = first || sameMenu ? [] : rows.map((r, k) => (before.some((b) => b.name === r.name && !!b.head === !!r.head) ? -1 : k)).filter((k) => k >= 0)
     const h = hang.current
@@ -265,7 +274,8 @@ export function MenuTags({ z0, z1 }: { z0: number; z1: number }) {
     if (h.base && h.baseUv) hangPose(fresh, h.base, h.baseUv, 0)
     else inked()
     parts.rails.forEach((r, i) => {
-      const inRow = Math.max(0, Math.min(TAG_COLS, rows.length - i * TAG_COLS))
+      // (each row's rail as long as the row, centred on the wall as the row is (item 716))
+      const inRow = i === 0 ? split : rows.length - split
       r.visible = inRow > 0
       r.scale.z = Math.max(0.01, inRow * (TAG_W + TAG_GAP) + 0.04)
     })
