@@ -8,7 +8,7 @@ import { EditBlock } from '@/shops/grill/editor/Movable'
 import { getEdit } from '@/shops/grill/edit'
 import { setTip } from '@/scene/interact/hoverTip'
 import { canvasTex } from './base'
-import { WcWall, WC_T, WcMass, WcFloor } from './wc'
+import { WcWall, WC_T, WcMass } from './wc'
 import { drinkLabel, lowestBack } from './crates'
 
 /** the stock room's doorway's frame (items 430): its posts' width in the wall's line, its head's height over the opening */
@@ -140,8 +140,8 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
     <group ref={whole}>
       <EditBlock>
       <StaticBatch plain>
-        {/* its floor, the toilets' hinoki boards, a hair over the shop's own floor run out behind the wall */}
-        <WcFloor wx={dx} wz={len} at={[(WALL_OUT + deep) / 2, 0.007, mid]} />
+        {/* (its own floor, the toilets' hinoki boards a hair over the shop's own floor run out behind the wall, taken away (item 710, the
+            owner's 「地板有斷層」: from the shop's boards over the sill onto paler ones 3 mm up): the shop's floor runs on into it) */}
         {/* inside: its back wall; its far end in front of the men's room's end wall (6 mm off it) */}
         {/* (its back cut open as the toilets' rooms' are, seen through from outside (item 482, the owner's 「這邊要通透」: a solid back made it a
             blank grey box from behind the shop, the stocker and the stock out of sight): one face, turned in, nothing behind it) */}
@@ -160,19 +160,11 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
           // (4 mm proud of the end walls' backs: not in one plane with them)
           <mesh key={z} position={[deep - WC_T / 2 + 0.004, top / 2, z - 0.015]}><boxGeometry args={[WC_T, top, 0.034]} /><meshToonMaterial color="#2e1c10" /></mesh>
         ))}
-        {/* the doorway's frame: a dark cedar post in the wall's line against the fridge's side, proud of its face, through its thickness (the
-            one at the wall's end taken away (item 503, the owner's 「拿掉」): the near end wall gone (item 488), it stood alone at the room's
-            corner); the head over the doorway out to the wall's end, the wall over it carrying it; a low sill across its foot, the post's
-            place too */}
-        {[door[1] + STORE_POST / 2].map((z) => {
-          // (up to the fridges' head as well, when it's their post too (item 535))
-          const tall = frame ? Math.max(h + STORE_HEAD, frame.headTop) : h + STORE_HEAD
-          return <mesh key={z} position={[(WALL_OUT - 0.03) / 2, tall / 2, z]}><boxGeometry args={[WALL_OUT + 0.03, tall, STORE_POST]} /><meshToonMaterial color="#3d2414" /></mesh>
-        })}
-        {/* the fridges' openings' frame (item 535): their posts and their head */}
-        {frame?.posts.map(([a, b]) => (
-          <mesh key={`fp${a}`} position={[(WALL_OUT + 0.004 - 0.03) / 2, frame.headTop / 2, (a + b) / 2]}><boxGeometry args={[WALL_OUT + 0.004 + 0.03, frame.headTop, b - a]} /><meshToonMaterial color="#3d2414" /></mesh>
-        ))}
+        {/* the doorway's frame: the head over the doorway out to the wall's end, the wall over it carrying it. Its posts taken away (item 709,
+            the owner's 「紅圈與紅框部份的柱子拿掉」: the one against the fridge's side, up to the fridges' head, and its sill across the foot,
+            the one at the wall's end before it (item 503)); and the fridges' openings' posts (item 535), the one past the last fridge by the
+            koi's wall with them: the head over all of it as it was */}
+        {/* the fridges' openings' head (item 535) */}
         {frame && (
           <mesh position={[(WALL_OUT + 0.004 + 0.002) / 2, (frame.headY + frame.headTop) / 2, (frame.z0 + frame.z1) / 2]}>
             <boxGeometry args={[WALL_OUT + 0.004 - 0.002, frame.headTop - frame.headY, frame.z1 - frame.z0 - 0.004]} /><meshToonMaterial color="#35200f" />
@@ -193,16 +185,8 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
         {frame?.fillers.map(([a, b]) => (
           <mesh key={`ff${a}`} position={[-FRIDGE_GAP + 0.003 - 0.024, FRIDGE.H / 2, (a + b) / 2]}><boxGeometry args={[0.048, FRIDGE.H, b - a]} /><meshToonMaterial color="#1d1e21" /></mesh>
         ))}
-        <mesh position={[WALL_OUT / 2, 0.006, (door[0] - STORE_POST + door[1]) / 2]}><boxGeometry args={[WALL_OUT + 0.02, 0.012, door[1] - door[0] + STORE_POST]} /><meshToonMaterial color="#4a2e1a" /></mesh>
-        {/* the noren's rod on its two brackets off the head's face */}
-        <mesh position={[-0.05, h + STORE_HEAD - 0.02, (door[0] + door[1]) / 2]} rotation-x={Math.PI / 2}>
-          <cylinderGeometry args={[0.01, 0.01, norenW + 0.004, 10]} /><meshToonMaterial color="#d9b884" />
-        </mesh>
-        {[-1, 1].map((k) => (
-          <mesh key={k} position={[-0.033, h + STORE_HEAD - 0.036, (door[0] + door[1]) / 2 + k * (norenW / 2 - 0.012)]}>
-            <boxGeometry args={[0.034, 0.01, 0.014]} /><meshToonMaterial color="#3a2416" />
-          </mesh>
-        ))}
+        {/* (the noren's rod on its two brackets taken away (item 709, the owner's red box): the noren hangs where it did, from the rod in its
+            top band's sleeve, out of sight) */}
       </StaticBatch>
       </EditBlock>
       {/* the noren: its two panels hung from the rod, each its half of the one picture, a slit between; swung aside as the stocker goes
