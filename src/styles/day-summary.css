@@ -92,7 +92,12 @@
   --ds-ink: #3b2a20;
   --ds-soft: #7a6450;
   --ds-rule: rgb(90 61 40 / 0.18);
+  /* (a fixed height, never past the screen (item 715, the owner's 「太長了需固定高度，然後有bar可滾軸」): its title, the sums scrolling
+     under it, the done button below them always in sight) */
+  display: flex;
+  flex-direction: column;
   width: min(380px, calc(100vw - 32px));
+  max-height: min(620px, calc(100dvh - 40px));
   overflow: hidden;
   border: 3px solid #5a3d28;
   border-radius: 10px;
@@ -131,8 +136,25 @@
   /* (its one column the sheet's width, never wider: a long line in it (a day opened ten hours late, a dish's long name) widened the
      column past the sheet and every sum on the right was cut off (item 329); such a line shrinks to fit instead (FitLine)) */
   grid-template-columns: minmax(0, 1fr);
+  align-content: start;
   gap: 14px;
-  padding: 16px 18px 18px;
+  /* (scrolled within the sheet's height (item 715), a slim wooden bar at its side; its wheel kept to it) */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #8a6a44 rgb(90 61 40 / 0.1);
+  padding: 16px 14px 18px 18px;
+}
+/* (under the sums, apart from them: the done button and the closing's count, in sight however far they're scrolled (item 715)) */
+.day-sum-foot {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 10px 18px 12px;
+  border-top: 1px solid var(--ds-rule);
 }
 /* (the hours it was open, small over the profit) */
 .day-sum-late { font-size: 0.92em; color: #9a8a78; }
@@ -237,7 +259,6 @@
   justify-self: center;
   min-width: 140px;
   height: 38px;
-  margin-top: 2px;
   border: 0;
   border-radius: 19px;
   background: #b8261c;
@@ -250,7 +271,6 @@
 .day-sum-ok:hover { background: #9e1f17; }
 .day-sum-auto {
   justify-self: center;
-  margin-top: -6px;
   color: var(--ds-soft);
   font-size: 12px;
   white-space: nowrap;
@@ -258,6 +278,7 @@
 /* (the time it stays up, running down along its foot) */
 .day-sum-timer {
   display: block;
+  flex: none;
   height: 3px;
   background: #b8261c;
   transform-origin: left;

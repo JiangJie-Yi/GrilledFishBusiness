@@ -144,9 +144,12 @@ export function DaySummary({ s, day, hours, goal, goalMade, streak = 0, broke = 
               })}
             </ul>
           )}
+        </div>
+        {/* (under the sums, in sight however far they're scrolled (item 715)) */}
+        <footer className="day-sum-foot">
           <button type="button" className="day-sum-ok" onClick={onClose}>{t('收工', 'お疲れさま', 'Done for the day')}</button>
           <small className="day-sum-auto">{t(`${left} 秒後自動關閉`, `${left} 秒後に閉じます`, `Closing in ${left}s`)}</small>
-        </div>
+        </footer>
         <i className="day-sum-timer" style={{ animationDuration: `${auto}s` }} aria-hidden="true" />
       </section>
     </div>,
