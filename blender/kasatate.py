@@ -1,9 +1,12 @@
 """The rain's things (item 623, the owner's 「進來的客人會穿雨衣或帶雨傘」), kasatate.glb, in the game's units (the bar's): three pieces the game
 puts together, each its own node, its colours in its points (COLOR_0) so one material can tint the lot:
 
-  KasaStand   the umbrella stand (傘立て) out on the shop's stone step by the sliding door: a Shigaraki jar glazed namako blue (海鼠釉), the
-              glaze running pale over the shoulder in drips, its foot left bare clay, its inside dark. Its foot at y 0, its middle over the
-              origin. Five umbrellas stand in it (the game's), tips down on its floor (KASA_FLOOR) leaning out a little.
+  KasaStand   the umbrella stand (傘立て) in the genkan by the shoe cupboard: an eight-sided Shigaraki jar (八角, item 720, the owner's
+              「傘架面數過高，造型太簡單，不需要黑線」: it was a round jar of 16, 174 triangles, inked), its flat faces swelling to its belly,
+              narrowing to its neck, its thick lip turned out; glazed namako blue (海鼠釉), running pale over the shoulder and down some of its
+              faces further than others, the glaze thinning out toward its foot to the bare clay, its inside dark. Its foot at y 0, its
+              middle over the origin, a face (not an edge) toward +z. Five umbrellas stand in it (the game's), tips down on its floor
+              (KASA_FLOOR) leaning out a little.
   KasaCanopy  an umbrella's canopy, open: eight panels between eight ribs hung from its tip (the origin) down and out, a dome (each rib
               three straight runs, steeper toward the rim), the rim scalloped between the ribs; white (the game's colour tints it), the ribs
               a shade darker so the panels read. Furled, the game scales it about its tip: across by FURL_ACROSS, down by FURL_DOWN.
@@ -12,7 +15,8 @@ puts together, each its own node, its colours in its points (COLOR_0) so one mat
   KasaBundle  a raincoat folded up small to carry (a customer's, taken off in the genkan): a soft rounded block, white (the game tints it),
               its middle at the origin, a crease across its top.
 
-Low-poly: the jar 16 round, the canopy 16 round (rib and mid-panel), the shaft and handle 6 round; no fans into a point (ends in ladders).
+Low-poly: the jar 8 round, its faces flat (86 triangles), the canopy 16 round (rib and mid-panel), the shaft and handle 6 round; no fans
+into a point (ends in ladders).
 
 Run:
     blender -b --factory-startup --python blender/kasatate.py -- <project path> [preview.png]
@@ -82,10 +86,12 @@ def paint(bm, col, of):
 
 
 # ---------------------------------------------------------------- the stand
-SEG = 16
+SEG = 8
 # (its profile up the outside, over the lip and down the inside to its floor: (radius, height); the floor's ring closed in a ladder)
-# (six rings: the foot, the belly, the shoulder, the lip's outside and its top, and the floor inside: 5 bands of 16, 174 triangles)
-STAND_OUT = [(0.062, 0.0), (0.071, 0.05), (0.067, 0.215), (0.074, 0.242), (0.066, 0.252)]
+# (six rings (item 720): the foot, its belly low (the bare clay only its foot's 5 cm), the neck, the lip's outside and its inner edge (its top turned in a little, 5 mm of wall at the
+# neck), and the floor inside: 5 bands of 8 and the floor, 86 triangles; the inside as wide as the round jar's was, the umbrellas in it as
+# they stood)
+STAND_OUT = [(0.062, 0.0), (0.074, 0.05), (0.068, 0.212), (0.077, 0.242), (0.064, 0.25)]
 STAND_IN = [(0.058, 0.03)]
 KASA_FLOOR = 0.03
 GLAZE = lin("#2c4566")       # (namako's deep blue)
@@ -98,7 +104,8 @@ def stand():
     bm = bmesh.new()
     col = bm.loops.layers.float_color.new("Col")
     prof = STAND_OUT + STAND_IN
-    rings = [[bm.verts.new(P(r * math.sin(2 * math.pi * j / SEG), y, r * math.cos(2 * math.pi * j / SEG))) for j in range(SEG)] for (r, y) in prof]
+    # (half a face round, so a face looks out at +z, not an edge)
+    rings = [[bm.verts.new(P(r * math.sin(2 * math.pi * (j + 0.5) / SEG), y, r * math.cos(2 * math.pi * (j + 0.5) / SEG))) for j in range(SEG)] for (r, y) in prof]
     for i in range(len(rings) - 1):
         a, b = rings[i], rings[i + 1]
         for j in range(SEG):
@@ -106,15 +113,16 @@ def stand():
             bm.faces.new((a[j], b[j], b[j2], a[j2]))
     ladder_fill(bm, rings[-1])          # (its floor inside; its foot sits on the stone, never seen)
     # (the glaze's runs: over the shoulder pale, a tongue of it down each of five places round, longer and shorter)
-    tongues = [(0.3, 0.12), (1.5, 0.07), (2.6, 0.15), (3.9, 0.09), (5.1, 0.11)]
+    tongues = [(0.3, 0.16), (1.5, 0.1), (2.6, 0.19), (3.9, 0.12), (5.1, 0.17)]
 
     def of(p):
         r, y = math.hypot(p.x, p.z), p.y
-        inside = r < 0.0665 and 0.02 < y < 0.2515
+        inside = r < 0.0655 and 0.02 < y < 0.2515
         if inside:
             # (the inside darker toward its floor)
             return mix(INSIDE, GLAZE, min(1.0, max(0.0, (y - 0.03) / 0.22)) * 0.5)
-        if y < 0.013:
+        # (the foot bare clay, the glaze thinning out to it up the lower body)
+        if y < 0.004:
             return CLAY
         a = math.atan2(p.x, p.z) % (2 * math.pi)
         reach = 0.0
@@ -123,10 +131,10 @@ def stand():
             reach = max(reach, ln * max(0.0, 1 - d / 0.45))
         run = 1.0 if y > 0.2 else max(0.0, 1 - (0.2 - y) / max(0.01, reach))
         base = mix(GLAZE, RUN, 0.85 * run)
-        # (its foot shaded, as the light under it would be)
-        return mix(base, tuple(c * 0.55 for c in base), max(0.0, 1 - y / 0.06))
+        return base
     paint(bm, col, of)
-    return finish("KasaStand", bm, "glaze")
+    # (its faces flat: an eight-sided jar, not a round one shaded smooth)
+    return finish("KasaStand", bm, "glaze", smooth_=False)
 
 
 # ---------------------------------------------------------------- the canopy

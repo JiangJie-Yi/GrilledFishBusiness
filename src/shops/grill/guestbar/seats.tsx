@@ -9,7 +9,6 @@ import { STAND_SLOTS as UMB_SLOTS, coatOf, gearOf, newCoatPose, newUmbPose, umbr
 import { KASA_FLOOR, ROD_TIP, TIP_END, canopyScale, coatPictures, rainMats, rainWarmGroup, standCanopyColour, useKasa, type GearAt } from '@/scene/people/rainGear3D'
 import { kindOf } from '@/data/guests'
 import { folkSpec } from '@/scene/people/FolkFigure'
-import { inkModel } from '@/scene/render/inkHull'
 import { DrinkFridge, FridgeDoor, DrinkWarm } from '@/shops/grill/dining/fridge'
 import { FridgeStock } from '@/shops/grill/dining/fridgeStock'
 import { StoolModel } from '@/shops/grill/decor/BarFurnish'
@@ -226,7 +225,7 @@ export const KasaStand = memo(function KasaStand() {
     return { canopies, rods }
   }, [kasa])
   useEffect(() => () => { parts.canopies.dispose(); parts.rods.dispose() }, [parts])
-  useEffect(() => { if (jar.current) inkModel(jar.current) }, [])
+  // (no ink line round the jar (item 720, the owner's 「不需要黑線」): its flat faces and the glaze's runs are its edge)
   const seen = useRef(-1)
   const col = useMemo(() => new THREE.Color(), [])
   useFrame(() => {
