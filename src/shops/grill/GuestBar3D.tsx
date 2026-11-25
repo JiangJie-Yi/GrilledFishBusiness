@@ -107,7 +107,11 @@ const TUCK_HALF = 0.03, TUCK_P = new THREE.Vector3(), TUCK_OUT: [number, number]
 const TUCK_FRAMES = new WeakMap<THREE.Object3D, THREE.Object3D | null>()
 /** (item 687) how long a hand drawn in is kept in after it was last up against something (ms), and when each was last, left and right */
 const TUCK_HOLD = 300
-const TUCK_SEEN = new WeakMap<THREE.Object3D, [number, number]>()
+/** (item 693) how long where a hand's drawn to must have had something there for it to be let out (ms): the map's edge before them comes and
+ * goes a frame at a time as they walk */
+const FRONT_GRACE = 150
+/** (left, right) when each was last up against something, and since when (or -1) where each's drawn to has had something there */
+const TUCK_SEEN = new WeakMap<THREE.Object3D, [number, number, number, number]>()
 /** (item 687) where a hand's drawn in to, across and before them (the body's frame: FolkFigure's and StaffFigure's TUCK_X, TUCK_Z) */
 const TUCK_AT: [number, number] = [0.15, 0.29]
 const tuckOf = (o: THREE.Object3D): [number, number] => {
@@ -120,17 +124,20 @@ const tuckOf = (o: THREE.Object3D): [number, number] => {
   // what's there, a few centimetres of the map's): drawn in, kept in till TUCK_HOLD after it was last up against something)
   const now = performance.now()
   let seen = TUCK_SEEN.get(o)
-  if (!seen) { seen = [-1e9, -1e9]; TUCK_SEEN.set(o, seen) }
+  if (!seen) { seen = [-1e9, -1e9, -1, -1]; TUCK_SEEN.set(o, seen) }
   // (and only where it's drawn in to is clear: up against something before them too (stood at the sink's cabinet), a hand drawn in before
   // their belly went into it, 27 cm, where hanging it was clear of it)
-  // (item 691: and let out at once, kept or not, as soon as where it's drawn to has something there: kept in its while as they turned to face
-  // the sink's cabinet, a hand drawn in went into the washer's open front, 25 cm, the Tester window's 690)
+  // (item 691: and let out, kept or not, once where it's drawn to has had something there a while (FRONT_GRACE): turned to face the sink's
+  // cabinet with it in. Item 693, the Tester window's 692: let out the first frame of it, it went in and out with the map's edge before
+  // them, a frame or two at a time, 48% of the times (0.2% before), and nearer what's there than not drawn in at all)
   const frontL = taken(hp.localToWorld(TUCK_P.set(-TUCK_AT[0], FOLK_HAND_REST.L.y, TUCK_AT[1])), TUCK_HALF)
   const frontR = taken(hp.localToWorld(TUCK_P.set(TUCK_AT[0], FOLK_HAND_REST.R.y, TUCK_AT[1])), TUCK_HALF)
+  seen[2] = frontL ? (seen[2] < 0 ? now : seen[2]) : -1
+  seen[3] = frontR ? (seen[3] < 0 ? now : seen[3]) : -1
   if (!frontL && taken(hp.localToWorld(TUCK_P.copy(FOLK_HAND_REST.L)), TUCK_HALF)) seen[0] = now
   if (!frontR && taken(hp.localToWorld(TUCK_P.copy(FOLK_HAND_REST.R)), TUCK_HALF)) seen[1] = now
-  TUCK_OUT[0] = !frontL && now - seen[0] < TUCK_HOLD ? 1 : 0
-  TUCK_OUT[1] = !frontR && now - seen[1] < TUCK_HOLD ? 1 : 0
+  TUCK_OUT[0] = !(seen[2] >= 0 && now - seen[2] > FRONT_GRACE) && now - seen[0] < TUCK_HOLD ? 1 : 0
+  TUCK_OUT[1] = !(seen[3] >= 0 && now - seen[3] > FRONT_GRACE) && now - seen[1] < TUCK_HOLD ? 1 : 0
   return TUCK_OUT
 }
 if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __tuck: TUCK })
@@ -148,9 +155,9 @@ const RUB_SWAP = new THREE.Vector3()
 /** (item 675) a server's tray lifted over the sink's top (the bar's units): eased up over LIFT_UP of their way up to it, up by LIFT_END short
  * of where they stand at it (their hands, before them, as far again from its front as they'd be in it there); kept up LIFT_HOLD of the way
  * back, then eased down over LIFT_DOWN; the hands' undersides (LIFT_HANDS of their own frame under the tray's height) LIFT_CLEAR over it.
- * (Item 691, the Tester window's 690: over 0.35 each way, at their 2.1 a second, it came down in a tenth of a second, as if dropped: up over
- * 0.9 now, about 0.4 s, down over 1.2, about 0.6 s) */
-const LIFT_UP = 0.9, LIFT_DOWN = 1.2, LIFT_END = 0.25, LIFT_HOLD = 0.25, LIFT_CLEAR = 0.03, LIFT_HANDS = 0.13
+ * (Item 691, the Tester window's 690: over 0.35 each way, at their 2.1 a second, it came down in a tenth of a second, as if dropped. Item
+ * 693: over 0.9 and 1.2 it still came down in 0.43 s; up over 1.1 now, about half a second, down over 1.6, about three quarters) */
+const LIFT_UP = 1.1, LIFT_DOWN = 1.6, LIFT_END = 0.25, LIFT_HOLD = 0.25, LIFT_CLEAR = 0.03, LIFT_HANDS = 0.13
 const LIFT_BOX = new THREE.Box3(), LIFT_P = new THREE.Vector3()
 /** (item 675) the skewers washed in the basin: in the right hand as it scrubs, held in its grip (the bar's units under the hand's middle) */
 const SK_WASH_DOWN = 0.02, SK_AT = new THREE.Vector3()
@@ -5578,6 +5585,10 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       // (item 675: their tray lifted over the sink's top as they come the last of the way up to it with what they've cleared, and down again
       // over the first of the way from it after (held at their waist, it and the hands under it went into the sink's cabinet as they came up
       // and turned away, 7.5 and 25 cm): the hands under it just over the top, eased in and out along the way)
+      // (item 693: the step stool's height for them this frame, taken once, here, before what's on their tray is placed (trayAt reads it): a
+      // frame behind, it was over the tray by as much as they'd come down off the stool in a frame, 11 cm, as they stepped off it with the
+      // washer's plates; their figure takes the same below)
+      if (waiterObjs.current[wi]) stoolLift(waiterObjs.current[wi]!, w.pos, tick(dt))
       w.lift = 0
       // (item 689: so too up to the washer or the draining basket for their plates, held up as they're taken onto it, and lowered on the way to
       // the racks)
@@ -5808,7 +5819,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         // this one was shown whenever he was out for anything, a second owner standing by the pass while he washed at the sink))
         o.visible = !ownerServes || OWNER_OUT.by === 'serve'
         o.position.copy(w.pos)
-        o.position.y += genkanY(counters, w.pos) + stoolLift(o, w.pos, tick(dt))
+        o.position.y += genkanY(counters, w.pos) + (stoolLifts.current.get(o) ?? stoolLift(o, w.pos, tick(dt)))
         // (the facing shown eased to the way they're going, never more than a little a frame (turnSmooth, item 183))
         w.look = turnSmooth(w.look ?? w.yaw, w.yaw, step)
         o.rotation.y = w.look
