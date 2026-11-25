@@ -40,7 +40,7 @@ export const tablewareList = (seats: number): Ware[] => [
   { id: 'chopsticks', zh: '筷子', ja: '箸', en: 'Chopsticks', n: TABLEWARE.chopsticks, unit: ['雙', '膳', ' pairs'], where: ['碗盤櫃抽屜（左）', '食器棚の引き出し（左）', 'Cabinet drawer (left)'] },
   { id: 'rests', zh: '筷架', ja: '箸置き', en: 'Chopstick rests', n: seats, unit: ['個', '個', ''], where: ['每個座位', '各席', 'At every place'] },
   { id: 'soyDishes', zh: '醬油碟', ja: '醤油皿', en: 'Soy dishes', n: seats, unit: ['個', '枚', ''], where: ['每個座位', '各席', 'At every place'] },
-  { id: 'skewers', zh: '鐵籤', ja: '鉄串', en: 'Iron skewers', n: SKEWER_POOL, unit: ['支', '本', ''], where: ['料理台的籤架', '調理台の串立て', 'The cook table holders'] },
+  { id: 'skewers', zh: '燒烤串', ja: '焼き串', en: 'Grill skewers', n: SKEWER_POOL, unit: ['支', '本', ''], where: ['料理台的籤架', '調理台の串立て', 'The cook table holders'] },
   { id: 'teacups', zh: '茶杯', ja: '湯呑み', en: 'Teacups', n: seats * 2, unit: ['個', '個', ''], where: ['吧台下的櫃子', 'カウンター下の棚', 'Under the bar'] },
   { id: 'sakeCups', zh: '酒杯', ja: 'ぐい呑み', en: 'Sake cups', n: seats, unit: ['個', '個', ''], where: ['吧台下的櫃子', 'カウンター下の棚', 'Under the bar'] },
   { id: 'tokkuri', zh: '德利（酒壺）', ja: '徳利', en: 'Tokkuri', n: Math.ceil(seats / 2), unit: ['個', '本', ''], where: ['吧台下的櫃子', 'カウンター下の棚', 'Under the bar'] },

@@ -10,8 +10,8 @@ feature('載入時的開店準備', () => {
   })
   scenario('照進度一句一句往下', ({ then, and }) => {
     then('20% 是魚送到', () => { expect(loadingLine(20)).toBe('今天的魚剛送到') })
-    and('50% 是穿鐵串（模型準備最久的那段，第 592 項）', () => { expect(loadingLine(50)).toBe('魚一尾尾穿上鐵串') })
-    and('46% 就換成穿鐵串（正式版停頓前只走到 47～48%）', () => { expect(loadingLine(46)).toBe('魚一尾尾穿上鐵串') })
+    and('50% 是穿燒烤串（模型準備最久的那段，第 592 項；第 711 項改名）', () => { expect(loadingLine(50)).toBe('魚一尾尾穿上燒烤串') })
+    and('46% 就換成穿燒烤串（正式版停頓前只走到 47～48%）', () => { expect(loadingLine(46)).toBe('魚一尾尾穿上燒烤串') })
     and('60% 是掛暖簾', () => { expect(loadingLine(60)).toBe('掛上暖簾，點亮燈籠') })
     and('100% 是等第一位客人', () => { expect(loadingLine(100)).toBe('等第一位客人上門') })
   })

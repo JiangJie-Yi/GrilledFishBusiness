@@ -20,7 +20,7 @@ export const BOSS_LINES: Record<BossSituation, Line[]> = {
     { zh: '收工的一杯最好喝。', ja: '仕事上がりの一杯が一番うまい。', en: 'The drink after closing is the best one.' },
     { zh: '今天那位客人笑得真開心。', ja: '今日のあのお客さん、いい顔してたな。', en: 'That customer today really smiled.' },
     { zh: '呵～欠～', ja: 'ふぁ～あ……', en: 'Yaaawn…' },
-    { zh: '鐵串泡一下，明天再刷。', ja: '串は浸けといて、明日洗おう。', en: 'Soak the skewers; scrub them tomorrow.' },
+    { zh: '燒烤串泡一下，明天再刷。', ja: '串は浸けといて、明日洗おう。', en: 'Soak the skewers; scrub them tomorrow.' },
     { zh: '麻雀開始叫了。', ja: 'スズメが鳴き出したな。', en: 'The sparrows are starting up.' },
   ],
   // (08:00-12:00: the market's fish, the stock, the shrine)

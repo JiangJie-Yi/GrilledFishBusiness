@@ -8,7 +8,7 @@ export const LOADING_LINES: readonly [number, string][] = [
   [35, '擦亮吧台，擺好醬油碟'],
   // (item 592: the long stretch after the first files, the models made ready, split between two; from 46%: from 50 the built game never
   // showed it, its 50 to 54% all inside the stretch the page is held up (the Tester's, 0 times in 6))
-  [46, '魚一尾尾穿上鐵串'],
+  [46, '魚一尾尾穿上燒烤串'],
   [55, '掛上暖簾，點亮燈籠'],
   [75, '大廚磨好了刀'],
   [92, '等第一位客人上門'],

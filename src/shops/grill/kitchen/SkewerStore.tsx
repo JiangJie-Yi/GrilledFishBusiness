@@ -7,10 +7,11 @@ import { tl, type Lang } from '@/data/i18n'
 import { PULLED, SKEWERS } from '@/shops/grill/bar'
 import { ironSkewer } from './skewerShape'
 
-/** an iron skewer (skewerShape: the same one as on the food, a flat bar to a point, a loop at its top for a handle), as long as shows standing
- * in a holder (they stand point down in it, their upper part and loop out of it); its middle at its origin */
+/** a grill skewer (skewerShape: the same one as on the food, a flat bar to a point, a little steel fish at its top for a handle, item 711),
+ * as long as shows standing in a holder (they stand point down in it, their upper part and fish out of it); its middle at its origin; its
+ * fish a little smaller than the loop's size was (0.012), the bucket's bunch not one crowd of fish */
 const ROD = (() => {
-  const g = ironSkewer(0.176, 0.0045, 0.002, 0.02, 0.012)
+  const g = ironSkewer(0.176, 0.0045, 0.002, 0.02, 0.0105)
   g.translate(0, -0.1, 0)
   return g
 })()
@@ -175,9 +176,9 @@ export const SkewerStore = memo(function SkewerStore({ holderAt, usedAt, yaw, la
       aimTip(e)
       const s = SKEWERS.s
       setTip(which === 'clean'
-        ? { title: tl(lang, '鐵串木桶', '鉄串の木桶', 'Skewer bucket'), hint: tl(lang, `乾淨鐵串 ${s.clean}/${SKEWER_POOL}`, `きれいな鉄串 ${s.clean}/${SKEWER_POOL}`, `Clean skewers ${s.clean}/${SKEWER_POOL}`)
+        ? { title: tl(lang, '燒烤串木桶', '焼き串の木桶', 'Skewer bucket'), hint: tl(lang, `乾淨燒烤串 ${s.clean}/${SKEWER_POOL}`, `きれいな焼き串 ${s.clean}/${SKEWER_POOL}`, `Clean skewers ${s.clean}/${SKEWER_POOL}`)
           + (byHand ? tl(lang, '｜拖一支到砧板上的食材穿串', '｜まな板の食材へドラッグして串を打つ', '｜Drag one onto what’s on the board to skewer it') : '') }
-        : { title: tl(lang, '回收鐵串木桶', '使用済み鉄串の木桶', 'Used skewer bucket'), hint: tl(lang, `待洗鐵串 ${s.dirty}`, `洗い待ち ${s.dirty} 本`, `${s.dirty} waiting to be washed`) })
+        : { title: tl(lang, '回收燒烤串木桶', '使用済み焼き串の木桶', 'Used skewer bucket'), hint: tl(lang, `待洗燒烤串 ${s.dirty}`, `洗い待ち ${s.dirty} 本`, `${s.dirty} waiting to be washed`) })
     },
     onPointerOut: () => setTip(null),
   })
