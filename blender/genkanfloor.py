@@ -8,8 +8,9 @@ plain": one flat picture of stones on a plane, a regular grid of grey slabs in t
 - node "GenkanMortar": the pebble-wash (洗い出し) between them: small black, grey and white pebbles packed in dark cement, seen in the joints.
 - node "GenkanRug": ONE large rug (the owner's, 2026-11-17, in place of the little lettered doormat and the shoe-off stone, both gone):
   a 0.946 x 0.72 slab 1.8 cm thick laid on the stones from the step's beam to the shoe cupboard's doors: a hooked cotton rug dyed with
-  Mt Fuji (item 563: the sun, mist bands, seigaiha waves, an indigo border with plum crests in its corners). Four rim quads and a top
-  (26 triangles); everything else is in its picture and normal map.
+  Mt Fuji (item 563: the sun, mist bands, seigaiha waves, an indigo border with plum crests in its corners; item 701: clouds with curls
+  of three kinds, plovers, the sea half as high in big and small waves). Four rim quads and a top (26 triangles); everything else is in
+  its picture and normal map.
 - node "GenkanSill": the door's threshold (敷居石): a long slab of dark granite across the doorway, a little proud of the floor.
 - node "GenkanKamachi": the step's edge (上框): a polished keyaki beam along both of the genkan's open sides, its top a hair proud of the
   room's boards, its front the step's face down to the stones, its top front edge rounded; mitred at the corner.
@@ -131,7 +132,10 @@ WOOD_NRM = image("genkan_keyaki_nrm", to_normal(grain * 0.6 + fbm(M3, 6, 30, 3) 
 # motifs beside it: plum, crane, tomoe, seigaiha, pine, bamboo, chrysanthemum, Fuji, waves, asanoha): a hooked cotton rug dyed in the shop's
 # indigo, cream and vermilion, Mt Fuji its ground: an indigo mountain, its right flank lit, its snowcap running down in fingers with dark
 # gullies, a vermilion sun over it with a wisp of cloud across it, bands of mist (kasumi) across its slopes, seigaiha waves at its foot; a
-# thin vermilion frame round the field; an indigo border with a cream line in it and a plum crest in each corner. Its loops 3 px across,
+# thin vermilion frame round the field; an indigo border with a cream line in it and a plum crest in each corner. (Item 701, the owner's,
+# 2026-11-25, the clouds circled: 「雲可以再生動些，下面的海減少一半，然後有不一樣的規律感，有大有小；可以再多點樣式。」: the clouds
+# drawn as the old patterns draw them, curled, each its own kind; the sea half as high, big swells in a three-beat rhythm behind small
+# waves; plovers over it.) Its loops 3 px across,
 # a groove where one colour's loops meet another's. Upright as one coming in at the door sees it, standing on it to step up into the shop
 # (the owner's, 2026-11-22, item 581: 「富士山可保留記得要翻轉90度」; it had been laid upright for the shop's own cameras, the shoe cupboard
 # its top, and from the door the mountain lay on its side): the design's up toward the step (-z, v up to it), its right toward the shoe
@@ -170,6 +174,89 @@ SHU = (0.800, 0.235, 0.145)
 B = 0.048                                 # the border
 edge = np.minimum(np.minimum(DX, DW - DX), np.minimum(DY, DH - DY))
 rug = np.zeros((TH, TW, 3), np.float32) + np.array(CREAM, np.float32)
+FAR = 9.0                                 # (a distance from anything drawn)
+LINE, FINE = 0.0024, 0.0016               # an outline's width, a finer line's in it (item 701)
+
+
+def box(x0, y0, x1, y1):
+    """the picture's rows and columns over a box of the design, a few pixels round it: what's drawn there worked out there only"""
+    j0, j1 = max(0, int(x0 / PXM) - 3), min(TW, int(math.ceil(x1 / PXM)) + 3)
+    i0, i1 = max(0, int(y0 / (DH / TH)) - 3), min(TH, int(math.ceil(y1 / (DH / TH))) + 3)
+    return np.s_[i0:i1, j0:j1]
+
+
+def disc(cx, cy, r):
+    """a disc, its signed distance"""
+    return np.hypot(DX - cx, DY - cy) - r
+
+
+def curve(*p, n=16):
+    """points along a Bezier through `p` (three points a quadratic, four a cubic)"""
+    out = []
+    for i in range(n + 1):
+        t = i / n
+        w = [(1 - t) ** 2, 2 * (1 - t) * t, t * t] if len(p) == 3 else [(1 - t) ** 3, 3 * (1 - t) ** 2 * t, 3 * (1 - t) * t * t, t ** 3]
+        out.append((sum(k * q[0] for k, q in zip(w, p)), sum(k * q[1] for k, q in zip(w, p))))
+    return out
+
+
+def stroke(pts, r0, r1):
+    """a brushed stroke along `pts`, `r0` round at its start tapering to `r1` at its end: each step a tapered capsule (its two end discs
+    and the lines tangent to both), their union; its signed distance"""
+    m = max(r0, r1)
+    sub = box(min(p[0] for p in pts) - m, min(p[1] for p in pts) - m, max(p[0] for p in pts) + m, max(p[1] for p in pts) + m)
+    X, Y = DX[sub], DY[sub]
+    d = np.full(X.shape, FAR, np.float32)
+    n = len(pts) - 1
+    for i in range(n):
+        (ax, ay), (bx, by) = pts[i], pts[i + 1]
+        ra, rb = r0 + (r1 - r0) * i / n, r0 + (r1 - r0) * (i + 1) / n
+        h = math.hypot(bx - ax, by - ay)
+        if h < 1e-7:
+            continue
+        ux, uy = (bx - ax) / h, (by - ay) / h
+        lx, ly = np.abs((Y - ay) * ux - (X - ax) * uy), (X - ax) * ux + (Y - ay) * uy
+        b = (ra - rb) / h
+        a = math.sqrt(max(0.0, 1 - b * b))
+        k = ly * a - lx * b
+        d = np.minimum(d, np.where(k < 0, np.hypot(lx, ly) - ra, np.where(k > a * h, np.hypot(lx, ly - h) - rb, lx * a + ly * b - ra)))
+    out = np.full(DX.shape, FAR, np.float32)
+    out[sub] = d
+    return out
+
+
+def spiral(cx, cy, r0, r1, turns, a0, cw=True):
+    """a curl: the distance to a spiral winding in from `r0` at the angle `a0` (radians, the picture's y up) to `r1`, `turns` times round,
+    clockwise as the picture's seen (or not), taken along each ray from its eye (near enough a distance for a line a few pixels wide);
+    and where it ends, for a dot there"""
+    sub = box(cx - r0, cy - r0, cx + r0, cy + r0)
+    x, y = DX[sub] - cx, DY[sub] - cy
+    rho = np.hypot(x, y)
+    s = -1 if cw else 1
+    t0 = np.mod(s * (np.arctan2(y, x) - a0), 2 * math.pi)
+    tot = turns * 2 * math.pi
+    d = np.full(x.shape, FAR, np.float32)
+    for k in range(int(math.ceil(turns)) + 1):
+        th = t0 + k * 2 * math.pi
+        d = np.where(th <= tot, np.minimum(d, np.abs(rho - (r0 + (r1 - r0) * th / tot))), d)
+    out = np.full(DX.shape, FAR, np.float32)
+    out[sub] = d
+    ae = a0 + s * tot
+    return out, (cx + r1 * math.cos(ae), cy + r1 * math.sin(ae))
+
+
+def paint(shape, lines=(), dots=(), col=CREAM, ink_col=INDIGO):
+    """a shape over what's there, dyed as the rest: `shape` (its signed distance) in `col`, a line of `ink_col` round it just inside its
+    edge; `lines` ((distance, width), ...) and `dots` ((x, y, r), ...) in it, kept inside it"""
+    global rug
+    fill = inside(shape)
+    ink = line_at(shape + LINE * 0.7, LINE)
+    for d, w in lines:
+        ink = np.maximum(ink, line_at(d, w) * fill)
+    for x, y, r in dots:
+        ink = np.maximum(ink, inside(disc(x, y, r)) * fill)
+    rug = mix(rug, col, fill)
+    rug = mix(rug, ink_col, ink)
 
 # (the sun: upper right, the light on the mountain's right flank)
 SUN = (0.735, 0.556, 0.072)
@@ -178,7 +265,8 @@ rug = mix(rug, SHU, sun)
 
 # (the mountain: concave flanks out past the field's sides, a flat top with its crater's three low peaks)
 # (as wide as the field, its slopes the gentler for it, Fuji's own: the old upright one's 0.38 high over 0.77 had been steep)
-XM, YB, YP, HW, SW = DW / 2, 0.235, 0.545, 0.40, 0.034
+# (its foot down where the sea ends now, the sea half as high as it was (item 701), the mountain as it was over it, a hair taller)
+XM, YB, YP, HW, SW = DW / 2, 0.125, 0.455, 0.40, 0.034
 ddx = np.abs(DX - XM)
 t = np.clip((ddx - SW) / (HW - SW), 0, 1)
 prof = YB + (YP - YB) * (1 - t) ** 1.6
@@ -205,39 +293,136 @@ for off in (-0.052, -0.020, 0.016, 0.048):
     gul = np.maximum(gul, seg)
 rug = mix(rug, SNOW, snow * (1 - gul))
 
-# (the mist (霞): bands across the mountain's slopes, a wisp across the sun; each broad one stepped, a shorter band laid over it to one side,
-# as they're drawn; cream, an indigo line round each, a second inside the broad ones)
-for x0, x1, yc, r, inner, step in ((0.110, 0.430, 0.322, 0.017, True, (0.035, 0.13)), (0.500, 0.840, 0.388, 0.015, True, (0.14, 0.03)),
-                                   (0.655, 0.835, 0.540, 0.0085, False, None)):
-    sd = stadium(x0, x1, yc, r)
-    if step:
-        sd = np.minimum(sd, stadium(x0 + step[0], x1 - step[1], yc + r * 1.45, r * 0.72))
-    band = inside(sd)
-    rug = mix(rug, CREAM, band)
-    ink = line_at(sd + 0.0016, 0.0022)
-    if inner:
-        ink = np.maximum(ink, line_at(stadium(x0 + 0.012, x1 - 0.012, yc, r - 0.0085) + 0.0, 0.0016) * band)
-    rug = mix(rug, INDIGO, ink)
+# (the sea at its foot (item 701, the owner's 「下面的海減少一半，然後有不一樣的規律感，有大有小」: it was one size of seigaiha in even rows
+# up to 0.29 of the design): half as high, and not one size all over: a row of swells behind in a three-beat rhythm, one big, two
+# middling, the big ones with more rings and bolder; in front, row on row down under the border, small seigaiha, half the old waves'
+# size, two rings each. Each a fan of rings about a filled heart, the lower rows in front, as before)
+WAVES = {                                 # (its size; its rings, as parts of it; its heart's; the rings' width)
+    "s": (0.025, (0.92, 0.60), 0.27, 0.0027),
+    "m": (0.040, (0.93, 0.69, 0.45), 0.20, 0.0032),
+    "b": (0.064, (0.95, 0.79, 0.63, 0.47, 0.31), 0.14, 0.0040),
+}
+SEA_BACK, SEA_FRONT = 0.108, 0.098        # the swells' hearts; the small waves' top row's
+dist = np.full(DX.shape, FAR, np.float32)  # (to the heart of the wave in front there, its size, and which size that is)
+size = np.zeros(DX.shape, np.float32)
+kind = np.full(DX.shape, -1, np.int8)
+KINDS = list(WAVES)
 
-# (the waves at its foot: seigaiha, rows of fanned scales, the lower rows in front, each three rings and a filled heart)
-R = 0.046
-top = YB + 0.007                          # (its top row's scallops over the mountain's foot, up to its flanks where they leave the field)
-dist = np.full(DX.shape, 9.0, np.float32)
-rows = int((top + 0.06) / (R / 2)) + 3
-for kk in range(rows - 1, -1, -1):
-    yc = top - kk * (R / 2)
-    off = (kk % 2) * R
-    xc = np.round((DX - off) / (2 * R)) * 2 * R + off
-    d = np.hypot(DX - xc, DY - yc)
-    take = (d < R) & (dist > 8.0)
-    dist = np.where(take, d, dist)
-wave = inside(dist - R)
-wl = np.zeros_like(wave)
-for rr in (0.935, 0.690, 0.445):
-    wl = np.maximum(wl, line_at(dist - rr * R, 0.095 * R))
-wl = np.maximum(wl, inside(dist - 0.20 * R))
-rug = mix(rug, CREAM, wave)
-rug = mix(rug, INDIGO, wl * wave)
+
+def wave_at(xc, yc, k):
+    """a wave's fan where nothing in front of it is yet"""
+    R = WAVES[k][0]
+    sub = box(xc - R, yc - R, xc + R, yc + R)
+    d = np.hypot(DX[sub] - xc, DY[sub] - yc)
+    take = (d < R + PXM) & (dist[sub] >= FAR)
+    dist[sub] = np.where(take, d, dist[sub])
+    size[sub] = np.where(take, R, size[sub])
+    kind[sub] = np.where(take, KINDS.index(k), kind[sub])
+
+
+# (in front: the small ones, the lowest row first)
+Rs = WAVES["s"][0]
+for kk in range(int((SEA_FRONT + Rs) / (Rs / 2)), -1, -1):
+    for xc in np.arange(-Rs + (kk % 2) * Rs, DW + 2 * Rs, 2 * Rs):
+        wave_at(float(xc), SEA_FRONT - kk * Rs / 2, "s")
+# (behind: the swells, big, middling, middling, big…, each a little over the next, the middling in front of the big; the run centred on
+# the design, so its two ends go under the border alike)
+SWELLS = "mbmmbmmbmmbm"
+swells, x = [], 0.0
+for i, k in enumerate(SWELLS):
+    if i:
+        x += 0.80 * (WAVES[SWELLS[i - 1]][0] + WAVES[k][0])
+    swells.append((x, k))
+shift = DW / 2 - (swells[0][0] + swells[-1][0]) / 2
+swells = [(xc + shift, k) for xc, k in swells]
+for k in "mb":
+    for xc, kk in swells:
+        if kk == k:
+            wave_at(xc, SEA_BACK, k)
+sea = inside(dist - size) * (kind >= 0)
+wl = np.zeros_like(sea)
+for i, (R, rings, heart, w) in enumerate(WAVES.values()):
+    mk = inside(dist - heart * R)
+    for f in rings:
+        mk = np.maximum(mk, line_at(dist - f * R, w))
+    wl = np.where(kind == i, mk, wl)
+rug = mix(rug, CREAM, sea)
+rug = mix(rug, INDIGO, wl * sea)
+
+# (the clouds (item 701, the owner's 「雲可以再生動些…可以再多點樣式」: three flat round-ended bars of mist, the broad two stepped, were
+# circled): each its own kind, in the manner of the old patterns: a long band of mist (すやり霞) across the mountain's left flank in three
+# tiers, its broad one rolled up at its end into a scroll and its top one at its other; an auspicious cloud (瑞雲) over the right flank,
+# its billows heaped on a long foot, curls in the big ones, a tail streaming off under the sun; a small one high up on the left, its tail
+# the other way; a wisp across the sun trailing off thin from a curl. Cream, an indigo line round each, their curls' lines finer)
+def kasumi(tiers, inner=()):
+    """a band of mist in tiers, one shape: each tier (x0, x1, y, r, curl, head) round at its ends, or rolled up at one (`curl` 'l' or 'r')
+    into a scroll: a round head, `head` its radius, sat on the band's foot and standing up over it, its line winding in; `inner`
+    ((x0, x1, y, r), ...) finer bands' lines inside it"""
+    shape, lines, dots = np.full(DX.shape, FAR, np.float32), [], []
+    for x0, x1, y, r, curl, head in tiers:
+        sd = stadium(x0, x1, y, r)
+        if curl:
+            hx, hy = (x1 + r - head if curl == "r" else x0 - r + head), y - r + head
+            sd = np.minimum(sd, disc(hx, hy, head))
+            d, eye = spiral(hx, hy, head - LINE * 1.5, head * 0.2, 1.35, math.radians(160 if curl == "r" else 20), cw=curl == "r")
+            lines.append((d, FINE))
+            dots.append((eye[0], eye[1], FINE * 1.1))
+        shape = np.minimum(shape, sd)
+    for x0, x1, y, r in inner:
+        lines.append((stadium(x0, x1, y, r), FINE))
+    paint(shape, lines, dots)
+
+
+def zuiun(foot, billows, tail=None):
+    """an auspicious cloud: round billows (x, y, r, curl) heaped on a long low foot (x0, x1, y, r), each with `curl` ('cw' or 'ccw') a
+    spiral in it peeling off its outline at its top and winding in, over the foot; `tail` (points, r0, r1) a stroke streaming off it"""
+    fx0, fx1, fy, fr = foot
+    shape, lines, dots = stadium(fx0, fx1, fy, fr), [], []
+    for bx, by, br, c in billows:
+        shape = np.minimum(shape, disc(bx, by, br))
+        if c:
+            d, eye = spiral(bx, by + 0.25 * br, 0.75 * br - LINE * 0.7, br * 0.18, 1.2, math.pi / 2, cw=c == "cw")
+            lines.append((d, FINE))
+            dots.append((eye[0], eye[1], FINE * 1.1))
+    if tail:
+        shape = np.minimum(shape, stroke(*tail))
+    lines.append((stadium(fx0 + 0.012, fx1 - 0.004, fy - 0.0015, fr - 0.0072), FINE))
+    paint(shape, lines, dots)
+
+
+kasumi([(0.066, 0.470, 0.272, 0.016, "r", 0.024), (0.118, 0.330, 0.298, 0.011, "l", 0.0145), (0.215, 0.405, 0.250, 0.0095, None, 0)],
+       inner=[(0.082, 0.425, 0.272, 0.0076)])
+zuiun((0.565, 0.790, 0.372, 0.011), [(0.598, 0.392, 0.024, "ccw"), (0.642, 0.398, 0.032, "cw"), (0.693, 0.394, 0.025, "cw"),
+                                     (0.733, 0.382, 0.017, None)],
+      (curve((0.782, 0.372), (0.815, 0.362), (0.840, 0.372), (0.858, 0.364), n=14), 0.011, 0.0035))
+zuiun((0.115, 0.235, 0.575, 0.008), [(0.140, 0.590, 0.016, "ccw"), (0.175, 0.594, 0.021, "cw"), (0.211, 0.589, 0.015, "cw")],
+      (curve((0.122, 0.575), (0.100, 0.566), (0.083, 0.575), (0.072, 0.568), n=12), 0.008, 0.0028))
+# (the wisp across the sun: from a curl on its left, thinning out to its right)
+wisp = stroke(curve((0.652, 0.521), (0.740, 0.536), (0.820, 0.512), (0.872, 0.525), n=20), 0.0072, 0.0020)
+d, eye = spiral(0.6465, 0.5243, 0.0105 - LINE * 1.5, 0.0021, 1.3, math.radians(20), cw=False)
+paint(np.minimum(wisp, disc(0.6465, 0.5243, 0.0105)), [(d, FINE)], [(eye[0], eye[1], FINE * 1.1)])
+
+
+# (plovers (千鳥, item 701: more kinds of thing in it, 波に千鳥 as the old patterns have them): three on the wing over the waves in the open
+# sky at the right, under the auspicious cloud, flying in toward the mountain; indigo: a round head with a short beak, a plump body
+# tapering to its tail, both wings raised)
+def plover(x, y, s, a=0.0, left=False):
+    """a plover flying right (or left), `s` its size, `a` its tilt (radians, up the way it flies): its signed distance"""
+    ca, sa, f = math.cos(a), math.sin(a), -1 if left else 1
+
+    def at(u, v):
+        return (x + f * (u * ca - v * sa) * s, y + (u * sa + v * ca) * s)
+    parts = [stroke([at(-0.50, 0.02), at(0.28, 0.06)], 0.24 * s, 0.37 * s),          # (its body, plump in front)
+             stroke([at(-0.45, 0.04), at(-0.98, 0.18)], 0.13 * s, 0.03 * s),         # (its tail)
+             disc(*at(0.56, 0.34), 0.26 * s),                                         # (its head)
+             stroke([at(0.78, 0.37), at(1.00, 0.31)], 0.07 * s, 0.02 * s),           # (its beak)
+             stroke(curve(at(-0.06, 0.28), at(-0.10, 0.86), at(-0.56, 1.10), n=8), 0.25 * s, 0.07 * s),   # (the near wing, up and back)
+             stroke(curve(at(0.20, 0.32), at(0.34, 0.80), at(0.10, 1.06), n=8), 0.17 * s, 0.05 * s)]      # (the far one)
+    return np.minimum.reduce(parts)
+
+
+for px, py, ps, pa in ((0.842, 0.208, 0.020, 0.12), (0.786, 0.238, 0.017, 0.22), (0.822, 0.268, 0.014, 0.05)):
+    paint(plover(px, py, ps, pa, left=True), col=INDIGO)
 
 # (the vermilion frame round the field, a hair in from the border)
 frame = inside(np.abs(edge - (B + 0.007)) - 0.0011)
