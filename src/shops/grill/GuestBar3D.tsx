@@ -114,6 +114,9 @@ const FRONT_GRACE = 150
 const TUCK_SEEN = new WeakMap<THREE.Object3D, [number, number, number, number]>()
 /** (item 687) where a hand's drawn in to, across and before them (the body's frame: FolkFigure's and StaffFigure's TUCK_X, TUCK_Z) */
 const TUCK_AT: [number, number] = [0.15, 0.29]
+/** (item 693) how far before where a hand hangs it's looked at too (the body's frame; 0.15 is about 25 cm, a tenth of a second at a server's
+ * pace): drawn in before it gets to what's there, not once it's in it */
+const TUCK_AHEAD = 0.15
 const tuckOf = (o: THREE.Object3D): [number, number] => {
   const taken = BOSS_BED.taken
   if (!TUCK.on || !taken || !o.visible) return TUCK_NONE
@@ -134,8 +137,12 @@ const tuckOf = (o: THREE.Object3D): [number, number] => {
   const frontR = taken(hp.localToWorld(TUCK_P.set(TUCK_AT[0], FOLK_HAND_REST.R.y, TUCK_AT[1])), TUCK_HALF)
   seen[2] = frontL ? (seen[2] < 0 ? now : seen[2]) : -1
   seen[3] = frontR ? (seen[3] < 0 ? now : seen[3]) : -1
-  if (!frontL && taken(hp.localToWorld(TUCK_P.copy(FOLK_HAND_REST.L)), TUCK_HALF)) seen[0] = now
-  if (!frontR && taken(hp.localToWorld(TUCK_P.copy(FOLK_HAND_REST.R)), TUCK_HALF)) seen[1] = now
+  // (item 693: and where it'll hang a step on, TUCK_AHEAD before them: asked only where it hung, it was drawn in once it was already in what
+  // it came up to (a server on the straight way to the sink, past the washer's front corner, the hand 0.13 to 0.4 m in it as it came in))
+  const sideL = taken(hp.localToWorld(TUCK_P.copy(FOLK_HAND_REST.L)), TUCK_HALF) || taken(hp.localToWorld(TUCK_P.set(FOLK_HAND_REST.L.x, FOLK_HAND_REST.L.y, FOLK_HAND_REST.L.z + TUCK_AHEAD)), TUCK_HALF)
+  const sideR = taken(hp.localToWorld(TUCK_P.copy(FOLK_HAND_REST.R)), TUCK_HALF) || taken(hp.localToWorld(TUCK_P.set(FOLK_HAND_REST.R.x, FOLK_HAND_REST.R.y, FOLK_HAND_REST.R.z + TUCK_AHEAD)), TUCK_HALF)
+  if (!frontL && sideL) seen[0] = now
+  if (!frontR && sideR) seen[1] = now
   TUCK_OUT[0] = !(seen[2] >= 0 && now - seen[2] > FRONT_GRACE) && now - seen[0] < TUCK_HOLD ? 1 : 0
   TUCK_OUT[1] = !(seen[3] >= 0 && now - seen[3] > FRONT_GRACE) && now - seen[1] < TUCK_HOLD ? 1 : 0
   return TUCK_OUT
@@ -5592,7 +5599,9 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       w.lift = 0
       // (item 689: so too up to the washer or the draining basket for their plates, held up as they're taken onto it, and lowered on the way to
       // the racks)
-      const liftUp = w.phase === 'clearBack' || w.phase === 'unloadGo' || w.phase === 'basketGo'
+      // (item 693: and the skewers carried up to the sink to be washed: held at their waist, the hands went 0.62 m on into the cabinet as they
+      // came up, every time, the Tester window's)
+      const liftUp = w.phase === 'clearBack' || w.phase === 'unloadGo' || w.phase === 'basketGo' || w.phase === 'skSinkGo'
       const liftAt = w.phase === 'drop' || w.phase === 'unloadTake' || w.phase === 'basketTake'
       if (liftUp || liftAt || ((w.phase === 'back' || w.phase === 'unloadCarry' || w.phase === 'skHolderGo') && w.fromSink)) {
         // (kept up as they tip it in: let down at once, their hands went back into the cabinet before they reached into the basin)
