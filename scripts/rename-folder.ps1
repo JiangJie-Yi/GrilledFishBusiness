@@ -1,7 +1,8 @@
-﻿# 第 176 項最後一步：本機資料夾 JapaneseGrillSimulator 改名為 GrilledFishBusiness（店主選「全部做完後再改」）。
+﻿# 第 176 項最後一步（店主 11-25 又交代一次：第 695 項）：本機資料夾 JapaneseGrillSimulator 改名為 GrilledFishBusiness（店主選「全部做完後再改」）。
 # 這個資料夾在 Claude 的對話、終端分頁開著時會被佔住、改不了名，所以由店主關掉它們之後執行一次：
 #   powershell -ExecutionPolicy Bypass -File C:\Users\augus\Projects\JapaneseGrillSimulator\scripts\rename-folder.ps1
-# 做的事：停開發伺服器 → 改名（被佔住就多試幾次，還是不行就什麼都不改，開發伺服器重開回原處）→ 文件與設定裡的路徑換新
+# 做的事：停開發伺服器 → 記下其他視窗的 worktree → 改名（被佔住就多試幾次，還是不行就什麼都不改，開發伺服器重開回原處）
+# → git 的 worktree 記錄修好、它們借用的 node_modules 連結指到新資料夾 → 文件與設定裡的路徑換新
 # → 半夜推送的排程換成新名字與新路徑 → 備忘複製到新資料夾的位置 → 在新資料夾重開開發伺服器 → 測試通過才提交、推上去。
 # (Continue: git and npm write their warnings to stderr, which 'Stop' would take for a failure and end on)
 $ErrorActionPreference = 'Continue'
@@ -33,6 +34,10 @@ foreach ($v in $vite) {
 }
 Start-Sleep -Seconds 2
 
+# 1b. 其他視窗的 worktree（Tester、Optimization 開在 Temp 裡的）：改名後 git 兩邊互指的路徑要修，它們的 node_modules 多半是指到這裡的連結
+$wts = @(git -C $old worktree list --porcelain 2>$null | Where-Object { $_ -like 'worktree *' } | ForEach-Object { $_.Substring(9).Replace('/', [string][char]92) } | Where-Object { $_ -ne $old })
+Say "其他的 worktree：$($wts.Count) 個"
+
 # 2. 改名（全有或全無）
 $moved = $false
 for ($k = 1; $k -le 5 -and -not $moved; $k++) {
@@ -46,6 +51,21 @@ if (-not $moved) {
   exit 2
 }
 
+# 2b. worktree 的記錄（主資料夾的 .git\worktrees\*\gitdir 與各 worktree 的 .git 檔互指），與它們借用的 node_modules（連結：只拆連結本身，不碰裡面的東西）
+if ($wts.Count) {
+  git -C $new worktree repair @($wts | Where-Object { Test-Path $_ }) 2>&1 | ForEach-Object { Say "  worktree：$_" }
+  foreach ($w in $wts) {
+    $nm = Join-Path $w 'node_modules'
+    $it = Get-Item $nm -Force -ErrorAction SilentlyContinue
+    if ($it -and ($it.Attributes -band [IO.FileAttributes]::ReparsePoint) -and ("$($it.Target)" -like "$old*")) {
+      cmd.exe /c rmdir "$nm" | Out-Null
+      $to = Join-Path $new 'node_modules'
+      cmd.exe /c mklink /J "$nm" "$to" | Out-Null
+      Say "  $nm 改指到 $to"
+    }
+  }
+}
+
 # 3. 文件與設定裡的路徑
 $wfb = 'GrilledFishBusiness'
 Swap "$new\CLAUDE.md" @(, @('Windows 排程工作「JapaneseGrillSimulator nightly push」', "Windows 排程工作「$wfb nightly push」"))
@@ -56,19 +76,19 @@ Swap "$new\.team\project.json" @(@('"name": "JapaneseGrillSimulator"', "`"name`"
 Swap "$new\.team\CHECKLIST.md" @(, @('# JapaneseGrillSimulator 審查清單', "# $wfb 審查清單"))
 Swap "$env:USERPROFILE\.claude\team\projects.json" @(, @('{ "name": "JapaneseGrillSimulator", "path": "C:/Users/augus/Projects/JapaneseGrillSimulator"', "{ `"name`": `"$wfb`", `"path`": `"C:/Users/augus/Projects/$wfb`""))
 Swap "$env:USERPROFILE\.claude\team\bin\install-task.ps1" @(, @("after JapaneseGrillSimulator's", "after $wfb's"))
-# (待辦第 176 列標完成，工作紀錄記一行)
+# (待辦第 176、695 列標完成，工作紀錄記一行)
 $tp = "$new\TASKS.md"
 $t = [System.IO.File]::ReadAllText($tp, $utf8)
 $nl = if ($t.Contains("`r`n")) { "`r`n" } else { "`n" }
 $lines = $t -split [regex]::Escape($nl)
 for ($i = 0; $i -lt $lines.Count; $i++) {
-  if ($lines[$i].StartsWith('| 176 |') -and $lines[$i].EndsWith('| 進行中 |')) {
+  if (($lines[$i].StartsWith('| 176 |') -or $lines[$i].StartsWith('| 695 |')) -and $lines[$i].EndsWith('| 進行中 |')) {
     $lines[$i] = $lines[$i].Substring(0, $lines[$i].Length - '| 進行中 |'.Length).TrimEnd() + "（**完成**：店主關掉對話後執行 scripts\rename-folder.ps1，本機資料夾改名為 $wfb；半夜推送的排程換新名字與新路徑；備忘複製到新位置；設定、Agent Team 登記、CLAUDE.md、HANDOFF.md 的路徑換新） | 完成 |"
   }
 }
 [System.IO.File]::WriteAllText($tp, ($lines -join $nl), $utf8)
 $wp = "$new\WORKLOG.md"
-$w = [System.IO.File]::ReadAllText($wp, $utf8).TrimEnd("`r", "`n") + $nl + "- 176 收尾：本機資料夾改名 $wfb（$(Get-Date -Format 'yyyy-MM-dd HH:mm') 由 scripts\rename-folder.ps1 完成：停開發伺服器、改名、路徑換新、排程重建、備忘複製、開發伺服器在新資料夾重開）。" + $nl
+$w = [System.IO.File]::ReadAllText($wp, $utf8).TrimEnd("`r", "`n") + $nl + "- 176、695 收尾：本機資料夾改名 $wfb（$(Get-Date -Format 'yyyy-MM-dd HH:mm') 由 scripts\rename-folder.ps1 完成：停開發伺服器、改名、路徑換新、排程重建、備忘複製、開發伺服器在新資料夾重開）。" + $nl
 [System.IO.File]::WriteAllText($wp, $w, $utf8)
 
 # 4. 半夜推送的排程：同樣的動作、時間、設定、身分，換新資料夾與新名字；舊的刪掉
@@ -104,7 +124,7 @@ Say "開發伺服器（新資料夾）：$(if ($ok) { "http://localhost:5173/$wf
 # 7. 測試通過才提交、推上去
 Set-Location $new
 git add CLAUDE.md HANDOFF.md TASKS.md WORKLOG.md 2>&1 | Out-Null
-git commit -q -m "docs: item 176 done: the local folder renamed GrilledFishBusiness (scripts/rename-folder.ps1, run by the owner once Claude's session was shut), the nightly push's task and the paths moved with it" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" 2>&1 | Out-Null
+git commit -q -m "docs: items 176 and 695 done: the local folder renamed GrilledFishBusiness (scripts/rename-folder.ps1, run by the owner once Claude's sessions were shut), the nightly push's task, the other windows' worktrees and the paths moved with it" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" 2>&1 | Out-Null
 $test = npm test 2>&1 | Select-String -Pattern 'Tests ' | Select-Object -Last 1
 Say "測試：$test"
 if ("$test" -match 'failed' -or -not "$test") { Say '測試沒過或沒跑：沒推'; exit 3 }
