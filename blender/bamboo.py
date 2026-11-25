@@ -91,7 +91,7 @@ def bamboo_leaf(N=256):
     veins = smooth(0.8, 1.0, np.cos(ac * np.pi * 9) * 0.5 + 0.5) * (1 - rib) * 0.25
     col = mix(col, (0.62, 0.8, 0.38), np.clip(rib * 0.8 + veins, 0, 1))
     col = mix(col, (0.06, 0.2, 0.04), smooth(0.08, 0.0, inn) * 0.85)
-    return image("doorBambooLeaf", col, alpha=smooth(-0.01, 0.015, inn))
+    return col, smooth(-0.01, 0.015, inn)
 
 
 def culm_picture(N=256):
@@ -198,11 +198,16 @@ def door_bamboo():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     seed(31)
     rng = random.Random(9)
-    leaf_img = bamboo_leaf()
+    # (item 705, the Optimization window's: the leaf's two tints side by side on one cut-out picture, the plain one left and the paler one
+    # right (the pale's tint, lin #d8f0b8, multiplied in as the material's colour did, in linear light): the leaves one material, one draw)
+    leaf_col, leaf_a = bamboo_leaf()
+    s2l = lambda c: np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+    l2s = lambda c: np.where(c <= 0.0031308, c * 12.92, 1.055 * np.power(np.clip(c, 0, None), 1 / 2.4) - 0.055)
+    pale = l2s(s2l(leaf_col) * np.asarray(lin("#d8f0b8"), np.float32))
+    leaf_img = image("doorBambooLeaves", np.concatenate([leaf_col, pale], axis=1), alpha=np.concatenate([leaf_a, leaf_a], axis=1))
     M = {"culm": pbr("BambooCulm", (1, 1, 1), tex=culm_picture(), rough=0.35, coat=0.3),
          "node": pbr("BambooNode", lin("#7d8f3e"), rough=0.5),
          "leaf": pbr("BambooLeafCutout", (1, 1, 1), tex=leaf_img, rough=0.45, blend=True),
-         "leaf2": pbr("BambooLeaf2Cutout", lin("#d8f0b8"), tex=leaf_img, rough=0.45, blend=True),
          "yaki": pbr("PlanterYakisugi", (1, 1, 1), tex=yakisugi_picture(), rough=0.85),
          "rim": pbr("PlanterCedar", (1, 1, 1), tex=cedar_picture(), rough=0.55),
          "soil": pbr("PlanterSoil", (1, 1, 1), tex=soil_picture(), rough=0.95),
@@ -325,9 +330,13 @@ def door_bamboo():
     lo = bpy.data.objects.new("BambooLeaves", me)
     bpy.context.collection.objects.link(lo)
     lo.data.materials.append(M["leaf"])
-    lo.data.materials.append(M["leaf2"])
+    uvd = lo.data.uv_layers.active.data
     for p_ in lo.data.polygons:
         p_.use_smooth = True
+        half = 0.5 * p_.material_index
+        for li in p_.loop_indices:
+            uvd[li].uv = (half + uvd[li].uv[0] * 0.5, uvd[li].uv[1])
+        p_.material_index = 0
     parts.append(lo)
     # ---- a few pebbles on the soil, clear of the culms' feet
     feet = [Vector((bx, SOIL, bz)) for (bx, bz), *_ in culms]
@@ -343,6 +352,10 @@ def door_bamboo():
         bpy.ops.object.transform_apply(scale=True)
         fin(m, f"PlanterPebble{placed}", M["pebble"], parts)
         placed += 1
+    # (item 705: the culms' length, the charred cedar, the oiled rim, the soil, and the plain colours (the branches, the pebbles) packed on one
+    # page (common.py's slot_atlas, as the shrine's area is (docs/BAKING.md stage B)): the opaque parts one material, one draw)
+    pages, cut = slot_atlas("DoorBambooAtlas", parts, 1024, 1024, skip=lambda m: "Cutout" in m.name, cell=272, pad=8, rough=0.6)
+    print("ATLAS pages", len(pages) if isinstance(pages, (list, tuple)) else 1, "faces cut", cut)
     root = bpy.data.objects.new("DoorBamboo", None)
     bpy.context.collection.objects.link(root)
     for o in parts:
