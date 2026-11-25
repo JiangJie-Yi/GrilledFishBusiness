@@ -11,7 +11,7 @@ import { DORM_LAYER, FLOOR, lightsBoth } from '@/scene/props/floors'
 import { VIEW_SPOTS, viewKey, viewName, type ViewId } from '@/data/views'
 import { NO_POINTER, zr } from '@/scene/interact/htmlProps'
 import { OVERVIEW_TARGET } from '@/app/camera'
-import { insideIndoors, setIndoorBox } from '@/scene/render/indoorSun'
+import { centreIndoors, insideIndoors, setIndoorBox } from '@/scene/render/indoorSun'
 import { DORM_AT } from '@/shops/grill/rooms/DormRoom'
 import { VIEWCAM_TURN } from '@/app/camera'
 
@@ -72,6 +72,14 @@ const CASTER_R = 0.3
 /** how far (world units) a caster's sphere must be clear of an indoor box's every side for the sun's map to leave it out: the walls, floor
  * and roof round the boxes kept in it (they cast the building's shadow out of doors) */
 const SUN_IN_MARGIN = 0.15
+/** (item 724, the owner's 「泥土地有奇怪的陰影」) and a piece smaller than this (its sphere's radius, world units) whose middle's indoors, left
+ * out of the sun's map as well: the room's furniture, all of it. By the room's open side their spheres reached out past the box, and with
+ * the sun low they cast long shadows out over the earth (the drink fridges, the plate cabinets, the freezer, the sink, the bins); the walls,
+ * the floor's base and the whole room's batches are bigger (3.1 to 6.6), and kept */
+const SUN_PIECE_R = 3
+/** (how far out of a box's side such a piece's middle may stand: the plate cabinets' backs stand 3.5 cm of the room's units (7 cm of the
+ * world's) out past the floor's open edge) */
+const SUN_EDGE = 0.1
 const SUN_AT = new THREE.Vector3()
 /** the casters left out of the sun's map this frame, back on */
 function castersBack(o: THREE.Mesh[]) { for (let i = 0; i < o.length; i++) o[i].castShadow = true; o.length = 0 }
@@ -150,7 +158,8 @@ export const ShadowPacer = memo(function ShadowPacer() {
       const s = sun.current
       if (!s) return
       s.shadow.needsUpdate = true
-      // (what's in an indoor box, its sphere clear of the box's sides by SUN_IN_MARGIN, left out of this draw of the sun's map)
+      // (what's in an indoor box, its sphere clear of the box's sides by SUN_IN_MARGIN, or a piece (under SUN_PIECE_R) whose middle's in one,
+      // left out of this draw of the sun's map)
       const list = casters.current, o = off.current
       for (let i = 0; i < list.length; i++) {
         const m = list[i]
@@ -158,7 +167,8 @@ export const ShadowPacer = memo(function ShadowPacer() {
         const b = m.geometry.boundingSphere
         if (!b) continue
         SUN_AT.copy(b.center).applyMatrix4(m.matrixWorld)
-        if (!insideIndoors(SUN_AT.x, SUN_AT.y, SUN_AT.z, b.radius * m.matrixWorld.getMaxScaleOnAxis(), SUN_IN_MARGIN)) continue
+        const r = b.radius * m.matrixWorld.getMaxScaleOnAxis()
+        if (!insideIndoors(SUN_AT.x, SUN_AT.y, SUN_AT.z, r, SUN_IN_MARGIN) && !(r < SUN_PIECE_R && centreIndoors(SUN_AT.x, SUN_AT.y, SUN_AT.z, SUN_EDGE))) continue
         m.castShadow = false
         o.push(m)
       }

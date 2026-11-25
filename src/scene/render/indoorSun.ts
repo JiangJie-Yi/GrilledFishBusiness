@@ -111,6 +111,23 @@ export function insideIndoors(x: number, y: number, z: number, r: number, margin
   }
   return false
 }
+/**
+ * Whether a point in the world (a piece's middle) lies within one of the indoor boxes, or no more than `out` (world units) outside its
+ * sides: the room's furniture by its middle, though its sphere reaches out past a box (item 724: app/sceneParts' ShadowPacer leaves the
+ * smaller of these out of the sun's map too; by the room's open side they cast long shadows over the earth outside when the sun was low).
+ * None while they're paused.
+ */
+export function centreIndoors(x: number, y: number, z: number, out: number) {
+  for (let i = 0; i < BOXES; i++) {
+    const e = MATS[i]
+    if (!e || e[15] <= 0) continue
+    if (Math.abs(e[0] * x + e[4] * y + e[8] * z + e[12]) > e[3] + out) continue
+    if (Math.abs(e[1] * x + e[5] * y + e[9] * z + e[13]) > e[7] + out) continue
+    if (Math.abs(e[2] * x + e[6] * y + e[10] * z + e[14]) > e[11] + out) continue
+    return true
+  }
+  return false
+}
 let paused = false
 /** while another canvas draws (the editor's character viewer): the boxes off, the sun everywhere; and back on */
 export function indoorSunPaused(on: boolean) {
