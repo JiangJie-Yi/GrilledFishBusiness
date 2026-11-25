@@ -419,6 +419,8 @@ const RELAIDS: [string, string[]][] = [
   ['jgs-edit-relaid-47', ['kasatate']],
   // (the door's bamboo up against the building's side (item 707, the owner's 「幫我貼齊」): what was kept for it dropped once)
   ['jgs-edit-relaid-48', ['doorbamboo']],
+  // (and out to the street, its culms in front of the door's frame (item 728, the owner's 「竹往前，不被門吃掉」): dropped once more)
+  ['jgs-edit-relaid-49', ['doorbamboo']],
 ]
 const relaidDue = RELAIDS.filter(([k]) => { try { return !localStorage.getItem(k) } catch { return false } })
 const relaid = !relaidDue.length

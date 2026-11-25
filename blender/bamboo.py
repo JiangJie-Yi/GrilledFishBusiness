@@ -52,9 +52,11 @@ def fin(o, name, mat, parts, smooth=True):
 
 # where the game stands it (the doorway's frame; src/shops/grill/guestbar/entrance.tsx's DOOR_BAMBOO_AT): on the street's ground (y -0.46)
 # right of the way in, under the eave; up against the building's side there (item 707, the owner's 「幫我貼齊」: it stood 0.39 out on its own):
-# its rim's left face 2 mm off the facade's dark side panel (x 0.525, measured: tests/e2e/_wall707.mjs), its front 3 mm behind the panel's
-# (z 0.49), not in one plane with it
-AT = (0.692, -0.46, 0.322)
+# its rim's left face 2 mm off the facade's dark side panel (x 0.525, measured: tests/e2e/_wall707.mjs); and out to the street 0.30 (item
+# 728, the owner's 「竹往前，不被門吃掉」: its culms stood behind the door's frame, whose front is at z 0.49, and from the street on the door's
+# left only their leaves showed past its post): its culms' feet now 2.6 cm and more in front of it, the box's back still in beside the
+# frame's side (to z 0.457), 2.2 cm off the stone steps' right end (x 0.505, tests/e2e/_bamboo728.mjs)
+AT = (0.692, -0.46, 0.622)
 
 
 def near(x0, x1, y0, y1, z0, z1, m):
