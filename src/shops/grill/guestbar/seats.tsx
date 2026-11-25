@@ -19,7 +19,8 @@ import { SEAT_PULL, STOOL_TUCK, SHOE_CELLS, BENCH_SEATS, billOf, GUEST_BILLS, DR
 import { tick } from '@/scene/kit/speed'
 import { PEOPLE_SCALE } from './staffPoses'
 import { RAIN_NOW } from './shopFront'
-import { SHOE_CUBBIES, SHOE_COLOURS } from './genkan'
+import { SHOE_CUBBIES } from './genkan'
+import { shoeKey } from '@/game/guests/shoes'
 import { LABEL_STYLE, LABEL_Z } from './labels'
 
 /** a stool pulled out and pushed in (the bar's frame): where its customer stops behind it, how far it's pulled out, how far they push it back
@@ -279,7 +280,7 @@ export function shoeStep(s: Shown, g: THREE.Object3D | undefined, f: number, ent
   g.rotation.x = 0.16 * Math.sin(Math.PI * f)
   // (its door open while they're at it, shut a moment after)
   if (f > 0.12 && f < 0.85) SHOE_CELLS.kick.set(cell, performance.now())
-  if (f > 0.55 && entering && !s.shoesIn) { s.shoesIn = true; SHOE_CELLS.shoes.set(cell, SHOE_COLOURS[s.id % 5]) }
+  if (f > 0.55 && entering && !s.shoesIn) { s.shoesIn = true; SHOE_CELLS.shoes.set(cell, shoeKey(s.id)) }
   if (f > 0.55 && !entering && s.shoesIn !== false) { s.shoesIn = false; SHOE_CELLS.shoes.delete(cell) }
 }
 /** what's set at a customer's place (their soy, their drink) and their shoes left in the genkan: shared shapes */

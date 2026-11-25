@@ -14,6 +14,7 @@ import { shrineDoor } from '@/shops/grill/sounds/shrineSound'
 import { getEdit } from '@/shops/grill/edit'
 import { SHOE_CELLS, BENCH_SEATS, nameOver, POINTER_HINT } from '@/shops/grill/bar'
 import { tick } from '@/scene/kit/speed'
+import { readShoeKey, shoeOf, SHOE_KINDS, type ShoeKind } from '@/game/guests/shoes'
 
 /** how much longer the way in's noren is drawn than it was made, and how much wider (kept to the doorway's width) */
 /**
@@ -201,14 +202,61 @@ let SHOE_WOOD_MAT: THREE.MeshToonMaterial | null = null
 // (a medium brown with a natural grain since item 305 (the owner's, 2026-11-17: 「鞋櫃改回剛剛的深色，但別太深，記得木紋要自然」): the colour in
 // its picture (blender/shoecab.py), the tints near white, the top a shade deeper)
 const SHOE_TINT: Record<string, THREE.Color> = { ShoeWood: new THREE.Color('#fbf6ef'), ShoeTop: new THREE.Color('#ece0d0'), ShoeSlat: new THREE.Color('#ffffff') }
-/** one of a pair of shoes put away in a cubby */
-const SHOE_PAIR_GEO = new RoundedBoxGeometry(0.07, 0.052, 0.17, 2, 0.02)
+/** the customers' shoes, five kinds (item 712, the owner's 「鞋子太過簡單，有點造型、多樣點」: one rounded block a shoe before, 267
+ * triangles each): blender/shoes.py, each one shoe, its toe toward +z, its sole on y 0, its parts' greys in its points; each customer's
+ * colour of their kind over it (game/guests/shoes). One material for every kind, in the cupboard and on the genkan's stone alike */
+const SHOES_URL = import.meta.env.BASE_URL + 'models/shoes.glb'
+useGLTF.preload(SHOES_URL)
+const SHOE_NODE: Record<ShoeKind, string> = { sneaker: 'ShoeSneaker', leather: 'ShoeLeather', pump: 'ShoePump', boot: 'ShoeBoot', zori: 'ShoeZori' }
+const SHOE_KIND_MAT = new THREE.MeshToonMaterial({ vertexColors: true })
+/** each kind's shape, from the model (its own frame: the node's matrix put in) */
+function useShoeShapes() {
+  const gltf = useGLTF(SHOES_URL) as unknown as { scene: THREE.Group }
+  return useMemo(() => {
+    gltf.scene.updateWorldMatrix(true, true)
+    const out = {} as Record<ShoeKind, THREE.BufferGeometry>
+    for (const k of SHOE_KINDS) {
+      const m = gltf.scene.getObjectByName(SHOE_NODE[k]) as THREE.Mesh | undefined
+      out[k] = m ? m.geometry.clone().applyMatrix4(m.matrixWorld) : new THREE.BoxGeometry(0.06, 0.05, 0.17).translate(0, 0.025, 0)
+    }
+    return out
+  }, [gltf])
+}
+/** one shoe, its pair's other side by side (half a pair's width apart, each turned out a little), as instances of their kind's mesh */
+const SHOE_SIDE = 0.042, SHOE_SPLAY = 0.06
+const SHOE_Q = new THREE.Quaternion(), SHOE_S = new THREE.Vector3(1, 1, 1), SHOE_V = new THREE.Vector3(), SHOE_Y = new THREE.Vector3(0, 1, 0)
+/** the pair's two shoes written into `m` from instance `k`: at `at` (its foot), toes along `yaw` (0: +z) */
+function putPair(m: THREE.InstancedMesh, k: number, at: THREE.Vector3, yaw: number, colour: THREE.Color, frame?: THREE.Matrix4) {
+  for (let sd = -1; sd <= 1; sd += 2) {
+    SHOE_V.set(sd * SHOE_SIDE, 0, 0).applyAxisAngle(SHOE_Y, yaw).add(at)
+    SHOE_Q.setFromAxisAngle(SHOE_Y, yaw + sd * SHOE_SPLAY)
+    SHOE_M.compose(SHOE_V, SHOE_Q, SHOE_S)
+    if (frame) SHOE_M.premultiply(frame)
+    m.setMatrixAt(k, SHOE_M)
+    m.setColorAt(k, colour)
+    k++
+  }
+  return k
+}
+/** a cubby's lining (item 719, the owner's 「然後鞋櫃裡面要有鋪墊」): a rush mat's weave, pale straw, its border bound in dark cloth */
+const SHOE_LINING_TEX = signTexture(128, 128, (g) => {
+  g.fillStyle = '#cdb88a'
+  g.fillRect(0, 0, 128, 128)
+  for (let y = 0; y < 128; y += 4) {
+    g.fillStyle = y % 8 ? 'rgba(120,96,56,0.28)' : 'rgba(255,248,226,0.3)'
+    g.fillRect(0, y, 128, 2)
+  }
+  for (let x = 0; x < 128; x += 32) { g.fillStyle = 'rgba(96,72,40,0.35)'; g.fillRect(x, 0, 1.5, 128) }
+  g.fillStyle = '#3a2a22'
+  g.fillRect(0, 0, 128, 9); g.fillRect(0, 119, 128, 9)
+})
+const SHOE_LINING_MAT = new THREE.MeshToonMaterial({ map: SHOE_LINING_TEX })
+/** how thick the lining is, and how far in from a cubby's sides and its front and back it lies */
+const LINING_T = 0.005, LINING_IN = 0.012
 /** the dark veil behind its back's slats (item 497, the owner's 「然後雖然這邊能透視內容但要給與黑黑一層朦朧感」): the shoes in the cubbies seen
  * from behind between the slats, dim through it; the program the toilets' dark boxes' (a dark see-through basic); both its sides (its one
  * face's way round is the exporter's: from the front it's behind the cubbies' back board anyway) */
 const SHOE_VEIL_MAT = new THREE.MeshBasicMaterial({ color: '#0d0907', transparent: true, opacity: 0.74, depthWrite: false, side: THREE.DoubleSide })
-/** the cupboard's shoes, all of them one instanced mesh in this material, each shoe its customer's colour (item 227) */
-const SHOES_IN_MAT = new THREE.MeshToonMaterial({ color: '#ffffff' })
 const SHOE_NONE = new THREE.Matrix4().makeScale(0, 0, 0)
 const SHOE_M = new THREE.Matrix4()
 const SHOE_C = new THREE.Color()
@@ -218,6 +266,7 @@ const cubbyOf = (o: THREE.Object3D | null) => {
   return -1
 }
 const SHOE_P = new THREE.Vector3()
+const SHOE_V2 = new THREE.Vector3()
 const SHOE_TITLE = '【下駄箱】'
 const shoeHint = (open: boolean) => (open ? '再點一下關上這一格' : '點一格的門，開那一格')
 export function ShoeCupboard() {
@@ -280,6 +329,8 @@ export function ShoeCupboard() {
     const cab = root.getObjectByName('ShoeCab')
     const cabBox = cab ? new THREE.Box3().setFromObject(cab) : new THREE.Box3()
     const cells: THREE.Vector3[] = []
+    /** each cubby's floor's size across (x) and deep (z), the way its door faces out (+1: +z) (item 719, 712) */
+    const floors: { w: number; d: number; out: number }[] = []
     /** each cubby's room, its door shut to the carcass's back (a hair over all round): pointed into while its door's open, it's that cubby
      * (item 528: its door swung away, the pointer on the cubby's inside is where it was) */
     const rooms: THREE.Box3[] = []
@@ -288,6 +339,7 @@ export function ShoeCupboard() {
       const b = new THREE.Box3().setFromObject(d.o), c = b.getCenter(new THREE.Vector3())
       // (the shoes in the middle of its depth: it's shallow now, a pair just fits)
       cells[d.cell] = new THREE.Vector3(c.x, b.min.y + 0.004, (cabBox.min.z + cabBox.max.z) / 2)
+      floors[d.cell] = { w: b.max.x - b.min.x, d: cabBox.max.z - cabBox.min.z, out: Math.sign(c.z - (cabBox.min.z + cabBox.max.z) / 2) || 1 }
       rooms[d.cell] = new THREE.Box3(new THREE.Vector3(b.min.x, b.min.y, Math.min(b.min.z, cabBox.min.z)),
         new THREE.Vector3(b.max.x, b.max.y, Math.max(b.max.z, cabBox.max.z))).expandByScalar(0.003).applyMatrix4(toRoot)
     }
@@ -298,7 +350,18 @@ export function ShoeCupboard() {
     if (veil?.isMesh) { veil.material = SHOE_VEIL_MAT; veil.castShadow = veil.receiveShadow = false }
     // (all eight shut, drawn as one with one ink line, two draws not eighteen; any of them swinging, each its own again)
     const shut = homeCopy(root, doors.map((d) => d.o))
-    return { root, doors, cells, rooms, shut }
+    // (each cubby's lining, all of them one mesh (item 719): a thin mat over its floor, in from its sides, its front and its back)
+    const mats = cells.map((at, i) => {
+      const f = floors[i]
+      if (!at || !f) return null
+      // (nearly the cubby's whole floor: in from its partitions, 6 mm off its back's slats and its door's inside (the cupboard 0.218 deep from
+      // its back to its doors' fronts), so the shoes' heels and toes are on it, not out over its edge in the air)
+      return new THREE.BoxGeometry(f.w - 2 * LINING_IN - 0.006, LINING_T, f.d - 0.04).translate(at.x, at.y - 0.004 + LINING_T / 2 + 0.001, at.z - 0.004)
+    }).filter((g): g is THREE.BoxGeometry => !!g)
+    const lining = mats.length ? new THREE.Mesh(mergeGeometries(mats)!, SHOE_LINING_MAT) : null
+    for (const g of mats) g.dispose()
+    if (lining) { lining.name = 'shoe-linings'; lining.raycast = () => {} }
+    return { root, doors, cells, floors, rooms, shut, lining }
   }, [gltf])
   /** the cubbies opened by a click, each on its own (item 256, the owner's: 「這櫃子我點一下就全開，能否一個一個開」) */
   const st = useRef({ cells: new Set<number>() })
@@ -348,21 +411,22 @@ export function ShoeCupboard() {
     setTip(null)
   }
   const g = useRef<THREE.Group>(null)
-  // (every cubby's pair of shoes one instanced mesh, each shoe its customer's colour (item 227: two meshes a pair, a material each, some
-  // thirty draws with the cupboard full); a cubby with none, its two drawn at nothing; made with the rest, its program at load)
-  const shoes = useMemo(() => {
-    const m = new THREE.InstancedMesh(SHOE_PAIR_GEO, SHOES_IN_MAT, Math.max(1, model.cells.length * 2))
-    m.name = 'shoe-pairs'
+  // (every cubby's pairs of shoes of a kind one instanced mesh, each shoe its customer's colour (item 227: two meshes a pair, a material
+  // each, some thirty draws with the cupboard full; item 712: a mesh a kind); made with the rest, its program at load, none drawn at first)
+  const shapes = useShoeShapes()
+  const shoes = useMemo(() => Object.fromEntries(SHOE_KINDS.map((k) => {
+    const m = new THREE.InstancedMesh(shapes[k], SHOE_KIND_MAT, Math.max(1, model.cells.length * 2))
+    m.name = `shoe-pairs-${k}`
     m.frustumCulled = false
     m.raycast = () => {}
     for (let i = 0; i < m.count; i++) { m.setMatrixAt(i, SHOE_NONE); m.setColorAt(i, SHOE_C.set('#444444')) }
     // (only the shoes there are, drawn, side by side from the first (item 528, the Art window's find: every cubby's two were drawn, at
     // nothing where there were none, 4,800 faces with the cupboard empty); none at first)
     m.count = 0
-    return m
-  }, [model])
-  useEffect(() => () => shoes.dispose(), [shoes])
-  /** each cubby's colour as last drawn ('' none): the instances written only when one changes */
+    return [k, m]
+  })) as unknown as Record<ShoeKind, THREE.InstancedMesh>, [model, shapes])
+  useEffect(() => () => { for (const m of Object.values(shoes)) m.dispose() }, [shoes])
+  /** each cubby's shoes as last drawn ('' none, or its door shut on them): the instances written only when one changes */
   const drawn = useRef<string[]>([])
   useFrame((_, dt) => {
     const s = st.current
@@ -377,24 +441,32 @@ export function ShoeCupboard() {
     // (shut, the one drawing of them all; the doors themselves hidden (still pointed at: the pointer's rays don't mind)); and while a door's
     // pointed at, each drawn by itself, the one lit alone (item 528)
     model.shut.home(model.doors.every((d) => d.o.rotation.y === 0) && !(hov.current !== null && hov.current >= 0))
+    // (only the shoes in a cubby whose door's open, or opening (item 718, the owner's 「鞋子放進鞋櫃內，就停止渲染，已減少運算，等打開再渲染」):
+    // shut in, none drawn; a door opening, its pair's there before it's open enough to see in)
     let changed = false
     model.cells.forEach((at, i) => {
-      const c = SHOE_CELLS.shoes.get(i) ?? ''
+      const door = model.doors.find((d) => d.cell === i)
+      const c = door && door.k > 0.001 ? SHOE_CELLS.shoes.get(i) ?? '' : ''
       if (drawn.current[i] === c || !at) return
       drawn.current[i] = c
       changed = true
     })
     if (changed) {
-      // (the cubbies with shoes, their pairs written from the first instance on, as many drawn as there are)
-      let k = 0
+      // (the open cubbies' shoes, each kind's pairs written from its first instance on, as many drawn as there are; on their lining, toes out)
+      const n = Object.fromEntries(SHOE_KINDS.map((k) => [k, 0])) as Record<ShoeKind, number>
       model.cells.forEach((at, i) => {
         const c = drawn.current[i]
         if (!c || !at) return
-        for (let sd = 0; sd < 2; sd++, k++) { SHOE_M.makeTranslation(at.x + (sd ? 0.045 : -0.045), at.y + 0.026, at.z); shoes.setMatrixAt(k, SHOE_M); shoes.setColorAt(k, SHOE_C.set(c)) }
+        const s = readShoeKey(c), m = shoes[s.kind]
+        SHOE_V2.set(at.x, at.y - 0.004 + LINING_T + 0.001, at.z)
+        n[s.kind] = putPair(m, n[s.kind], SHOE_V2, (model.floors[i]?.out ?? 1) > 0 ? 0 : Math.PI, SHOE_C.set(s.colour))
       })
-      shoes.count = k
-      shoes.instanceMatrix.needsUpdate = true
-      if (shoes.instanceColor) shoes.instanceColor.needsUpdate = true
+      for (const k of SHOE_KINDS) {
+        const m = shoes[k]
+        m.count = n[k]
+        m.instanceMatrix.needsUpdate = true
+        if (m.instanceColor) m.instanceColor.needsUpdate = true
+      }
     }
     if (g.current) { g.current.getWorldPosition(SHOE_CELLS.at); SHOE_CELLS.ready = true }
   })
@@ -415,8 +487,10 @@ export function ShoeCupboard() {
       onPointerOver={point} onPointerMove={point} onPointerOut={leave}>
       <primitive object={model.root} />
       <group ref={g}>
-        {/* (the shoes in each cubby: a pair, the customer's colour, toes out; all of them one instanced mesh) */}
-        <primitive object={shoes} />
+        {/* (the shoes in each open cubby: a pair, its kind, the customer's colour, toes out; each kind one instanced mesh (item 712, 718)) */}
+        {SHOE_KINDS.map((k) => <primitive key={k} object={shoes[k]} />)}
+        {/* (and each cubby's lining under them (item 719)) */}
+        {model.lining && <primitive object={model.lining} />}
       </group>
     </group>
   )
@@ -426,30 +500,42 @@ export function ShoeCupboard() {
 // (item 374: its pairs placed frame by frame; drawn again only if its list's ref changes)
 export const BenchShoes = memo(BenchShoesImpl)
 function BenchShoesImpl({ sitters }: { sitters: { current: Map<number, { id: number; shoes?: { at: THREE.Vector3; yaw: number } }> } }) {
-  const pairs = useRef<(THREE.Group | null)[]>([])
-  const mats = useMemo(() => Array.from({ length: BENCH_SEATS }, () => new THREE.MeshToonMaterial({ color: '#444444' })), [])
-  useEffect(() => () => { for (const m of mats) m.dispose() }, [mats])
+  // (each kind's pairs one instanced mesh (item 712: two meshes a pair, a material each, before), none drawn till one's there: made with
+  // the rest, its program at load)
+  const shapes = useShoeShapes()
+  const meshes = useMemo(() => Object.fromEntries(SHOE_KINDS.map((k) => {
+    const m = new THREE.InstancedMesh(shapes[k], SHOE_KIND_MAT, BENCH_SEATS * 2)
+    m.name = `bench-shoes-${k}`
+    m.frustumCulled = false
+    m.castShadow = true
+    m.raycast = () => {}
+    for (let i = 0; i < m.count; i++) { m.setMatrixAt(i, SHOE_NONE); m.setColorAt(i, SHOE_C.set('#444444')) }
+    m.count = 0
+    return [k, m]
+  })) as unknown as Record<ShoeKind, THREE.InstancedMesh>, [shapes])
+  useEffect(() => () => { for (const m of Object.values(meshes)) m.dispose() }, [meshes])
+  /** the pairs as last written (each sitter's id, place and turn): written again only when one changes */
+  const was = useRef('')
   useFrame(() => {
-    const shod = [...sitters.current.values()].filter((v) => v.shoes)
-    pairs.current.forEach((p, i) => {
-      if (!p) return
-      const v = shod[i]
-      p.visible = !!v
-      if (!v?.shoes) return
-      p.position.copy(v.shoes.at)
-      p.rotation.y = v.shoes.yaw
-      mats[i].color.set(SHOE_COLOURS[v.id % 5])
-    })
+    let sig = ''
+    for (const v of sitters.current.values()) if (v.shoes) sig += `${v.id}:${v.shoes.at.x.toFixed(3)},${v.shoes.at.z.toFixed(3)},${v.shoes.yaw.toFixed(2)};`
+    if (sig === was.current) return
+    was.current = sig
+    const n = Object.fromEntries(SHOE_KINDS.map((k) => [k, 0])) as Record<ShoeKind, number>
+    for (const v of sitters.current.values()) {
+      if (!v.shoes) continue
+      const s = shoeOf(v.id), m = meshes[s.kind]
+      if (n[s.kind] >= BENCH_SEATS * 2) continue
+      n[s.kind] = putPair(m, n[s.kind], v.shoes.at, v.shoes.yaw, SHOE_C.set(s.colour))
+    }
+    for (const k of SHOE_KINDS) {
+      const m = meshes[k]
+      m.count = n[k]
+      m.instanceMatrix.needsUpdate = true
+      if (m.instanceColor) m.instanceColor.needsUpdate = true
+    }
   })
-  return (
-    <>
-      {mats.map((m, i) => (
-        <group key={i} name={`bench-shoes-${i}`} ref={(o) => { pairs.current[i] = o }} visible={false}>
-          {[-1, 1].map((sd) => <mesh key={sd} geometry={SHOE_PAIR_GEO} material={m} position={[sd * 0.045, 0.026, 0]} castShadow raycast={() => {}} />)}
-        </group>
-      ))}
-    </>
-  )
+  return <>{SHOE_KINDS.map((k) => <primitive key={k} object={meshes[k]} />)}</>
 }
 /**
  * The cats at the door, on their stand just inside it against the wall (the entrance's +x side; the till is on the
@@ -515,5 +601,3 @@ export const REG_GEO = {
   ear: new THREE.ConeGeometry(0.012, 0.026, 6),
   paw: new THREE.CapsuleGeometry(0.01, 0.03, 4, 8),
 }
-/** the colours of the shoes left at the door, by the customer's id */
-export const SHOE_COLOURS = ['#2a2220', '#5a3a22', '#f2f0ea', '#1c1c22', '#7a2a22']

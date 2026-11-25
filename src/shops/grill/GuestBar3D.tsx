@@ -92,7 +92,8 @@ import { STOCKER_FIG, Stocker } from './guestbar/stocker'
 import { DOOR_BOUND, RAIN_NOW } from './guestbar/shopFront'
 import { CompanionAtBar } from './staff/CompanionAtBar'
 import { Entrance } from './guestbar/entrance'
-import { SHOE_CUBBIES, BenchShoes, SHOE_COLOURS } from './guestbar/genkan'
+import { SHOE_CUBBIES, BenchShoes } from './guestbar/genkan'
+import { shoeKey } from '@/game/guests/shoes'
 import { GENKAN_SUNK, DiningFloor, RoomFloor } from './guestbar/floors'
 import { STOOL_STAND, STOOL_OUT, STOOL_LEAVE, SEAT_MARKS, BENCH_MARKS, SEAT_SHIFT, BENCH_AT, BENCH_A, BENCH_B, STOOL_PULL_S, STOOL_STEP_S, STOOL_SLIDE_S, STOOL_HOME_AT, backOf, type Shown, SHOES_S, DOOR_WAIT_S, DOOR_SLIDE_S, STEP_Y_RATE, NO_SHOES, PayFloat, PAY_S, QUEUE_GAP, STEP_TURN, billFor, TRAY_ERRANDS, placedOnce, withPause, UMB_STAND, standGrip, gearFor, gearAtOf, COAT_POSE, GEAR_P, GEAR_Q, shoeStep, SeatBits, Fridges, Stools } from './guestbar/seats'
 import { HER, WC_TO_SEAT, WC_SIT_LIFT, wcStayOf, HAND_S, HAND_DRY_S, REFILL_RATE, DRINKS_MAX, drinkRate, wcRate, DRINK_STAY, type PlateRun, STACK_GAP, NEST_GAP, SURFACE_RAY, SURFACE_HITS, TOP_FROM, DOWN_Y, UP_Y, binThrow, SERVE_S, CLEAR_S, CLEAR_DELAY, LAY_S, FLY_PER, HOME_S, READY_S, ON_TABLE, X_AXIS, COAL_STICK_GEO, COAL_STICK_MAT, DIPPER_CUP_GEO, DIPPER_HANDLE_GEO, DIPPER_MAT, DIPPER_WATER_GEO, DIPPER_WATER_MAT, SOUP_EVERY, STIR_S, GRATE_EVERY, GRATE_S, DIP_NEAR, DIP_REACH, RICE_BOWL_GEO, BOWL_HOLD, RICE_WASH_PHASES, WASH_BOWL_HANDS, WASH_BOWL_ON, riceBowlHands, RICE_IN_GEO, WIPE_S, CLEAR_REACH, CLEAR_LIFT, CHOP_ON, WARE_LEFT, WARE_RINSE, SINK_BOWLS_SHOWN, POT_PAIRS_SHOWN, POT_RENGE_SHOWN, BOWL_NEST, CLEAR_WIPE_AT, CLEAR_HANDS, SINK_HANDS, CLEAR_SIDE, WIPE_HAND_Z, CLEAR_TOWARD, WIPE_STAND, RAG_GEO, PASS_STACK_SHOWN, IN_SINK, SINK_SHOWN, IN_DRAIN, WASH_EACH, frontOf, KITCHEN_BLOCKS, PASS_ROOM, HEAD_HIGH, NAMED_BLOCKS, HEAD_ROOM, HOME_ROOM, TRAY_REACH, SINK_BACK, TILL_WAIT_MAX, TILL_BY_PLATER, TAKEOUT_ASIDE, TAKEOUT_NEXT, SHOE_OFF_S, SHOES_BACK, STOOL_HALF, STOOL_STEP, STOOL_CLIMB, PLATE_R, PLATE_GEO, DISH_ALONG, DISH_STEP, DISH_LAY, KITCHEN_DUE_MS, turnBy, PASS_YAW, FOAM_AT, FOAM_GEO, FOAM_MAT, DRIP_GEO, DRIP_MAT, WASH_SHIFT, WORK_IN, WORK_UP, WASH_FWD, SPOUT_AT, STREAM_W, HAND_TO, HAND_TO_BASKET_S, STATION_POUR_AT, HAND_STREAM, HAND_NDC, HAND_PLANE, HAND_HIT, HAND_TOP, HAND_W, HAND_BOX, UNDER_MAX, PILE_STEP, PILE_AT, SPONGE_BACK_S, RUB_BOX, RUB_C, CARRY_UP, CARRY_CLEAR, CARRY_RAY, CARRY_FROM, CARRY_DOWN, DRIP_LOW, smearOpacity, GLASS_ON, TISSUE_ON, WIPE_MOUTH_MS, SIP_S, SOUP_SIP_S, SIP_GAP, SIPS } from './guestbar/service'
@@ -4774,7 +4775,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           benchFrom.current.set(v.id, v.pos.clone())
           // (their shoes off the stone into the cubby of the place they're called to, put away for them (item 203))
           const seat = guestsNow.current.find((x) => x.id === v.id)?.seat
-          if (v.shoes && seat !== undefined) { SHOE_CELLS.shoes.set(seat % SHOE_CUBBIES, SHOE_COLOURS[v.id % 5]); benchShoesIn.current.add(v.id) }
+          if (v.shoes && seat !== undefined) { SHOE_CELLS.shoes.set(seat % SHOE_CUBBIES, shoeKey(v.id)); benchShoesIn.current.add(v.id) }
           v.shoes = undefined
           v.handed = true; v.t = 0
         }
