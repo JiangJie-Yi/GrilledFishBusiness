@@ -51,8 +51,10 @@ def fin(o, name, mat, parts, smooth=True):
 
 
 # where the game stands it (the doorway's frame; src/shops/grill/guestbar/entrance.tsx's DOOR_BAMBOO_AT): on the street's ground (y -0.46)
-# right of the way in, 0.09 right of the fish lantern's box, under the eave
-AT = (1.08, -0.46, 0.30)
+# right of the way in, under the eave; up against the building's side there (item 707, the owner's 「幫我貼齊」: it stood 0.39 out on its own):
+# its rim's left face 2 mm off the facade's dark side panel (x 0.525, measured: tests/e2e/_wall707.mjs), its front 3 mm behind the panel's
+# (z 0.49), not in one plane with it
+AT = (0.692, -0.46, 0.322)
 
 
 def near(x0, x1, y0, y1, z0, z1, m):
@@ -60,9 +62,12 @@ def near(x0, x1, y0, y1, z0, z1, m):
     return ((x0 - AT[0] - m, x1 - AT[0] + m), (y0 - AT[1] - m, y1 - AT[1] + m), (z0 - AT[2] - m, z1 - AT[2] + m))
 
 
-# (the fish lantern's whole box with its bracket back to the eave's beam, 4.5 cm clear (it sways 5 mm); the eave's rafters' underside at
-# 2.35 over all of it, 2 cm clear)
-KEEP_OUT = [near(0.73, 0.99, 0.94, 2.19, 0.21, 0.81, 0.045)]
+# (the fish lantern's whole box with its bracket back to the eave's beam, 4.5 cm clear (it sways 5 mm); the building's side behind the
+# planter now (the facade's panel and the wall over it, x under 0.525 back from z 0.49), 2 cm clear; the way in before the door (x under
+# its post's 0.47, out to the street), 2 cm clear: its leaves hung over the door's half, in the customers' way; the eave's rafters'
+# underside at 2.35 over all of it, 2 cm clear)
+KEEP_OUT = [near(0.73, 0.99, 0.94, 2.19, 0.21, 0.81, 0.045), near(-1.0, 0.525, -0.46, 2.4, -1.0, 0.49, 0.02),
+            near(-1.5, 0.47, -0.46, 2.4, 0.45, 1.6, 0.02)]
 CEILING = 2.33 - AT[1]
 
 
@@ -220,10 +225,17 @@ def door_bamboo():
     RO, RI, R0, R1 = 0.165, 0.138, 0.252, 0.31
     for i, (x0, x1, y0, y1) in enumerate([(-RO, RO, -RO, -RI), (-RO, RO, RI, RO), (-RO, -RI, -RI + 0.001, RI - 0.001), (RI, RO, -RI + 0.001, RI - 0.001)]):
         parts.append(chunky_box(f"PlanterRim{i}", x0, x1, y0, y1, R0, R1, 0.006, 1, M["rim"], M["rim"], uv_scale=0.3))
-    # ---- the culms: each its base on the soil, its height, its lean (out away from the door, +x, and to one side), its girth; nodes closer
-    # at the foot, longer up it
-    culms = [((0.02, -0.035), 2.45, (0.16, -0.12), 0.022), ((-0.005, 0.045), 2.2, (0.1, 0.2), 0.02),
-             ((0.075, 0.03), 2.0, (0.3, 0.08), 0.018), ((0.0, -0.085), 1.55, (0.08, -0.26), 0.016)]
+    # ---- the culms: each its base on the soil, its height, its lean, its girth; nodes closer at the foot, longer up it. (Item 707: a tight
+    # clump on the planter's side by the building, between its wall (x 0.525 back from z 0.49) and the fish lantern's box (from x 0.73 up
+    # from y 0.94, 4.5 cm clear): standing all but straight across, leaning out to the street (+z); their branches find their own way out)
+    culms = [((-0.085, -0.03), 2.35, (-0.01, 0.10), 0.022), ((-0.06, 0.05), 2.15, (0.0, 0.22), 0.02),
+             ((-0.105, 0.075), 1.95, (-0.015, 0.28), 0.018), ((-0.05, -0.09), 1.55, (0.01, -0.05), 0.016)]
+    # (each culm's middle kept clear of the lantern's box and the building's side, its girth with it: said, not made, if not)
+    for (bx, bz), h, (lx, lz), r0 in culms:
+        for t in [i / 20 for i in range(21)]:
+            p = Vector((bx + lx * t * t, SOIL + h * t, bz + lz * t * t))
+            for dx, dz in ((r0, 0), (-r0, 0), (0, r0), (0, -r0)):
+                assert clear(p + Vector((dx, 0, dz))), ('culm in the way', bx, bz, t, tuple(p))
     leaf_bm = bmesh.new()
     leaf_uv = leaf_bm.loops.layers.uv.new()
     n_leaves = [0]

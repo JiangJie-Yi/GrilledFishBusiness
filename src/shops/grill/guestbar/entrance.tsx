@@ -18,9 +18,11 @@ import { BIG_HANG, NorenModel, NOREN_REACH, NOREN_PUSH, NOREN_FOLD, NOREN_UNDER,
 import { ShoeVases, CAT_STAND_Z, SHOE_CAB_Z, SHOE_CAB_X, ShoeCupboard, CAT_TOP, FELT_TOP, feltGeo, DOOR_CATS, REG_GEO } from './genkan'
 import { KASA_AT, KasaStand, RainGearWarm } from './seats'
 import { DoorBambooHit, DoorBambooModel } from '@/shops/grill/decor/BarFurnish'
+import { BlobShadow } from '@/scene/effects/BlobShadow'
 /** where the door's bamboo stands (the doorway's frame: x along the front, + toward the north wall; z out to the street): its box's foot
- * on the street's ground right of the way in, 0.09 right of the fish lantern, under the eave (blender/bamboo.py's AT, the same) */
-const DOOR_BAMBOO_AT: [number, number, number] = [1.08, -0.46, 0.3]
+ * on the street's ground right of the way in, under the eave, up against the building's side (item 707, the owner's 「幫我貼齊，然後有點陰影」:
+ * its rim 2 mm off the facade's dark side panel, its front 3 mm behind the panel's) (blender/bamboo.py's AT, the same) */
+const DOOR_BAMBOO_AT: [number, number, number] = [0.692, -0.46, 0.322]
 const DOOR_BAMBOO_SAYS = nameOver('【門口植栽】青竹', '燒杉木箱裡的一叢青竹，迎客，也替門口擋一點街上的目光')
 
 /**
@@ -242,6 +244,8 @@ function EntranceImpl({ at, mark }: { at: THREE.Vector3; mark: string }) {
           eave as measured there); only to look at: named when pointed at) */}
       <Movable id="doorbamboo" label="門口綠竹" ground={DOOR_BAMBOO_AT[1]}>
         <StaticBatch plain><group position={DOOR_BAMBOO_AT}><DoorBambooModel /></group></StaticBatch>
+        {/* (and its soft shadow on the ground round its foot (item 707): the box and the clump over it standing on the street, not floating) */}
+        <group position={DOOR_BAMBOO_AT}><BlobShadow r={0.27} /></group>
         <group position={DOOR_BAMBOO_AT}><DoorBambooHit {...DOOR_BAMBOO_SAYS} /></group>
       </Movable>
       <group position-x={DX}>
