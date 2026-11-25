@@ -46,6 +46,10 @@ varying vec3 vLocal;
 const float HW = ${f(hw)}, YF = ${f(yf)}, RISE = ${f(rise)}, RUN = ${f(run)}, S0 = ${f(s0)}, D = ${f(D)}, TOP = ${f(top)};
 const float YC = ${f(yc)}, SC = ${f(sc)}, K = ${f(k)}, YCAP = ${f(ycap)};
 const int N = ${N};
+// (item 714, the owner's 「2樓入口處有簡單的腳踏墊，用幾何形狀構成。」: a doormat on the entry's floor before the first step, a low box of
+// its own (its top and its edges where the eye's line meets them, so it has its thickness from any side): MX across from the middle,
+// from MZ0 to MZ1 in from the sill, MT thick)
+const float MX = ${f(hw - 0.14)}, MZ0 = 0.07, MZ1 = 0.45, MT = 0.014;
 // (each tread's board: how thick, and how far its front (the nosing) stands out over the riser below it)
 const float NT = 0.028, OV = 0.026;
 float stairY(float s) { return s < S0 ? YF : YF + min(float(N), floor((s - S0) / RUN) + 1.0) * RISE; }
@@ -98,8 +102,12 @@ void main() {
       if (t > 0.0 && t < best && p.z >= si - OV && p.z <= si) { best = t; kind = 9; }
     }
   }
+  // the doormat (item 714): its top (10), its front and its sides (11), wherever they come before what's behind
+  if (d.y < 0.0) { t = (YF + MT - o.y) / d.y; p = o + d * t; if (t > 0.0 && t < best && abs(p.x) <= MX && p.z >= MZ0 && p.z <= MZ1) { best = t; kind = 10; } }
+  t = (MZ0 - o.z) / d.z; p = o + d * t; if (t > 0.0 && t < best && abs(p.x) <= MX && p.y >= YF && p.y <= YF + MT) { best = t; kind = 11; }
+  if (abs(d.x) > 1e-5) { t = ((d.x < 0.0 ? MX : -MX) - o.x) / d.x; p = o + d * t; if (t > 0.0 && t < best && p.z >= MZ0 && p.z <= MZ1 && p.y >= YF && p.y <= YF + MT) { best = t; kind = 11; } }
   p = o + d * best;
-  vec3 n = kind == 1 ? vec3(1, 0, 0) : kind == 2 ? vec3(-1, 0, 0) : (kind == 3 || kind == 7) ? vec3(0, 1, 0) : (kind == 5 || kind == 9) ? vec3(0, -1, 0) : vec3(0, 0, -1);
+  vec3 n = kind == 1 ? vec3(1, 0, 0) : kind == 2 ? vec3(-1, 0, 0) : (kind == 3 || kind == 7 || kind == 10) ? vec3(0, 1, 0) : (kind == 5 || kind == 9) ? vec3(0, -1, 0) : vec3(0, 0, -1);
   // its own colour (linear)
   vec3 c;
   float glow = 0.0;
@@ -147,6 +155,20 @@ void main() {
     c = grain(p.x + floor((p.z - S0) / RUN + 0.5) * 1.3, p.y, vec3(0.33, 0.19, 0.09), vec3(0.46, 0.29, 0.14)) * (0.8 + 0.45 * smoothstep(0.4, 1.0, e));
   }
   else if (kind == 9) { c = vec3(0.04, 0.025, 0.012); }
+  else if (kind == 10) {
+    // (the mat's top: indigo woven, a lattice of lighter diamonds over it, a cream rule inside its dark binding all round; the weave fine,
+    // faded out where it's finer than the pixels)
+    vec2 m = vec2(p.x, p.z - (MZ0 + MZ1) * 0.5), hs = vec2(MX, (MZ1 - MZ0) * 0.5);
+    float edge = min(hs.x - abs(m.x), hs.y - abs(m.y));
+    vec2 r = m / 0.06;
+    float lat = min(abs(fract(r.x + r.y) - 0.5), abs(fract(r.x - r.y) - 0.5));
+    c = mix(vec3(0.035, 0.05, 0.11), vec3(0.1, 0.13, 0.25), 1.0 - smoothstep(0.04, 0.09, lat));
+    c = mix(c, vec3(0.5, 0.44, 0.33), 1.0 - smoothstep(0.003, 0.006, abs(edge - 0.042)));
+    c = mix(c, vec3(0.022, 0.02, 0.024), step(edge, 0.026));
+    float wv = 0.5 + 0.5 * sin(p.x * 640.0) * sin(p.z * 640.0);
+    c *= 1.0 - 0.14 * (1.0 - wv) * (1.0 - smoothstep(0.3, 1.0, fwidth(p.x * 640.0)));
+  }
+  else if (kind == 11) { c = vec3(0.03, 0.028, 0.032); }
   else if (kind == 6) { c = grain(p.x + floor((p.z - S0) / RUN + 0.5) * 2.1, p.y, vec3(0.035, 0.03, 0.026), vec3(0.06, 0.052, 0.045)); }
   else if (kind == 5) { c = vec3(0.12, 0.08, 0.05) * (0.9 + 0.1 * step(0.5, fract(p.z * 3.0))); }
   else {
@@ -171,6 +193,8 @@ void main() {
     ao *= mix(0.45, 1.0, smoothstep(0.0, 0.07, back));
     ao *= mix(0.5, 1.0, smoothstep(0.0, 0.09, HW - abs(p.x)));
   }
+  // (the floor darker right round the mat's foot, where it lies on it)
+  if (kind == 3) ao *= mix(0.5, 1.0, smoothstep(0.0, 0.035, max(abs(p.x) - MX, max(MZ0 - p.z, p.z - MZ1))));
   if (kind == 6) {
     float ri = floor((p.z - S0) / RUN + 0.5);
     ao *= mix(0.55, 1.0, smoothstep(0.0, 0.06, p.y - (YF + ri * RISE)));
