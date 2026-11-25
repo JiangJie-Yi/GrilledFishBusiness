@@ -635,8 +635,11 @@ const footSets = (key: string) => { try { return new Set<string>(JSON.parse(loca
 // into the room's axes (KEY_ROOM): once each, as the foot was)
 const KEY_FOOTXZ = 'jgs-edit-foot-xz-1'
 const KEY_ROOM = 'jgs-edit-room-axes-1'
-const footDone = footSets(KEY_FOOT), groupFootDone = footSets(KEY_GFOOT), footXzDone = footSets(KEY_FOOTXZ), roomDone = footSets(KEY_ROOM)
-const keepFeet = () => { try { localStorage.setItem(KEY_FOOT, JSON.stringify([...footDone])); localStorage.setItem(KEY_GFOOT, JSON.stringify([...groupFootDone])); localStorage.setItem(KEY_FOOTXZ, JSON.stringify([...footXzDone])); localStorage.setItem(KEY_ROOM, JSON.stringify([...roomDone])) } catch { /* storage blocked */ } }
+// (and each group whose pivot was put at a box's middle by hand (AABB, OBB): kept where it was put; every other group's is brought to its
+// pieces' feet again each time edit mode opens (refootGroups, item 698))
+const KEY_GHAND = 'jgs-edit-group-pivot-hand-1'
+const footDone = footSets(KEY_FOOT), groupFootDone = footSets(KEY_GFOOT), footXzDone = footSets(KEY_FOOTXZ), roomDone = footSets(KEY_ROOM), groupPivotByHand = footSets(KEY_GHAND)
+const keepFeet = () => { try { localStorage.setItem(KEY_FOOT, JSON.stringify([...footDone])); localStorage.setItem(KEY_GFOOT, JSON.stringify([...groupFootDone])); localStorage.setItem(KEY_FOOTXZ, JSON.stringify([...footXzDone])); localStorage.setItem(KEY_ROOM, JSON.stringify([...roomDone])); localStorage.setItem(KEY_GHAND, JSON.stringify([...groupPivotByHand])) } catch { /* storage blocked */ } }
 export const footSettled = (id: string) => footDone.has(id)
 export const footXzSettled = (id: string) => footXzDone.has(id)
 /**
@@ -693,7 +696,7 @@ export function settleFoot(id: string, d: V3, shift: V3) {
  * it: the owner's, 2026-11-12), once for each, its own move made up for, so nothing moves; a group with a piece not yet measured waits
  */
 export function settleGroupFeet() {
-  let changed = false
+  let changed = false, moved = false
   for (const [gid, g] of Object.entries(state.groups)) {
     if (groupFootDone.has(gid) || unsettled.has(gid)) continue
     // (its pieces' boxes, every corner, in the group's own frame: the middle of all of them squared to the room, at their lowest foot)
@@ -713,13 +716,27 @@ export function settleGroupFeet() {
     const at: V3 = [um * ax - wm * az, y, um * az + wm * ax]
     if (!at.every(Number.isFinite)) continue
     const d: V3 = [at[0] - g.pivot[0], at[1] - g.pivot[1], at[2] - g.pivot[2]]
+    groupFootDone.add(gid)
+    changed = true
+    // (already there, within a tenth of a millimetre: left as it is, nothing written)
+    if (Math.abs(d[0]) + Math.abs(d[1]) + Math.abs(d[2]) < 1e-4) continue
     // (turned and sized about the old pivot, now about the new: the difference made up for in its move)
     const ad = applyGroup({ ...g, pivot: [0, 0, 0], t: [0, 0, 0] }, d)
     state.groups = { ...state.groups, [gid]: { ...g, pivot: at, t: [g.t[0] + ad[0] - d[0], g.t[1] + ad[1] - d[1], g.t[2] + ad[2] - d[2]] } }
-    groupFootDone.add(gid)
-    changed = true
+    moved = true
   }
-  if (changed) { keepFeet(); save(); emit() }
+  if (changed) keepFeet()
+  if (moved) { save(); emit() }
+}
+/**
+ * Every group's pivot brought to its pieces' feet's middle again (item 698, the owner's, 2026-11-25: 「檢查所有中心點有無歸位」): it was found
+ * once, the first time a browser opened edit mode, and kept; a default place moved since (「X…然後 Reset」, written into BASES) left a group's
+ * pivot where its pieces had been (the plate racks' group 0.30 m off its racks with one of them moved 0.6). Each time edit mode opens, as
+ * settleGroupFeet does it (its move made up for, nothing drawn moves); not a group whose pivot was put at a box's middle by hand (AABB, OBB)
+ */
+function refootGroups() {
+  for (const gid of Object.keys(state.groups)) if (!groupPivotByHand.has(gid)) groupFootDone.delete(gid)
+  settleGroupFeet()
 }
 /** the pivot moved to v, and the piece's place moved by `shift` with it (so the piece itself stays where it is, turned or sized as it is) */
 export function setPivot(id: string, v: V3, shift: V3 = [0, 0, 0]) {
@@ -745,6 +762,7 @@ export function resetPivot(kind: PivotKind) {
   if (g && kind === 'foot') {
     // (a group's: at its pieces' feet's middle again, as every group's is when it's made (settleGroupFeet), its move made up for)
     groupFootDone.delete(id)
+    groupPivotByHand.delete(id)
     settleGroupFeet()
   } else if (g) {
     const boxes = leavesOf(state.groups, id).map((m) => registry.get(m)?.corners?.() ?? null).filter((v): v is V3[] => !!v && v.length > 0)
@@ -768,6 +786,8 @@ export function resetPivot(kind: PivotKind) {
     const ad = applyGroup({ ...g, pivot: [0, 0, 0], t: [0, 0, 0] }, d)
     state.groups = { ...state.groups, [id]: { ...g, pivot: at, t: [g.t[0] + ad[0] - d[0], g.t[1] + ad[1] - d[1], g.t[2] + ad[2] - d[2]] } }
     groupFootDone.add(id)
+    // (put there by hand: kept there, not brought back to its feet when edit mode opens again (item 698))
+    groupPivotByHand.add(id)
     keepFeet()
   } else pivotResets.get(id)?.(kind)
   save(); emit()
@@ -782,6 +802,7 @@ export function resetAllPivots() {
   for (const id of ids) pivotResets.get(id)!('foot')
   const groups = Object.keys(state.groups)
   for (const gid of groups) groupFootDone.delete(gid)
+  groupPivotByHand.clear()
   settleGroupFeet()
   save(); emit()
   toast(T().pivotHomed(ids.length + groups.length), 'edit')
@@ -1358,7 +1379,7 @@ export function toggleEdit() {
   if (state.locked) toast(T().paused)
   settleGroups()
   groupByViews()
-  settleGroupFeet()
+  refootGroups()
   state.shade = 'lit'
   baseline = take()
   state.on = true
@@ -1367,6 +1388,14 @@ export function toggleEdit() {
   state.tool = 'move'
   emit()
   toast(T().entered, 'edit')
+  // (and again two frames on, with what edit mode shows drawn (the shrine's shelf measured 12 cm taller once it's open: its group's pivot was
+  // found 2.8 cm off its middle, item 698): the baseline with it, if nothing's been changed in between, so it isn't an unsaved change)
+  if (typeof requestAnimationFrame !== 'undefined') requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (!state.on || !baseline) return
+    const clean = JSON.stringify(baseline) === JSON.stringify(take())
+    refootGroups()
+    if (clean) baseline = take()
+  }))
 }
 
 // ---- the panel (plain DOM: it sits over the canvas, and must show even when what's being moved is out of view)
