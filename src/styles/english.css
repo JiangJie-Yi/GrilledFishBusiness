@@ -100,9 +100,14 @@ html[lang='en'] .menu-title-en { display: none; }
 .rel-chart svg { position: absolute; inset: 0; }
 .rel-dorm path, .rel-dorm rect { fill: #d9a441; stroke: #6b4a30; stroke-width: 1; }
 .rel-dorm-key path { fill: #d9a441; stroke: #6b4a30; stroke-width: 1; }
-/* (the one the owner's seeing (item 340): a rose heart on the line between them, and in the key) */
-.rel-face { position: absolute; display: grid; justify-items: center; }
+/* (his companion's heart (item 696), by her face and in the key; one asking him something, a bubble by hers) */
+.rel-heart { fill: #d9546e; stroke: #7a2a3a; stroke-width: 0.8; }
+.rel-ask-mark path { fill: #fffaf0; stroke: #6b4a30; stroke-width: 1; }
+.rel-ask-mark circle { fill: #6b4a30; }
+/* (a face on the chart: a button, the one shown in full ringed (item 696)) */
+.rel-face { position: absolute; display: grid; justify-items: center; padding: 0; border: 0; border-radius: 50%; background: none; font: inherit; cursor: pointer; }
 .rel-face.is-off { opacity: 0.45; }
+.rel-face.is-sel > :first-child { border-radius: 50%; box-shadow: 0 0 0 3px #d9a441, 0 0 8px rgb(217 164 65 / 0.7); }
 .rel-face small { margin-top: -6px; padding: 0 4px; border-radius: 6px; background: rgb(255 255 255 / 0.9); font-size: 11px; font-weight: 800; }
 .rel-face.is-owner { filter: drop-shadow(0 0 4px rgb(217 164 65 / 0.8)); }
 .rel-key { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; margin: 0; color: #7a6656; font-size: 11px; }
@@ -111,6 +116,57 @@ html[lang='en'] .menu-title-en { display: none; }
 .rel-bands { margin-top: 4px; }
 .rel-bands b { color: #6a5040; font-weight: 700; margin-right: 1px; }
 .rel-none { color: #7a6656; font-size: 13px; }
+/* (item 696: the one picked on the chart in full, under it) */
+.rel-card { display: grid; gap: 8px; width: min(100%, 520px); padding: 10px 12px; border-radius: 10px; background: rgb(255 252 244 / 0.92);
+  box-shadow: 0 1px 0 rgb(59 42 32 / 0.08), inset 0 0 0 1px rgb(107 74 48 / 0.18); color: #3b2a20; }
+.rel-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.rel-who-id { display: grid; min-width: 0; white-space: nowrap; }
+.rel-who-id b { font-size: 15px; }
+.rel-who-id small { color: #7a6656; font-size: 12px; }
+.rel-chips { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; margin-left: auto; }
+.rel-chips em { padding: 1px 7px; border-radius: 9px; background: rgb(59 42 32 / 0.08); color: #7a6656; font-size: 11px; font-style: normal; font-weight: 700; white-space: nowrap; }
+.rel-chips em.is-on { background: rgb(63 154 90 / 0.14); color: #2f7a45; }
+.rel-chips em.is-dorm { background: rgb(217 164 65 / 0.18); color: #8a5a1c; }
+.rel-chips em.is-mate { background: rgb(217 84 110 / 0.16); color: #a3324a; }
+.rel-bond { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.rel-bond > span { font-size: 12px; font-weight: 700; color: #6a5040; }
+.rel-bond i { position: relative; flex: 1; height: 9px; border-radius: 5px; background: rgb(59 42 32 / 0.12); overflow: hidden; }
+.rel-bond i span { display: block; height: 100%; border-radius: 5px; }
+.rel-bond i s { position: absolute; top: 0; bottom: 0; width: 1px; background: rgb(59 42 32 / 0.35); }
+.rel-bond em { font-size: 13px; font-style: normal; font-weight: 800; }
+.rel-next { margin: -2px 0 0; color: #7a6656; font-size: 12px; }
+.rel-ask, .rel-mate { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: rgb(217 84 110 / 0.08); }
+.rel-ask p, .rel-mate p { flex: 1; margin: 0; font-size: 12px; color: #5a3a2c; }
+.rel-ask span { display: flex; gap: 6px; }
+.rel-ask button, .rel-mate button, .rel-gift { border: 1px solid rgb(107 74 48 / 0.35); border-radius: 7px; background: #fffaf0; color: #3b2a20;
+  font: inherit; font-size: 12px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.rel-ask button, .rel-mate button { padding: 3px 10px; }
+.rel-ask button:first-child { background: #d9546e; border-color: #a3324a; color: #fff; }
+.rel-ask button:disabled, .rel-gift:disabled { opacity: 0.45; cursor: default; }
+.rel-gifts p { display: flex; align-items: baseline; gap: 8px; margin: 0 0 4px; white-space: nowrap; }
+.rel-gifts p b { font-size: 13px; }
+.rel-gifts p small { color: #7a6656; font-size: 11px; }
+.rel-gift-row { display: grid; grid-template-columns: repeat(4, max-content); justify-content: start; gap: 5px; }
+.rel-gift { display: grid; justify-items: center; gap: 0; padding: 3px 8px; }
+.rel-gift small { color: #7a6656; font-size: 10px; font-weight: 600; }
+.rel-gift em { font-size: 10px; font-style: normal; color: #a99a8c; }
+.rel-gift.is-love em { color: #c0365a; }
+.rel-gift.is-like em { color: #3f9a5a; }
+.rel-gift.is-meh em { color: #8a7a6a; }
+.rel-gift.is-dislike em { color: #9a5a3a; }
+.rel-gift:not(:disabled):hover { background: #fff1d6; }
+.rel-log b, .rel-pals b { font-size: 13px; }
+.rel-log ul { display: grid; gap: 2px; margin: 4px 0 0; padding: 0; list-style: none; }
+.rel-log li { display: flex; align-items: baseline; gap: 8px; font-size: 12px; white-space: nowrap; }
+.rel-log li small { width: 64px; color: #a08c7a; font-size: 11px; }
+.rel-log li span { flex: 1; color: #5a3a2c; }
+.rel-log li em { font-style: normal; font-weight: 800; }
+.rel-log li em.is-up { color: #3f9a5a; }
+.rel-log li em.is-down { color: #c0503a; }
+.rel-log > small { margin-left: 8px; color: #a08c7a; font-size: 11px; }
+.rel-pals { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin: 0; font-size: 12px; color: #5a3a2c; }
+.rel-pals span { white-space: nowrap; }
+.rel-pals em { font-style: normal; font-weight: 800; }
 .ofc-roll {
   flex: none;
   display: inline-flex;

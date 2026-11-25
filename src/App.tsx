@@ -39,7 +39,7 @@ import { StockPanel, type StockTab } from '@/shops/grill/stock/StockPanel'
 import { getLights, setLightSwitch } from '@/scene/render/lightsStore'
 import { lanternsLit } from '@/game/world/roomLights'
 import { FramePacer, holdPacer, usePacedDpr } from '@/scene/render/FramePacer'
-import { ATMOS, CREW_BONDS, CREW_ROLES, dutyDay, moodFor, URGED, idleTick, LAST_CALL, LATE, LODGERS, ON_DUTY, RATING_FLOW, SHOP, STAFF_BOND, STAFF_IDLE, SPEAKERS, STAFF_SAY, STAFF_SKILLS, STAFF_TALK, STAFF_TIRED } from '@/game/world/shopState'
+import { ATMOS, COMPANION, CREW_BONDS, CREW_ROLES, dutyDay, moodFor, URGED, idleTick, LAST_CALL, LATE, LODGERS, ON_DUTY, RATING_FLOW, SHOP, STAFF_BOND, STAFF_IDLE, SPEAKERS, STAFF_SAY, STAFF_SKILLS, STAFF_TALK, STAFF_TIRED } from '@/game/world/shopState'
 import { commuteOf, delayOf, lineOf, talkersOf } from '@/game/staff/commute'
 import { CLOSE_DORM, CLOSE_HOME, LAST_ORDER, OPEN_DORM, OPEN_HOME } from '@/data/commuteLines'
 import { GAME_SPEED, paused } from '@/scene/kit/speed'
@@ -95,12 +95,14 @@ import { CANDIDATES, pickHires, refreshApplicants, ROLLS_PER_DAY, valueOf } from
 import { arrange, onShift, openDay, shutDay, type Rota, type Shift } from '@/game/staff/shifts'
 import { crewChatTick } from '@/shops/grill/staff/crewTalk'
 import {
-  atmosphere, bondAfter, bondOf, bondPace, canPraise, CUT_BOND, CUT_MAX, dayBond, dayPairs, givesNotice, LOW_BOND, MEAL_COST, moodPace, pairKey, payBond, QUIT_AFTER,
+  atmosphere, bondAfter, bondLogged, bondOf, bondPace, canPraise, CUT_BOND, CUT_MAX, dayBond, dayPairs, givesNotice, LOW_BOND, MEAL_COST, moodPace, pairKey, payBond, QUIT_AFTER,
   PRAISE_AFTER_H, RAISE_MAX, RAISE_STEP, raiseBond, WORN_AT
 } from '@/game/staff/affinity'
 import { asksToday, DORM_CAP, hasRoom, lodgeDayBond, lodgeWhy, MOVE_OUT_BOND, movesOut, NO_BOND, takesOffer, wantsLodging } from '@/game/staff/lodging'
 import { wageOf } from '@/game/staff/hiring'
-import { afterTogether, tonightWith, type Lodger } from '@/game/staff/nightTogether'
+import { afterTogether, TOGETHER_BOND, tonightWith, type Lodger } from '@/game/staff/nightTogether'
+import { canGiftToday, giftOf, giftOk, giftResult, giftTaste, type GiftId, type Taste } from '@/game/staff/gifts'
+import { answerStay, asksToStay, companionDayBond, staysCompanion, type Mate } from '@/game/staff/companion'
 import { keptForResume, resumeFrom } from '@/game/system/resume'
 import { Office, type OfficeTab } from '@/ui/panels/Office'
 import { Welcome } from '@/ui/screens/Welcome'
@@ -144,8 +146,19 @@ try { setOutfit(readOutfit(JSON.parse(localStorage.getItem(OUTFIT_KEY) ?? 'null'
 const SAVE_KEY = 'canteen-save'
 /** the game as it was the moment its 3D view was lost, kept for the page brought back (this tab only, read once) */
 const RESUME_KEY = 'jgs-resume-1'
+/** (item 696) what one of the staff says to a gift, as they take to it (and to the same thing as last time again) */
+const GIFT_SAYS: Record<Taste | 'again', { zh: string[]; ja: string[]; en: string[] }> = {
+  love: { zh: ['哇，這個我一直很想要！謝謝老闆！', '老闆怎麼知道我喜歡這個……好開心。'], ja: ['わあ、これずっと欲しかったんです！ありがとうございます！', '店長、どうして私の好きなものを……嬉しいです。'],
+    en: ['Oh, I have always wanted one of these! Thank you, boss!', 'How did you know I love these... thank you.'] },
+  like: { zh: ['謝謝老闆，我會好好珍惜的。', '好漂亮，謝謝！'], ja: ['ありがとうございます、大事にします。', '素敵ですね、ありがとうございます！'],
+    en: ['Thank you, boss, I will treasure it.', 'That is lovely, thanks!'] },
+  meh: { zh: ['啊，謝謝老闆。', '嗯，謝謝。'], ja: ['あ、ありがとうございます。', 'はい、どうも。'], en: ['Oh, thanks, boss.', 'Right, thank you.'] },
+  dislike: { zh: ['呃……謝謝老闆的心意。', '這個……我先收著好了。'], ja: ['えっと……お気持ちだけいただきます。', 'これは……とりあえずいただいておきます。'],
+    en: ['Um... it is the thought that counts, boss.', 'This... I will put it somewhere.'] },
+  again: { zh: ['又是這個呀……不過還是謝謝老闆。'], ja: ['またこれですか……でも、ありがとうございます。'], en: ['This again... thanks all the same, boss.'] },
+}
 type Saved = { v: number; ledger: { revenue: number; food: number; fuel: number; wage: number; bought: number; setup?: number; offering?: number; till?: number; tillIn?: number; utility?: number; promo?: number
-    overtime?: number; night?: number; rent?: number; platform?: number; cardFee?: number; tossed?: number; refunds?: number }
+    overtime?: number; night?: number; rent?: number; platform?: number; cardFee?: number; tossed?: number; refunds?: number; gift?: number }
   /** the last of the game's days the rent's been paid for (game/costs' rentDue) */
   rentPaid?: number
   /** each pair of the staff's feeling for each other (game/affinity's pairKey); the business day the staff last had their meal (item 323) */
@@ -524,6 +537,8 @@ export default function App() {
   // (in development, each hand's feeling for the owner set by hand, to try what follows from it: __setBond(id, 90))
   if (import.meta.env.DEV && typeof window !== 'undefined') Object.assign(window, {
     __setBond: (id: string, v: number) => setHired((h) => Object.fromEntries(Object.entries(h).map(([shop, ws]) => [shop, ws[id] ? { ...ws, [id]: { ...ws[id], bond: v } } : ws]))),
+    // (item 696: any of their rota's fields set by hand, to try what follows: __setRota(id, { compAsk: 3 }), __setRota(id, { companion: true, lives: true }))
+    __setRota: (id: string, patch: Partial<Rota>) => setHired((h) => Object.fromEntries(Object.entries(h).map(([shop, ws]) => [shop, ws[id] ? { ...ws, [id]: { ...ws[id], ...patch } } : ws]))),
   })
   // (each one's pace for how they feel, and the shop's air from those on today (game/affinity, item 323): for the 3D's pace
   // (shopState's STAFF_BOND, ATMOS) and the office's meter)
@@ -577,7 +592,10 @@ export default function App() {
   const praise = (dishId: string, w: Hand) => {
     const today = dutyDay(ai), r = hired[dishId]?.[w.id]
     if (!r || !canPraise(hoursToday(w.id), r.praised === today)) return
-    setHired((h) => ({ ...h, [dishId]: { ...h[dishId], [w.id]: { ...h[dishId][w.id], bond: bondAfter(h[dishId][w.id].bond, 'praise'), praised: today } } }))
+    setHired((h) => {
+      const x = h[dishId][w.id], bond = bondAfter(x.bond, 'praise')
+      return { ...h, [dishId]: { ...h[dishId], [w.id]: { ...x, bond, praised: today, bondLog: bondLogged(x.bondLog, { d: today, k: 'praise', v: bond - bondOf(x.bond) }) } } }
+    })
     const pool = lang === 'ja' ? ['ありがとうございます！頑張ります。', '恐縮です、えへへ。', '店長にそう言ってもらえると嬉しいです。']
       : lang === 'en' ? ['Thanks, boss! I will keep at it.', 'Oh, you flatter me.', 'That makes my day, boss.']
         : ['謝謝老闆！我會繼續加油的。', '老闆過獎了，嘿嘿。', '被老闆這樣說，今天值得了。']
@@ -616,7 +634,8 @@ export default function App() {
     const was = r.raise ?? 0, now = Math.max(-CUT_MAX, Math.min(RAISE_MAX, was + dir * RAISE_STEP))
     if (now === was) return
     const bond = Math.max(0, Math.min(100, bondOf(r.bond) + (dir > 0 ? raiseBond(Math.max(0, was)) : CUT_BOND)))
-    setHired((h) => ({ ...h, [dishId]: { ...h[dishId], [w.id]: { ...h[dishId][w.id], raise: now, bond } } }))
+    setHired((h) => ({ ...h, [dishId]: { ...h[dishId], [w.id]: { ...h[dishId][w.id], raise: now, bond,
+      bondLog: bondLogged(h[dishId][w.id].bondLog, { d: dutyDay(ai), k: dir > 0 ? 'raise' : 'cut', v: bond - bondOf(r.bond) }) } } }))
     // (glad of a raise, cross at a cut, on their face in the room (item 368))
     moodFor(w.id, dir > 0 ? 'happy' : 'mad', 3600)
     const name = personName(w, lang), pay = 'NT$' + (w.wage + now).toLocaleString('en-US')
@@ -643,7 +662,8 @@ export default function App() {
       talk('staff', tl(lang, `讓${name}住進二樓。${name}：「太好了，謝謝老闆！」`, `${name}を二階に住ませた。${name}「助かります、ありがとうございます！」`,
         `Let ${name} move in upstairs. ${name}: "That's a weight off, thank you!"`))
     } else if (act === 'no') {
-      set({ lodgeAsk: undefined, lodgeNo: today, bond: Math.max(0, bondOf(r.bond) + NO_BOND) })
+      set({ lodgeAsk: undefined, lodgeNo: today, bond: Math.max(0, bondOf(r.bond) + NO_BOND),
+        bondLog: bondLogged(r.bondLog, { d: today, k: 'lodgeNo', v: Math.max(0, bondOf(r.bond) + NO_BOND) - bondOf(r.bond) }) })
       moodFor(w.id, 'mad', 3000)
       talk('staff', tl(lang, `沒答應${name}住宿的事。${name}：「……我知道了。」（一星期內不會再提）`, `${name}の住み込みを断った。${name}「……わかりました。」（1週間は言わない）`,
         `Turned down ${name}'s asking to live in. ${name}: "...I see." (Won't ask again for a week)`))
@@ -667,6 +687,9 @@ export default function App() {
   useEffect(() => {
     LODGERS.clear()
     for (const ws of Object.values(hired)) for (const [id, r] of Object.entries(ws)) if (r.lives) LODGERS.add(id)
+    // (item 696: his companion, living in)
+    COMPANION.id = null
+    for (const ws of Object.values(hired)) for (const [id, r] of Object.entries(ws)) if (r.companion && r.lives && !COMPANION.id) COMPANION.id = id
   }, [hired])
   const lodgingMoved = useRef(false)
   useEffect(() => {
@@ -683,6 +706,51 @@ export default function App() {
       }))]
     })))
   }, [hired])
+  /** (item 696, game/gifts) a gift for one of the staff, one a day each, paid from the cash: what they make of it, their bond with it, their
+   * word and their face; what they made of it known from then on (the relations card shows it) */
+  const gift = (dishId: string, w: Hand, g: GiftId) => {
+    const today = dutyDay(ai), r = hired[dishId]?.[w.id], item = giftOf(g)
+    const who = { id: w.id, female: w.look.female, years: w.years, role: w.role }
+    if (!r || !item || !canGiftToday(r, today) || !giftOk(who, g) || cash < item.price) return
+    const res = giftResult(who, g, r.giftLast), was = bondOf(r.bond), bond = Math.max(0, Math.min(100, was + res.bond))
+    book('gift', item.price, g)
+    setHired((h) => {
+      const x = h[dishId]?.[w.id]
+      return x ? { ...h, [dishId]: { ...h[dishId], [w.id]: { ...x, bond, giftDay: today, giftLast: g, gifts: { ...(x.gifts ?? {}), [g]: giftTaste(who, g) },
+        bondLog: bondLogged(x.bondLog, { d: today, k: 'gift', v: bond - was, g }) } } } : h
+    })
+    moodFor(w.id, res.taste === 'dislike' ? 'surprised' : res.taste === 'love' ? 'shy' : 'happy', 3600)
+    const pool = GIFT_SAYS[res.again && res.taste !== 'dislike' ? 'again' : res.taste][lang === 'ja' ? 'ja' : lang === 'en' ? 'en' : 'zh']
+    const name = personName(w, lang), what = tl(lang, item.zh, item.ja, item.en)
+    talk('staff', `${tl(lang, `送了${what}給${name}。`, `${name}に${what}を贈った。`, `Gave ${name} the ${what}. `)}${name}${lang === 'en' ? ': ' : '：'}「${pool[Math.floor(Math.random() * pool.length)]}」`)
+  }
+  /** (item 696, game/companion) her asking to stay answered: yes, she lives upstairs as his companion (downstairs with him while the shop's
+   * shut by day, up the stair with him at night); no, a little hurt, she'll wait a week. Or, his companion, asked to be one of the staff
+   * again ('end': living in as she was, hurt) */
+  const stay = (dishId: string, w: Hand, act: 'yes' | 'no' | 'end') => {
+    const today = dutyDay(ai), r = hired[dishId]?.[w.id]
+    if (!r) return
+    const name = personName(w, lang), was = bondOf(r.bond)
+    const set = (patch: Partial<typeof r>) => setHired((h) => ({ ...h, [dishId]: { ...h[dishId], [w.id]: { ...h[dishId][w.id], ...patch } } }))
+    if (act === 'end') {
+      const bond = Math.max(0, was - 6)
+      set({ companion: false, bond, bondLog: bondLogged(r.bondLog, { d: today, k: 'stayEnd', v: bond - was }) })
+      moodFor(w.id, 'mad', 3600)
+      talk('staff', tl(lang, `跟${name}說，以後還是當同事就好。${name}：「……嗯，我知道了。」`, `${name}に、これからは同僚として、と伝えた。${name}「……はい、わかりました。」`,
+        `Told ${name} it's best they stay colleagues. ${name}: "...All right. I understand."`))
+      return
+    }
+    if (act === 'yes' && !r.lives && !hasRoom(lodgerCount(dishId))) return
+    const m = answerStay({ id: w.id, female: w.look.female, years: w.years, bond: was, lives: r.lives, companion: r.companion, compAsk: r.compAsk, compNo: r.compNo }, act === 'yes', today)
+    set({ bond: m.bond, lives: m.lives, companion: m.companion, compAsk: undefined, compNo: m.compNo,
+      bondLog: bondLogged(r.bondLog, { d: today, k: act === 'yes' ? 'stayYes' : 'stayNo', v: m.bond - was }) })
+    moodFor(w.id, act === 'yes' ? 'shy' : 'mad', 4000)
+    talk('staff', act === 'yes'
+      ? tl(lang, `答應讓${name}住下來。${name}：「真的可以嗎……謝謝你。那，收店以後我就在樓下陪你。」`, `${name}が住むのを承諾した。${name}「本当に……ありがとう。じゃあ、閉店後は下で一緒にいますね。」`,
+        `Said yes to ${name} staying. ${name}: "Really...? Thank you. Then after closing, I'll keep you company downstairs."`)
+      : tl(lang, `沒答應${name}住下來的事。${name}：「……是我太突然了，對不起。」（一星期內不會再提）`, `${name}の申し出を断った。${name}「……急すぎましたね、ごめんなさい。」（1週間は言わない）`,
+        `Turned down ${name}'s asking to stay. ${name}: "...That was too sudden of me. Sorry." (Won't ask again for a week)`))
+  }
   const giveMeal = (dishId: string) => {
     const today = dutyDay(ai)
     const on = staffOf(dishId)
@@ -690,7 +758,11 @@ export default function App() {
     if (mealDay === today || !on.length || cash < cost) return
     book('food', cost, 'meal')
     setMealDay(today)
-    setHired((h) => ({ ...h, [dishId]: Object.fromEntries(Object.entries(h[dishId] ?? {}).map(([id, r]) => [id, on.some((w) => w.id === id) ? { ...r, bond: bondAfter(r.bond, 'meal') } : r])) }))
+    setHired((h) => ({ ...h, [dishId]: Object.fromEntries(Object.entries(h[dishId] ?? {}).map(([id, r]) => {
+      if (!on.some((w) => w.id === id)) return [id, r]
+      const bond = bondAfter(r.bond, 'meal')
+      return [id, { ...r, bond, bondLog: bondLogged(r.bondLog, { d: today, k: 'meal', v: bond - bondOf(r.bond) }) }]
+    })) }))
     for (const w of on) moodFor(w.id, 'happy', 4000)
     talk('owner', tl(lang, `今天的員工餐：白飯、味噌湯、烤魚一片，大家先吃一點再忙（${on.length} 人，NT$${cost.toLocaleString('en-US')}）`,
       `今日のまかない：ご飯、味噌汁、焼き魚。みんな食べてから頑張ろう（${on.length}人、NT$${cost.toLocaleString('en-US')}）`,
@@ -747,7 +819,7 @@ export default function App() {
   const [toolsOpen, setToolsOpen] = useState(false)
   // (a new game starts with the grill already set up: its opening cost is already paid)
   const [ledger, setLedger] = useState(() => ({ revenue: 0, food: 0, fuel: 0, wage: 0, bought: 0, offering: 0, promo: 0, till: 0, tillIn: 0, utility: 0, overtime: 0,
-    night: 0, rent: 0, platform: 0, cardFee: 0, tossed: 0, refunds: 0, setup: SAVED ? 0 : SHOP_COST,
+    night: 0, rent: 0, platform: 0, cardFee: 0, tossed: 0, refunds: 0, gift: 0, setup: SAVED ? 0 : SHOP_COST,
     ...SAVED?.ledger }))
   // the water and power: the month so far on the meter (game/utilities), kept in the browser; shown in the stock panel every few seconds
   const meterRef = useRef<Meter>((() => {
@@ -2261,7 +2333,9 @@ export default function App() {
             const w = CANDIDATES[shop]?.find((x) => x.id === id)
             if (!w) { res.set(id, out); continue }
             // (paid against the going rate, and living in as they wanted (items 370, 361))
-            out.bond = Math.max(0, Math.min(100, out.bond + payBond(w.wage + (r.raise ?? 0), wageOf(w.role, w)) + lodgeDayBond(id, r.lives)))
+            // (and his companion's day with him, item 696)
+            out.bond = Math.max(0, Math.min(100, out.bond + payBond(w.wage + (r.raise ?? 0), wageOf(w.role, w)) + lodgeDayBond(id, r.lives)
+              + companionDayBond({ id, female: w.look.female, years: w.years, bond: out.bond, lives: r.lives, companion: r.companion })))
             res.set(id, out)
             crew.push({ id, dorm: !!r.lives, worn: r.fatigue >= WORN_AT })
             if (givesNotice(out.low)) quits.push({ shop, w })
@@ -2276,26 +2350,50 @@ export default function App() {
             if (!w || quits.some((q) => q.w.id === id)) continue
             lodgers.push({ id, female: w.look.female, years: w.years, lives: !!r.lives, bond: res.get(id)?.bond ?? r.bond ?? 0 })
           }
-          const her = tonightWith(lodgers, day)
+          // (item 696: his companion, staying on and still that, goes up with him every night, not by chance)
+          let mine: string | null = null
+          for (const [shop, ws] of Object.entries(hiredNow.current)) for (const [id, r] of Object.entries(ws)) {
+            const w = CANDIDATES[shop]?.find((x) => x.id === id)
+            if (mine || !w || quits.some((q) => q.w.id === id)) continue
+            if (staysCompanion({ id, female: w.look.female, years: w.years, bond: res.get(id)?.bond ?? r.bond ?? 0, lives: r.lives, companion: r.companion })) mine = id
+          }
+          const her = tonightWith(lodgers, day, undefined, mine)
           NIGHT_WITH.id = her; NIGHT_WITH.day = day; NIGHT_WITH.up = false
           if (her) {
             const w = Object.values(CANDIDATES).flat().find((x) => x.id === her)
-            if (w) window.setTimeout(() => talk('owner', tl(lang, `收拾好店面，老闆沒有鋪自己的地鋪，悄悄上了二樓。${personName(w, lang)}還沒睡。`,
+            if (w && her === mine) window.setTimeout(() => talk('owner', tl(lang, `收拾好店面，${personName(w, lang)}在樓梯口等著。兩人關了燈，一起上了二樓。`,
+              `店を片付けると、${personName(w, lang)}が階段の下で待っていた。二人で灯りを消し、一緒に二階へ上がった。`,
+              `The shop put to bed, ${personName(w, lang)} is waiting at the foot of the stair. The lights out, the two of them go up together.`)), 0)
+            else if (w) window.setTimeout(() => talk('owner', tl(lang, `收拾好店面，老闆沒有鋪自己的地鋪，悄悄上了二樓。${personName(w, lang)}還沒睡。`,
               `片付けを終えた店主は、自分の布団は敷かずに、そっと二階へ上がった。${personName(w, lang)}はまだ起きている。`,
               `The shop put to bed, the boss doesn't lay out his own futon tonight; he slips upstairs. ${personName(w, lang)} is still awake.`)), 0)
           }
           // (and living upstairs (game/lodging, item 361): one who wants to and is fond enough asks; one fallen out with him moves out)
-          const asks: Hand[] = [], leaves: Hand[] = []
-          setHired((h) => Object.fromEntries(Object.entries(h).map(([shop, ws]) => [shop, Object.fromEntries(Object.entries(ws)
+          const asks: Hand[] = [], leaves: Hand[] = [], stays: Hand[] = [], ends: Hand[] = []
+          setHired((h) => {
+            // (item 696: one asking to stay at a time; none while he has a companion)
+            let taken = Object.values(h).some((ws) => Object.values(ws).some((r) => r.companion || (r.compAsk ?? -1) >= 0))
+            return Object.fromEntries(Object.entries(h).map(([shop, ws]) => [shop, Object.fromEntries(Object.entries(ws)
             .filter(([id]) => !quits.some((q) => q.shop === shop && q.w.id === id))
             .map(([id, r]) => {
               let next = { ...shutDay(r, day), ...(res.get(id) ?? {}) }
-              if (id === her) next = { ...next, bond: afterTogether(next.bond ?? 0) }
+              // (each one's day, its ups and downs together, in their log (item 696); and the night together's own)
+              next = { ...next, bondLog: bondLogged(next.bondLog, { d: day, k: 'day', v: bondOf(next.bond) - bondOf(r.bond) }) }
+              if (id === her) next = { ...next, bond: afterTogether(next.bond ?? 0), bondLog: bondLogged(next.bondLog, { d: day, k: 'night', v: TOGETHER_BOND }) }
               const w = CANDIDATES[shop]?.find((x) => x.id === id)
               if (w && movesOut(next)) { next = { ...next, lives: false }; if (!leaves.includes(w)) leaves.push(w) }
               else if (w && asksToday(id, next, day + 1)) { next = { ...next, lodgeAsk: day + 1 }; if (!asks.includes(w)) asks.push(w) }
+              // (item 696: his companion fallen out of fondness, or moved out, his companion no longer; one this fond asks to stay)
+              const mate: Mate | null = w ? { id, female: w.look.female, years: w.years, bond: bondOf(next.bond), lives: next.lives, companion: next.companion, compAsk: next.compAsk, compNo: next.compNo } : null
+              if (w && mate && next.companion && !staysCompanion(mate)) { next = { ...next, companion: false }; if (!ends.includes(w)) ends.push(w) }
+              else if (w && mate && asksToStay(mate, day + 1, taken, hasRoom(Object.values(ws).filter((x) => x.lives).length))) {
+                next = { ...next, compAsk: day + 1 }
+                taken = true
+                if (!stays.includes(w)) stays.push(w)
+              }
               return [id, next]
-            }))])))
+            }))]))
+          })
           window.setTimeout(() => {
             for (const w of asks) {
               const why = lodgeWhy(w.id)[lang === 'ja' ? 'ja' : lang === 'en' ? 'en' : 'zh']
@@ -2303,6 +2401,12 @@ export default function App() {
                 `${personName(w, lang)}「店長、二階に住ませてもらえませんか？${why}……」（事務所のスタッフカードで決める）`,
                 `${personName(w, lang)}: "Boss, could I live upstairs? ${why}..." (Yes or no on their card in the office)`))
             }
+            for (const w of stays) talk('staff', tl(lang, `${personName(w, lang)}紅著臉，小聲地說：「老闆……我可以住下來嗎？想離你近一點。」（到辦公室的「關係」回答）`,
+              `${personName(w, lang)}が顔を赤らめて小声で言った。「店長……ここに住んでもいいですか？もっと近くにいたいんです。」（事務所の「関係」で答える）`,
+              `${personName(w, lang)}, blushing, says quietly: "Boss... could I stay here? I'd like to be closer to you." (Answer in the office's Relations)`))
+            for (const w of ends) talk('staff', tl(lang, `${personName(w, lang)}：「我們……還是當同事就好。」（好感降了，不再陪伴老闆）`,
+              `${personName(w, lang)}「私たち……やっぱり同僚のままでいましょう。」（好感度が下がり、付き添いをやめた）`,
+              `${personName(w, lang)}: "Maybe we should... just be colleagues." (Her bond fell; she no longer keeps you company)`))
             for (const w of leaves) talk('staff', tl(lang, `${personName(w, lang)}搬出了二樓：「我還是自己住好了。」`, `${personName(w, lang)}が二階を出た。「やっぱり自分で部屋を借ります。」`,
               `${personName(w, lang)} moved out from upstairs: "I'd rather find my own place."`))
           }, 0)
@@ -2459,7 +2563,7 @@ export default function App() {
     } catch {
       // storage blocked
     }
-    saveRef.current = { ledger: { revenue: 0, food: 0, fuel: 0, wage: 0, bought: 0, offering: 0, promo: 0, till: 0, tillIn: 0, utility: 0, overtime: 0, night: 0, rent: 0, platform: 0, cardFee: 0, tossed: 0, refunds: 0 }, stock: startingSupplies(), hired: {}, notes: {}, owner: null, opened: {} }
+    saveRef.current = { ledger: { revenue: 0, food: 0, fuel: 0, wage: 0, bought: 0, offering: 0, promo: 0, till: 0, tillIn: 0, utility: 0, overtime: 0, night: 0, rent: 0, platform: 0, cardFee: 0, tossed: 0, refunds: 0, gift: 0 }, stock: startingSupplies(), hired: {}, notes: {}, owner: null, opened: {} }
     window.location.replace(window.location.pathname + '?v=' + Date.now())
   }
   const say = (text: string) => {
@@ -2842,6 +2946,8 @@ export default function App() {
                   <b className="money">{Math.round(drawerTotal(TILL_CASH.drawer)).toLocaleString()}</b></p>
                 <p><span>{tl(lang, '供品費用', 'お供え', 'Offerings')}</span><b className="money">−{Math.round(ledger.offering ?? 0).toLocaleString()}</b></p>
                 <p><span>{tl(lang, '宣傳費（買評價）', '宣伝費（クチコミ）', 'Promotion (reviews)')}</span><b className="money">−{Math.round(ledger.promo ?? 0).toLocaleString()}</b></p>
+                {/* (item 696: what's gone on gifts for the staff) */}
+                <p><span>{tl(lang, '員工禮物', 'スタッフへの贈り物', 'Gifts for the staff')}</span><b className="money">−{Math.round(ledger.gift ?? 0).toLocaleString()}</b></p>
                 {/* (and the rent, the delivery platform's cut and the card company's fee (item 210: a shop in Osaka)) */}
                 {([['revenue', ledger.revenue], ['foodCost', -ledger.food], ['fuel', -ledger.fuel], ['utility', -(ledger.utility ?? 0)], ['wage', -ledger.wage],
                   ['rent', -(ledger.rent ?? 0)], ['platform', -(ledger.platform ?? 0)], ['cardFee', -(ledger.cardFee ?? 0)]] as const)
@@ -2851,7 +2957,7 @@ export default function App() {
                 {(() => {
                   // (as the day's sheet reckons it (game/daySummary): the rent and the fees out of it, and the reviews bought and the offerings)
                   const profit = ledger.revenue - ledger.food - ledger.fuel - ledger.wage - (ledger.utility ?? 0) - (ledger.rent ?? 0) - (ledger.platform ?? 0)
-                    - (ledger.cardFee ?? 0) - (ledger.promo ?? 0) - (ledger.offering ?? 0)
+                    - (ledger.cardFee ?? 0) - (ledger.promo ?? 0) - (ledger.offering ?? 0) - (ledger.gift ?? 0)
                   return (
                     <>
                       <p className={`ledger-profit${profit < 0 ? ' is-loss' : ''}`}><span>{UI[lang].profit}</span>
@@ -2925,6 +3031,7 @@ export default function App() {
             bossFatigue={bossFatigue}
             payOf={(w) => payOf(dish.id, w)} marketOf={(w) => wageOf(w.role, w)} onPay={(w, dir) => changePay(dish.id, w, dir)}
             lodgers={lodgerCount(dish.id)} onLodge={(w, act) => lodge(dish.id, w, act)}
+            onGift={(w, g) => gift(dish.id, w, g)} onStay={(w, act) => stay(dish.id, w, act)}
             onFire={(w) => setHired((h) => {
               const mine = { ...(h[dish.id] ?? {}) }
               delete mine[w.id]

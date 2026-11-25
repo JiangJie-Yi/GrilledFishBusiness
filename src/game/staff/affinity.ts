@@ -56,6 +56,13 @@ export const bondPace = (b: number | undefined) => {
 
 /** a pair's key, the same either way round */
 export const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`)
+/** how many of the things that moved someone's bond are kept to show (item 696: the relations card's 「最近」) */
+export const BOND_LOG_MAX = 6
+/** a thing that moved their bond put first in their log (none that moved it by nothing), the oldest let go past BOND_LOG_MAX */
+export function bondLogged<T extends { v: number }>(log: readonly T[] | undefined, note: T): T[] {
+  if (!Math.round(note.v)) return [...(log ?? [])]
+  return [note, ...(log ?? [])].slice(0, BOND_LOG_MAX)
+}
 /** what a day together does to a pair: worked it side by side +2, both living upstairs +1 more; one worn out and the other not −2 */
 export const PAIR_DELTA = { together: 2, dorm: 1, carried: -2 } as const
 /** the pairs' bonds after a day: `crew` those who worked it, whether each lives upstairs and went home worn out */
@@ -92,7 +99,9 @@ export const BOND_STAGES = [
   { at: LOW_BOND, zh: '普通', ja: 'ふつう', en: 'So-so',
     does: { zh: '做事稍慢，氣氛平平', ja: '少し遅い。空気はふつう', en: 'A little slow; the mood so-so' } },
   { at: 50, zh: '友好', ja: '良好', en: 'Friendly',
-    does: { zh: '做事快一點，店裡氣氛變好', ja: '少し速い。店の空気が良くなる', en: 'A little quicker; the shop warmer' } },
+    // (item 696: a woman of age at 75 and over asks if she may stay (game/companion))
+    does: { zh: '做事快一點，店裡氣氛變好；75 以上的成年女員工會問能不能住下來', ja: '少し速い。店の空気が良くなる。75以上の成人の女性スタッフは住みたいと言い出す',
+      en: 'A little quicker; the shop warmer; at 75 and over a woman of age may ask to stay' } },
   { at: 80, zh: '親密', ja: '親密', en: 'Close',
     // (item 637: no dating any more; a woman of age living upstairs, this close, may spend a night with him (game/nightTogether))
     does: { zh: '做事最快；住在二樓的成年女員工，夜裡有時會跟老闆共度', ja: '一番速い。二階に住む成人の女性スタッフと夜を過ごすことも', en: 'Quickest; a woman of age living upstairs may spend a night with you' } },

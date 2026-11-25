@@ -26,7 +26,9 @@ export type CashBooks = { revenue: number; bought: number; fuel: number; wage: n
   /** what of the takings has gone into the drawer: the cash customers' bills, paid in as they leave */
   tillIn?: number
   /** the rent, the delivery platform's cut, the card company's fee (item 210: game/costs) */
-  rent?: number; platform?: number; cardFee?: number }
+  rent?: number; platform?: number; cardFee?: number
+  /** (item 696, game/gifts) what the owner's spent on gifts for the staff */
+  gift?: number }
 /**
  * The shop's cash in hand, the money at the top of the screen (item 195; the owner's, item 182: "the things themselves don't match the
  * interface"): the capital, the takings and the spending, less what those sat in still owe (`owed`: paid at the till as they leave) and what
@@ -46,7 +48,7 @@ export const warningsDue = (savings: number, said: readonly number[]) => BANKRUP
  * taken: a shop with its takings in the drawer isn't broke for that) */
 export const savingsOf = (cash: number, b: Pick<CashBooks, 'tillIn' | 'till'>) => cash + Math.max(0, (b.tillIn ?? 0) - (b.till ?? 0))
 export const cashInHand = (b: CashBooks, owed = 0) => CAPITAL + b.revenue - b.bought - b.fuel - b.wage - (b.utility ?? 0) - (b.setup ?? 0)
-  - (b.offering ?? 0) - (b.promo ?? 0) - (b.rent ?? 0) - (b.platform ?? 0) - (b.cardFee ?? 0) - owed - (b.tillIn ?? 0) + (b.till ?? 0)
+  - (b.offering ?? 0) - (b.promo ?? 0) - (b.rent ?? 0) - (b.platform ?? 0) - (b.cardFee ?? 0) - (b.gift ?? 0) - owed - (b.tillIn ?? 0) + (b.till ?? 0)
 /** running costs, NT$: a bag's worth of charcoal added, and a cassette gas canister's worth burnt per hour at full */
 export const CHARCOAL_COST = 18
 /** how much one load of charcoal raises the fire (0..1), and whether more can go on: at 100% the bed is full, so no more is added (nor paid for) */

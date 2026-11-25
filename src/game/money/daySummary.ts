@@ -8,6 +8,8 @@
 import { satisfaction, starsOf, type Visit } from '@/game/guests/reputation'
 
 export type Books = { revenue: number; food: number; fuel: number; wage: number; utility?: number; promo?: number; offering?: number
+  /** (item 696) gifts for the staff */
+  gift?: number
   /** of the wages, what was paid over the hour's pay for the hours past eight in the day's work (game/hours' payFor): in `wage` already */
   overtime?: number
   /** of the wages, what was paid over the hour's pay for the night's hours, 22:00 to 05:00 (深夜): in `wage` already */
@@ -46,7 +48,7 @@ export function daySummary(from: Books, to: Books, visits: Visit[], sold: Record
   const d = (k: keyof Books) => Math.max(0, (to[k] ?? 0) - (from[k] ?? 0))
   const revenue = d('revenue'), food = d('food'), fuel = d('fuel'), wage = d('wage'), utility = d('utility'), overtime = d('overtime')
   const night = d('night'), rent = d('rent'), platform = d('platform'), cardFee = d('cardFee'), tossed = d('tossed'), refunds = d('refunds')
-  const other = d('promo') + d('offering')
+  const other = d('promo') + d('offering') + d('gift')
   const profit = revenue - food - fuel - wage - utility - rent - platform - cardFee - other
   const ate = visits.filter((v) => !v.walkedOut)
   const stars = ate.length ? ate.reduce((a, v) => a + starsOf(satisfaction(v)), 0) / ate.length : null

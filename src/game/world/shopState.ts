@@ -18,6 +18,9 @@ import { urgePace } from '@/game/staff/urge'
 /** (`open`: the shop's open (App's `ai`), for what isn't told it otherwise: the sake stand's pouring (item 363)) */
 /** those of the staff living upstairs (game/lodging, item 361: each one's own matter, not their job's): App keeps it to the rotas' `lives` */
 export const LODGERS = keep(import.meta.hot, 'LODGERS', new Set<string>())
+/** (item 696, game/companion) the owner's companion, if he has one (App keeps it from the rotas): downstairs with him while the shop's shut by
+ * day, up the stair with him at night */
+export const COMPANION = keep(import.meta.hot, 'COMPANION', { id: null as string | null })
 export const SHOP = keep(import.meta.hot, 'SHOP', { closing: false, leaving: false, openedAt: -1e9, day: 0, walking: new Set<string>(), inRoom: 0, counted: false, hurry: false, open: false })
 /** the business day whose shift is on (game/shifts): the one open (once counted), or the one coming; the same number either side of the
  * opening, so nobody's swapped for a frame as the shop opens */

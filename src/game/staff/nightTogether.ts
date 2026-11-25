@@ -34,8 +34,11 @@ export function togetherChance(bond: number) {
 /** the night's dice for her (0..1): the same however often it's asked that night */
 export const nightRoll = (id: string, day: number) => unit(id, `together${day}`)
 
-/** who he goes up to tonight (business day `day`, ending), if anyone: the fondest who may, if the night's dice say so; `roll` for tests */
-export function tonightWith(staff: Lodger[], day: number, roll: (id: string, day: number) => number = nightRoll): string | null {
+/** who he goes up to tonight (business day `day`, ending), if anyone: his companion if he has one (game/companion, item 696: every night, of
+ * age and living upstairs), else the fondest who may, if the night's dice say so; `roll` for tests */
+export function tonightWith(staff: Lodger[], day: number, roll: (id: string, day: number) => number = nightRoll, companion: string | null = null): string | null {
+  const mine = companion ? staff.find((w) => w.id === companion && w.female && w.years >= ADULT && w.lives) : undefined
+  if (mine) return mine.id
   const may = staff.filter(mayShare).sort((a, b) => b.bond - a.bond || (a.id < b.id ? -1 : 1))
   const her = may[0]
   if (!her) return null

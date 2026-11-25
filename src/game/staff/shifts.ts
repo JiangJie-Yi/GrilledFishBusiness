@@ -20,7 +20,15 @@ export const recoverShare = (streak: number) => RECOVER[Math.min(Math.max(0, str
 export type Rota = { fatigue: number; shift?: Shift; streak?: number; last?: number; floor?: number; bond?: number; low?: number; praised?: number
   /** (game/affinity, item 370) NT$ an hour over (or under) what they were hired at; (game/lodging, item 361) living upstairs, the day they
    * asked to (not yet answered), the day they were last turned down or turned it down */
-  raise?: number; lives?: boolean; lodgeAsk?: number; lodgeNo?: number }
+  raise?: number; lives?: boolean; lodgeAsk?: number; lodgeNo?: number
+  /** (item 696, game/gifts) the business day of their last gift, what it was, and what they've been seen to make of each given them; (game/
+   * companion) his companion, the day she asked to stay (not yet answered), the day she was last turned down; the last few things that moved
+   * their bond (game/affinity's bondLogged: the day, what, by how much, the gift if one) */
+  giftDay?: number; giftLast?: string; gifts?: Record<string, string>; companion?: boolean; compAsk?: number; compNo?: number
+  bondLog?: BondNote[] }
+/** a thing that moved someone's bond (item 696): the business day, what (praise, meal, gift, raise, cut, lodgeYes, lodgeNo, stayYes, stayNo,
+ * night, day: the day's own ups and downs together), by how much, the gift if it was one */
+export type BondNote = { d: number; k: string; v: number; g?: string }
 
 /** at opening on business day `day`: those working it count it to their run (a day missed, a run of one again), those off rest it all */
 export function openDay(r: Rota, day: number): Rota {

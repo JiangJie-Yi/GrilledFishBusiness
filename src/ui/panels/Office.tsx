@@ -18,6 +18,7 @@ import { Avatar } from '@/ui/art/Avatar'
 import { Relations } from './Relations'
 import { bondOf, CUT_MAX, moodWord, PRAISE_AFTER_H, RAISE_MAX, RAISE_STEP, stageOf } from '@/game/staff/affinity'
 import { DORM_CAP, lodgeWhy, wantsLodging } from '@/game/staff/lodging'
+import type { GiftId } from '@/game/staff/gifts'
 
 /** the office's tabs: the kitchen's notebook, the staff, the books; the staff's relations chart (item 323) */
 export type OfficeTab = 'book' | 'staff' | 'ledger' | 'bonds'
@@ -55,6 +56,10 @@ type Props = {
   /** (item 361, game/lodging) how many live upstairs; their asking answered, an offer, moving out */
   lodgers?: number
   onLodge?: (w: Worker, act: 'yes' | 'no' | 'offer' | 'out') => void
+  /** (item 696, game/gifts, game/companion) a gift for one of them; her asking to stay answered, or his companion asked to be one of the staff
+   * again: the relations tab's */
+  onGift?: (w: Worker, g: GiftId) => void
+  onStay?: (w: Worker, act: 'yes' | 'no' | 'end') => void
   /** the owner's own tiredness (0..100, item 444): his spirit round his face in the roster */
   bossFatigue?: number
   onClose: () => void
@@ -89,9 +94,9 @@ const Stat = ({ label, v }: { label: string; v: number }) => (
  * two cooks, someone on the floor and at the till — each filled with a face, or open, with the people who could
  * fill it. (Buying in is done on the 試做 board itself, tag by tag.)
  */
-export function Office({ dish, lang, hired, onHire, onFire, onClose, onReset, owner, tab, onTab, book, ledger, shopOpen = false, rollsLeft, onRoll, today, onShift,
+export function Office({ dish, lang, cash, hired, onHire, onFire, onClose, onReset, owner, tab, onTab, book, ledger, shopOpen = false, rollsLeft, onRoll, today, onShift,
   pairs, atmos, mealDone, mealCost, onPraise, onMeal, praiseOk, hoursOf, payOf, marketOf, onPay, lodgers = 0,
-  onLodge, bossFatigue = 0 }: Props) {
+  onLodge, onGift, onStay, bossFatigue = 0 }: Props) {
   const roles = ROLES[dish.id] ?? []
   const people = CANDIDATES[dish.id] ?? []
   const ja = lang === 'ja'
@@ -145,7 +150,8 @@ export function Office({ dish, lang, hired, onHire, onFire, onClose, onReset, ow
         <button type="button" className="panel-x" onClick={onClose} aria-label={t('關閉', '閉じる')}>×</button>
       </header>
       {tab === 'book' ? book : tab === 'ledger' ? <div className="ofc-ledger ledger">{ledger}</div>
-        : tab === 'bonds' ? <div className="ofc-bonds"><Relations people={people} hired={hired} pairs={pairs} atmos={atmos} today={today} lang={lang} /></div> : (
+        : tab === 'bonds' ? <div className="ofc-bonds"><Relations people={people} hired={hired} pairs={pairs} atmos={atmos} today={today} lang={lang}
+          cash={cash} lodgers={lodgers} roleName={roleName} onGift={onGift} onStay={onStay} /></div> : (
         <div className="ofc-staff" onScroll={(e) => { e.currentTarget.querySelector('.ofc-roster-bar')?.classList.toggle('is-scrolled', e.currentTarget.scrollTop > 2) }}>
           {/* the team as it stands, a strip of seats by job (the owner's: the big cards took over half the panel): the owner, then each job's
               places, a small round face with its shift on it, or a dashed ring where one's open; a face takes you down to that person's card,
