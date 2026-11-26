@@ -337,7 +337,8 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
             stock room's plaster as a dark strip up its far corner)) */}
         <WcWall len={dx} at={[(WALL_OUT + deep) / 2, 0, zE - 0.006]} yaw={Math.PI} top={top} />
         {/* outside: the short end's body past the men's room (its back open, item 482) */}
-        <WcMass x={[WC_ROOM.D + WC_T + 0.002, deep]} y={[0, top]} z={[zE, zE + WC_T]} />
+        {/* (casting: with the men's room's end, the bulb's light stopped at the far end, item 730) */}
+        <WcMass x={[WC_ROOM.D + WC_T + 0.002, deep]} y={[0, top]} z={[zE, zE + WC_T]} cast />
         {/* (no slatted ceiling on its caps (item 498, the owner's 「倉庫不用這個」): it's open over, the stock seen from above) */}
         {/* (a dark post at its far back corner, the open back's edge; the near one went with the near end) */}
         {[zE + WC_T].map((z) => (

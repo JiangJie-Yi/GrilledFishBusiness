@@ -523,7 +523,12 @@ function WcBlock({ len, at, yaw, top }: { len: number; at: [number, number, numb
 const WC_IN = 0.02
 /** a stretch of solid wall in the rooms' frame, from x0 to x1, y0 to y1, z0 to z1 (either way round): its top and its cut end seen from
  * outside, in a plaster a touch deeper than the walls' faces */
-export function WcMass({ x, y, z, cap = true }: { x: [number, number]; y: [number, number]; z: [number, number]; cap?: boolean }) {
+/** `cast`: the block casts shadows (item 730: the end wall between the stock room and the men's toilet, and the stock room's own on past
+ * it, stopping its bulb's light (item 729), which lit the toilet through it, a bright ring on its wall over the cistern: the walls' faces
+ * are planes turned into the rooms, and a plane turned to a light casts nothing (three draws a map from the backs of what's one-sided);
+ * these blocks are closed. Only those: every block casting split the whole room's merged batches by it, 11 to 14 draws more a frame. Their
+ * caps over the bulb's height left out; indoors, so out of the sun's map (ShadowPacer, item 724)) */
+export function WcMass({ x, y, z, cap = true, cast = false }: { x: [number, number]; y: [number, number]; z: [number, number]; cap?: boolean; cast?: boolean }) {
   const [x0, x1] = [Math.min(...x), Math.max(...x)], [z0, z1] = [Math.min(...z), Math.max(...z)]
   const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, lx = x1 - x0, lz = z1 - z0
   // (outside, as the shop's own walls are (the owner's: a wing of the house, not a white box stuck on): dark cedar boards to the waist, plaster
@@ -531,8 +536,8 @@ export function WcMass({ x, y, z, cap = true }: { x: [number, number]; y: [numbe
   const split = Math.min(Math.max(WC_WAIST, y[0]), y[1])
   return (
     <>
-      {split > y[0] && <mesh position={[cx, (y[0] + split) / 2, cz]}><boxGeometry args={[lx, split - y[0], lz]} /><meshToonMaterial color="#3e2716" /></mesh>}
-      {y[1] > split && <mesh position={[cx, (split + y[1]) / 2, cz]}><boxGeometry args={[lx, y[1] - split, lz]} /><meshToonMaterial color="#e2d4b6" /></mesh>}
+      {split > y[0] && <mesh castShadow={cast} position={[cx, (y[0] + split) / 2, cz]}><boxGeometry args={[lx, split - y[0], lz]} /><meshToonMaterial color="#3e2716" /></mesh>}
+      {y[1] > split && <mesh castShadow={cast} position={[cx, (split + y[1]) / 2, cz]}><boxGeometry args={[lx, y[1] - split, lz]} /><meshToonMaterial color="#e2d4b6" /></mesh>}
       {cap && <mesh position={[cx, y[1] + WC_CAP / 2, cz]}><boxGeometry args={[lx + 0.02, WC_CAP, lz + 0.024]} /><meshToonMaterial color="#2e1c10" /></mesh>}
     </>
   )
@@ -773,7 +778,8 @@ function WcRoom({ w, h, who }: { w: number; h: number; who: 'm' | 'f' }) {
       {/* (the toilet's room's end, one block from the shop's wall to the back (item 425, the owner's 「接縫修掉，要無縫接軌」): it began at the
           toilet's room (X0), the short wall's block beside it taken out to its outer face too and stopping 2 mm short, and through the gap
           between them a line ran down the end wall's face, seen from outside) */}
-      <WcMass x={[WC_IN, D]} y={[0, top]} z={[s * (w / 2 + E + 0.002), s * (w / 2 + E + WC_T)]} />
+      {/* (the men's against the stock room, casting its bulb's shadow: item 730) */}
+      <WcMass x={[WC_IN, D]} y={[0, top]} z={[s * (w / 2 + E + 0.002), s * (w / 2 + E + WC_T)]} cast={who === 'm'} />
       {/* (the doorway's jambs lined inside in dark cedar, a board each side a hand deep into the room up to the lintel: the wall beside the
           post began bare, its plaster seen nearly edge on as a pale sliver and its wainscot as a dark slot down past the noren (the owner's)) */}
       {[-1, 1].map((k) => (

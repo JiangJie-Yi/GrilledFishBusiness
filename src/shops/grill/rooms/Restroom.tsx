@@ -386,6 +386,9 @@ function useBits() {
       core: of('WcCore'), fold: of('WcFold'), pot: of('WcBrushPot'), brush: of('WcBrush'), bin: of('WcBin'), pads: of('WcPads'),
       dryer: of('WcHandDryer'), towel: of('WcTowelBox'),
     }
+    // (the paper holder and its roll in the shadows (item 730): taking none, the stock room's bulb lit the men's roll through the end wall
+    // that stops it on the walls (the roll on that wall, in its cone); from load, so no program's made for it later)
+    for (const o of [r.holder, r.roll, r.core, r.fold]) o.traverse((m) => { if ((m as THREE.Mesh).isMesh) m.receiveShadow = true })
     // (the dryer's lamp its own, lit as it blows)
     const jetLamp = new THREE.MeshBasicMaterial({ color: '#3a4048' })
     const lampMesh = r.dryer.getObjectByName('DryerLamp') as THREE.Mesh | undefined
@@ -683,8 +686,8 @@ export function WcPaper({ who }: { who: Who }) {
         {/* (each end: the paper's layers round to its edge, scaled with what's left; the cardboard core's ring and the hole in it, the bar through) */}
         {[-1, 1].map((sd, i) => (
           <group key={sd} position={[sd * (ROLL_HALF + 0.0004), 0, 0]} rotation-y={sd * Math.PI / 2}>
-            <mesh ref={(o) => { ends.current[i] = o }} raycast={() => {}} geometry={ROLL_END} material={ROLL_END_MAT} />
-            <mesh position-z={0.0004} raycast={() => {}} geometry={CORE_END} material={CORE_END_MAT} />
+            <mesh ref={(o) => { ends.current[i] = o }} raycast={() => {}} geometry={ROLL_END} material={ROLL_END_MAT} receiveShadow />
+            <mesh position-z={0.0004} raycast={() => {}} geometry={CORE_END} material={CORE_END_MAT} receiveShadow />
             <mesh position-z={0.0004} raycast={() => {}} geometry={CORE_HOLE} material={CORE_HOLE_MAT} />
           </group>
         ))}
@@ -692,7 +695,7 @@ export function WcPaper({ who }: { who: Who }) {
       {/* (what's clicked: all of it, the holder, the roll and the sheet hanging off it, as one box (the sheet itself was let through)) */}
       <mesh position={[0, -0.018, 0.062]} visible={false}><boxGeometry args={[0.18, 0.2, 0.13]} /></mesh>
       <group position={[0, 0, 0.065]}>
-        <mesh ref={tail} raycast={() => {}} geometry={PAPER_TAIL} material={TAIL_MAT} />
+        <mesh ref={tail} raycast={() => {}} geometry={PAPER_TAIL} material={TAIL_MAT} receiveShadow />
         <group ref={flakes} visible={false}>
           {[0, 1].map((k) => <mesh key={k} raycast={() => {}}><planeGeometry args={[0.012, 0.01]} /><meshBasicMaterial color="#fbfaf6" transparent side={THREE.DoubleSide} /></mesh>)}
         </group>
