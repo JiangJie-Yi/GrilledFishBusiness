@@ -588,16 +588,8 @@ export const DOOR_CATS = [
   { x: -0.27, y: 0.32, z: -0.3, yaw: 0.25, kind: 2 as const, h: 0.38 },
   { x: -0.27, y: 0.32, z: 0.3, yaw: -0.25, kind: 1 as const, h: 0.42 },
 ]
-/** the register's figure tabs: the amount (¥ 1 2 8 0 as it might be), and its maker's plate */
-/** the customers' display: green figures on black, the amount to pay */
-/** a key of the register's keyboard */
+/** the cats' stand's tiers by the way in (entrance.tsx), a rounded box scaled to each. (Seven more shapes were made here at load and never
+ * drawn, left from when the register was built in code: a model since; taken out, item 731) */
 export const REG_GEO = {
-  body: new THREE.BoxGeometry(1, 1, 1),
-  key: new THREE.CylinderGeometry(0.004, 0.004, 0.016, 6),
-  cap: new THREE.CylinderGeometry(0.012, 0.012, 0.006, 12),
   round: new RoundedBoxGeometry(1, 1, 1, 3, 0.12),
-  cup: new THREE.CylinderGeometry(0.025, 0.022, 0.06, 14),
-  ball: new THREE.SphereGeometry(0.04, 14, 10),
-  ear: new THREE.ConeGeometry(0.012, 0.026, 6),
-  paw: new THREE.CapsuleGeometry(0.01, 0.03, 4, 8),
 }

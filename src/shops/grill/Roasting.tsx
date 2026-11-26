@@ -18,7 +18,6 @@ import { useGLTF } from '@react-three/drei'
 import { Html } from '@/scene/interact/Html'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { glowOnly } from '@/scene/interact/hoverGlow'
 import { canCookByHand, modeOf, showsProgress } from '@/game/kitchen/mode'
 import { FLOWS, hourGap, wantOf, type FlowKind } from '@/game/guests/flow'
@@ -127,44 +126,8 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
   const room = useThree((st) => st.scene)
   const menuIds = useMemo(() => new Set(itemIds), [itemIds])
   const root = scene.children[0]
-  // the water bucket's two hoops, made as flat bands (片) rather than round rods: the model's hoops are found by their material and each ring is
-  // measured (where along the bucket it stands, how wide it is), then the mesh is given two thin bands of the same height, flat in section
-  useMemo(() => {
-    root.getObjectByName('WaterBucket')?.traverse((o) => {
-      if (!(o instanceof THREE.Mesh) || o.userData.flatHoops || o.name.endsWith('_outline')) return
-      if ((o.material as THREE.Material).name !== 'BucketHoop') return
-      o.userData.flatHoops = true
-      const pos = o.geometry.getAttribute('position')
-      o.geometry.computeBoundingBox()
-      const bb = o.geometry.boundingBox!, sz = bb.getSize(new THREE.Vector3())
-      // (the bucket's own axis is the one the hoops are shortest along)
-      const ax = sz.x <= sz.y && sz.x <= sz.z ? 0 : sz.y <= sz.z ? 1 : 2
-      const get = (i: number, k: number) => (k === 0 ? pos.getX(i) : k === 1 ? pos.getY(i) : pos.getZ(i))
-      const mid = (bb.min.getComponent(ax) + bb.max.getComponent(ax)) / 2
-      const rings = [{ lo: Infinity, hi: -Infinity, r: 0 }, { lo: Infinity, hi: -Infinity, r: 0 }]
-      const u = (ax + 1) % 3, v = (ax + 2) % 3
-      for (let i = 0; i < pos.count; i++) {
-        const a = get(i, ax), ring = rings[a < mid ? 0 : 1]
-        ring.lo = Math.min(ring.lo, a); ring.hi = Math.max(ring.hi, a)
-        ring.r = Math.max(ring.r, Math.hypot(get(i, u), get(i, v)))
-      }
-      const bands = rings.map((r) => {
-        const h = Math.min((r.hi - r.lo) * 0.9, 0.05), t = 0.012, R = r.r
-        const prof = [[R - t, -h / 2], [R, -h / 2], [R + 0.003, h / 2], [R - t, h / 2], [R - t, -h / 2]].map(([x, y]) => new THREE.Vector2(x, y))
-        const g = new THREE.LatheGeometry(prof, 56)
-        g.translate(0, (r.lo + r.hi) / 2, 0)
-        return g
-      })
-      let merged = mergeGeometries(bands, false) as THREE.BufferGeometry
-      // (the lathe stands along Y: laid along the bucket's own axis if that's another)
-      if (ax === 2) merged.rotateX(Math.PI / 2)
-      else if (ax === 0) merged.rotateZ(-Math.PI / 2)
-      merged = merged.toNonIndexed()
-      merged.computeVertexNormals()
-      o.geometry = merged
-      for (const c of o.children) if (c instanceof THREE.Mesh && c.name.endsWith('_outline')) c.geometry = merged
-    })
-  }, [root])
+  // (the water bucket's hoops are the model's own flat bands, blender/grilledfish.py's hoop_band. They used to be rebuilt here as round lathes,
+  // found by the material 'BucketHoop'; it's been 'BucketBand' since the bucket was made again (7b573820), and nothing matched. Taken out, item 731)
   // the fire pit drawn bigger than it was modelled (its stones further out, the coals heaped wider), the skewers
   // still planted where they were, now well inside the ring
   useMemo(() => {

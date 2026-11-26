@@ -120,19 +120,9 @@ export function DoorBambooHit(props: { onPointerOver: (e: { stopPropagation: () 
   const size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3())
   return <mesh visible={false} position={mid} {...props}><boxGeometry args={[size.x * 0.6, size.y, size.z * 0.6]} /></mesh>
 }
-/** the toilet and its washlet (blender/wc.py), facing -x */
+// (the toilet and the hand-wash counter (blender/wc.py) are drawn by rooms/Restroom from these same files, in its toon light (toonOf):
+// their download started here)
 export { toonOf }
-export function ToiletModel() {
-  const gltf = useGLTF(TOILET_URL) as unknown as { scene: THREE.Group }
-  const obj = useMemo(() => toonOf(TOILET_URL, gltf.scene), [gltf])
-  return <primitive object={obj} />
-}
-/** the hand-wash counter, its back to +x */
-export function WashstandModel() {
-  const gltf = useGLTF(WASH_URL) as unknown as { scene: THREE.Group }
-  const obj = useMemo(() => toonOf(WASH_URL, gltf.scene), [gltf])
-  return <primitive object={obj} />
-}
 useGLTF.preload(TOILET_URL)
 useGLTF.preload(WASH_URL)
 useGLTF.preload(STOOL_URL)

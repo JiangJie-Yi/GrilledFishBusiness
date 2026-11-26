@@ -749,16 +749,6 @@ export function takeDrink(id: DrinkId): number {
   }
   return -1
 }
-/** the shop puts back one drink in a fridge where one's been taken (the first place with room, its own kind) */
-export function restockDrink(unit: number) {
-  const p = placesOf(unit)
-  for (let r = 0; r < p.rows.length; r++) {
-    for (let k = 0; k < p.rows[r].length; k++) {
-      if (putInPlace(p, r, k, FRIDGE_UNITS[unit].shelves[r].ids[k])) { FRIDGE_STOCK.ver++; return true }
-    }
-  }
-  return false
-}
 /** the player moves a drink from one place to another in a fridge (into an empty one or among its own kind, or a lone one swapped with a
  * lone one): whether it moved */
 export function moveDrink(unit: number, from: [number, number], to: [number, number]) {

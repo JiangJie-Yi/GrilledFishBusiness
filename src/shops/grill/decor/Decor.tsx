@@ -482,15 +482,6 @@ function HeldRod({ held }: { held: RefObject<Held> }) {
 }
 
 /** (the lantern can be moved about the table like a dish: Roasting says where it is) */
-/**
- * The rice the rice balls are shaped from (おひつ): a round tub of pale sawara bound with copper hoops, heaped with
- * steaming white rice, the wooden paddle (しゃもじ) stood in it, its lid leant against its side.
- */
-/** the tub as drawn below, made this much bigger (a shop's おひつ, wider than two plates, and deep) */
-// (0.8 of the 2.0 it was on its own stand: in a row on the warming counter with the rest)
-const RICE_SCALE = 1.6
-/** the dining room's floor, past the kitchen's raised floor (where the tub and the old rice pot are put by) */
-const ROOM_FLOOR = -1.16
 /** the working counters' tops (the warming counter's and the rice-ball counter's: the sink's height, blender/warmer.py's H) */
 const COUNTER_TOP = 0.236
 /**
@@ -533,35 +524,8 @@ export function useRiceTub() {
 }
 useGLTF.preload(RICETUB_URL)
 
-// (moved onto the takeaway table by the till as its warming tub (the owner's, 2026-11-11): GuestBar3D's WarmTub)
-export function RiceTub() {
-  const tub = useRiceTub()
-  const [x, z] = DECOR.rice.at
-  // (the lid: on the tub, or lifted off and leant against its side; click the tub to lift it or put it back. It's out of use: empty)
-  const [open, setOpen] = useState(false)
-  const lid = useRef<THREE.Group>(null)
-  const lidT = useRef(0)
-  useFrame((_, dt) => {
-    lidT.current = THREE.MathUtils.clamp(lidT.current + (open ? 1 : -1) * tick(dt) * 2.2, 0, 1)
-    const k = lidT.current * lidT.current * (3 - 2 * lidT.current)
-    if (!lid.current) return
-    lid.current.position.set(-0.32 * k, 0.42 - 0.1585 * k + Math.sin(k * Math.PI) * 0.22, 0)
-    lid.current.rotation.z = k * 1.36
-  })
-  return (
-    <group position={[x, 0, z]} rotation-y={Math.atan2(-ALONG.z, ALONG.x)}>
-      {/* (put by on the dining room's floor) */}
-      <group position-y={ROOM_FLOOR} scale={RICE_SCALE}
-        onClick={(e) => { e.stopPropagation(); if (getEdit().on) return; setOpen((v) => !v) }}
-        onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = 'pointer'; glowOnly(e.eventObject); setTip({ title: '飯桶', hint: `已不用（白飯從電鍋取）｜${open ? '點一下蓋上蓋子' : '點一下掀開蓋子'}` }) }}
-        onPointerOut={(e) => { document.body.style.cursor = ''; glowLeave(e.eventObject); setTip(null) }}>
-        {/* the tub (blender/ricetub.py): pale staves bound in copper, an ear either side; its lid, lifted off and leant by it when it's open */}
-        <primitive object={tub.body} />
-        <group ref={lid} position={[0, 0.42, 0]}><primitive object={tub.lid} /></group>
-      </group>
-    </group>
-  )
-}
+// (the rice tub's own piece is gone: it's on the takeaway table by the till as its warming tub (the owner's, 2026-11-11): GuestBar3D's
+// WarmTub, through useRiceTub above)
 
 /** when something was last taken out of the ingredient fridge (Roasting sets it as an order is brought out raw to the tray) */
 export const FRIDGE_KICK = { at: -1e9 }
