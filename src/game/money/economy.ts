@@ -176,8 +176,10 @@ export const PACK: Record<string, number> = { Onigiri: 60 }
 export const packOf = (id: string) => PACK[id] ?? 1
 /** n portions wanted, as whole packs' worth (none for none) */
 export const inPacks = (id: string, n: number) => n <= 0 ? 0 : Math.ceil(n / packOf(id)) * packOf(id)
-/** what's dry and keeps (the rice): it doesn't go off */
-export const keepsDry = (id: string) => id === 'Onigiri' || id === NORI || id === FRYOIL
+/** what keeps (the rice, the nori, the frying oil; the sake, item 731): it doesn't go off, so no freshness is kept for it (App ages and
+ * throws out only the rest). The sake was ordered to PAR as what keeps (KEEPS_LONG, item 343) but went off with what's kept out, and the
+ * stock keeper threw most of it out every night */
+export const keepsDry = (id: string) => id === 'Onigiri' || id === NORI || id === FRYOIL || id === 'Sake'
 
 /** what buying n of every good of a shop costs (what comes in packs, whole packs) */
 export const buyAllCost = (d: Dish, n: number) => goodsOf(d).reduce((t, g) => t + costOf(g) * inPacks(g.id, n), 0)

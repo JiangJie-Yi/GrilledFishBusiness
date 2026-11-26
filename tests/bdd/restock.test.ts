@@ -6,7 +6,7 @@ import { RECEIPT } from '@/game/money/receipts'
 import { DISH_SOAP, HOUSEHOLD_PACK, TOILET_CLEANER } from '@/game/stock/household'
 import { feature, scenario } from './bdd'
 import { DISHES } from '@/data/menu'
-import { LEAN_PAR, PAR, REORDER_AT, SIDE_LOW, SIDE_PAR, inPacks, orderedLean, parOf, restockOrder, topUpOrder, goodsOf, costOf, type Stock } from '@/game/money/economy'
+import { LEAN_PAR, PAR, REORDER_AT, SIDE_LOW, SIDE_PAR, inPacks, keepsDry, orderedLean, parOf, restockOrder, topUpOrder, goodsOf, costOf, type Stock } from '@/game/money/economy'
 import { storageOf } from '@/data/storage'
 import { CHARCOAL, SEASON_GOODS, SEASON_PAR } from '@/game/stock/supplies'
 import type { Entry } from '@/data/recipes'
@@ -138,5 +138,14 @@ feature('會壞的照用量備（第 343 項）', () => {
     })
     then('補到九份（六份的一倍半）', (w) => { expect(w.o.buy[w.chilled]).toBe(9 - 1) })
     and('用量再多也不超過十份', (w) => { expect(w.o2.buy[w.chilled]).toBe(PAR - 1) })
+  })
+  // (item 731: the sake was ordered to ten as what keeps (item 343), but it went off with the rest kept out: the stock keeper threw out eight at 22:36)
+  scenario('清酒不會壞：照十份備，也不記鮮度，倉儲不會把它當壞掉的丟掉', ({ given, then, and }) => {
+    given('菜單上有清酒，只剩一份', (w) => {
+      w.stock = { Sake: 1, ...SIDES_FULL } as Stock
+      w.o = restockOrder(grill, [entryOf('Sake')], w.stock, 1e9, 60)
+    })
+    then('跟冷凍的一樣補到十份', (w) => { expect(w.o.buy.Sake).toBe(PAR - 1) })
+    and('它算不會壞的（跟白飯、海苔、炸油一樣不記鮮度：放一整晚不會變質，倉儲丟壞掉的時候也跳過它）', () => { expect(keepsDry('Sake')).toBe(true) })
   })
 })
