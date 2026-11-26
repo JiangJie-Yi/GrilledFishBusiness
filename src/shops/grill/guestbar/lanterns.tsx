@@ -201,16 +201,22 @@ const chochinTexture = (mark: string, style: 'red' | 'cream' = 'red', wide = 1) 
   })
 })
 /**
- * A door lantern's paper (items 120, 125, the owner's, 2026-11-15): drawn as the room's own lamps are (lampShades): not shaded by the room's
- * lights (lit by them, put out it stood dark and heavily shadowed, the owner saw), its flame's light when lit, in `tint` (warm white for the
- * cream papers: "the 炭火 one a yellow-white light"); put out, the plain grey-white the room's lamps are by day, a dim grey by night
+ * A door lantern's paper (item 727, the owner's 「門口燈籠也得有影子切邊」): shaded as the toon shades all that's out of doors, its side to
+ * the sun lit and its other side a step darker with a clean edge between (MeshToonMaterial's two tones); lit, its flame's light from within
+ * (its own picture, `emissive` in `tint`: warm white for the cream papers, "the 炭火 one a yellow-white light"). No shadow taken on it (its
+ * meshes': items 120, 125, the owner's, 2026-11-15: lit by the room's lights and shadowed by the eave, put out it stood dark and heavily
+ * shadowed; drawn flat since, no light and shade at all, and the owner wanted the toon's edge on it). Its colour white, its picture's own
+ */
+const paperMat = (map: THREE.Texture | null, fin = false) => new THREE.MeshToonMaterial({ map, emissiveMap: map, emissive: 0x000000,
+  side: fin ? THREE.DoubleSide : THREE.FrontSide, alphaTest: fin ? 0.5 : 0 })
+const PAPER_OFF = new THREE.Color(), PAPER_ON = new THREE.Color()
+/**
+ * A paper lit `k` of the way (0 out .. 1 lit), its flame `flame`, in `tint`: a door lantern's (toon) its light from within; the facade
+ * band's little lanterns' (flat: shopFront) its colour, put out the plain grey-white the room's lamps are by day, a dim grey by night
  * (game/roomLights' unlitShade, by the hour: the page's data-theme)
  */
-const paperMat = (map: THREE.Texture | null, fin = false) => new THREE.MeshBasicMaterial({ map, toneMapped: false, side: fin ? THREE.DoubleSide : THREE.FrontSide,
-  alphaTest: fin ? 0.5 : 0 })
-const PAPER_OFF = new THREE.Color(), PAPER_ON = new THREE.Color()
-/** a paper's colour, lit `k` of the way (0 out .. 1 lit), its flame `flame`, in `tint` */
-export const paperColour = (m: THREE.MeshBasicMaterial, k: number, flame: number, tint: string) => {
+export const paperColour = (m: THREE.MeshToonMaterial | THREE.MeshBasicMaterial, k: number, flame: number, tint: string) => {
+  if ((m as THREE.MeshToonMaterial).isMeshToonMaterial) { (m as THREE.MeshToonMaterial).emissive.set(tint).multiplyScalar(flame * k); return }
   PAPER_OFF.set(unlitShade(typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark'))
   PAPER_ON.set(tint).multiplyScalar(flame)
   m.color.copy(PAPER_OFF).lerp(PAPER_ON, k)
@@ -268,7 +274,7 @@ export function Chochin({ mark, style = 'red', big = false }: { mark: string; st
   const gltf = useGLTF(CHOCHIN_URL) as unknown as { scene: THREE.Group }
   const { model, skin } = useMemo(() => {
     const r = gltf.scene.clone(true)
-    let paper: THREE.MeshBasicMaterial | null = null
+    let paper: THREE.MeshToonMaterial | null = null
     r.traverse((o) => {
       const m = o as THREE.Mesh
       if (!m.isMesh) return
@@ -276,12 +282,13 @@ export function Chochin({ mark, style = 'red', big = false }: { mark: string; st
       if (src.name === 'ChochinPaper') {
         paper = paperMat(tex)
         m.material = paper
+        m.receiveShadow = false
       } else m.material = chochinPart(src)
     })
     inkModel(r, (m) => /Band|Bail|Tassel/.test(m.name), { width: 0.0015, weld: true })
     // (item 533: its caps, its gold and its ink lines each drawn as one (its parts each had a material of their own: ten draws a lantern, six now))
     mergeByMaterial(r)
-    return { model: r, skin: paper as THREE.MeshBasicMaterial | null }
+    return { model: r, skin: paper as THREE.MeshToonMaterial | null }
   }, [gltf, tex])
   // (the merged shapes are its own: let go with it; the loaded model's are shared)
   useEffect(() => () => {
@@ -505,7 +512,7 @@ export function FishLantern() {
   const lit = useRef(getLights().door ? 1 : 0)
   const { model, fish, papers } = useMemo(() => {
     const r = gltf.scene.clone(true)
-    const papers: THREE.MeshBasicMaterial[] = []
+    const papers: THREE.MeshToonMaterial[] = []
     const lit = (map: THREE.Texture | null, fin = false) => {
       const m = paperMat(map, fin)
       papers.push(m)
@@ -521,6 +528,7 @@ export function FishLantern() {
             : name === 'FishLanternIron' ? new THREE.MeshToonMaterial({ color: '#2a2622' })
               : new THREE.MeshToonMaterial({ color: '#16110e' })
       m.castShadow = false
+      if (/Paper/.test(name)) m.receiveShadow = false
     })
     inkModel(r, (m) => /Fins|Chain/.test(m.name), { width: 0.0015, weld: true })
     // (the fish and its fins on a pivot at its head, where the chain holds it, to swing a little after the lantern)
