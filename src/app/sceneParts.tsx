@@ -173,7 +173,9 @@ export const ShadowPacer = memo(function ShadowPacer() {
         o.push(m)
       }
     } else {
-      for (const l of others.current) l.shadow.needsUpdate = true
+      // (a light put out (its strength 0: the stock room's bulb pulled off, item 729) its map left as it was: drawn again the first frame
+      // after it's lit)
+      for (const l of others.current) if (l.intensity > 0) l.shadow.needsUpdate = true
     }
     gl.shadowMap.needsUpdate = true
   })

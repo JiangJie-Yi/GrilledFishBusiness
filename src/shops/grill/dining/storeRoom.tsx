@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import { StaticBatch } from '@/scene/render/StaticBatch'
@@ -11,8 +11,12 @@ import { canvasTex } from './base'
 import { WcWall, WC_T, WcMass } from './wc'
 import { drinkLabel, lowestBack } from './crates'
 import { NO_RAY } from '@/scene/interact/pickable'
-import { lampLit } from '@/shops/grill/decor/lampShades'
-import { nightGlow } from './ambient'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import { unlitShade, lightOn } from '@/game/world/roomLights'
+import { getLights, pressLightSwitch } from '@/scene/render/lightsStore'
+import { QUALITY } from '@/scene/render/quality'
+import { tick } from '@/scene/kit/speed'
+import { lightSwitchSound } from '@/shops/grill/sounds/restroomSound'
 import { GLOW } from './shrine'
 
 /** the stock room's doorway's frame (items 430): its posts' width in the wall's line, its head's height over the opening */
@@ -70,25 +74,24 @@ function storeNorenMat(wide: number) {
  * waist and plaster, the floor's boards the toilets' hinoki), the fridges' backs in its front wall, the drinks' stock along its back wall
  * (ShopProps: the crates and the cartons, and the milk crates). In the wall's frame (x behind its face, y up, z along it).
  */
-/** what's in a room with a ceiling takes none of the sun's shadows (item 476, the owner's 「有不明陰影」: the stock room's walls and slats
- * cast nothing, so the sun went through them, and the fridges', the cartons' and even the men's toilet's next door shadows lay on its
- * floor and walls in blots; a roof only the sun saw left the toilet's, its rays slanting in along the room past its end). Only a uniform
- * changes (three's receiveShadow), no program */
-export function useNoSun(ref: RefObject<THREE.Object3D | null>) {
-  useLayoutEffect(() => { ref.current?.traverse((o) => { if ((o as THREE.Mesh).isMesh && o.receiveShadow) o.receiveShadow = false }) })
-}
+// (its walls and the stock in it took no shadow at all once (item 476, the owner's 「有不明陰影」: the sun's, through its walls, lay on its floor
+// and walls in blots); the sun's light is taken off indoors since item 721 (scene/render/indoorSun), so none of its shadows can show in here,
+// and the room's own bulb's hard shadows (item 729) are taken on its walls and its stock as on its floor)
 /**
  * The stock room's lamp (item 713, the owner's 「然後這上面掛一盞簡易吊燈。」, a red ring at the top of its far end wall over the stock): a
  * plain enamel shade hung on a bracket from the top of that wall (the room's open over: nothing over it to hang from), as a store room's
  * lamp is. An iron arm out from a wooden block on the wall with a brace under it, the cord down from its end into the shade's socket, the
- * shade a dark green enamel cone lit white inside, its bulb showing under its rim, a soft glow round it; lit with the room's lights (the
- * room circuit: lampLit, nightGlow), no light of its own (no lights added: every material would be made again). Its frame: on the wall's
- * face (z 0, the room toward -z), x across the room, y down from the arm. About 200 triangles; three draws and the glow
+ * shade a dark green enamel cone white inside. Its bulb a bare tungsten one on its own pull switch, its shadows hard (item 729, the owner's
+ * 「這邊是鎢絲燈泡，用拉的，陰影要硬」): clear glass round a zigzag filament between two leads, the filament glowing orange then white as
+ * it's lit and dying back through orange as it's put out, the glass warm round it; a cotton pull cord out of the socket, down past the bulb's
+ * side and out under the shade's mouth to a wooden bead, pulled when it's clicked (down, the switch's click at the bottom, back up past where
+ * it hung and the bead swinging itself still); and its light, one spot down from the bulb through the shade's mouth, its shadows hard-edged,
+ * there from the start (no light added after: rule 6) and lit or put out by its strength alone. Its frame: on the wall's face (z 0, the room
+ * toward -z), x across the room, y down from the arm.
  */
 const LAMP_ARM = 0.42, LAMP_CORD = 0.3
 const LAMP_SHADE = new THREE.LatheGeometry([[0.104, -0.082], [0.098, -0.076], [0.06, -0.046], [0.024, -0.014], [0.017, 0]].map(([r, y]) => new THREE.Vector2(r, y)), 12)
 const LAMP_SOCKET = new THREE.CylinderGeometry(0.019, 0.021, 0.034, 8, 1, true)
-const LAMP_BULB = new THREE.IcosahedronGeometry(0.027, 0)
 const LAMP_CORD_GEO = new THREE.CylinderGeometry(0.0035, 0.0035, LAMP_CORD, 5, 1, true)
 const LAMP_ARM_GEO = new THREE.BoxGeometry(0.014, 0.014, LAMP_ARM)
 const LAMP_BRACE_GEO = new THREE.BoxGeometry(0.01, 0.01, Math.hypot(0.22, 0.2))
@@ -96,12 +99,120 @@ const LAMP_BLOCK_GEO = new THREE.BoxGeometry(0.07, 0.09, 0.027)
 const LAMP_IRON = new THREE.MeshToonMaterial({ color: '#26231f' })
 const LAMP_WOOD = new THREE.MeshToonMaterial({ color: '#4a2f1c' })
 const LAMP_ENAMEL = new THREE.MeshToonMaterial({ color: '#2f5040' })
-/** its shade's white inside, lit (its back faces: the cone's own, drawn from inside it), and its bulb */
-const LAMP_INSIDE = lampLit(new THREE.MeshBasicMaterial({ color: '#fff3dc', toneMapped: false, side: THREE.BackSide }), { dim: 0.9 })
-const LAMP_GLASS = lampLit(new THREE.MeshBasicMaterial({ color: '#ffe9b8', toneMapped: false }), { dim: 0.6 })
-const LAMP_GLOW = nightGlow(new THREE.SpriteMaterial({ map: GLOW, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, color: '#ffd9a0' }), 0.3, 0.7)
+/** a thin rod from `a` to `b` (its own frame), `r` thick, three sided */
+function rod(a: THREE.Vector3, b: THREE.Vector3, r: number) {
+  const g = new THREE.CylinderGeometry(r, r, a.distanceTo(b), 3, 1, true)
+  g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize()))
+  const m = a.clone().add(b).multiplyScalar(0.5)
+  g.translate(m.x, m.y, m.z)
+  return g
+}
+// (the bulb, in the shade's frame (its top at 0, its mouth at -0.082): its neck up into the socket, its round glass (its foot 3 mm under the
+// shade's mouth, as a bare bulb's shows under a shallow shade), the filament's zigzag across its middle, its two leads up to the neck)
+const BULB_NECK = new THREE.CylinderGeometry(0.0105, 0.0125, 0.02, 8, 1, true)
+const BULB_GLASS = (() => { const g = new THREE.IcosahedronGeometry(0.03, 1); g.scale(1, 1.08, 1); return g })()
+const BULB_AT = -0.053
+const FIL = [-0.0085, -0.0064, -0.0043, -0.0021, 0, 0.0021, 0.0043, 0.0064, 0.0085].map((x, i) => new THREE.Vector3(x, -0.044 - (i % 2) * 0.008, 0))
+const BULB_FILAMENT = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(FIL, false, 'catmullrom', 0.2), 16, 0.0009, 3, false)
+const BULB_LEADS = mergeGeometries([rod(new THREE.Vector3(-0.004, -0.014, 0), FIL[0], 0.0005), rod(new THREE.Vector3(0.004, -0.014, 0), FIL[8], 0.0005)])!
+// (the pull cord: out of the socket's foot at its side, slanting out past the bulb's widest (4 mm clear of it) to where it hangs straight
+// down, CORD_HANG to its bead under the shade's mouth; the bead a turned wooden acorn)
+const CORD_TOP = new THREE.Vector3(0.019, -0.001, 0.004), CORD_BEND = new THREE.Vector3(0.0345, BULB_AT + 0.003, 0.006)
+const CORD_HANG = 0.2
+const PULL_TOP = rod(CORD_TOP, CORD_BEND, 0.0011)
+const PULL_CORD = new THREE.CylinderGeometry(0.0011, 0.0011, 1, 4, 1, true)
+const PULL_BEAD = new THREE.LatheGeometry([[0.0022, 0], [0.0066, -0.004], [0.0086, -0.011], [0.0076, -0.018], [0.0042, -0.022], [0.0016, -0.0235]].map(([r, y]) => new THREE.Vector2(r, y)), 8)
+const PULL_HIT = new THREE.BoxGeometry(0.05, CORD_HANG + 0.05, 0.05)
+const LAMP_COTTON = new THREE.MeshToonMaterial({ color: '#e7dfcb' })
+const HIT_MAT = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+/** its shade's white inside (its back faces: the cone's own, seen from inside it), the glass, the filament, its glow: each this lamp's own,
+ * set by how lit it is (its own pull switch, not the room's) */
+const LAMP_INSIDE = new THREE.MeshBasicMaterial({ color: '#fff3dc', toneMapped: false, side: THREE.BackSide })
+const BULB_GLASS_MAT = new THREE.MeshBasicMaterial({ color: '#f4f1ea', transparent: true, opacity: 0.2, depthWrite: false, toneMapped: false })
+const BULB_FIL_MAT = new THREE.MeshBasicMaterial({ color: '#2c2420', toneMapped: false })
+const LAMP_GLOW = new THREE.SpriteMaterial({ map: GLOW, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, color: '#ffd9a0', opacity: 0 })
+const C_INSIDE_ON = new THREE.Color('#fff3dc'), C_INSIDE_OFF = new THREE.Color()
+const C_GLASS_OFF = new THREE.Color('#f4f1ea'), C_GLASS_ON = new THREE.Color('#ffe0a4')
+const C_FIL_OFF = new THREE.Color('#2c2420'), C_FIL_HOT = new THREE.Color('#ff7428'), C_FIL_ON = new THREE.Color('#fff2cc')
+/** the bulb's light: its strength (candela) at full, how far it reaches (this frame's units: the floor 1.66 under it, the cone's far edge on
+ * the floor 2.74 off), its cone's half angle (the shade's mouth: 0.104 out, 0.082 down) */
+const BULB_CD = 30, BULB_REACH = 2.8, BULB_CONE = 0.92
+/** the pull: how far down it's drawn and how long that takes, how long it's held there, how long it springs back; the bead's swing after */
+const PULL_D = 0.028, PULL_DOWN = 0.09, PULL_HOLD = 0.04, PULL_BACK = 0.34, SWING = 0.24, SWING_T = 0.85, SWING_DIE = 2.2
+const easeOutBack = (t: number) => { const c = 1.9; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2 }
+const storeSays = () => ({ title: '儲藏室電燈', hint: lightOn(getLights(), 'store') ? '點一下拉線關燈' : '點一下拉線開燈' })
 function StoreLamp({ at }: { at: [number, number, number] }) {
   const shadeY = -LAMP_CORD - 0.034
+  const light = useRef<THREE.SpotLight>(null)
+  const aim = useRef<THREE.Object3D>(null)
+  const swing = useRef<THREE.Group>(null)
+  const cord = useRef<THREE.Mesh>(null)
+  const bead = useRef<THREE.Mesh>(null)
+  const glow = useRef<THREE.Sprite>(null)
+  /** how lit it is (0 out .. 1 lit): a filament's quick to light, a little slower to die */
+  const k = useRef(lightOn(getLights(), 'store') ? 1 : 0)
+  /** the pull under way: its time, whether the switch has clicked yet; its bead under the pointer */
+  const pull = useRef<{ t: number; clicked: boolean } | null>(null)
+  const hover = useRef(false)
+  // (its reach and its shadow's camera in the world's units: this frame's scale to the world's taken where it hangs)
+  useLayoutEffect(() => {
+    const l = light.current, a = aim.current
+    if (!l || !a) return
+    l.target = a
+    const s = new THREE.Vector3()
+    l.parent?.getWorldScale(s)
+    const u = s.x || 1
+    l.distance = BULB_REACH * u
+    l.shadow.camera.near = 0.03 * u
+    l.shadow.camera.far = BULB_REACH * u
+    l.shadow.camera.updateProjectionMatrix()
+  }, [])
+  const shown = useRef(-1)
+  useFrame((_, dt) => {
+    const want = lightOn(getLights(), 'store') ? 1 : 0
+    const was = k.current
+    k.current += (want - k.current) * Math.min(1, tick(dt) * (want > k.current ? 24 : 9))
+    if (Math.abs(k.current - want) < 0.002) k.current = want
+    const night = typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark'
+    const v = k.current, key = v + (night ? 10 : 0)
+    if (key !== shown.current || was !== v) {
+      shown.current = key
+      // (the filament dark, through orange as it heats, to white; the glass warm round it; the shade's inside its own white lit, the room's
+      // unlit grey out (a little under it); the glow round it by night more than by day)
+      if (v < 0.35) BULB_FIL_MAT.color.copy(C_FIL_OFF).lerp(C_FIL_HOT, v / 0.35)
+      else BULB_FIL_MAT.color.copy(C_FIL_HOT).lerp(C_FIL_ON, (v - 0.35) / 0.65)
+      BULB_GLASS_MAT.color.copy(C_GLASS_OFF).lerp(C_GLASS_ON, v)
+      BULB_GLASS_MAT.opacity = 0.2 + 0.32 * v
+      C_INSIDE_OFF.set(unlitShade(night)).multiplyScalar(0.9)
+      LAMP_INSIDE.color.copy(C_INSIDE_OFF).lerp(C_INSIDE_ON, v)
+      LAMP_GLOW.opacity = v * (night ? 0.7 : 0.3)
+      if (light.current) light.current.intensity = BULB_CD * v ** 1.6
+    }
+    // (the pull: drawn down, the click at the bottom, held a moment, sprung back past where it hung; the bead swinging after it, dying away)
+    const p = pull.current
+    let d = 0, ang = 0
+    if (p) {
+      p.t += tick(dt)
+      const t = p.t
+      if (t < PULL_DOWN) d = PULL_D * (t / PULL_DOWN) ** 2
+      else if (t < PULL_DOWN + PULL_HOLD) d = PULL_D
+      else if (t < PULL_DOWN + PULL_HOLD + PULL_BACK) d = PULL_D * (1 - easeOutBack((t - PULL_DOWN - PULL_HOLD) / PULL_BACK))
+      if (!p.clicked && t >= PULL_DOWN) {
+        p.clicked = true
+        pressLightSwitch('store')
+        lightSwitchSound(lightOn(getLights(), 'store'))
+        if (hover.current) setTip(storeSays())
+      }
+      const ts = t - PULL_DOWN - PULL_HOLD
+      if (ts > 0) ang = SWING * Math.exp(-ts * SWING_DIE) * Math.sin((2 * Math.PI * ts) / SWING_T)
+      if (ts > 2.2) pull.current = null
+    }
+    if (cord.current) { cord.current.scale.y = CORD_HANG + d; cord.current.position.y = -(CORD_HANG + d) / 2 }
+    if (bead.current) { bead.current.position.y = -(CORD_HANG + d); bead.current.scale.setScalar(hover.current ? 1.25 : 1) }
+    if (swing.current) { swing.current.rotation.x = ang; swing.current.rotation.z = ang * 0.35 }
+    if (glow.current) glow.current.visible = LAMP_GLOW.opacity > 0.002
+  })
+  const onPull = (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); if (getEdit().on || pull.current) return; pull.current = { t: 0, clicked: false } }
   return (
     <group position={at}>
       <StaticBatch plain>
@@ -117,8 +228,25 @@ function StoreLamp({ at }: { at: [number, number, number] }) {
       </StaticBatch>
       <group position={[0, shadeY, -0.025 - LAMP_ARM + 0.012]}>
         <mesh geometry={LAMP_SHADE} material={LAMP_INSIDE} raycast={NO_RAY} />
-        <mesh geometry={LAMP_BULB} material={LAMP_GLASS} position-y={-0.058} raycast={NO_RAY} />
-        <sprite scale={0.55} position-y={-0.06} material={LAMP_GLOW} raycast={NO_RAY} />
+        {/* the bulb: its neck, its filament and leads, its glass over them */}
+        <mesh geometry={BULB_NECK} material={LAMP_IRON} position-y={-0.008} raycast={NO_RAY} />
+        <mesh geometry={BULB_LEADS} material={LAMP_IRON} raycast={NO_RAY} />
+        <mesh geometry={BULB_FILAMENT} material={BULB_FIL_MAT} raycast={NO_RAY} />
+        <mesh geometry={BULB_GLASS} material={BULB_GLASS_MAT} position-y={BULB_AT} raycast={NO_RAY} />
+        <sprite ref={glow} scale={0.55} position-y={BULB_AT} material={LAMP_GLOW} raycast={NO_RAY} />
+        {/* its pull cord: the slant out past the bulb, then what hangs from there, swinging there (its bead and the box that's clicked) */}
+        <mesh geometry={PULL_TOP} material={LAMP_COTTON} raycast={NO_RAY} />
+        <group ref={swing} position={CORD_BEND.toArray()}>
+          <mesh ref={cord} geometry={PULL_CORD} material={LAMP_COTTON} raycast={NO_RAY} />
+          <mesh ref={bead} geometry={PULL_BEAD} material={LAMP_WOOD} raycast={NO_RAY} />
+          <mesh geometry={PULL_HIT} material={HIT_MAT} position-y={-(CORD_HANG + 0.05) / 2 + 0.01} onClick={onPull}
+            onPointerOver={(e: ThreeEvent<PointerEvent>) => { e.stopPropagation(); if (getEdit().on) return; hover.current = true; handOver.onPointerOver(e as never); setTip(storeSays()) }}
+            onPointerOut={(e: ThreeEvent<PointerEvent>) => { hover.current = false; handOver.onPointerOut(e as never); setTip(null) }} />
+        </group>
+        {/* its light: down through the shade's mouth from the filament, its shadows hard (a tungsten filament's as good as a point) */}
+        <spotLight ref={light} position-y={BULB_AT + 0.004} angle={BULB_CONE} penumbra={0.18} decay={2} color="#ffc98e" intensity={lightOn(getLights(), 'store') ? BULB_CD : 0}
+          castShadow={QUALITY.shadows} shadow-mapSize-width={1024} shadow-mapSize-height={1024} shadow-radius={1} shadow-bias={0.0003} shadow-normalBias={0.05} />
+        <object3D ref={aim} position-y={-1} />
       </group>
     </group>
   )
@@ -163,9 +291,7 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
   // (its ends not in one plane with the posts' sides))
   const outerW = door[1] - door[0] + 2 * STORE_POST, norenW = outerW - 0.012
   const noren = useRef<THREE.Group>(null)
-  // (none of the sun's shadows inside it (item 476))
   const whole = useRef<THREE.Group>(null)
-  useNoSun(whole)
   useFrame((_, dt0) => {
     // (swung aside as the stocker goes through, back into the room the way he's going, and settling back after him: a spring, a little
     // overshoot, each panel a little behind the other)

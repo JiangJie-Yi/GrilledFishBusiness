@@ -57,6 +57,23 @@ feature('牆上的電燈開關', () => {
     then('讀回來一樣', (w) => { expect(readLights(writeLights(w.s))).toEqual(w.s) })
   })
 
+  scenario('儲藏室的鎢絲燈泡用拉線開關，只管它自己（第 729 項）', ({ given, when, then, and }) => {
+    given('所有的燈都開著', (w) => { w.s = readLights(null) })
+    then('儲藏室的燈一開始是亮的', (w) => { expect(lightOn(w.s, 'store')).toBe(true) })
+    when('拉一下儲藏室的拉線', (w) => { w.s = switchLights(w.s, 'store') })
+    then('儲藏室的燈關了', (w) => { expect(lightOn(w.s, 'store')).toBe(false) })
+    and('店裡、門口燈籠、兩間廁所的燈都還開著', (w) => { for (const c of ['room', 'door', 'wcM', 'wcF'] as const) expect(lightOn(w.s, c)).toBe(true) })
+    and('按玄關的店內電燈開關動不到它', (w) => { expect(lightOn(switchLights(w.s, 'room'), 'store')).toBe(false) })
+    and('再拉一下又亮', (w) => { expect(lightOn(switchLights(w.s, 'store'), 'store')).toBe(true) })
+  })
+
+  scenario('以前的存檔沒有儲藏室的燈：當作亮著，其他照存的', ({ given, then, and }) => {
+    given('四個開關的舊存檔（店內關著、女廁關著）', (w) => { w.s = readLights('{"on":false,"door":true,"wc":{"m":true,"f":false}}') })
+    then('儲藏室的燈亮著', (w) => { expect(lightOn(w.s, 'store')).toBe(true) })
+    and('店內與女廁的燈照存的關著', (w) => { expect(lightOn(w.s, 'room')).toBe(false); expect(lightOn(w.s, 'wcF')).toBe(false) })
+    and('拉線關掉以後存起來再讀回來還是關的', (w) => { expect(lightOn(readLights(writeLights(switchLights(w.s, 'store'))), 'store')).toBe(false) })
+  })
+
   scenario('關燈時吊燈不發光，開燈就亮', ({ given, then, and }) => {
     given('開燈與關燈', () => {})
     then('關燈時不發光', () => { expect(lampGlow(false)).toBe(0) })

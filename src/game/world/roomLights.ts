@@ -3,21 +3,23 @@ import type { Sky } from './clock'
 /*
  * The shop's lights, on its wall switches (the owner's): the room's, by the way in (the paper pendants, the bar's cove light, the warm spot
  * over the fire: off, the room falls dark, by day the sky through the windows still lighting it a little, by night hardly at all); beside it
- * the lanterns at the door's; and one by each toilet's door, its lights. The exit sign is the emergency light: no switch puts it out.
+ * the lanterns at the door's; and one by each toilet's door, its lights. The exit sign is the emergency light: no switch puts it out. The
+ * stock room's bare bulb on its own pull switch (item 729, the owner's 「這邊是鎢絲燈泡，用拉的」): pulled, it alone goes on or off.
  */
-export type RoomLights = { on: boolean; door: boolean; wc: { m: boolean; f: boolean } }
-/** the switches: the room's, the door's lanterns', the men's toilet's, the women's */
-export type Circuit = 'room' | 'door' | 'wcM' | 'wcF'
+export type RoomLights = { on: boolean; door: boolean; wc: { m: boolean; f: boolean }; store: boolean }
+/** the switches: the room's, the door's lanterns', the men's toilet's, the women's, the stock room bulb's pull */
+export type Circuit = 'room' | 'door' | 'wcM' | 'wcF' | 'store'
 
-export const LIGHTS_DEFAULT: RoomLights = { on: true, door: true, wc: { m: true, f: true } }
+export const LIGHTS_DEFAULT: RoomLights = { on: true, door: true, wc: { m: true, f: true }, store: true }
 
 /** whether this switch's lights are on */
-export const lightOn = (s: RoomLights, c: Circuit) => (c === 'room' ? s.on : c === 'door' ? s.door : s.wc[c === 'wcM' ? 'm' : 'f'])
+export const lightOn = (s: RoomLights, c: Circuit) => (c === 'room' ? s.on : c === 'door' ? s.door : c === 'store' ? s.store : s.wc[c === 'wcM' ? 'm' : 'f'])
 
 /** a switch pressed: its lights on go off, off go on; the others as they were */
 export function switchLights(s: RoomLights, c: Circuit = 'room'): RoomLights {
   if (c === 'room') return { ...s, on: !s.on }
   if (c === 'door') return { ...s, door: !s.door }
+  if (c === 'store') return { ...s, store: !s.store }
   const k = c === 'wcM' ? 'm' : 'f'
   return { ...s, wc: { ...s.wc, [k]: !s.wc[k] } }
 }
@@ -93,14 +95,15 @@ export const unlitShade = (night: boolean) => (night ? '#58585b' : '#d4d2cd')
 
 export const writeLights = (s: RoomLights) => JSON.stringify(s)
 
-/** the switches as they were left (each on, if nothing's kept for it or it can't be read; an old browser kept only the room's) */
+/** the switches as they were left (each on, if nothing's kept for it or it can't be read; an old browser kept only the room's, one before item
+ * 729 not the stock room bulb's) */
 export function readLights(text: string | null): RoomLights {
   const fresh = (): RoomLights => ({ ...LIGHTS_DEFAULT, wc: { ...LIGHTS_DEFAULT.wc } })
   try {
-    const raw = JSON.parse(text ?? 'null') as { on?: unknown; door?: unknown; wc?: { m?: unknown; f?: unknown } } | null
+    const raw = JSON.parse(text ?? 'null') as { on?: unknown; door?: unknown; wc?: { m?: unknown; f?: unknown }; store?: unknown } | null
     if (!raw || typeof raw.on !== 'boolean') return fresh()
     const b = (v: unknown) => (typeof v === 'boolean' ? v : true)
-    return { on: raw.on, door: b(raw.door), wc: { m: b(raw.wc?.m), f: b(raw.wc?.f) } }
+    return { on: raw.on, door: b(raw.door), wc: { m: b(raw.wc?.m), f: b(raw.wc?.f) }, store: b(raw.store) }
   } catch {
     return fresh()
   }

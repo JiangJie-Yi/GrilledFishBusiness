@@ -13,7 +13,7 @@ import { Sudare, RoundShoji, ROUND_AT, WindowDust, RoundWindow } from './dining/
 import { MenuTags } from './dining/menuTags'
 import { WallSigns } from './dining/wallSigns'
 import { ToiletPanel, ToiletHit, ToiletDoor } from './dining/wc'
-import { STORE_POST, STORE_HEAD, useNoSun, StoreRoom } from './dining/storeRoom'
+import { STORE_POST, STORE_HEAD, StoreRoom } from './dining/storeRoom'
 import { CornerSupplies } from './dining/supplies'
 import { STAFF_W, KSTAND_H, KSTAND_OFF, KSTAND_ALONG, OUTING_T, OUTING_ALONG, OutingPhoto, KabutoStandModel, StaffDoor } from './dining/staffDoor'
 import { KamiCopy } from './dining/shrine'
@@ -338,9 +338,8 @@ function ShopPropsImpl({ counters }: { counters: Counter[] }) {
   // (their fronts toward the room's open side, where the camera is)
   const face = Math.atan2(-c0.lay.x, -c0.lay.z)
   const fr = useMemo(() => fridgesOf(counters), [counters])
-  // (the crates and cartons, in the stock room: none of the sun's shadows on them (item 476))
+  // (the crates and cartons, in the stock room: the bulb's shadows on them (item 729: they took none, item 476, the sun's kept off them))
   const cratesRef = useRef<THREE.Group>(null)
-  useNoSun(cratesRef)
   // (and the sake barrels, as drawn: the sake's stock)
   const sake = useRef<THREE.Group>(null)
   const sakeLit = () => sake.current

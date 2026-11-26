@@ -33,6 +33,7 @@ const SWITCH_SAYS: Record<Circuit, { title: string; on: string; off: string }> =
   door: { title: '門口燈籠', on: '點一下熄掉燈籠', off: '點一下點亮燈籠' },
   wcM: { title: '男廁電燈', on: '點一下關燈', off: '點一下開燈' },
   wcF: { title: '女廁電燈', on: '點一下關燈', off: '點一下開燈' },
+  store: { title: '儲藏室電燈', on: '點一下拉線關燈', off: '點一下拉線開燈' },
 }
 export function LightSwitch({ circuit = 'room', slim = false }: { circuit?: Circuit; slim?: boolean }) {
   const on = lightOn(useLights(), circuit)
