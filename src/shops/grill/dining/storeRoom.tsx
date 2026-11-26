@@ -17,6 +17,7 @@ import { getLights, pressLightSwitch } from '@/scene/render/lightsStore'
 import { QUALITY } from '@/scene/render/quality'
 import { tick } from '@/scene/kit/speed'
 import { lightSwitchSound } from '@/shops/grill/sounds/restroomSound'
+import { EARTH_Y } from '@/shops/grill/guestbar/ground'
 import { GLOW } from './shrine'
 
 /** the stock room's doorway's frame (items 430): its posts' width in the wall's line, its head's height over the opening */
@@ -143,6 +144,8 @@ const easeOutBack = (t: number) => { const c = 1.9; return 1 + (c + 1) * (t - 1)
 const storeSays = () => ({ title: '儲藏室電燈', hint: lightOn(getLights(), 'store') ? '點一下拉線關燈' : '點一下拉線開燈' })
 function StoreLamp({ at }: { at: [number, number, number] }) {
   const shadeY = -LAMP_CORD - 0.034
+  /** the filament's height over the stock room's floor */
+  const bulbY = at[1] + shadeY + BULB_AT + 0.004
   const light = useRef<THREE.SpotLight>(null)
   const aim = useRef<THREE.Object3D>(null)
   const swing = useRef<THREE.Group>(null)
@@ -166,7 +169,12 @@ function StoreLamp({ at }: { at: [number, number, number] }) {
     l.shadow.camera.near = 0.03 * u
     l.shadow.camera.far = BULB_REACH * u
     l.shadow.camera.updateProjectionMatrix()
-  }, [])
+    // (item 730) where it can light, in its own frame (the room's units, its cone straight down): its cone's widest within its reach, and
+    // down to the earth round the shop (0.46 under the floor), out through the doorway and the stock room's open back and near end: while
+    // none of this is in the view ShadowPacer leaves its map as it was (about 30 draws every third frame)
+    const R = BULB_REACH * Math.sin(BULB_CONE), H = Math.min(BULB_REACH, bulbY - EARTH_Y)
+    l.userData.litBox = new THREE.Box3(new THREE.Vector3(-R, -H, -R), new THREE.Vector3(R, 0.05, R))
+  }, [bulbY])
   const shown = useRef(-1)
   useFrame((_, dt) => {
     const want = lightOn(getLights(), 'store') ? 1 : 0

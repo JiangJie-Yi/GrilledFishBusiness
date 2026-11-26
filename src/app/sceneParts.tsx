@@ -81,6 +81,11 @@ const SUN_PIECE_R = 3
  * world's) out past the floor's open edge) */
 const SUN_EDGE = 0.1
 const SUN_AT = new THREE.Vector3()
+/** (item 730) the view's frustum in a light's own frame, for a spot light that says where it can light (`userData.litBox`, a box in its own
+ * frame: the stock room's bulb): its map left as it was while none of that's in the view, drawn again the frame some of it comes back into
+ * it. The test made in the light's frame (the view's matrix times the light's world matrix), not on the box carried out to the world: the
+ * room stands turned in the world, and the box turned out there and boxed again was half as wide again (module-level, nothing new a frame) */
+const LIT_VIEW = new THREE.Frustum(), LIT_VP = new THREE.Matrix4(), LIT_M = new THREE.Matrix4()
 /** the casters left out of the sun's map this frame, back on */
 function castersBack(o: THREE.Mesh[]) { for (let i = 0; i < o.length; i++) o[i].castShadow = true; o.length = 0 }
 
@@ -98,18 +103,43 @@ export const ShadowPacer = memo(function ShadowPacer() {
   const others = useRef<THREE.SpotLight[]>([])
   const casters = useRef<THREE.Mesh[]>([])
   const off = useRef<THREE.Mesh[]>([])
+  /** the view's own camera (a mirror's is another) */
+  const view = useRef<THREE.Camera | null>(null)
   useEffect(() => {
     gl.shadowMap.autoUpdate = false; gl.shadowMap.needsUpdate = true
     const back = () => castersBack(off.current)
-    const was = scene.onAfterRender
+    // (item 730) a light with a lit box, put out or its box out of this render's view: its map not drawn (asked for on its frame or not),
+    // and marked stale; lit and its box in the view again, a stale map drawn in this very render, whatever frame of the three it is. Here,
+    // not in the frame's callbacks: three has this frame's matrices by now (a callback after this one's may still move the camera), so a
+    // box coming into the view has its map drawn the frame it's seen, not a frame late. Only for the view's own camera: in a mirror's draw (the
+    // restrooms' round mirrors) the maps stay as they were, so a lit box seen only in a mirror keeps its last shadow (the stock keeper's
+    // standing still there while he walks); upstairs the shop's maps aren't drawn at all (below)
+    const litInView = (camera: THREE.Camera) => {
+      if (FLOOR.up || camera !== view.current) return
+      let ready = false, fresh = false
+      for (const l of others.current) {
+        const box = l.userData.litBox as THREE.Box3 | undefined
+        if (!box || !l.castShadow) continue
+        if (!ready) { LIT_VP.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); ready = true }
+        if (!(l.intensity > 0) || !LIT_VIEW.setFromProjectionMatrix(LIT_M.multiplyMatrices(LIT_VP, l.matrixWorld)).intersectsBox(box)) {
+          l.shadow.needsUpdate = false; l.userData.mapStale = true
+          continue
+        }
+        if (l.userData.mapStale) { l.userData.mapStale = false; l.shadow.needsUpdate = true; fresh = true }
+      }
+      if (fresh) gl.shadowMap.needsUpdate = true
+    }
+    const was = scene.onAfterRender, wasBefore = scene.onBeforeRender
     scene.onAfterRender = function (...a) { back(); was.apply(this, a) }
+    scene.onBeforeRender = function (...a) { litInView(a[2]); wasBefore.apply(this, a) }
     return () => {
-      back(); scene.onAfterRender = was; gl.shadowMap.autoUpdate = true
+      back(); scene.onAfterRender = was; scene.onBeforeRender = wasBefore; gl.shadowMap.autoUpdate = true
       for (const l of [sun.current, ...others.current]) if (l?.shadow) l.shadow.autoUpdate = true
     }
   }, [gl, scene])
   const onePass = (mat: THREE.Material | undefined) => { if (mat && mat.transparent && mat.side === THREE.DoubleSide && !mat.forceSinglePass) mat.forceSinglePass = true }
-  useFrame(({ clock }) => {
+  useFrame(({ clock, camera }) => {
+    view.current = camera
     // (left out last frame and not put back, the frame not drawn)
     if (off.current.length) castersBack(off.current)
     // (once a second and a half)
@@ -174,7 +204,7 @@ export const ShadowPacer = memo(function ShadowPacer() {
       }
     } else {
       // (a light put out (its strength 0: the stock room's bulb pulled off, item 729) its map left as it was: drawn again the first frame
-      // after it's lit)
+      // after it's lit; one with a lit box, whose box is out of the view, left as it was too, item 730, scene.onBeforeRender above)
       for (const l of others.current) if (l.intensity > 0) l.shadow.needsUpdate = true
     }
     gl.shadowMap.needsUpdate = true
