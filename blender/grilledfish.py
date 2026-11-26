@@ -3434,83 +3434,135 @@ _band = np.sin((_su * 18 + _sv * 18) * math.pi * 2) * 0.5 + 0.5
 TEX["hoopband"] = image("T_BucketBamboo", mix((0.72, 0.6, 0.36), (0.55, 0.43, 0.23), smooth(0.4, 0.8, _band)))
 M["bucket_wood"] = pbr("BucketWood", tex=TEX["cedar"], rough=0.7)
 M["hoop"] = pbr("BucketBand", tex=TEX["hoopband"], rough=0.6)
-M["stave_joint"] = pbr("BucketJoint", (0.18, 0.11, 0.06), rough=0.8)
+# (the joints' strips (item 730) dark as the round rods' black outlines were: on their own they were a mid brown)
+M["stave_joint"] = pbr("BucketJoint", (0.025, 0.016, 0.01), rough=0.8)
 M["water"] = pbr("Water", (0.3, 0.5, 0.62), rough=0.05, coat=1.0)
 bx, by = -1.75, -0.16
 BUCKET_R, BUCKET_H = 0.24, 0.34
 
 
-def coopered(cx, cy, r0, r1, h, wall, n, name, z0=0.0, seed_=0):
+def coopered(cx, cy, r0, r1, h, wall, n, name, z0=0.0, seed_=0, joint=0.0075, bottom=True):
     """a coopered tub: n staves round (each its own board with its own part of the grain), wider at the top (r1) than the foot (r0), a bottom
-    board let in, a dark line at each joint"""
+    board let in (`bottom`: not where water always stands over it), a dark line `joint` wide down each joint (as wide as the rods' were with
+    their outlines): each stave's outer face a strip of it along either edge and the board between (item 730: it was a thin round rod down
+    each joint, 28 triangles a joint and an ink outline of its own, the outline's tops standing over the rim as black ticks)"""
     rng_ = np.random.default_rng(seed_)
     bm = bmesh.new()
     uvl = bm.loops.layers.uv.new()
+    # (each joint's corners one vertex for the staves either side of it, outer and inner, foot and top, and no faces between two staves
+    # (inside the wood, never seen): the wall one closed ring, the ink outline's hull closed over each joint. Each stave apart, its corners
+    # its own, the hull opened at every joint in a notch, the light through it in specks along the rim)
+    def ring(r, z):
+        return [bm.verts.new((cx + r * math.cos(2 * math.pi * k / n), cy + r * math.sin(2 * math.pi * k / n), z)) for k in range(n)]
+    ob, ib, ot, it = ring(r0, z0), ring(r0 - wall, z0), ring(r1, z0 + h), ring(r1 - wall, z0 + h)
     for k in range(n):
-        a0, a1 = 2 * math.pi * k / n, 2 * math.pi * (k + 1) / n
+        a0 = 2 * math.pi * k / n
+        k1 = (k + 1) % n
         ou = float(rng_.uniform(0, 1))
-        vs = []
-        for (z, rr) in ((z0, r0), (z0 + h, r1)):
-            for a in (a0, a1):
-                for ri in (rr, rr - wall):
-                    vs.append(bm.verts.new((cx + ri * math.cos(a), cy + ri * math.sin(a), z)))
-        # (0 bottom-a0-out, 1 bottom-a0-in, 2 bottom-a1-out, 3 bottom-a1-in, 4.. top)
-        quads = [(0, 2, 6, 4), (3, 1, 5, 7), (1, 0, 4, 5), (2, 3, 7, 6), (4, 6, 7, 5), (1, 3, 2, 0)]
-        for q in quads:
+        # (0 bottom-a0-out, 1 bottom-a0-in, 2 bottom-a1-out, 3 bottom-a1-in, 4.. top; then on the outer face's edges, in its plane, half a
+        # joint in from either corner: 8 bottom-a0, 9 bottom-a1, 10 top-a0, 11 top-a1)
+        vs = [ob[k], ib[k], ob[k1], ib[k1], ot[k], it[k], ot[k1], it[k1]]
+        for (lo, hi) in ((0, 2), (4, 6)):
+            p, q = vs[lo].co.copy(), vs[hi].co.copy()
+            t = joint / 2 / (q - p).length
+            vs.append(bm.verts.new(p.lerp(q, t)))
+            vs.append(bm.verts.new(q.lerp(p, t)))
+        # (the outer face: the joint's strip, the board, the next joint's strip; the inside; its top and its foot cut at those points too, a
+        # triangle at either end and a quad between (whole, the cuts stood in their edges as T-junctions))
+        quads = [(0, 8, 10, 4), (8, 9, 11, 10), (9, 2, 6, 11), (3, 1, 5, 7), (4, 10, 5), (10, 11, 7, 5), (11, 6, 7), (3, 2, 9), (1, 3, 9, 8), (1, 8, 0)]
+        for j, q in enumerate(quads):
             f = bm.faces.new([vs[i] for i in q])
-            f.material_index = 0
-            for li, l in enumerate(f.loops):
+            # (the strips smooth, their normal at the joint the two staves' between: the hull pushed out alike either side of it; the rest
+            # flat, a stave each its own shade)
+            f.material_index = 1 if j in (0, 2) else 0
+            f.smooth = j in (0, 2)
+            for l in f.loops:
                 co = l.vert.co
-                l[uvl].uv = (ou + (math.atan2(co.y - cy, co.x - cx) - a0) * r1 / 0.12, (co.z - z0) / 0.3)
+                # (round from this stave's first edge, wrapped to within half a turn: from atan2 straight, a stave across its ±π (and the last,
+                # its far edge at 2π read as 0) had its grain squeezed a dozen times over)
+                d = (math.atan2(co.y - cy, co.x - cx) - a0 + math.pi) % (2 * math.pi) - math.pi
+                l[uvl].uv = (ou + d * r1 / 0.12, (co.z - z0) / 0.3)
     # (the bottom board, let in a little above the foot)
-    ret = bmesh.ops.create_circle(bm, cap_ends=True, radius=r0 - wall * 0.6, segments=n * 2, matrix=Matrix.Translation((cx, cy, z0 + 0.02)))
-    for f in {f for v in ret["verts"] for f in v.link_faces}:
-        f.material_index = 0
-        for l in f.loops:
-            l[uvl].uv = ((l.vert.co.x - cx) / 0.2, (l.vert.co.y - cy) / 0.2)
+    if bottom:
+        ret = bmesh.ops.create_circle(bm, cap_ends=True, radius=r0 - wall * 0.6, segments=n * 2, matrix=Matrix.Translation((cx, cy, z0 + 0.02)))
+        for f in {f for v in ret["verts"] for f in v.link_faces}:
+            f.material_index = 0
+            for l in f.loops:
+                l[uvl].uv = ((l.vert.co.x - cx) / 0.2, (l.vert.co.y - cy) / 0.2)
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)
     bm.free()
     o = bpy.data.objects.new(name, me)
     bpy.context.collection.objects.link(o)
     o.data.materials.append(M["bucket_wood"])
-    # (the joints: a thin dark strip down the outside of each)
-    joints = []
+    o.data.materials.append(M["stave_joint"])
+    return o
+
+
+def hoop_band(cx, cy, r_out, thick, z_lo, z_hi, n, name):
+    """a hoop of woven bamboo round a coopered tub of n staves: a flat band `thick` deep inward from `r_out` (at its corners), its n faces
+    each over a stave and its corners over the joints (item 730: a 48-sided band round 22 staves, 384 triangles a hoop); its outer and
+    inner faces, top and bottom; its picture once round (u the angle, v up it, as cyl_uv's)"""
+    bm = bmesh.new()
+    uvl = bm.loops.layers.uv.new()
+    # (outer foot, outer top, inner top, inner foot: each ring's faces turned out of the band)
+    rings = [[bm.verts.new((cx + r * math.cos(2 * math.pi * k / n), cy + r * math.sin(2 * math.pi * k / n), z)) for k in range(n)]
+             for (r, z) in ((r_out, z_lo), (r_out, z_hi), (r_out - thick, z_hi), (r_out - thick, z_lo))]
     for k in range(n):
-        a = 2 * math.pi * k / n
-        p0 = Vector((cx + (r0 + 0.0008) * math.cos(a), cy + (r0 + 0.0008) * math.sin(a), z0 + 0.002))
-        p1 = Vector((cx + (r1 + 0.0008) * math.cos(a), cy + (r1 + 0.0008) * math.sin(a), z0 + h - 0.002))
-        joints.append(stick_between(p0, p1, 0.0012, M["stave_joint"], f"{name}Joint{k}"))
-    for p_ in o.data.polygons:
-        p_.use_smooth = False
-    return join([o, *joints], name)
+        k1 = (k + 1) % n
+        for j in range(4):
+            a, b = rings[j], rings[(j + 1) % 4]
+            f = bm.faces.new((a[k], a[k1], b[k1], b[k]))
+            for l, u in zip(f.loops, (k, k + 1, k + 1, k)):
+                l[uvl].uv = (u / n, (l.vert.co.z - z_lo) / (z_hi - z_lo))
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    o = bpy.data.objects.new(name, me)
+    bpy.context.collection.objects.link(o)
+    return o
 
 
-bucket = coopered(bx, by, BUCKET_R * 0.86, BUCKET_R * 0.96, BUCKET_H, 0.016, 22, "WaterBucket")
+def water_top(cx, cy, r, z, n, name):
+    """the top of water standing in a coopered tub of n staves: one face, a corner at each joint `r` out (just within the staves' inside
+    there), a ladder of quads across it (item 730: a many-sided slab, its sides and underside never seen under its top); its origin its
+    middle (the dipper's is shrunk about it as it's poured)"""
+    bm = bmesh.new()
+    uvl = bm.loops.layers.uv.new()
+    ring = [bm.verts.new((r * math.cos(2 * math.pi * k / n), r * math.sin(2 * math.pi * k / n), 0.0)) for k in range(n)]
+    for f in ladder_fill(bm, ring):
+        for l in f.loops:
+            l[uvl].uv = (0.5 + l.vert.co.x / (2 * r), 0.5 + l.vert.co.y / (2 * r))
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    o = bpy.data.objects.new(name, me)
+    bpy.context.collection.objects.link(o)
+    o.location = (cx, cy, z)
+    return o
+
+
+BUCKET_STAVES = 22
+bucket = coopered(bx, by, BUCKET_R * 0.86, BUCKET_R * 0.96, BUCKET_H, 0.016, BUCKET_STAVES, "WaterBucket", bottom=False)
 hoops = []
 for hz, hr in ((0.075, 0.88), (0.25, 0.93)):
     # (a hoop of woven bamboo: a flat band, a little proud of the staves)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=48, radius=BUCKET_R * hr + 0.006, depth=0.03, location=(bx, by, hz))
-    band = active()
-    bm_ = bmesh.new(); bm_.from_mesh(band.data)
-    bmesh.ops.delete(bm_, geom=[f for f in bm_.faces if abs(f.normal.z) > 0.9], context="FACES")
-    bm_.to_mesh(band.data); bm_.free()
-    sol = band.modifiers.new("t", "SOLIDIFY"); sol.thickness = 0.008
-    bpy.ops.object.select_all(action="DESELECT"); band.select_set(True); bpy.context.view_layer.objects.active = band
-    bpy.ops.object.modifier_apply(modifier="t")
-    cyl_uv(band)
-    hoops.append(finish(band, "Hoop", M["hoop"]))
-bpy.ops.mesh.primitive_cylinder_add(vertices=40, radius=BUCKET_R * 0.86, depth=0.006, location=(bx, by, BUCKET_H * 0.78))
-surface = finish(active(), "WaterSurface", M["water"])
+    hoops.append(finish(hoop_band(bx, by, BUCKET_R * hr + 0.006, 0.008, hz - 0.015, hz + 0.015, BUCKET_STAVES, "Hoop"), "Hoop", M["hoop"]))
+# (the water's top where the slab's was, 3 mm in from the staves' inside there)
+_lvl = BUCKET_H * 0.78 + 0.003
+_inside = BUCKET_R * 0.86 + BUCKET_R * 0.1 * _lvl / BUCKET_H - 0.016
+surface = finish(water_top(bx, by, _inside - 0.003, _lvl, BUCKET_STAVES, "WaterSurface"), "WaterSurface", M["water"])
 centre_origin(join([bucket, *hoops, surface], "WaterBucket"), (bx, by, 0.0))
 # the dipper: a little coopered cup on a long handle, leaning out of the bucket, and the water it holds (shown by the game when it's full)
 cup_at = Vector((bx + 0.05, by, BUCKET_H * 0.82))
-cup = coopered(cup_at.x, cup_at.y, 0.042, 0.046, 0.055, 0.006, 12, "DipperCup", z0=cup_at.z - 0.0275, seed_=3)
+cup = coopered(cup_at.x, cup_at.y, 0.042, 0.046, 0.055, 0.006, 12, "DipperCup", z0=cup_at.z - 0.0275, seed_=3, joint=0.006)
 handle = stick_between(cup_at + Vector((-0.04, 0, 0.0)), cup_at + Vector((-0.2, 0.02, 0.28)), 0.007, M["spoon_wood"], "DipperHandle")
 dipper = join([cup, handle], "WaterDipper")
 centre_origin(dipper, tuple(cup_at))
-bpy.ops.mesh.primitive_cylinder_add(vertices=20, radius=0.036, depth=0.003, location=cup_at + Vector((0, 0, 0.012)))
-dw = finish(active(), "DipperWater", M["water"])
+# (its water's top where the slab's was, 2 mm in from the cup's inside there)
+_lvl = 0.012 + 0.0015
+_inside = 0.042 + 0.004 * (_lvl + 0.0275) / 0.055 - 0.006
+dw = finish(water_top(cup_at.x, cup_at.y, _inside - 0.002, cup_at.z + _lvl, 12, "DipperWater"), "DipperWater", M["water"])
 dw.parent = dipper
 dw.matrix_parent_inverse = dipper.matrix_world.inverted()
 
