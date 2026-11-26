@@ -389,14 +389,16 @@ def bits():
     # ---- the Otohime (音姫): a little white box, a sakura flower on its face, a speaker grille, a round sensor with a blue ring that lights
     node("WcOtohime")
     add("WcOtohime", rbox("OtoBody", (0.095, 0.13, 0.035), (0, 0, 0.0175), 0.012, 4), "OtoBody", M["oto"])
-    add("WcOtohime", cyl(0.02, 0.006, (0.0, 0.022, 0.036), FRONT, 32), "OtoSensor", M["panel"])
+    # (the sensor and its ring 20 round, the ring's tube four (item 731): 32 round by six it was 384 triangles for a ring 4.6 cm across, the
+    # low-poly rule's 24 over; at 20 the circle is 0.3 mm off at most, the ring lit flat in the game)
+    add("WcOtohime", cyl(0.02, 0.006, (0.0, 0.022, 0.036), FRONT, 20), "OtoSensor", M["panel"])
     for k in range(5):
         a = math.pi / 2 + k * 2 * math.pi / 5
         add("WcOtohime", cyl(0.0065, 0.003, (0.03 + 0.008 * math.cos(a), -0.002 + 0.008 * math.sin(a), 0.0355), FRONT, 12), f"OtoPetal{k}", M["sakura"])
     for k in range(5):
         add("WcOtohime", rbox(f"OtoGrille{k}", (0.05, 0.003, 0.002), (0.0, -0.025 - k * 0.008, 0.035), 0.0, 1), f"OtoGrille{k}", M["grille"], False)
     node("WcOtoLed")
-    bpy.ops.mesh.primitive_torus_add(major_radius=0.023, minor_radius=0.0025, major_segments=32, minor_segments=6, location=P(0.0, 0.022, 0.037), rotation=FRONT)
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.023, minor_radius=0.0025, major_segments=20, minor_segments=4, location=P(0.0, 0.022, 0.037), rotation=FRONT)
     add("WcOtoLed", active(), "OtoLed", M["led"])
     # ---- the paper holder: a walnut shelf with two cheeks, a brass bar between; the roll (its own node, unit radius, scaled to how much
     # is left) round its card core, and a little folded point on the roll's end (三角折り) that shows when it's been freshly seen to
@@ -406,7 +408,8 @@ def bits():
         add("WcHolder", rbox(f"HolCheek{sd}", (0.012, 0.1, 0.11), (sd * 0.079, 0.02, 0.058), 0.003, 2), f"HolCheek{sd}", M["walnut"])
     add("WcHolder", cyl(0.006, 0.15, (0, 0.0, 0.065), (0, math.pi / 2, 0), 12), "HolBar", M["brass"])
     node("WcRoll")
-    add("WcRoll", cyl(1.0, 0.105, (0, 0, 0), (0, math.pi / 2, 0), 32), "Roll", M["paper"])
+    # (24 round (item 731, 32 before): its corners at every 15 degrees from straight up, where the game's end discs (Restroom's ROLL_END) put theirs)
+    add("WcRoll", cyl(1.0, 0.105, (0, 0, 0), (0, math.pi / 2, 0), 24), "Roll", M["paper"])
     node("WcCore")
     add("WcCore", cyl(0.021, 0.107, (0, 0, 0), (0, math.pi / 2, 0), 20), "Core", M["core"])
     node("WcFold")

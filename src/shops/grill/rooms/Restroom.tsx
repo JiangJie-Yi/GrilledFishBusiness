@@ -744,8 +744,11 @@ const TAIL_MAT = (() => {
   tex.colorSpace = THREE.SRGBColorSpace
   return new THREE.MeshToonMaterial({ color: '#ffffff', map: tex, side: THREE.DoubleSide })
 })()
-/** a roll's end: its paper's layers in faint rings out to the edge (scaled with the roll), and the core's: a cardboard ring and its hole */
-const ROLL_END = new THREE.CircleGeometry(1, 32)
+/** a roll's end: its paper's layers in faint rings out to the edge (scaled with the roll), and the core's: a cardboard ring and its hole.
+ * (Each disc filled in rungs, not a fan of triangles to its middle (the low-poly rule), turned to face +z as a CircleGeometry does, its
+ * corners where a CircleGeometry's are; the roll's end 24 round as the roll is in wcbits.glb (item 731, both 32 before), the hole 24 as
+ * the core's ring round it. Built once here, shared by every roll) */
+const ROLL_END = rungDisc(24).rotateX(Math.PI / 2)
 const ROLL_END_MAT = (() => {
   const c = document.createElement('canvas')
   c.width = 256; c.height = 256
@@ -767,7 +770,7 @@ const ROLL_END_MAT = (() => {
 })()
 const CORE_END = new THREE.RingGeometry(0.0155, 0.021, 24)
 const CORE_END_MAT = new THREE.MeshToonMaterial({ color: '#b98d4e' })
-const CORE_HOLE = new THREE.CircleGeometry(0.0155, 24)
+const CORE_HOLE = rungDisc(24).rotateX(Math.PI / 2).scale(0.0155, 0.0155, 1)
 const CORE_HOLE_MAT = new THREE.MeshBasicMaterial({ color: '#2a2622' })
 
 /** the brush in its pot on the floor at `at`; scrubbing, it goes over into the bowl (at `bowl`, in the room) and round, and back */
@@ -934,7 +937,7 @@ const WATER_GEO = rungDisc(32)
 const BOWL_HIT_GEO = rungDisc(16)
 /** a ripple: a thin ring (its outer edge RING_OUT), spread out by scaling it */
 const RING_OUT = 0.0085
-const RING_GEO = new THREE.RingGeometry(RING_OUT * 0.9, RING_OUT, 28).rotateX(-Math.PI / 2)
+const RING_GEO = new THREE.RingGeometry(RING_OUT * 0.9, RING_OUT, 24).rotateX(-Math.PI / 2)
 /** the pop-up drain (the owner's, 2026-11-10: the stopper showed no travel, no feel): a brass ring set on the drain's strainer, its throat
  * dark inside it, and the cap riding in it on its stem (a flat top eased round its edge, a short skirt), its origin where its skirt's foot
  * sits seated on the strainer, lifted OPEN_LIFT when it's popped up (the dark gap under it then plain round its stem). Each lathe's profile
