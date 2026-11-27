@@ -8,9 +8,9 @@ import { inkModel } from '@/scene/render/inkHull'
 import { WC_W, WC_ROOM, kitchenOf, kitchenGatesOf, FLOOR_FAR, FLOOR_NEAR, GENKAN, storeOf, STORE, toiletsOf, roomOf, RICE_MAT, WALL_OUT, farOf, type Counter } from '@/shops/grill/bar'
 import { WC_BACK_LINE } from '@/shops/grill/dining/wc'
 import { Movable } from '@/shops/grill/editor/Movable'
-import { signTexture } from '@/scene/props/signFont'
 import { drainSpot, outlineOf, plinthPlan, type PlinthPlan, type Rect, type Run } from '@/game/world/groundLayout'
 import { normalFromHeight } from '@/scene/render/normalFromHeight'
+import { seigaiha } from '@/scene/props/edoPatterns'
 import { EARTH_Y, ShopGround } from './ground'
 import { DRAIN_CLEAR, DRAIN_FROM, ShopDrain } from './drain'
 
@@ -758,45 +758,141 @@ function RoomFloorImpl({ counters, drop }: { counters: Counter[]; drop: number }
   )
 }
 /**
- * The rush mat (茣蓙) under the rice sacks and the sake barrels (item 717, the owner's 「紅框地板鋪草蓆」, bar.ts's RICE_MAT): pale rush woven
- * along its length, the warp's threads across it now and then, a little blotched as a used one is; along its two long sides a binding of
- * dark green cloth with a fine pale line in it. A thin board on the floor's boards (1 mm over them, not in one plane), its picture on its
- * top, its sides the rush's colour; one draw
+ * The rush mat (茣蓙) under the rice sacks and the sake barrels (item 717, the owner's 「紅框地板鋪草蓆」, bar.ts's RICE_MAT), woven as a real
+ * one is (item 766, the owner's 「草蓆要真實且好看些」: it was one flat straw colour ruled with lines, its rush running along it): its rush
+ * (藺草) across it, strand by strand (3.5 mm each, each its own straw: a soft gold, some greener, now and then a darker or a paler one), the
+ * cotton warp along it every 1.6 cm pinching them, so each strand swells between two warps (the weave's 目) and the warp's thread shows
+ * where it crosses over a strand, every other one by turns; a little wear. Its height a picture too, made into its normal map (the strands
+ * rounded, the grooves and the pinches sunk), so the light runs along the weave. One tile 30 cm square, repeated over it (seamless). Along
+ * its two long sides a binding (縁) of navy cloth with a fine seigaiha in it, a gold line near each edge and the stitches along its inner
+ * one, over the mat's edge and down its side, 1.5 mm proud of the rush (not in one plane with it). Two draws: the rush as the plinth's
+ * stone is drawn (one program with it), the binding as the gravel (one program).
  */
-const RICE_MAT_TEX = signTexture(512, 300, (g) => {
-  g.fillStyle = '#c4ab72'
-  g.fillRect(0, 0, 512, 300)
-  // (blotches: drier, paler; darker where it's been trodden and sat on)
-  let seed = 717
-  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
-  for (let i = 0; i < 40; i++) {
-    const x = rnd() * 512, y = rnd() * 300, r = 20 + rnd() * 70, light = i % 2
-    const gr = g.createRadialGradient(x, y, 0, x, y, r)
-    gr.addColorStop(0, light ? 'rgba(230,212,160,0.22)' : 'rgba(120,96,52,0.18)'); gr.addColorStop(1, 'rgba(0,0,0,0)')
-    g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2)
+const MAT_TILE = 0.3, MAT_BIND = { w: 0.055, up: 0.0015, out: 0.002, tile: 0.2 }
+const RICE_MAT_LOOK = (() => {
+  if (typeof document === 'undefined') return null
+  const N = 512, STRANDS = 86, ROWS = 19, sw = N / STRANDS, rh = N / ROWS
+  const c = document.createElement('canvas'); c.width = c.height = N
+  const g = c.getContext('2d')!
+  const hc = document.createElement('canvas'); hc.width = hc.height = N
+  const hg = hc.getContext('2d')!
+  let seed = 766
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+  // (each strand's straw)
+  const straws = Array.from({ length: STRANDS }, () => {
+    const k = rnd(), j = (rnd() - 0.5) * 14
+    const base = k < 0.06 ? [160, 138, 86] : k < 0.15 ? [216, 199, 146] : k < 0.4 ? [186, 178, 114] : [199, 180, 118]
+    return base.map((v, i) => Math.max(0, Math.min(255, v + j * 0.7 + (i === 1 ? (rnd() - 0.5) * 6 : 0))))
+  })
+  const img = g.createImageData(N, N), hImg = hg.createImageData(N, N)
+  for (let y = 0; y < N; y++) {
+    // (between two warps the strand swells to its middle, pinched at them)
+    const swell = Math.pow(Math.sin(Math.PI * ((y % rh) / rh)), 0.6)
+    for (let x = 0; x < N; x++) {
+      const st = Math.floor(x / sw), round = Math.pow(Math.sin(Math.PI * ((x - st * sw) / sw)), 0.8)
+      const [r0, g0, b0] = straws[st]
+      // (its grooves and the pinches darker, its crown catching a little of the light)
+      const k = 0.78 + 0.22 * round * (0.6 + 0.4 * swell) + (round > 0.93 && swell > 0.85 ? 0.04 : 0)
+      const i = (y * N + x) * 4
+      img.data[i] = r0 * k; img.data[i + 1] = g0 * k; img.data[i + 2] = b0 * k; img.data[i + 3] = 255
+      const h = Math.round(255 * (0.2 + 0.55 * round * (0.55 + 0.45 * swell)))
+      hImg.data[i] = hImg.data[i + 1] = hImg.data[i + 2] = h; hImg.data[i + 3] = 255
+    }
   }
-  // (the rush along its length, a stalk a few pixels, each its own shade)
-  for (let y = 0; y < 300; y += 3) {
-    g.fillStyle = `rgba(${rnd() < 0.5 ? '100,78,40' : '240,226,180'},${0.12 + rnd() * 0.16})`
-    g.fillRect(0, y, 512, 1.4)
+  g.putImageData(img, 0, 0); hg.putImageData(hImg, 0, 0)
+  // (the warp's thread where it crosses over a strand, every other one by turns: pale cotton, a little raised)
+  for (let r = 0; r <= ROWS; r++) {
+    const y = r * rh
+    for (let st = 0; st < STRANDS; st++) {
+      if ((st + r) % 2) continue
+      g.fillStyle = 'rgba(234,226,202,0.6)'; g.fillRect(st * sw + 0.8, y - 0.9, sw - 1.6, 1.8)
+      hg.fillStyle = 'rgb(140,140,140)'; hg.fillRect(st * sw + 0.8, y - 0.9, sw - 1.6, 1.8)
+    }
   }
-  // (the warp's threads across it)
-  for (let x = 14; x < 512; x += 38) { g.fillStyle = 'rgba(90,70,40,0.42)'; g.fillRect(x, 0, 1.6, 300) }
-  // (its binding along both long sides: dark green cloth, a fine pale line along it)
-  for (const y0 of [0, 300 - 22]) {
-    g.fillStyle = '#26402f'; g.fillRect(0, y0, 512, 22)
-    g.fillStyle = 'rgba(214,200,160,0.55)'; g.fillRect(0, y0 + 10, 512, 1.5)
-    g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, y0 === 0 ? 21 : y0, 512, 1.5)
+  // (a little wear: soft patches a shade darker or paler, drawn round the tile's edges so it repeats unseen)
+  for (let i = 0; i < 14; i++) {
+    const x = rnd() * N, y = rnd() * N, r = 40 + rnd() * 90, dark = rnd() < 0.6
+    for (const ox of [-N, 0, N]) for (const oy of [-N, 0, N]) {
+      const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, r)
+      gr.addColorStop(0, dark ? 'rgba(96,74,40,0.1)' : 'rgba(240,226,180,0.1)'); gr.addColorStop(1, 'rgba(0,0,0,0)')
+      g.fillStyle = gr; g.fillRect(x + ox - r, y + oy - r, r * 2, r * 2)
+    }
   }
-})
-const RICE_MAT_MAT = new THREE.MeshToonMaterial({ map: RICE_MAT_TEX })
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace
+  const n = new THREE.CanvasTexture(normalFromHeight(hc, 2.2))
+  for (const x of [t, n]) { x.flipY = false; x.wrapS = x.wrapT = THREE.RepeatWrapping; x.anisotropy = 8 }
+  const rush = new THREE.MeshToonMaterial({ color: '#ffffff', map: t, normalMap: n })
+  rush.name = 'RiceMatRush'
+  // (the binding's cloth: along it u (a repeat every MAT_BIND.tile), across it v from its outer edge (0) to its inner (1))
+  const bc = document.createElement('canvas'); bc.width = 256; bc.height = 64
+  const bg = bc.getContext('2d')!
+  bg.fillStyle = '#1c2843'; bg.fillRect(0, 0, 256, 64)
+  seigaiha(bg, 0, 10, 256, 44, { bg: '#1c2843', line: '#b9c4da', lw: 1, unit: 16, rings: 3 })
+  for (const y of [6, 56]) { bg.fillStyle = 'rgba(205,170,92,0.95)'; bg.fillRect(0, y, 256, 2) }
+  // (its weave, faint; the stitches along its inner edge)
+  for (let y = 0; y < 64; y += 2) { bg.fillStyle = 'rgba(0,0,0,0.08)'; bg.fillRect(0, y, 256, 1) }
+  for (let x = 2; x < 256; x += 8) { bg.fillStyle = 'rgba(214,206,186,0.85)'; bg.fillRect(x, 60.5, 4, 1.5) }
+  const bt = new THREE.CanvasTexture(bc)
+  bt.colorSpace = THREE.SRGBColorSpace
+  bt.flipY = false; bt.wrapS = bt.wrapT = THREE.RepeatWrapping; bt.anisotropy = 8
+  const bind = new THREE.MeshToonMaterial({ map: bt })
+  bind.name = 'RiceMatBinding'
+  return { rush, bind }
+})()
+/** a quad's two triangles wound to face `n`, its corners' uv given */
+function matQuad(pos: number[], nor: number[], uv: number[], p: [number, number, number][], n: [number, number, number], t: [number, number][]) {
+  const [a, b, c] = p
+  const cr = [(b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]), (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]),
+    (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])]
+  for (const i of cr[0] * n[0] + cr[1] * n[1] + cr[2] * n[2] >= 0 ? [0, 1, 2, 0, 2, 3] : [0, 2, 1, 0, 3, 2]) { pos.push(...p[i]); nor.push(...n); uv.push(...t[i]) }
+}
+function matGeo(pos: number[], nor: number[], uv: number[]) {
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3))
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2))
+  return g
+}
+/**
+ * The mat's two shapes: its rush (its top and its four sides, from `y0` to `y1`, its picture laid by where it is: one tile MAT_TILE) and its
+ * binding (along its two long sides, z0's and z1's: a top MAT_BIND.w in from the edge and up over the rush, its outer side down past the
+ * mat's to `y0` (MAT_BIND.out out from it), the step down onto the rush along its inner edge, and its two ends past the mat's)
+ */
+function riceMatGeometry(x0: number, x1: number, z0: number, z1: number, y0: number, y1: number) {
+  const P: number[] = [], N: number[] = [], U: number[] = []
+  const u = (x: number) => x / MAT_TILE, v = (z: number) => z / MAT_TILE
+  matQuad(P, N, U, [[x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1]], [0, 1, 0], [[u(x0), v(z0)], [u(x1), v(z0)], [u(x1), v(z1)], [u(x0), v(z1)]])
+  matQuad(P, N, U, [[x0, y0, z0], [x0, y1, z0], [x0, y1, z1], [x0, y0, z1]], [-1, 0, 0], [[u(x0), v(z0)], [u(x0) + 0.02, v(z0)], [u(x0) + 0.02, v(z1)], [u(x0), v(z1)]])
+  matQuad(P, N, U, [[x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1]], [1, 0, 0], [[u(x1), v(z0)], [u(x1) - 0.02, v(z0)], [u(x1) - 0.02, v(z1)], [u(x1), v(z1)]])
+  matQuad(P, N, U, [[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0]], [0, 0, -1], [[u(x0), v(z0)], [u(x1), v(z0)], [u(x1), v(z0) + 0.02], [u(x0), v(z0) + 0.02]])
+  matQuad(P, N, U, [[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], [0, 0, 1], [[u(x0), v(z1)], [u(x1), v(z1)], [u(x1), v(z1) - 0.02], [u(x0), v(z1) - 0.02]])
+  const rush = matGeo(P, N, U)
+  const bP: number[] = [], bN: number[] = [], bU: number[] = []
+  const { w, up, out, tile } = MAT_BIND, top = y1 + up, e0 = x0 - out, e1 = x1 + out, bu = (x: number) => x / tile
+  for (const [edge, inn, sd] of [[z0 - out, z0 + w, -1], [z1 + out, z1 - w, 1]] as [number, number, number][]) {
+    // (its top, from its outer edge (v 0) to its inner (v 1); its outer side, the cloth's outer band; the step onto the rush; its ends)
+    matQuad(bP, bN, bU, [[e0, top, edge], [e1, top, edge], [e1, top, inn], [e0, top, inn]], [0, 1, 0], [[bu(e0), 0], [bu(e1), 0], [bu(e1), 1], [bu(e0), 1]])
+    matQuad(bP, bN, bU, [[e0, y0, edge], [e1, y0, edge], [e1, top, edge], [e0, top, edge]], [0, 0, sd], [[bu(e0), 0.02], [bu(e1), 0.02], [bu(e1), 0], [bu(e0), 0]])
+    matQuad(bP, bN, bU, [[e0, y1, inn], [e1, y1, inn], [e1, top, inn], [e0, top, inn]], [0, 0, -sd], [[bu(e0), 1], [bu(e1), 1], [bu(e1), 0.98], [bu(e0), 0.98]])
+    for (const [x, nx] of [[e0, -1], [e1, 1]] as [number, number][]) {
+      matQuad(bP, bN, bU, [[x, y0, edge], [x, top, edge], [x, top, inn], [x, y0, inn]], [nx, 0, 0], [[0, 0], [0, 0.02], [0.02, 0.02], [0.02, 0]])
+    }
+  }
+  return { rush, bind: matGeo(bP, bN, bU) }
+}
 const RiceMat = memo(function RiceMat() {
   const [x0, x1] = RICE_MAT.x, [z0, z1] = RICE_MAT.z
-  const geo = useMemo(() => new THREE.BoxGeometry(x1 - x0, RICE_MAT.t - 0.001, z1 - z0), [x0, x1, z0, z1])
-  useEffect(() => () => geo.dispose(), [geo])
-  // (its long sides along x: the picture's binding along them, the box's top face's u along x and v along z)
-  return <mesh name="rice-mat" geometry={geo} material={RICE_MAT_MAT} position={[(x0 + x1) / 2, 0.001 + (RICE_MAT.t - 0.001) / 2, (z0 + z1) / 2]}
-    receiveShadow raycast={() => null} />
+  // (its long sides along x; 1 mm over the floor's boards at its foot, its top RICE_MAT.t)
+  const geo = useMemo(() => riceMatGeometry(x0, x1, z0, z1, 0.001, RICE_MAT.t), [x0, x1, z0, z1])
+  useEffect(() => () => { geo.rush.dispose(); geo.bind.dispose() }, [geo])
+  if (!RICE_MAT_LOOK) return null
+  return (
+    <group name="rice-mat">
+      <mesh geometry={geo.rush} material={RICE_MAT_LOOK.rush} receiveShadow raycast={() => null} />
+      <mesh geometry={geo.bind} material={RICE_MAT_LOOK.bind} receiveShadow raycast={() => null} />
+    </group>
+  )
 })
 /**
  * The genkan's floor and step (blender/genkanfloor.py, item 185, the owner's, 2026-11-15: "the genkan's doorway, its stone step and floor,
