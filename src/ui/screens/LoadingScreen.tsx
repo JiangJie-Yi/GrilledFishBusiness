@@ -3,6 +3,7 @@ import { useProgress } from '@react-three/drei'
 import { GrillingFish } from '@/ui/art/GrillingFish'
 import { EMBER_SHEETS, NOREN_CREST } from '@/ui/art/loadingLook'
 import { laterPending, laterSeen, sceneDrawn } from '@/scene/render/Later'
+import { veilLifting } from '@/scene/render/WorldBatch'
 import { LOADING_LINES, lineStep } from '@/data/loadingLines'
 import { loadingPct, loadingStep } from '@/game/system/loadingCreep'
 
@@ -93,7 +94,8 @@ export const LoadingScreen = memo(function LoadingScreen({ scene = true }: { sce
       const total = useProgress.getState().total
       held = total > 0 && allIn() ? held + 250 : 0
       idle = total === 0 && laterPending() === 0 && !scene ? idle + 250 : 0
-      if (held >= 600 || idle >= 3000) setDone(true)
+      // (and the room's merge made now, under the veil as it starts to lift (scene/render/WorldBatch, item 767))
+      if (held >= 600 || idle >= 3000) { veilLifting(); setDone(true) }
     }, 250)
     return () => window.clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps

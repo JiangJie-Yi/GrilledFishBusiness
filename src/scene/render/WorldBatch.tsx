@@ -18,6 +18,11 @@ const ADD_MS = 3000
 /** (item 598) how long a piece must have kept still to be added to what's merged once it's made: the plates, bowls and food set down for a
 // while were merged after 2.4 s and taken out again as they were picked up, the merge growing all the while the shop was open */
 const SETTLED_MS = 30_000
+/** (item 767) the loading veil lifting (ui/LoadingScreen, the moment it's all in): the room's first making done at once, on the next frame,
+ * while the veil's still all but opaque over it (its fade is the compositor's and goes on), not a second or so after it's gone (a frame of
+ * some 90 ms just as the player starts); one look forced, then as before */
+let lifting = false
+export function veilLifting() { lifting = true }
 /** (item 767) the first making held till the shop's all in (the loading veil's own test, ui/LoadingScreen's: nothing loading, every staged
  * part in, the shop drawn) through two looks, so all of it's kept still; made at FIRST_BY_MS whatever (a file that never comes) */
 const FIRST_BY_MS = 40_000
@@ -282,8 +287,11 @@ export const WorldBatch = memo(function WorldBatch() {
     }
     // ---- the room looked over now and then: what's kept still since the last look
     const now = performance.now()
-    if (now - lastLook.current < LOOK_MS) return
+    // (the veil lifting and nothing made yet: looked over now, not at the next look's time)
+    const forced = lifting && !b
+    if (now - lastLook.current < LOOK_MS && !forced) return
     lastLook.current = now
+    lifting = false
     const was = seen.current, next = new Map<THREE.Mesh, THREE.Matrix4>(), keep: THREE.Mesh[] = []
     const wasSince = since.current, nextSince = new Map<THREE.Mesh, number>()
     scene.traverseVisible((o) => {
@@ -334,7 +342,11 @@ export const WorldBatch = memo(function WorldBatch() {
     // (the first time not before the shop's all in, through two looks (item 767: made at two hundred kept still, or twenty seconds on, what
     // came in after it (the sink, the shrine, the till, the cats at the door, ...) waited 30 s and was merged on its own only as 24 or more
     // of it had, fewer never: the overview's draws 934 to 1,008 by which came in first); FIRST_BY_MS whatever)
-    if (!b && keep.length > 1 && (loadedLooks.current >= 2 || now - mountedAt.current > FIRST_BY_MS) && !anyLit()) { build(keep); madeAt.current = now }
+    // (or at once as the veil lifts: the veil's own test has held 0.6 s by then)
+    if (!b && keep.length > 1 && (loadedLooks.current >= 2 || (forced && loaded) || now - mountedAt.current > FIRST_BY_MS) && !anyLit()) {
+      build(keep)
+      madeAt.current = now
+    }
   })
   return null
 })
