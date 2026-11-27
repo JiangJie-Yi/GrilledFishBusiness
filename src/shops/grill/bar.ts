@@ -539,15 +539,21 @@ export function fridgesOf(cs: Counter[]) {
     // (item 554: its back's doors slide across (引き違い), the outer one over the inner, the fridge's own left half left open: `back` before
     // that half; `wait` 4 cm back from it, where he stands while the door slides (his hands, the case in them, 2 cm past the back's face
     // where he fills it, the outer door 2 cm proud of it))
-    const mid = farOf(c) + FRIDGE_GAP + FRIDGE.D / 2
+    // (both reckoned from its back's face (item 746: the fridge moved back to the stock room's floor, he stands as far from it as he did))
+    const mid = farOf(c) + FRIDGE_GAP + FRIDGE.D / 2, backFace = farOf(c) + FRIDGE_GAP
     return { n, z, at: at(mid), yaw: Math.atan2(c.lay.x, c.lay.z), front: at(mid + FRIDGE.D / 2 + 0.33).add(side), aisle: at(-aisleOf(c)),
-      back: at(farOf(c) - WALL_OUT - 0.12).sub(side), wait: at(farOf(c) - WALL_OUT - 0.16).sub(side) }
+      back: at(backFace - FRIDGE_FILL).sub(side), wait: at(backFace - FRIDGE_FILL - 0.04).sub(side) }
   })
 }
-/** how far a fridge's back stands off the wall's face (clear of the rail over the wainscot, DiningRoom's, 4.5 cm proud of the wall; at 1 cm it
- * ran through the cabinet's back and showed inside, the owner's), and a centimetre more; set into the wall a while (item 431), out of it
- * again (item 515) */
-export const FRIDGE_GAP = 0.055
+/** how far a fridge's back stands off the wall's face (minus: behind it). 5.5 cm out of it a while (item 515, the owner's 「冷藏櫃陷進去了」:
+ * set into the wall by item 431, its back 21 cm in it; clear of the rail over the wainscot then, which ran across its opening); 6 mm behind
+ * it now (item 746, the owner's 「冷藏櫃往後一點要貼齊」: from the stock room a strip of the shop's boards showed between its back and the
+ * stock room's mortar floor (item 739, from 6 mm behind the wall's face), its back flush with that floor's edge): the wall's wainscot and
+ * rail are broken at its opening (DiningRoom's, 4 mm clear of its sides since item 431), and its top's under the head over it */
+export const FRIDGE_GAP = -0.006
+/** how far behind a fridge's back face the stocker stands to fill it (item 746: 12 cm behind the wall's back as it stood 5.5 cm out, item
+ * 535; 6 before that, his hands hung into its back) */
+const FRIDGE_FILL = 0.387
 /** the fridge's size: across, up, deep */
 export const FRIDGE = { W: 0.86, H: 2.17, D: 0.75 }
 /**

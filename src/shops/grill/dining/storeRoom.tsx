@@ -409,9 +409,11 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
             the doorway's height the whole stretch, as the head is one (item 562); in the wall's thickness only, behind the fridges (their
             backs in front of the wall's face), its stock room's face flush with the doorway's lintel's; the restock hatches' tops (1.875)
             go 2.5 cm up behind it) */}
+        {/* (its shop's face behind the fridges' back doors since they stand back in the opening (item 746: their backs 6 mm behind the
+            wall's face, the outer door 2 cm proud of the back, the hatches' tops 2.5 cm up behind the lintel): a centimetre clear of them) */}
         {frame && (
-          <mesh position={[(0.004 + WALL_OUT + 0.004) / 2, h + STORE_HEAD / 2, (door[1] + STORE_POST - 0.002 + frame.z1 - 0.002) / 2]}>
-            <boxGeometry args={[WALL_OUT, STORE_HEAD, frame.z1 - door[1] - STORE_POST]} /><meshToonMaterial color="#35200f" />
+          <mesh position={[(-FRIDGE_GAP + 0.03 + WALL_OUT + 0.004) / 2, h + STORE_HEAD / 2, (door[1] + STORE_POST - 0.002 + frame.z1 - 0.002) / 2]}>
+            <boxGeometry args={[WALL_OUT + 0.004 + FRIDGE_GAP - 0.03, STORE_HEAD, frame.z1 - door[1] - STORE_POST]} /><meshToonMaterial color="#35200f" />
           </mesh>
         )}
         {/* the fridges' openings' head (item 535) */}
@@ -427,9 +429,11 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
             shop's wall over the doorway is drawn from the shop's side only, and from the stock room the head and the lintel were two bars
             across nothing, the shop seen between them; in the wall's thickness, 4 mm in from either face, a millimetre into the lintel,
             the head and the post) */}
+        {/* (its shop's face 2 mm behind the fridges' backs (item 746: 4 mm in from the wall's face before, the fridges standing out in front
+            of it)) */}
         {frame && (
-          <mesh position={[WALL_OUT / 2, (h + STORE_HEAD + frame.headY) / 2, (door[0] - STORE_POST + 0.004 + frame.z1 - 0.004) / 2]}>
-            <boxGeometry args={[WALL_OUT - 0.008, frame.headY - h - STORE_HEAD + 0.002, frame.z1 - 0.004 - (door[0] - STORE_POST + 0.004)]} /><meshToonMaterial color="#ece0c6" />
+          <mesh position={[(Math.max(0.004, -FRIDGE_GAP + 0.002) + WALL_OUT - 0.004) / 2, (h + STORE_HEAD + frame.headY) / 2, (door[0] - STORE_POST + 0.004 + frame.z1 - 0.004) / 2]}>
+            <boxGeometry args={[WALL_OUT - 0.004 - Math.max(0.004, -FRIDGE_GAP + 0.002), frame.headY - h - STORE_HEAD + 0.002, frame.z1 - 0.004 - (door[0] - STORE_POST + 0.004)]} /><meshToonMaterial color="#ece0c6" />
           </mesh>
         )}
         {/* (the strip between two fridges side by side (item 554), 3 mm proud of their backs toward the stock room, 4.5 cm into the gap) */}
