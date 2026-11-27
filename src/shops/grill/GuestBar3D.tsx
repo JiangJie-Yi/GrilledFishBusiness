@@ -4595,6 +4595,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       o.userData.fade = tr.done ? 1 : pose.vis
       o.userData.nod = pose.nod
       o.userData.stretch = pose.stretch
+      // (off to home or just in: the shop's tray left at the shop, their hands at their sides (item 797, the owner's 「下班身上還有餐盤」))
+      o.userData.trayDown = true
       if (KITCHEN_DROP < 0) {
         const d = w.pos.clone().sub(counters[0].at), a = d.dot(counters[0].along), l = d.dot(counters[0].lay)
         if (a > kitchen.along[0] && a < kitchen.along[1] && l > kitchen.lay[0] && l < kitchen.lay[1]) o.position.y += -KITCHEN_DROP / scale

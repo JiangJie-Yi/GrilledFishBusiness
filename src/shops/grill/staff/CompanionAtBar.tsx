@@ -193,7 +193,8 @@ export const CompanionAtBar = memo(function CompanionAtBar({ seats, open, top }:
       <group ref={g} visible={false} name="companion-at-bar">
         <group ref={shade}><BlobShadow r={0.17} /></group>
         <group scale={STAFF_SCALE}>
-          <StaffFigure id={who.id} role={who.role} look={who.look} moving={pose.moving} seated={pose.seated ? HANDS : false} face={pose.face} />
+          {/* (sat with the owner after hours: off duty, nothing of the shop's in hand but her tea, item 797) */}
+          <StaffFigure id={who.id} role={who.role} look={who.look} moving={pose.moving} seated={pose.seated ? HANDS : false} face={pose.face} offDuty />
         </group>
       </group>
       <group ref={cup} visible={false}>

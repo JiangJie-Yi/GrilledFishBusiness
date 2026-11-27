@@ -433,8 +433,9 @@ const Resident = memo(function Resident({ m, k, marks, open, quilt, off }: { m: 
     <>
       <group ref={g} visible={false}>
         <group scale={FIG_SCALE}>
+          {/* (off duty up here: nothing of the shop's in their hands, item 797) */}
           <StaffFigure id={m.id} role={m.role} look={m.look} moving={pose.moving} seated={pose.seated} face={pose.asleep ? 'blink' : pose.laugh ? 'happy' : undefined}
-            playing={pose.playing} />
+            playing={pose.playing} offDuty />
         </group>
       </group>
       {quilt && <group ref={cover} visible={false}><mesh geometry={QUILT_GEO} material={quilt} raycast={() => {}} /></group>}

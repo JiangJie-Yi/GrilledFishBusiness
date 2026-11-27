@@ -274,15 +274,44 @@ export const SHAPE_HAND = { y: 0.96, z: 0.55 }
  * looked straight ahead over it); `HANDHELD_TIP` how far its top's tipped back from upright */
 const HANDHELD_AT = new THREE.Vector3(0, 0.58, 0.31)
 const HANDHELD_TIP = -0.6
+// (item 797, the owner's 「遊戲機不像」: four boxes, the screen a pale blue slab as big as its face and a grip each side, read as a blue
+// lump in her hands; now a console as one is drawn: its screen in a black bezel and a game on it (sky, a sun, the grass, a red hero, a
+// block), its grips rounder at their outer sides, a stick and a cross on the left, four buttons and a stick on the right; 98 triangles,
+// still one draw; each layer a hair over the one under it, no two faces in one plane)
 const HANDHELD_GEO = (() => {
-  const box = (w: number, h: number, d: number, x: number, colour: string, z = 0) => {
-    const g = new THREE.BoxGeometry(w, h, d).toNonIndexed()
-    g.translate(x, 0, z)
-    colourVertices(g, new THREE.Color(colour))
-    return g
+  const parts: THREE.BufferGeometry[] = []
+  const put = (g: THREE.BufferGeometry, x: number, y: number, z: number, colour: string) => {
+    const n = g.toNonIndexed()
+    g.dispose()
+    n.translate(x, y, z)
+    colourVertices(n, new THREE.Color(colour))
+    parts.push(n)
   }
-  const parts = [box(0.11, 0.07, 0.012, 0, '#2b2d31'), box(0.09, 0.055, 0.002, 0, '#7fb8e6', 0.007),
-    box(0.028, 0.07, 0.016, -0.069, '#ff4554'), box(0.028, 0.07, 0.016, 0.069, '#00b3e3')]
+  const box = (w: number, h: number, d: number, x: number, y: number, z: number, colour: string) => put(new THREE.BoxGeometry(w, h, d), x, y, z, colour)
+  /** a flat patch on its face, facing out from it */
+  const patch = (w: number, h: number, x: number, y: number, z: number, colour: string) => put(new THREE.PlaneGeometry(w, h), x, y, z, colour)
+  // (the body, and the screen's black bezel a little proud of it)
+  box(0.1, 0.062, 0.011, 0, 0, 0, '#2a2c31')
+  box(0.092, 0.054, 0.0016, 0, 0, 0.0062, '#0c0d10')
+  // (the game on the screen)
+  const zs = 0.0073
+  patch(0.084, 0.03, 0, 0.0085, zs, '#9ad8ff')
+  patch(0.084, 0.016, 0, -0.0145, zs, '#5fc86c')
+  patch(0.009, 0.009, 0.026, 0.016, zs + 0.0004, '#fff1a6')
+  patch(0.007, 0.01, -0.012, -0.002, zs + 0.0004, '#ff5a4a')
+  patch(0.009, 0.009, 0.014, -0.002, zs + 0.0004, '#c88a3a')
+  // (its grips, red on the left and blue on the right, a step rounder at the outer side)
+  for (const [sd, colour] of [[-1, '#ff4554'], [1, '#00b3e3']] as const) {
+    box(0.021, 0.062, 0.014, sd * 0.0605, 0, 0, colour)
+    box(0.005, 0.054, 0.01, sd * 0.0733, 0, 0, colour)
+  }
+  // (on the left grip a stick over a cross; on the right four buttons in a diamond over a stick)
+  const zb = 0.0072, dark = '#1d1e22'
+  patch(0.008, 0.008, -0.0605, 0.014, zb, dark)
+  patch(0.011, 0.0035, -0.0605, -0.012, zb, dark)
+  patch(0.0035, 0.011, -0.0605, -0.012, zb + 0.0003, dark)
+  for (const [bx, by] of [[0, 0.0048], [0.0048, 0], [0, -0.0048], [-0.0048, 0]]) patch(0.0034, 0.0034, 0.0605 + bx, 0.012 + by, zb, '#e9eef2')
+  patch(0.008, 0.008, 0.0605, -0.014, zb, dark)
   const g = mergeGeometries(parts)!
   for (const x of parts) x.dispose()
   return g
@@ -445,7 +474,7 @@ const CREW_FEEL = new Map<string, unknown>()
 const AT_NOW = new THREE.Vector3(), HAND_OUT = new THREE.Vector3(), FAN_OFF = new THREE.Vector3(0, 0.03, 0.02)
 if (import.meta.env.DEV && typeof window !== 'undefined') Object.assign(window, { __crewFeel: CREW_FEEL })
 export const StaffFigure = memo(StaffFigureImpl)
-function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, face: faceAsked, playing = false }: { id: string; role: Role; look: StaffLook; moving?: boolean
+function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, face: faceAsked, playing = false, offDuty = false }: { id: string; role: Role; look: StaffLook; moving?: boolean
   /** a face to make, whatever they're doing (the character viewer's buttons) */
   face?: CrewFace
   /** sat (the cashier on the till's chair): leaning in a little, the hands up on the counter in front, now and then tapping at the keys;
@@ -453,7 +482,10 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
    * the low bar), no keys tapped */
   seated?: boolean | number
   /** at their handheld game whatever their idle says (upstairs on their cushion, items 612, 613: shops/grill/DormRoom), as one slacking is */
-  playing?: boolean }) {
+  playing?: boolean
+  /** off duty (upstairs in the dorm, sat with the owner after hours): nothing of the shop's in their hands, no tray, no clipboard, no fan
+   * (item 797, the owner's 「下班身上還有餐盤」: a server upstairs at the table still held the shop's round tray out before her) */
+  offDuty?: boolean }) {
   const own = featuresOf(id, who)
   const h = own.h
   const seed = h % 997
@@ -525,6 +557,7 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
   // (their handheld game, put away till they slack (in the scene from the first, hidden: its program made with the rest at loading))
   const handheld = useMemo(() => {
     const m = new THREE.Mesh(HANDHELD_GEO, HANDHELD_MAT)
+    m.name = 'handheld'
     m.position.copy(HANDHELD_AT)
     m.rotation.x = HANDHELD_TIP
     m.visible = false
@@ -677,7 +710,7 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
       }
     }
     if (cook) {
-      fanning.current = job?.fetcher ? !!job.fanNow : (t + seed * 3.7) % 17 < 6 && !going && !playing
+      fanning.current = !offDuty && (job?.fetcher ? !!job.fanNow : (t + seed * 3.7) % 17 < 6 && !going && !playing)
     }
     // (a waddle as they walk, as Overcooked's cooks do: bobbing at each step, rocking side to side; standing, breathing)
     // (their step's beat: quicker pressed, slower worn out (its own phase, so a change of pace never jumps it))
@@ -755,8 +788,9 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
     // (item 675: a server's tray put by for an errand, their hands down at their sides, swinging as they walk (held out before them still,
     // at the tray's height, holding nothing, they went into the sink's cabinet as they stood at it); out to hold it and back eased, a
     // quarter second, not at once)
-    const carrying = role === 'server' || role === 'stock' || !!job?.carry
-    const holdWant = carrying ? (role === 'server' && job?.trayDown && !job?.holding ? 0 : 1) : role === 'cashier' ? 0.6 : 0
+    // (off duty, nothing of the shop's carried and the hands their own (item 797))
+    const carrying = !offDuty && (role === 'server' || role === 'stock' || !!job?.carry)
+    const holdWant = carrying ? (role === 'server' && job?.trayDown && !job?.holding ? 0 : 1) : role === 'cashier' && !offDuty ? 0.6 : 0
     // (eased back from what they held as it was held: a cook's hands, done carrying, went by the cashier's place on their way down)
     if (holdWant > 0) heldAs.current = carrying
     const holder = heldAs.current
@@ -913,7 +947,7 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
       if (shown) { fig.fan.position.copy(fig.handR.position).add(FAN_OFF); fig.fan.rotation.z = fig.handR.rotation.z }
     }
     // (the stock keeper's clipboard, held up while they stand)
-    fig.clip?.scale.setScalar(role === 'stock' && !going && !slack ? 1 : 0)
+    fig.clip?.scale.setScalar(role === 'stock' && !offDuty && !going && !slack ? 1 : 0)
     // (a server's broom: swept, or carried at their side in their right hand, there and back; their tray put by meanwhile)
     // (stooped over it while they sweep, upright after: the whole figure tipped about its feet, the broom and pan in its frame with it)
     bend.current += ((stooped ? OWNER_BEND : 0) - bend.current) * Math.min(1, dt * 8)
@@ -926,7 +960,7 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
     // (nor while they're on an errand (GuestBar3D's trayDown: the till, the skewers, the sink, sweeping up): the tray's put down for it, picked
     // up again at their place, item 249)
     // (picked up again once their hands are out for it (item 675: they come out to it eased now); lifted with them over the sink's top)
-    fig.tray?.scale.setScalar(role === 'server' && !job?.broom && job?.floorWipe === undefined && !job?.trayDown && reachK.current < 0.5 && hold > 0.9 ? 1 : 0)
+    fig.tray?.scale.setScalar(role === 'server' && !offDuty && !job?.broom && job?.floorWipe === undefined && !job?.trayDown && reachK.current < 0.5 && hold > 0.9 ? 1 : 0)
     if (fig.tray) fig.tray.position.y = lift
   })
   // (clicked: the owner's ways with them (App's popover, item 348); the same handler from one redraw to the next (item 374: a new one each
