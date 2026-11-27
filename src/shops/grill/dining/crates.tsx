@@ -26,6 +26,11 @@ import { canvasTex } from './base'
  */
 const MILK_URL = import.meta.env.BASE_URL + 'models/milkcrate.glb'
 useGLTF.preload(MILK_URL)
+/** how much of the studio the crates' plastic takes (scene/render/studio: at the room's light) (item 795, the owner's 「光影感要真實」: at 0.35 and
+ * the beer crates' 0.85 the studio's even light lit them through, as bright in the dim stock room at night as in the lit room, every face of
+ * them alike, the stack looking pasted on; down to a gloss, their light the stock room's own: its bulb over them, their tops lit and their
+ * sides and cells in shade, their shadows on the floor) */
+const MILK_STUDIO = 0.1, CRATE_STUDIO = 0.22
 let milkMats: Record<string, THREE.Material> | null = null
 const milkMatOf = (src: THREE.MeshStandardMaterial) => {
   if (!milkMats) milkMats = {}
@@ -34,10 +39,10 @@ const milkMatOf = (src: THREE.MeshStandardMaterial) => {
     if (src.name === 'MilkCrateLattice') {
       if (src.map) { src.map.generateMipmaps = false; src.map.minFilter = THREE.LinearFilter; src.map.needsUpdate = true }
       m = new THREE.MeshStandardMaterial({ color: '#ffffff', map: src.map ?? null, normalMap: src.normalMap ?? null, roughness: 0.45, metalness: 0,
-        alphaTest: 0.5, side: THREE.DoubleSide, envMapIntensity: 0.35 })
+        alphaTest: 0.5, side: THREE.DoubleSide, envMapIntensity: MILK_STUDIO })
       reflectStudio(m as THREE.MeshStandardMaterial)
     } else if (src.name === 'MilkCratePlastic') {
-      m = new THREE.MeshStandardMaterial({ color: '#ffffff', map: src.map ?? null, normalMap: src.normalMap ?? null, roughness: 0.45, metalness: 0, envMapIntensity: 0.35 })
+      m = new THREE.MeshStandardMaterial({ color: '#ffffff', map: src.map ?? null, normalMap: src.normalMap ?? null, roughness: 0.45, metalness: 0, envMapIntensity: MILK_STUDIO })
       reflectStudio(m as THREE.MeshStandardMaterial)
     } else m = new THREE.MeshToonMaterial({ color: '#ffffff', map: src.map ?? null })
     m.name = src.name
@@ -85,7 +90,7 @@ const CRATE_LETTERS = canvasTex(600, 128, (g) => {
 let crateMats: { plastic: THREE.MeshStandardMaterial; letters: THREE.MeshToonMaterial } | null = null
 const crateMatsOf = () => {
   if (!crateMats) {
-    const plastic = new THREE.MeshStandardMaterial({ color: '#c3302a', roughness: 0.36, metalness: 0, envMapIntensity: 0.85 })
+    const plastic = new THREE.MeshStandardMaterial({ color: '#c3302a', roughness: 0.36, metalness: 0, envMapIntensity: CRATE_STUDIO })
     reflectStudio(plastic)
     if (CRATE_LETTERS) CRATE_LETTERS.flipY = false
     crateMats = { plastic, letters: new THREE.MeshToonMaterial({ color: '#ffffff', map: CRATE_LETTERS, alphaTest: 0.45 }) }
