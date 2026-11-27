@@ -16,10 +16,15 @@
  * groundPlan and curbStones, BDD ground). Four draws (the gravel, the stones, the tufts, the earth), none casting a shadow, all taking the
  * sun's (out of doors); made once, at load.
  */
-import { memo, useEffect, useMemo } from 'react'
+import { memo, useEffect, useMemo, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { curbStones, groundPlan, type PlinthPlan, type Rect, type Run } from '@/game/world/groundLayout'
+import { groundWet } from '@/game/world/puddles'
 import { signTexture } from '@/scene/props/signFont'
+import { getClock } from '@/ui/kit/clockStore'
+import { RAIN_NOW } from './shopFront'
+import { skyNow } from '@/shops/grill/dining/ambient'
 
 /** heights in the floor's frame: the earth's sheet (2 mm under the street's level, -0.46); the gravel's top, just under the stone steps'
  * foot (-0.453: they stand in it, as the building's base and the door's bamboo do); the curb's top, 3.5 cm over the gravel; the stepping
@@ -37,13 +42,92 @@ const APRON_OUT = 1.25, APRON_SIDE = 0.03
  * doorway's far side, across (its near side 2.2 cm past it) and out from the front; the bed's edge goes round it, its curb from its front on
  */
 const PLANTER = { x: [0.022, 0.352], z: [-0.002, 0.328] }
-/** the earth round the building, out from its plinth's face (as far as the gravel, the curb and the earth past them reached, items
- * 725-726), and how far it fades out past that; the band past the bed's curb; its picture's pixels to a unit */
-const EARTH_REACH = 0.77, EARTH_BAND = 0.36, EARTH_FADE = 0.24, EARTH_PX = 96
+/** the earth round the building, out from its plinth's face (item 752, the owner's 「泥土地往內縮，除了玄關」: 0.77 before, as far as the
+ * gravel, the curb and the earth past them reached, items 725-726), a margin round its picture; the band past the bed's curb (the genkan's
+ * front, kept as it was); its picture's pixels to a unit. Its edge square (item 765, the owner's 「泥土地必須要方的」: rounded, blurred and
+ * ragged with blobs before), straight along each side and square at each corner */
+const EARTH_REACH = 0.42, EARTH_BAND = 0.36, EARTH_FADE = 0.04, EARTH_PX = 96
 /** how much ground one repeat of the gravel's picture covers */
 const GRAVEL_TILE = 0.5
 /** the stepping stones: their half sizes across and along the way out, the gaps between them */
 const STEP_RX = 0.16, STEP_RZ = 0.12, STEP_PITCH = 0.29
+
+/**
+ * A puddle (item 752): one shape, a little uneven round its edge (16 points round, closed by a ladder of quads across it, rule 2: no fan),
+ * copied to each; still water, dark, smooth and a little see-through, the sky and the lights caught in it (standard, smooth: no
+ * transmission). Its rain rings as the drain's water (one program with the washstand's stream)
+ */
+const PUDDLES = 6
+const PUDDLE_GEO = (() => {
+  const N = 16, pts: [number, number][] = []
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * Math.PI * 2, r = 1 + 0.1 * Math.sin(2 * a + 0.7) + 0.06 * Math.sin(3 * a + 2.1)
+    pts.push([Math.cos(a) * r, Math.sin(a) * r])
+  }
+  const pos: number[] = [], nor: number[] = [], uv: number[] = []
+  // (its picture laid flat over it, 2.4 across: the picture's water inside the shape everywhere, faded out before its edge)
+  const put = (...ix: number[]) => { for (const i of ix) { pos.push(pts[i][0], 0, pts[i][1]); nor.push(0, 1, 0); uv.push(pts[i][0] / 2.4 + 0.5, pts[i][1] / 2.4 + 0.5) } }
+  // (rungs between k and N - k, wound to face up)
+  put(0, N - 1, 1)
+  for (let k = 1; k < N / 2 - 1; k++) { put(k, N - k, N - k - 1); put(k, N - k - 1, k + 1) }
+  put(N / 2 - 1, N / 2 + 1, N / 2)
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3))
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2))
+  return g
+})()
+/**
+ * The puddle's picture: still water, the sky's light in it (lighter streaks where it catches more), darkening through a rim of soaked earth
+ * to nothing at its uneven edge, so it lies in the earth rather than on it. Made by hand, each pixel its colour whether clear or not (a
+ * canvas's clear pixels are black, and its smaller copies ringed it dark)
+ */
+const PUDDLE_TEX = (() => {
+  const N = 128, data = new Uint8Array(N * N * 4)
+  const water = [96, 106, 114], rim = [40, 31, 24]
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const u = (x + 0.5) / N - 0.5, v = (y + 0.5) / N - 0.5, r = Math.hypot(u, v), a = Math.atan2(v, u)
+    const edge = 0.3 + 0.03 * Math.sin(2 * a + 0.7) + 0.02 * Math.sin(5 * a + 1.3)
+    const alpha = Math.min(1, Math.max(0, (edge - r) / 0.07))
+    // (the rim: soaked earth from the edge in, over a third of the way)
+    const wetRim = Math.min(1, Math.max(0, (r - edge * 0.55) / (edge * 0.45)))
+    // (streaks of the sky's light across it, soft)
+    const streak = 0.22 * Math.max(0, Math.sin(u * 14 + v * 5 + 1.1)) * Math.max(0, Math.sin(u * 3 - v * 9))
+    const i = (y * N + x) * 4
+    for (let c = 0; c < 3; c++) data[i + c] = Math.round(Math.min(255, (water[c] * (1 - wetRim) + rim[c] * wetRim) * (1 + streak)))
+    data[i + 3] = Math.round(255 * alpha * (0.88 + 0.12 * wetRim))
+  }
+  const t = new THREE.DataTexture(data, N, N, THREE.RGBAFormat)
+  t.colorSpace = THREE.SRGBColorSpace
+  t.magFilter = THREE.LinearFilter
+  t.minFilter = THREE.LinearMipmapLinearFilter
+  t.generateMipmaps = true
+  t.needsUpdate = true
+  return t
+})()
+/** the sky the puddles mirror: its own (the room's studio's is a room's), an overcast's light grey brightest at the horizon, the ground under
+ * it dark (an equirectangular picture, three making its own blurred copies from it) */
+const PUDDLE_SKY = (() => {
+  if (typeof document === 'undefined') return null
+  const c = document.createElement('canvas')
+  c.width = 256; c.height = 128
+  const g = c.getContext('2d')!
+  const gr = g.createLinearGradient(0, 0, 0, 128)
+  gr.addColorStop(0, '#7f8a95'); gr.addColorStop(0.42, '#b9c3cb'); gr.addColorStop(0.5, '#d3d9de'); gr.addColorStop(0.53, '#5a5048'); gr.addColorStop(1, '#2e2822')
+  g.fillStyle = gr; g.fillRect(0, 0, 256, 128)
+  const t = new THREE.CanvasTexture(c)
+  t.mapping = THREE.EquirectangularReflectionMapping
+  t.colorSpace = THREE.SRGBColorSpace
+  return t
+})()
+const PUDDLE_MAT = new THREE.MeshStandardMaterial({ color: '#ffffff', map: PUDDLE_TEX, roughness: 0.04, metalness: 0, transparent: true, depthWrite: false,
+  envMap: PUDDLE_SKY, envMapIntensity: 1.0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 })
+/** how much of that sky they mirror, by the sky now (dim after dark: the lanterns' and the window's light the most of it then) */
+const PUDDLE_SHINE: Record<string, number> = { day: 0.8, dawn: 0.6, dusk: 0.45, night: 0.18 }
+PUDDLE_MAT.name = 'ShopPuddle'
+const PUDDLE_M = new THREE.Matrix4(), PUDDLE_Q = new THREE.Quaternion(), PUDDLE_P = new THREE.Vector3(), PUDDLE_S = new THREE.Vector3(), PUDDLE_UP = new THREE.Vector3(0, 1, 0)
+const RIPPLE_GEO = new THREE.RingGeometry(0.72, 1, 16).rotateX(-Math.PI / 2)
+const RIPPLE_MATS = Array.from({ length: 8 }, () => new THREE.MeshBasicMaterial({ color: '#dfe8ec', transparent: true, opacity: 0, depthWrite: false, toneMapped: false }))
 
 /** a small seeded random (the same ground each time it's made) */
 function seeded(seed: number) {
@@ -387,29 +471,29 @@ export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut
     dg.fillStyle = 'rgba(200,182,152,0.62)'
     dg.fillRect(0, 0, cw, ch)
     dg.globalCompositeOperation = 'destination-out'
-    dg.filter = `blur(${Math.round(0.07 * sx)}px)`
+    dg.filter = `blur(${Math.round(0.05 * sx)}px)`
     dg.fillStyle = '#000'
-    dg.beginPath()
-    for (const [a0, b0, a1, b1] of shapes) dg.roundRect(px(a0 + 0.12), pz(b0 + 0.12), (a1 - a0 - 0.24) * sx, (b1 - b0 - 0.24) * sz, 0.12 * sx)
-    dg.fill()
+    for (const [a0, b0, a1, b1] of shapes) dg.fillRect(px(a0 + 0.1), pz(b0 + 0.1), (a1 - a0 - 0.2) * sx, (b1 - b0 - 0.2) * sz)
     g.drawImage(dust, 0, 0)
-    // (its edge: round the band's outline, its corners rounded, faded out over EARTH_FADE; a little uneven, not in blobs)
+    // (and damper, darker, close in under the building: in the shade of its eaves the earth keeps the wet longest; fading out from the
+    // plinth's foot over a few hand's breadths (item 752's 「泥土地要有漸層」))
+    const damp = document.createElement('canvas')
+    damp.width = cw; damp.height = ch
+    const kg = damp.getContext('2d')!
+    kg.filter = `blur(${Math.round(0.14 * sx)}px)`
+    kg.fillStyle = 'rgba(58,40,24,0.5)'
+    for (const [a0, b0, a1, b1] of building) kg.fillRect(px(a0 - 0.05), pz(b0 - 0.05), (a1 - a0 + 0.1) * sx, (b1 - b0 + 0.1) * sz)
+    g.drawImage(damp, 0, 0)
+    // (its edge a line of earth tamped harder, a shade darker, so it ends square and on purpose)
+    g.strokeStyle = 'rgba(86,64,44,0.45)'
+    g.lineWidth = Math.max(1.5, 0.012 * sx)
+    for (const [a0, b0, a1, b1] of shapes) g.strokeRect(px(a0) + 1, pz(b0) + 1, (a1 - a0) * sx - 2, (b1 - b0) * sz - 2)
+    // (its edge: the band's outline, square (item 765): straight along each side, square at each corner, crisp (a pixel's softening only))
     const m = document.createElement('canvas')
     m.width = cw; m.height = ch
     const mg = m.getContext('2d')!
-    mg.filter = `blur(${Math.round(EARTH_FADE * sx * 0.42)}px)`
     mg.fillStyle = '#fff'
-    mg.beginPath()
-    for (const [a0, b0, a1, b1] of shapes) mg.roundRect(px(a0), pz(b0), (a1 - a0) * sx, (b1 - b0) * sz, 0.18 * sx)
-    mg.fill()
-    for (const r of shapes) {
-      const per = 2 * ((r[2] - r[0]) + (r[3] - r[1]))
-      for (let i = 0; i < per * 1.4; i++) {
-        const t = rnd() * per, w = r[2] - r[0], h = r[3] - r[1]
-        const [ex, ez] = t < w ? [r[0] + t, r[1]] : t < w + h ? [r[2], r[1] + t - w] : t < 2 * w + h ? [r[2] - (t - w - h), r[3]] : [r[0], r[3] - (t - 2 * w - h)]
-        mg.beginPath(); mg.arc(px(ex), pz(ez), (0.05 + rnd() * 0.07) * sx, 0, Math.PI * 2); mg.fill()
-      }
-    }
+    for (const [a0, b0, a1, b1] of shapes) mg.fillRect(px(a0), pz(b0), (a1 - a0) * sx, (b1 - b0) * sz)
     // (its colour and its fade put together by hand, not cut out on the canvas: a canvas keeps nothing of a colour where it's wholly clear
     // (black there), and the picture's smaller copies averaged that black into its edge, a dark ring round it as it faded. Each pixel the
     // earth's own colour, clear or not; rows turned over as the plane lays them (the canvas's top at Z0))
@@ -431,7 +515,21 @@ export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut
     const earthMat = new THREE.MeshToonMaterial({ map: tex, transparent: true, depthWrite: false })
     earthMat.name = 'ShopGround'
     const earth = new THREE.PlaneGeometry(W, H)
-    return { gravel, stones, tufts, tex, earthMat, earth, ex: (X0 + X1) / 2, ez: (Z0 + Z1) / 2 }
+    // ---- where the puddles stand after rain (item 752): in the earth along the plinth's foot, a hand to a forearm out from it, clear of the
+    // way out, the bed and what's kept clear; and one by the drain's basin, where its run-off gathers
+    const puddles: { x: number; z: number; r: number; turn: number; long: number }[] = []
+    for (let tries = 0; puddles.length < PUDDLES && tries < 200; tries++) {
+      const { r, off } = pick()
+      if (off !== 0.004) continue
+      const alongX = r.out[0] === 0, s0 = alongX ? r.a[0] : r.a[1], s1 = alongX ? r.b[0] : r.b[1]
+      if (s1 - s0 < 0.6) continue
+      const s = s0 + 0.25 + rnd() * (s1 - s0 - 0.5), size = 0.07 + rnd() * 0.08, out = off + size + 0.05 + rnd() * (EARTH_REACH - 2 * size - 0.12)
+      const edge = alongX ? r.a[1] : r.a[0], x = alongX ? s : edge + r.out[0] * out, z = alongX ? edge + r.out[1] * out : s
+      if (!clearOfWay(x, z) || puddles.some((q) => Math.hypot(q.x - x, q.z - z) < q.r + size + 0.25)) continue
+      puddles.push({ x, z, r: size, turn: rnd() * Math.PI, long: 1.2 + rnd() * 0.5 })
+    }
+    for (const [x0, , x1, z1] of (keep ?? []).slice(0, 1)) puddles.push({ x: (x0 + x1) / 2, z: z1 + 0.11, r: 0.075, turn: 0.3, long: 1.5 })
+    return { gravel, stones, tufts, tex, earthMat, earth, ex: (X0 + X1) / 2, ez: (Z0 + Z1) / 2, puddles }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
   useEffect(() => () => { if (!made) return; made.gravel.dispose(); made.stones.dispose(); made.tex.dispose(); made.earthMat.dispose(); made.earth.dispose() }, [made])
@@ -453,6 +551,73 @@ export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut
     return im
   }, [made])
   useEffect(() => () => tuftMesh?.dispose(), [tuftMesh])
+  // (the puddles: one mesh of copies of one shape, each its place, turn and size; drawn as full as the ground's wet (game/puddles), shrinking
+  // from their edges as they dry; rain's rings on them while it rains)
+  const puddleMesh = useMemo(() => {
+    if (!made || !made.puddles.length) return null
+    const im = new THREE.InstancedMesh(PUDDLE_GEO, PUDDLE_MAT, made.puddles.length)
+    im.name = 'shop-puddles'
+    im.raycast = () => null
+    im.renderOrder = 1
+    im.frustumCulled = false
+    return im
+  }, [made])
+  useEffect(() => () => puddleMesh?.dispose(), [puddleMesh])
+  const wet = useRef({ key: '', fill: -1, damp: -1, shown: -1, want: { puddles: 0, damp: 0 } })
+  const rings = useRef<(THREE.Mesh | null)[]>([])
+  const ringLife = useRef(RIPPLE_MATS.map(() => ({ t: 1, at: 0, x: 0, z: 0, r: 0 })))
+  useFrame((_, dt) => {
+    if (!made) return
+    const w = wet.current, c = getClock()
+    // (the ground's wet worked out once a minute of the clock; eased toward it)
+    const key = `${c.day}:${Math.floor(c.minute)}`
+    if (key !== w.key) { w.key = key; w.want = groundWet(c.day, Math.floor(c.minute)) }
+    const k = Math.min(1, dt * 2.5)
+    const fill = w.fill < 0 ? w.want.puddles : w.fill + (w.want.puddles - w.fill) * k
+    const damp = w.damp < 0 ? w.want.damp : w.damp + (w.want.damp - w.damp) * k
+    if (Math.abs(damp - w.damp) > 1e-3) {
+      // (wet earth darker, the gravel and the curb a little darker with it)
+      made.earthMat.color.setRGB(1 - 0.4 * damp, 1 - 0.42 * damp, 1 - 0.44 * damp)
+      GRAVEL_MAT.color.setScalar(1 - 0.22 * damp)
+      STONE_MAT.color.setScalar(1 - 0.18 * damp)
+    }
+    w.damp = damp
+    PUDDLE_MAT.envMapIntensity = PUDDLE_SHINE[skyNow()] ?? 1
+    const im = puddleMesh
+    // (their size as drawn: set again only as it changes by a little, and gone below a trace)
+    const s = fill > 0.02 ? 0.3 + 0.7 * Math.sqrt(fill) : 0
+    if (im && (Math.abs(s - w.shown) > 0.002 || (s === 0) !== (w.shown === 0))) {
+      w.shown = s
+      made.puddles.forEach((q, i) => {
+        PUDDLE_Q.setFromAxisAngle(PUDDLE_UP, q.turn)
+        PUDDLE_P.set(q.x, EARTH_Y + 0.0022, q.z)
+        PUDDLE_S.set(q.r * q.long * s, 1, q.r * s)
+        PUDDLE_M.compose(PUDDLE_P, PUDDLE_Q, PUDDLE_S)
+        im.setMatrixAt(i, PUDDLE_M)
+      })
+      im.instanceMatrix.needsUpdate = true
+      im.visible = s > 0
+    }
+    w.fill = fill
+    // (rain on them: a ring here and there spreading out and fading, each in a puddle as full as it is)
+    const raining = RAIN_NOW.k > 0.05 && fill > 0.15
+    ringLife.current.forEach((L, i) => {
+      const mesh = rings.current[i]
+      if (!mesh) return
+      L.t += dt / 0.7
+      if (L.t >= 1) {
+        if (!raining || Math.random() > RAIN_NOW.k * 0.5) { mesh.visible = false; return }
+        const q = made.puddles[Math.floor(Math.random() * made.puddles.length)], s = 0.3 + 0.7 * Math.sqrt(fill)
+        const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * 0.6 * q.r * s
+        L.t = 0; L.x = q.x + Math.cos(a) * d * q.long; L.z = q.z + Math.sin(a) * d; L.r = 0.012 + Math.random() * 0.012
+      }
+      mesh.visible = true
+      mesh.position.set(L.x, EARTH_Y + 0.0026, L.z)
+      const w2 = L.r + 0.05 * L.t
+      mesh.scale.set(w2, 1, w2)
+      RIPPLE_MATS[i].opacity = (1 - L.t) * 0.5 * RAIN_NOW.k
+    })
+  })
   if (!made) return null
   return (
     <group name="shop-ground-all">
@@ -461,6 +626,10 @@ export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut
       <mesh name="shop-gravel" geometry={made.gravel} material={GRAVEL_MAT} receiveShadow raycast={() => null} />
       <mesh name="shop-curb" geometry={made.stones} material={STONE_MAT} receiveShadow raycast={() => null} />
       {tuftMesh && <primitive object={tuftMesh} />}
+      {puddleMesh && <primitive object={puddleMesh} />}
+      {RIPPLE_MATS.map((m, i) => (
+        <mesh key={i} ref={(o) => { rings.current[i] = o }} geometry={RIPPLE_GEO} material={m} visible={false} renderOrder={2} raycast={() => null} />
+      ))}
     </group>
   )
 })
