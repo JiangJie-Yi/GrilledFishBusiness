@@ -86,16 +86,27 @@ dive = np.where(up, ay, ax)
 shade = 0.86 + 0.14 * np.sin(np.pi * np.clip(dive, 0, 1))
 mat_rgb = base[None, None, :] * (t_ * round_ * fib * shade * (0.35 + 0.65 * gap))[..., None]
 mat_rgb = mix(mat_rgb, (0.88, 0.8, 0.62), smooth(0.8, 0.84, fbm(N, 6, 18, 4)) * 0.4 * gap)
+# ---- (item 791, the owner's 「關節處都要有綁的痕跡，用貼圖表現即可」) the culms' skin an atlas, not the one tile repeated: each culm its own
+# strip (SW columns round it, AH rows down STRIP_LEN of it), its skin the tile above shrunk round to SW columns (averaged: its fine stripes
+# round it would only shimmer at 32), and wherever another culm meets it (a leg and a rail, a stretcher, an end, a bearer) a binding of
+# rattan painted round it there, wound in a helix, each turn rounded and a dark seam between, darker at its two edges: drawn where each
+# joint is on that culm, so no new faces and no other material (painted once all the culms are made: paint_atlas)
+NSTRIP, SW, AH = 32, 32, 1024
+STRIP_LEN = 0.9
+culm_small = culm.reshape(N, SW, N // SW, 3).mean(axis=2)
+strips = []
+culm_img = image("bench_culm", np.zeros((AH, NSTRIP * SW, 3), np.float32))
 M = {
-    "culm": pbr("BenchCulm", (1, 1, 1), tex=image("bench_culm", np.clip(culm, 0, 1).astype(np.float32)), rough=0.55),
+    "culm": pbr("BenchCulm", (1, 1, 1), tex=culm_img, rough=0.55),
     "mat": pbr("BenchMat", (1, 1, 1), tex=image("bench_mat", np.clip(mat_rgb, 0, 1).astype(np.float32)), rough=0.6),
     "rattan": pbr("BenchRattan", lin("#5a3a1e"), rough=0.7),
 }
 parts = []
 
 
-def culm_part(name, a, b, r, segs=8, turn=0.0, mat="culm"):
-    """a round culm from a to b (the game's frame), capped; its picture round it and along it, turned round its length by `turn`"""
+def culm_part(name, a, b, r, segs=8, turn=0.0, mat="culm", bands=()):
+    """a round culm from a to b (the game's frame), capped; its picture round it and along it, turned round its length by `turn`; a culm's
+    its own strip of the atlas (round it across the strip, along it down it from a), `bands` where it's bound (metres from a, (from, to))"""
     a, b = Vector(a), Vector(b)
     length = (b - a).length
     w = (b - a).normalized()
@@ -107,16 +118,25 @@ def culm_part(name, a, b, r, segs=8, turn=0.0, mat="culm"):
     rings = [[bm.verts.new(P(*(end + (e1 * math.cos(2 * math.pi * k / segs + turn) + e2 * math.sin(2 * math.pi * k / segs + turn)) * r)))
               for k in range(segs)] for end in (a, b)]
     off = (turn * 0.37) % 1.0
+    if mat == "culm":
+        i = len(strips)
+        assert i < NSTRIP and length < STRIP_LEN, (name, i, length)
+        strips.append((i, length, tuple(bands), off))
+        U = lambda f_: (i + f_) / NSTRIP  # noqa: E731
+        v0, v1, uc = 0.0, length / STRIP_LEN, U(0.5)
+    else:
+        U = lambda f_: f_  # noqa: E731
+        v0, v1, uc = off, off + length / CULM_TILE, 0.5
     for k in range(segs):
         k2 = (k + 1) % segs
         f = bm.faces.new((rings[0][k], rings[0][k2], rings[1][k2], rings[1][k]))
-        u0, u1 = k / segs, (k + 1) / segs
-        for loop, (uu, vv) in zip(f.loops, ((u0, off), (u1, off), (u1, off + length / CULM_TILE), (u0, off + length / CULM_TILE))):
+        u0, u1 = U(k / segs), U((k + 1) / segs)
+        for loop, (uu, vv) in zip(f.loops, ((u0, v0), (u1, v0), (u1, v1), (u0, v1))):
             loop[uvl].uv = (uu, vv)
-    for ring, flip in ((rings[0], True), (rings[1], False)):
+    for ring, flip, vv in ((rings[0], True, v0), (rings[1], False, v1)):
         f = bm.faces.new(list(reversed(ring)) if flip else ring)
         for loop in f.loops:
-            loop[uvl].uv = (0.5, off)
+            loop[uvl].uv = (uc, vv)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)
@@ -156,34 +176,91 @@ def slab(name, x0, x1, y0, y1, z0, z1, mat, tile):
 ZB, ZF = BACK + FR, BACK + DEPTH - FR
 XE = LENGTH / 2 - FR
 YF = SEAT_H - FR
+# (where its parts are, and so where they meet (item 791: a binding painted round each culm at each): the legs (and the bearers over the front
+# three) along it; the front three's line, the back three's (as near the wall as their bindings let them: none into it); the bearers'
+# middle, under the mat; the second rail's height, the long stretchers', the cross stretchers' a little lower)
+LX = LENGTH / 2 - 0.07
+JX = (-LX, 0.0, LX)
+ZFL = ZF - 0.03
+ZBL = BACK + LR + 0.0026
+YBR = SEAT_H - 0.017 - SR
+YA = SEAT_H - 0.075
+SY = 0.085
+
+
+def around(c, hw):
+    """a binding `hw` either side of `c` along a culm"""
+    return (c - hw, c + hw)
+
+
+def ends(length, w):
+    """a binding at each end of a culm, `w` long"""
+    return [(0.0, w), (length - w, length)]
+
+
+# (the rails: bound where each end culm meets them, and over each leg and bearer)
 for k, zz in enumerate((ZB, ZF)):
-    culm_part(f"BenchRail{k}", (-LENGTH / 2, YF, zz), (LENGTH / 2, YF, zz), FR, turn=0.4 + k)
+    culm_part(f"BenchRail{k}", (-LENGTH / 2, YF, zz), (LENGTH / 2, YF, zz), FR, turn=0.4 + k,
+              bands=[around(LENGTH / 2 + sx * XE, 0.03) for sx in (-1, 1)] + [around(LENGTH / 2 + x, 0.026) for x in JX])
+END_L = (ZF - FR - 0.001) - (ZB + FR + 0.001)
 for k, sx in enumerate((-1, 1)):
-    culm_part(f"BenchEnd{k}", (sx * XE, YF, ZB + FR + 0.001), (sx * XE, YF, ZF - FR - 0.001), FR, turn=1.3 + k)
+    culm_part(f"BenchEnd{k}", (sx * XE, YF, ZB + FR + 0.001), (sx * XE, YF, ZF - FR - 0.001), FR, turn=1.3 + k, bands=ends(END_L, 0.026))
 slab("BenchSeat", -XE + FR + 0.001, XE - FR - 0.001, SEAT_H - 0.017, SEAT_H - 0.007, ZB + FR + 0.001, ZF - FR - 0.001, "mat", MAT_TILE)
 # ---- the legs: three pairs, at its ends a little in and at its middle; the back three under the back rail, up to it; the front three
 # set in 3 cm from the seat's front edge (the sitters' calves hang there), up to the bearers; each one's head bound with rattan
-LX = LENGTH / 2 - 0.07
-ZFL = ZF - 0.03
-ZBL = BACK + LR + 0.0026           # (the back three as near the wall as their bindings let them: none into it)
-YBR = SEAT_H - 0.017 - SR          # the bearers' middle, under the mat
-for k, lx in enumerate((-LX, 0.0, LX)):
-    culm_part(f"BenchBearer{k}", (lx, YBR, ZB + FR), (lx, YBR, ZF - FR), SR, segs=6, turn=2.2 + k)
-legs_at = [(lx, ZBL, YF - FR * 0.5) for lx in (-LX, 0.0, LX)] + [(lx, ZFL, YBR - SR * 0.5) for lx in (-LX, 0.0, LX)]
+BEAR_L = (ZF - FR) - (ZB + FR)
+for k, lx in enumerate(JX):
+    culm_part(f"BenchBearer{k}", (lx, YBR, ZB + FR), (lx, YBR, ZF - FR), SR, segs=6, turn=2.2 + k,
+              bands=ends(BEAR_L, 0.02) + [around(ZFL - (ZB + FR), 0.024)])
+legs_at = [(lx, ZBL, YF - FR * 0.5) for lx in JX] + [(lx, ZFL, YBR - SR * 0.5) for lx in JX]
 for k, (lx, lz, top) in enumerate(legs_at):
-    culm_part(f"BenchLeg{k}", (lx, 0.0, lz), (lx, top, lz), LR, turn=0.7 * k + 0.3)
+    # (bound where the second rail crosses it, and once round both the low stretchers)
+    culm_part(f"BenchLeg{k}", (lx, 0.0, lz), (lx, top, lz), LR, turn=0.7 * k + 0.3, bands=[around(YA, 0.016), (SY - 0.025 - 0.016, SY + 0.016)])
     culm_part(f"BenchBind{k}", (lx, top - 0.04, lz), (lx, top - 0.024, lz), LR + 0.0025, segs=8, mat="rattan")
-# ---- a second rail under the frame, along the front and the back from end leg to end leg through the middle one
-YA = SEAT_H - 0.075
+# ---- a second rail under the frame, along the front and the back from end leg to end leg through the middle one (bound over each leg)
 for k, lz in enumerate((ZBL, ZFL)):
-    culm_part(f"BenchApron{k}", (-LX - LR, YA, lz), (LX + LR, YA, lz), SR, segs=6, turn=5.0 + k)
+    culm_part(f"BenchApron{k}", (-LX - LR, YA, lz), (LX + LR, YA, lz), SR, segs=6, turn=5.0 + k, bands=[around(x + LX + LR, 0.034) for x in JX])
 # ---- the stretchers, low: along the front and the back (貫), and across each end and the middle a little lower (offset, as a joiner
-# makes them, so no two meet at one point)
-SY = 0.085
+# makes them, so no two meet at one point); the long ones bound over each leg, the cross ones at their ends
 for k, lz in enumerate((ZBL, ZFL)):
-    culm_part(f"BenchStretchLong{k}", (-LX - LR, SY, lz), (LX + LR, SY, lz), SR, segs=6, turn=4.0 + k)
-for k, lx in enumerate((-LX, 0.0, LX)):
-    culm_part(f"BenchStretch{k}", (lx, SY - 0.025, ZBL + LR + 0.001), (lx, SY - 0.025, ZFL - LR - 0.001), SR, segs=6, turn=3.1 + k)
+    culm_part(f"BenchStretchLong{k}", (-LX - LR, SY, lz), (LX + LR, SY, lz), SR, segs=6, turn=4.0 + k, bands=[around(x + LX + LR, 0.034) for x in JX])
+CROSS_L = (ZFL - LR - 0.001) - (ZBL + LR + 0.001)
+for k, lx in enumerate(JX):
+    culm_part(f"BenchStretch{k}", (lx, SY - 0.025, ZBL + LR + 0.001), (lx, SY - 0.025, ZFL - LR - 0.001), SR, segs=6, turn=3.1 + k, bands=ends(CROSS_L, 0.022))
+
+
+def paint_atlas():
+    """each culm's strip: its skin (the tile, at its own place along it), and its bindings over it"""
+    s_px = ((np.arange(AH) + 0.5) / AH * STRIP_LEN)[:, None]
+    a_px = ((np.arange(SW) + 0.5) / SW)[None, :]
+    out = np.zeros((AH, NSTRIP * SW, 3), np.float32)
+    wrap_tone = np.array((0.47, 0.3, 0.16), np.float32)
+    nz = fbm(AH, 6, 40, 3)
+    # (the rattan wound round in a helix, a turn each 4.2 mm: each turn rounded, lit down its middle, a dark seam between)
+    phase = s_px / 0.0042 + a_px
+    fr = phase - np.floor(phase)
+    turn_ = (0.78 + 0.22 * np.sin(np.pi * fr)) * (0.4 + 0.6 * smooth(0.0, 0.14, fr) * smooth(0.0, 0.14, 1 - fr))
+    for (i, length, bands, off) in strips:
+        rows = (((s_px[:, 0] / CULM_TILE + off) * N).astype(int)) % N
+        strip = culm_small[rows].copy()
+        var = 0.9 + 0.2 * nz[:, i * SW:(i + 1) * SW]
+        for (s0, s1) in bands:
+            s0, s1 = max(0.0, s0), min(length, s1)
+            if s1 <= s0:
+                continue
+            inb = smooth(s0 - 0.001, s0 + 0.001, s_px) * (1 - smooth(s1 - 0.001, s1 + 0.001, s_px))
+            # (darker at its two edges, where it goes in under the next turn)
+            edge = 0.7 + 0.3 * smooth(0.0, 0.0035, s_px - s0) * smooth(0.0, 0.0035, s1 - s_px)
+            wrap = wrap_tone[None, None, :] * (turn_ * var * edge)[..., None]
+            strip = mix(strip, wrap, np.broadcast_to(inb, (AH, SW)))
+        out[:, i * SW:(i + 1) * SW] = strip
+    rgba = np.concatenate([np.clip(out, 0, 1), np.ones((AH, NSTRIP * SW, 1), np.float32)], -1).astype(np.float32)
+    culm_img.pixels.foreach_set(rgba.ravel())
+    culm_img.pack()
+    print("BENCH_STRIPS", len(strips), "BANDS", sum(len(b) for _, _, b, _ in strips))
+
+
+paint_atlas()
 
 # (two nodes, as the game had them: the seat and the rest)
 bpy.ops.object.select_all(action="DESELECT")
