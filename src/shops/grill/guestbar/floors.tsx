@@ -8,8 +8,9 @@ import { inkModel } from '@/scene/render/inkHull'
 import { WC_W, WC_ROOM, kitchenOf, kitchenGatesOf, FLOOR_FAR, FLOOR_NEAR, GENKAN, storeOf, STORE, toiletsOf, roomOf, RICE_MAT, type Counter } from '@/shops/grill/bar'
 import { Movable } from '@/shops/grill/editor/Movable'
 import { signTexture } from '@/scene/props/signFont'
-import type { Rect } from '@/game/world/groundLayout'
-import { GRAVEL_Y, ShopGround } from './ground'
+import { plinthPlan, type PlinthPlan, type Rect } from '@/game/world/groundLayout'
+import { normalFromHeight } from '@/scene/render/normalFromHeight'
+import { EARTH_Y, ShopGround } from './ground'
 
 /**
  * The customers' side of the shop floored in wide old boards: one even rectangle under the whole bar, the row of
@@ -112,29 +113,155 @@ function laid(part: THREE.Object3D, made: [number, number, number], [x0, y0, z0]
   return { object: part, position: [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2] as [number, number, number],
     scale: [Math.abs(x1 - x0) / made[0], Math.abs(y1 - y0) / made[1], Math.abs(z1 - z0) / made[2]] as [number, number, number] }
 }
+/** the stone plinth (石台, item 744, the owner's 「約五分之三的部份做成石台」 over the base's lower courses): how far it stands proud of the
+ * base's faces; how far it goes down into the earth (none of it in the air over it); how much of its face one repeat of its picture covers
+ * along it (up it, its two courses from the earth to its top). Its top the rim board's foot: of the base as it's seen, from the floor's edge
+ * (the fill under the boards shows over the rim) down to the earth, 0.279 of 0.462, three fifths */
+const PLINTH_OUT = 0.018, PLINTH_SUNK = 0.015, PLINTH_U = 2
 /**
- * The shop's base: a thick plinth of wood under the whole room (the customers' floor on a solid fill, the kitchen's lower
- * floor in a well in it), a pale rim of boards round its top edge, a dark body, a toe board at its foot, standing
- * out past the room all round: so it all sits on something solid, not on nothing.
+ * The plinth's granite (御影石), cut and laid in two courses (切石積み) as the steps' stone is: blocks of their own lengths (0.28 to 0.56), their
+ * joints staggered course to course, each its own grey (warm or cool, as the steps' are), flecked dark and pale, its top edge catching the
+ * light and its foot a shade darker; the joints dark; the lower course's foot stained with the earth splashed up on it, a little moss along
+ * it. Its height a picture (each block raised, its edges rounded off, the joints sunk) made into its normal map. Its ends meet (the blocks
+ * wrap round); its rows run down its v (the earth at its foot, v 1).
  */
-function ShopBase({ rects, genkan, drop, step }: { rects: [[number, number], [number, number]][]; genkan: [[number, number], [number, number]]
+const PLINTH_MAT = (() => {
+  if (typeof document === 'undefined') return null
+  const W = 1024, H = 128, PX = W / PLINTH_U, CH = H / 2, J = 3
+  const c = document.createElement('canvas')
+  c.width = W; c.height = H
+  const g = c.getContext('2d')!
+  const hc = document.createElement('canvas')
+  hc.width = W; hc.height = H
+  const hg = hc.getContext('2d')!
+  let seed = 744
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+  g.fillStyle = '#3a3731'; g.fillRect(0, 0, W, H)
+  hg.fillStyle = '#000'; hg.fillRect(0, 0, W, H)
+  // (a shade darker than the curb's pale granite, nearer the steps' weathered grey: a foundation's stone, not a kerb's)
+  const tones = [[126, 124, 116], [136, 133, 124], [117, 115, 108], [144, 140, 131], [110, 109, 103], [130, 129, 123]]
+  for (let k = 0; k < 2; k++) {
+    // (its blocks: the top course's from its top edge (the plinth's top: no joint there), the lower's down past the picture's foot (in the earth))
+    const y0 = k ? CH + J / 2 : 0, y1 = k ? H + 6 : CH - J / 2
+    const joints: number[] = []
+    let x = rnd() * PX * 0.5 + k * PX * 0.17
+    while (joints.length === 0 || x < joints[0] + W - 0.28 * PX) { joints.push(x); x += (0.28 + rnd() * 0.28) * PX }
+    for (let b = 0; b < joints.length; b++) {
+      const xa = joints[b], xb = b + 1 < joints.length ? joints[b + 1] : joints[0] + W
+      const [r0, g0, b0] = tones[Math.floor(rnd() * tones.length)]
+      const sh = 0.94 + rnd() * 0.1, warm = (rnd() - 0.5) * 8
+      const col = (f: number) => `rgb(${Math.round(r0 * sh * f + warm)},${Math.round(g0 * sh * f)},${Math.round(b0 * sh * f - warm)})`
+      const flecks = Array.from({ length: Math.round((xb - xa) * 1.4) }, () => [rnd(), rnd(), rnd(), rnd()])
+      for (const off of [0, -W]) {
+        const bx = xa + off + J / 2, bw = xb - xa - J, bh = Math.min(y1, H) - y0
+        // (lighter at its top, its own grey through the middle, darker at its foot)
+        const gr = g.createLinearGradient(0, y0, 0, y0 + bh)
+        gr.addColorStop(0, col(1.1)); gr.addColorStop(0.16, col(1.0)); gr.addColorStop(0.85, col(0.94)); gr.addColorStop(1, col(0.84))
+        g.fillStyle = gr; g.fillRect(bx, y0, bw, bh)
+        for (const [fx, fy, fr, fk] of flecks) {
+          g.fillStyle = fk < 0.5 ? 'rgba(40,38,34,0.5)' : fk < 0.8 ? 'rgba(98,94,86,0.45)' : 'rgba(238,234,224,0.6)'
+          g.fillRect(bx + fx * bw, y0 + fy * bh, 1 + fr * 1.6, 1 + fr * 1.2)
+        }
+        g.fillStyle = 'rgba(255,252,240,0.26)'; g.fillRect(bx, y0, bw, 2)
+        if (!k) { g.fillStyle = 'rgba(20,18,14,0.3)'; g.fillRect(bx, y0 + bh - 2, bw, 2) }
+        // (its height: raised, its edges rounded off over 4 px; the top course's top edge left square (the plinth's own corner), the lower's
+        // foot in the earth)
+        for (let i = 0; i < 4; i++) {
+          const v = 80 + i * 44
+          hg.fillStyle = `rgb(${v},${v},${v})`
+          hg.fillRect(bx + i, k ? y0 + i : y0 - 8, bw - 2 * i, k ? y1 - y0 : y1 - y0 + 8 - i)
+        }
+      }
+    }
+  }
+  // (low down: the earth splashed up on the lower course, a little moss along its foot and in its joints)
+  const sp = g.createLinearGradient(0, H - 24, 0, H)
+  sp.addColorStop(0, 'rgba(112,86,58,0)'); sp.addColorStop(1, 'rgba(112,86,58,0.42)')
+  g.fillStyle = sp; g.fillRect(0, H - 24, W, 24)
+  for (let i = 0; i < 320; i++) {
+    const x = rnd() * W, y = H - rnd() * rnd() * 34, r = 0.8 + rnd() * 2.2, a = 0.22 + rnd() * 0.36
+    for (const off of [0, W, -W]) {
+      if (x + off < -r || x + off > W + r) continue
+      g.fillStyle = `rgba(${i % 3 ? '74,100,50' : '96,122,62'},${a})`
+      g.beginPath(); g.arc(x + off, y, r, 0, Math.PI * 2); g.fill()
+    }
+  }
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace
+  const n = new THREE.CanvasTexture(normalFromHeight(hc, 1.6))
+  for (const x of [t, n]) { x.flipY = false; x.wrapS = x.wrapT = THREE.RepeatWrapping; x.anisotropy = 4 }
+  const m = new THREE.MeshToonMaterial({ color: '#ffffff', map: t, normalMap: n })
+  m.name = 'ShopPlinth'
+  return m
+})()
+/**
+ * The plinth's mesh from its plan (game/world/groundLayout's plinthPlan): along each run its face, from `foot` (in the earth) to `top`, turned
+ * out; over each of its ledge's rects its top; at each end where it stops at the steps a face across it, back to the base's face. Its picture
+ * by where each point is: along its face (left to right seen from outside), down from its top to the earth (`earth`) its two courses
+ */
+function plinthGeometry(plan: PlinthPlan, top: number, foot: number, earth: number, out: number) {
+  const pos: number[] = [], nor: number[] = [], uv: number[] = []
+  const vOf = (y: number) => (top - y) / (top - earth)
+  // (a quad, its four points round it and theirs uvs, the way it faces: its triangles turned to face that way)
+  const quad = (p: [number, number, number][], t: [number, number][], n: [number, number, number]) => {
+    const [a, b, c] = p
+    const cr = [(b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]), (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]),
+      (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])]
+    const order = cr[0] * n[0] + cr[1] * n[1] + cr[2] * n[2] >= 0 ? [0, 1, 2, 0, 2, 3] : [0, 2, 1, 0, 3, 2]
+    for (const i of order) { pos.push(...p[i]); uv.push(...t[i]); nor.push(...n) }
+  }
+  for (const r of plan.runs) {
+    const [ox, oz] = r.out
+    // (along it, left to right seen from outside)
+    const u = (x: number, z: number) => (oz * x - ox * z) / PLINTH_U
+    const [ax, az] = r.a, [bx, bz] = r.b
+    quad([[ax, foot, az], [bx, foot, bz], [bx, top, bz], [ax, top, az]],
+      [[u(ax, az), vOf(foot)], [u(bx, bz), vOf(foot)], [u(bx, bz), 0], [u(ax, az), 0]], [ox, 0, oz])
+    // (an end at the steps: across it, from the plinth's face back to the base's)
+    for (const [cut, [ex, ez], dir] of [[r.cutA, r.a, -1], [r.cutB, r.b, 1]] as const) {
+      if (!cut) continue
+      const dx = ox === 0 ? dir : 0, dz = ox === 0 ? 0 : dir
+      const ix = ex - ox * out, iz = ez - oz * out
+      quad([[ex, foot, ez], [ix, foot, iz], [ix, top, iz], [ex, top, ez]], [[0, vOf(foot)], [out / PLINTH_U, vOf(foot)], [out / PLINTH_U, 0], [0, 0]], [dx, 0, dz])
+    }
+  }
+  // (its ledge's top, along the longer way of each of its rects, a little down its top course)
+  for (const [x0, z0, x1, z1] of plan.ledge) {
+    const longX = x1 - x0 >= z1 - z0, u = (x: number, z: number) => (longX ? x : z) / PLINTH_U
+    quad([[x0, top, z0], [x1, top, z0], [x1, top, z1], [x0, top, z1]], [[u(x0, z0), 0.1], [u(x1, z0), 0.1], [u(x1, z1), 0.1], [u(x0, z1), 0.1]], [0, 1, 0])
+  }
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3))
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2))
+  return g
+}
+/**
+ * The shop's base: a thick plinth under the whole room (the customers' floor on a solid fill, the kitchen's lower floor in a well in it), a
+ * pale rim board round under the fill, on a plinth of stone (item 744: a dark body of boards and a toe board under the rim before, timber
+ * down to the gravel), the stone proud of it and down into the earth (the gravel round it gone, item 741): so it all sits on something
+ * solid, not on nothing.
+ */
+function ShopBase({ rects, genkan, drop, step, plinth }: { rects: [[number, number], [number, number]][]; genkan: [[number, number], [number, number]]
   /** how far down the genkan's stone lies */
-  step: number; drop: number }) {
+  step: number; drop: number
+  /** the stone plinth round it (plinthPlan's, in this frame) */
+  plinth: PlinthPlan }) {
   const top = -drop - 0.003
+  // (the plinth's top: the rim board's foot, the rim on it as a sill on its stone (土台))
+  const stoneTop = top - 0.06
   // (each piece of the base is cut exactly to the room's own outline: the floor's pieces and the genkan's corner, no more; its sides take no
   // shadow: what stands by the floor's edge threw its shadow out onto the plinth's face, hanging there below the floor)
   const layers = (al: [number, number], ly: [number, number], key: string) => {
     const cx = -(ly[0] + ly[1]) / 2, cz = (al[0] + al[1]) / 2
     const W = ly[1] - ly[0], L = al[1] - al[0]
-    // (its rim board, its dark body in boards laid the long way, its toe board: each in timber, the grain running along it)
-    return [[top, 0.06], [top - 0.06, 0.22], [top - 0.28, 0.05]].map(([y0, h], i) => (
-      <mesh key={`${key}${i}`} position={[cx, (y0 as number) - (h as number) / 2, cz]} geometry={timberBox(W, h as number, L, BASE_TILE.along, BASE_TILE.across)}
-        material={BASE_TIMBER[i]} />
-    ))
+    // (its rim board, the grain running along it, on the stone plinth (its dark body's boards and its toe board under it gone, item 744: the
+    // plinth in their place; the fill over it, under the floor's boards, in the body's boards still))
+    return <mesh key={`${key}r`} position={[cx, top - 0.03, cz]} geometry={timberBox(W, 0.06, L, BASE_TILE.along, BASE_TILE.across)} material={BASE_TIMBER[0]} />
   }
   const [gal, gly] = genkan
   // (under the genkan's stone, solid up to it, and in stone: granite courses from its stones down to the base's foot (item 287), where the
-  // rest of the base is timber)
+  // rest of the base is timber over its stone plinth)
   const gTop = -step - GENKAN_SUNK - 0.004, gFoot = top - 0.33
   // (its street side in steps (item 342, the owner's: 「這邊做成石階」: it stood a sheer wall of three courses at the door): two treads of the
   // same granite down from the genkan's stone toward the street, each a third of the way down and STEP_GO further out, the doorway's width)
@@ -175,10 +302,14 @@ function ShopBase({ rects, genkan, drop, step }: { rects: [[number, number], [nu
     const shared = steps.userData.shared as Set<THREE.BufferGeometry>
     steps.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && !shared.has(m.geometry)) m.geometry.dispose() })
   }, [steps])
+  // (the stone plinth: one mesh, one draw; made again only if the room's shape changes)
+  const plinthGeo = useMemo(() => plinthGeometry(plinth, stoneTop, EARTH_Y - PLINTH_SUNK, EARTH_Y, PLINTH_OUT), [plinth, stoneTop])
+  useEffect(() => () => plinthGeo.dispose(), [plinthGeo])
   return (
     <>
       {rects.flatMap(([al, ly], i) => layers(al, ly, `r${i}`))}
       <primitive object={steps} />
+      {PLINTH_MAT && <mesh name="shop-plinth" geometry={plinthGeo} material={PLINTH_MAT} />}
     </>
   )
 }
@@ -301,8 +432,9 @@ const BASE_TIMBER = (() => {
     t.anisotropy = 4
     return new THREE.MeshToonMaterial({ color: '#ffffff', map: t })
   }
-  // (the rim board a single board deep; the body six courses to the half unit; the toe a single board)
-  return [make('#5c3a22', 1, 9157), make('#3d2414', 6, 4271), make('#2a180c', 1, 7331)]
+  // (the rim board a single board deep; the body six courses to the half unit (the toe board under them, darkest, gone with the stone plinth
+  // in its place, item 744))
+  return [make('#5c3a22', 1, 9157), make('#3d2414', 6, 4271)]
 })()
 /** raw timber for the steps: warm unplaned wood, its long grain wavering, a knot or two, and the dark rough of the cut */
 const STEP_LOG = (() => {
@@ -521,6 +653,8 @@ function RoomFloorImpl({ counters, drop }: { counters: Counter[]; drop: number }
     [a0, g0, l0, l1, a1, gl, back, bump])
   // (the building's footprint on the ground, in this frame (x = -lay, z = along): the base's pieces and the genkan's corner in stone)
   const footprint = useMemo(() => [...bases.map(([al, ly]) => [-ly[1], al[0], -ly[0], al[1]] as Rect), [-gl, g0, -l0, a1] as Rect], [bases, gl, g0, l0, a1])
+  // (the stone plinth round it (item 744), broken across the doorway, where the stone steps stand out from the genkan's footing)
+  const plinth = useMemo(() => plinthPlan(footprint, PLINTH_OUT, [[-gl, a1 - 0.05, -l0, a1 + 2 * STEP_GO + 0.01]]), [footprint, gl, l0, a1])
   // (the kitchen's cut out of the boards: it lies lower, KitchenPit)
   const piece = (al: [number, number], ly: [number, number], k: string) => minus(al, ly, kitchen).map(([a, l], i) => (
     <FloorPiece key={`${k}${i}`} w={l[1] - l[0]} l={a[1] - a[0]} position={[-(l[0] + l[1]) / 2, 0.004, (a[0] + a[1]) / 2]} />
@@ -532,14 +666,15 @@ function RoomFloorImpl({ counters, drop }: { counters: Counter[]; drop: number }
       {piece([a0, g0], [l0, l1], 'a')}
       {piece([g0, a1], [gl, l1], 'b')}
       {back && ([[back.ly[0], back.wc[0]], [back.wc[1], back.ly[1]]] as [number, number][]).filter(([p, q]) => q - p > 0.02).map(([p, q], i) => piece(back.al, [p, q], `k${i}`))}
-      <ShopBase rects={bases} genkan={[[g0, a1], [l0, gl]]} step={D} drop={baseDrop} />
+      <ShopBase rects={bases} genkan={[[g0, a1], [l0, gl]]} step={D} drop={baseDrop} plinth={plinth} />
       {/* (the floor's edge, dark, all the way round but where the genkan's kamachi is: from the kamachi's end by the door, round the
           room's open end, along its open side, up the side wall and along the back wall to the genkan, each corner mitred (the owner's: the
           strip along the side wall stopped short of the corner, and the open edges had none)) */}
       <mesh geometry={edging} material={EDGING} />
       {backEdging && <mesh geometry={backEdging} material={EDGING} />}
-      {/* (the whole shop's soft shadow on the ground it stands on, under its base and spreading out past it a little) */}
-      <mesh position={[-(L0 + L1) / 2 - 0.12, GRAVEL_Y + 0.0025, (A0 + a1) / 2 + 0.1]} rotation-x={-Math.PI / 2} renderOrder={-1}>
+      {/* (the whole shop's soft shadow on the ground it stands on, under its base and spreading out past it a little: on the earth (item 741:
+          the gravel it lay on round the building gone), under the bed before the door) */}
+      <mesh position={[-(L0 + L1) / 2 - 0.12, EARTH_Y + 0.0015, (A0 + a1) / 2 + 0.1]} rotation-x={-Math.PI / 2} renderOrder={-1}>
         <planeGeometry args={[(L1 - L0) + 0.9, (a1 - A0) + 0.9]} />
         <meshBasicMaterial map={GROUND_SHADOW} transparent depthWrite={false} toneMapped={false} />
       </mesh>
@@ -557,8 +692,9 @@ function RoomFloorImpl({ counters, drop }: { counters: Counter[]; drop: number }
       {/* (the room's open end at the door, from the boards down to the footing, is gone (item 407, the owner's 「這片到底是甚麼? 拿掉」): the
           genkan's stone lies 10 cm under the boards, and at the door it stood up over the genkan's stone like a low wall) */}
       </StaticBatch>
-      {/* (the ground it stands on: its gravel bed, curb, stepping stones, tufts and the earth past them (items 708, 725, 726)) */}
-      <ShopGround building={footprint} door={[-gl, -l0]} front={a1} stepsFoot={a1 + 2 * STEP_GO} />
+      {/* (the ground it stands on: its gravel bed before the door, curb, stepping stones, tufts and the earth round it (items 708, 725, 726,
+          741)) */}
+      <ShopGround building={footprint} plinth={plinth} plinthOut={PLINTH_OUT} door={[-gl, -l0]} front={a1} stepsFoot={a1 + 2 * STEP_GO} />
       {/* (the rush mat under the rice by the sake (item 717)) */}
       <Movable id="ricemat" label="草蓆" ground={0}><RiceMat /></Movable>
       {/* the genkan: its stones laid crazy-paving in pebble-wash, the shoe-off stone at the step, the threshold, the polished keyaki step

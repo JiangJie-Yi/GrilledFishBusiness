@@ -1,7 +1,9 @@
 // The ground round the shop (items 725, 726, the owner's 「且泥土地有點大圈，然後樣子不是很好看」「我希望它豐富點」): a bed of gravel (雨落ち,
-// where the eaves drip) laid round the building's foot and out before its door, and the curb (縁石) of low stones along the bed's outer
-// edge, worked out from the building's footprint (a few rects in the floor's plane). Pure: the shop's 3D (guestbar/ground's ShopGround)
-// lays the gravel's cells, the curb's stones, the stepping stones and the tufts from these.
+// where the eaves drip) laid round the building's foot and out before its door (before the door only since item 741, the owner's
+// 「石子地就幫我做門前有就好，其它拿掉」: groundPlan with no width round the building), and the curb (縁石) of low stones along the bed's
+// outer edge, worked out from the building's footprint (a few rects in the floor's plane); and the stone plinth round the building's foot
+// (item 744, plinthPlan). Pure: the shop's 3D (guestbar/ground's ShopGround, guestbar/floors' ShopBase) lays the gravel's cells, the curb's
+// stones, the stepping stones, the tufts and the plinth from these.
 
 /** a rect in the floor's plane, [x0, z0, x1, z1], x0 < x1 and z0 < z1 */
 export type Rect = readonly [number, number, number, number]
@@ -89,6 +91,59 @@ export function groundPlan(building: readonly Rect[], width: number, apron: Rect
     return { a, b, out, convexA: !probe(a, -1), convexB: !probe(b, 1) }
   })
   return { gravel, runs }
+}
+
+/** what's left of a rect with another taken out of it: up to four rects (the strips either side, then those over and under between them) */
+function minus(r: Rect, c: Rect): Rect[] {
+  if (c[0] >= r[2] || c[2] <= r[0] || c[1] >= r[3] || c[3] <= r[1]) return [r]
+  const out: Rect[] = []
+  if (c[0] > r[0]) out.push([r[0], r[1], c[0], r[3]])
+  if (c[2] < r[2]) out.push([c[2], r[1], r[2], r[3]])
+  const x0 = Math.max(r[0], c[0]), x1 = Math.min(r[2], c[2])
+  if (c[1] > r[1]) out.push([x0, r[1], x1, c[1]])
+  if (c[3] < r[3]) out.push([x0, c[3], x1, r[3]])
+  return out
+}
+
+/** a run of the plinth's face: as groundPlan's runs, and whether each end stops at a cut (its end open there, to be closed by a face across it) */
+export interface PlinthRun extends Run { cutA: boolean; cutB: boolean }
+export interface PlinthPlan {
+  /** its ledge: the ring `out` wide round the building's faces, in whole rects */
+  ledge: Rect[]
+  /** its face's runs, along the ring's outer edge */
+  runs: PlinthRun[]
+}
+
+/**
+ * The stone plinth (石台) round the building's foot (item 744, the owner's 「約五分之三的部份做成石台」): standing `out` proud of the building's
+ * faces (its ledge the ring groundPlan would lay as a bed `out` wide; its face that ring's outer edge), and none within a `cut` (the stone
+ * steps at the door: the plinth stops either side of them, its runs broken there and their ends marked)
+ */
+export function plinthPlan(building: readonly Rect[], out: number, cut: readonly Rect[] = []): PlinthPlan {
+  const p = groundPlan(building, out, null)
+  const ledge = p.gravel.flatMap((r) => cut.reduce<Rect[]>((rs, c) => rs.flatMap((q) => minus(q, c)), [r]))
+  const runs: PlinthRun[] = []
+  for (const r of p.runs) {
+    const alongX = r.out[0] === 0, line = alongX ? r.a[1] : r.a[0]
+    // (its stretch along its line, cut where a cut lies across that line: [from, to, stops at a cut at its start, at its end])
+    let parts: [number, number, boolean, boolean][] = [[alongX ? r.a[0] : r.a[1], alongX ? r.b[0] : r.b[1], false, false]]
+    for (const c of cut) {
+      const [l0, l1, s0, s1] = alongX ? [c[1], c[3], c[0], c[2]] : [c[0], c[2], c[1], c[3]]
+      if (line <= l0 || line >= l1) continue
+      parts = parts.flatMap(([a, b, ca, cb]) => {
+        if (s1 <= a || s0 >= b) return [[a, b, ca, cb] as [number, number, boolean, boolean]]
+        const o: [number, number, boolean, boolean][] = []
+        if (s0 > a) o.push([a, s0, ca, true])
+        if (s1 < b) o.push([s1, b, true, cb])
+        return o
+      })
+    }
+    for (const [a, b, ca, cb] of parts) {
+      runs.push({ a: alongX ? [a, line] : [line, a], b: alongX ? [b, line] : [line, b], out: r.out,
+        convexA: ca ? false : r.convexA, convexB: cb ? false : r.convexB, cutA: ca, cutB: cb })
+    }
+  }
+  return { ledge, runs }
 }
 
 /** a curb stone: its middle (in the floor's plane), the way it runs, its length; `w` across it as asked */

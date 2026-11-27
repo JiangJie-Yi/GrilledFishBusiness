@@ -3,12 +3,14 @@
  * 「且泥土地有點大圈，然後樣子不是很好看」「我希望它豐富點」: it was one sheet of earth 1.5 out round the building and 3.0 before the door,
  * its edge a ragged ring of blurred blobs that looked like shadows on the ground). As round a real shop:
  *
- * - a bed of river gravel (玉砂利, where the eaves drip: 雨落ち) GRAVEL_W wide all round the building's foot, square at its corners, and
- *   out before the door the facade's width (the stone steps and the door's bamboo standing in it);
+ * - a bed of river gravel (玉砂利) before the door only (item 741, the owner's 「石子地就幫我做門前有就好，其它拿掉」: it ran GRAVEL_W 0.36 wide
+ *   all round the building's foot as well), the steps' width and a little, out to the street (the stone steps standing in it, the door's
+ *   bamboo's planter at its back corner);
  * - a curb (縁石) of low granite stones along the bed's outer edge, each its own length, height and grey, their corners closed;
  * - stepping stones (飛び石) from the steps' foot out over the bed and the curb to the street;
- * - past the curb a narrow band of tamped earth, moss along the curb, fallen leaves, a few weeds, faded out over EARTH_FADE;
- * - tufts of mondo grass (竜のひげ) along the curb and at its corners.
+ * - round the building, tamped earth from the stone plinth's foot (guestbar/floors' ShopBase, item 744) out, moss along the plinth and the
+ *   curb, fallen leaves, a few weeds, faded out over EARTH_FADE;
+ * - tufts of mondo grass (竜のひげ) along the plinth's foot and the curb, and at their corners.
  *
  * All of it in the room floor's frame (x = -lay, z = along), laid from the building's footprint (its rects: game/world/groundLayout's
  * groundPlan and curbStones, BDD ground). Four draws (the gravel, the stones, the tufts, the earth), none casting a shadow, all taking the
@@ -16,7 +18,7 @@
  */
 import { memo, useEffect, useMemo } from 'react'
 import * as THREE from 'three'
-import { curbStones, groundPlan, type Rect } from '@/game/world/groundLayout'
+import { curbStones, groundPlan, type PlinthPlan, type Rect, type Run } from '@/game/world/groundLayout'
 import { signTexture } from '@/scene/props/signFont'
 
 /** heights in the floor's frame: the earth's sheet (2 mm under the street's level, -0.46); the gravel's top, just under the stone steps'
@@ -25,12 +27,19 @@ import { signTexture } from '@/scene/props/signFont'
 export const EARTH_Y = -0.462
 export const GRAVEL_Y = -0.4535
 const CURB_TOP = GRAVEL_Y + 0.035, STEP_TOP = GRAVEL_Y + 0.012
-/** the bed's width round the building; the curb's width, its stones' length (each up to CURB_SPREAD of it longer or shorter), their joint */
-const GRAVEL_W = 0.36, CURB_W = 0.05, CURB_LEN = 0.32, CURB_SPREAD = 0.18, CURB_JOINT = 0.004
-/** the bed out before the door: how far out from the front, how far past the doorway each side (the facade's width) */
-const APRON_OUT = 1.25, APRON_SIDE = 0.65
-/** the earth past the curb, and how far it fades out past that; its picture's pixels to a unit */
-const EARTH_BAND = 0.36, EARTH_FADE = 0.24, EARTH_PX = 96
+/** the curb's width, its stones' length (each up to CURB_SPREAD of it longer or shorter), their joint */
+const CURB_W = 0.05, CURB_LEN = 0.32, CURB_SPREAD = 0.18, CURB_JOINT = 0.004
+/** the bed before the door: how far out from the front, how far past the doorway each side (the steps' width and a little (item 741): it
+ * was 0.65, the facade's width) */
+const APRON_OUT = 1.25, APRON_SIDE = 0.03
+/**
+ * the door's bamboo's planter (guestbar/entrance's DOOR_BAMBOO_AT), measured in the floor's frame (tests/e2e/_ground741.mjs): from the
+ * doorway's far side, across (its near side 2.2 cm past it) and out from the front; the bed's edge goes round it, its curb from its front on
+ */
+const PLANTER = { x: [0.022, 0.352], z: [-0.002, 0.328] }
+/** the earth round the building, out from its plinth's face (as far as the gravel, the curb and the earth past them reached, items
+ * 725-726), and how far it fades out past that; the band past the bed's curb; its picture's pixels to a unit */
+const EARTH_REACH = 0.77, EARTH_BAND = 0.36, EARTH_FADE = 0.24, EARTH_PX = 96
 /** how much ground one repeat of the gravel's picture covers */
 const GRAVEL_TILE = 0.5
 /** the stepping stones: their half sizes across and along the way out, the gaps between them */
@@ -184,18 +193,23 @@ class Faces {
   }
 }
 
-export const ShopGround = memo(function ShopGround({ building, door, front, stepsFoot }: {
+export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut, door, front, stepsFoot }: {
   /** the building's footprint on the ground: its rects, [x0, z0, x1, z1] in the floor's frame */
   building: Rect[]
+  /** its stone plinth (item 744, ShopBase's): the ring it stands proud of the footprint, and its face's runs; how far proud */
+  plinth: PlinthPlan; plinthOut: number
   /** the doorway across x at the front; the front's z; where the stone steps out from it end */
   door: [number, number]; front: number; stepsFoot: number
 }) {
-  const key = JSON.stringify([building, door, front, stepsFoot])
+  const key = JSON.stringify([building, plinth, plinthOut, door, front, stepsFoot])
   const made = useMemo(() => {
     if (typeof document === 'undefined') return null
     const rnd = seeded(726)
     const apron: Rect = [door[0] - APRON_SIDE, front, door[1] + APRON_SIDE, front + APRON_OUT]
-    const plan = groundPlan(building, GRAVEL_W, apron)
+    // (the bed before the door only (item 741): none round the building; its edge round the plinth (its ledge) and the bamboo's planter,
+    // the planter's place taken from the plinth's face (so the bed meets the two with no slot of earth between, nor a curb in it))
+    const planter: Rect = [door[1] + plinthOut, front + PLANTER.z[0], door[1] + PLANTER.x[1], front + PLANTER.z[1]]
+    const plan = groundPlan([...building, ...plinth.ledge, planter], 0, apron)
     // ---- the gravel: its cells, the picture laid on by where they are (one repeat a GRAVEL_TILE)
     const gp: number[] = [], gu: number[] = [], gn: number[] = []
     for (const [x0, z0, x1, z1] of plan.gravel) {
@@ -238,16 +252,20 @@ export const ShopGround = memo(function ShopGround({ building, door, front, step
       f.stone(outline.reverse(), STEP_TOP, EARTH_Y, 0.012, c, c.clone().multiplyScalar(0.74), c.clone().multiplyScalar(0.5))
     }
     const stones = f.geometry()
-    // ---- the tufts: in clumps along the curb, out in the earth, and three at each of its outer corners; none on the way out
+    // ---- the edges the earth's moss, leaves and tufts keep to: the plinth's foot (its face) and the bed's curb's outer side; none in the
+    // bed, on its curb or on the way out
+    const edges: { r: Run; off: number }[] = [...plinth.runs.map((r) => ({ r, off: 0.004 })), ...plan.runs.map((r) => ({ r, off: CURB_W }))]
+    const clearOfWay = (x: number, z: number) => !(z > front && Math.abs(x - mid) < STEP_RX + 0.2) &&
+      !(x > apron[0] - CURB_W - 0.04 && x < apron[2] + CURB_W + 0.04 && z > apron[1] - 0.02 && z < apron[3] + CURB_W + 0.04)
+    // ---- the tufts: in clumps along the edges, out in the earth, and three at each of their outer corners
     const tufts: [number, number, number, number][] = []
-    const clearOfWay = (x: number, z: number) => !(z > front && Math.abs(x - mid) < STEP_RX + 0.2)
-    for (const r of plan.runs) {
+    for (const { r, off } of edges) {
       const alongX = r.out[0] === 0, s0 = alongX ? r.a[0] : r.a[1], s1 = alongX ? r.b[0] : r.b[1]
       const edge = alongX ? r.a[1] : r.a[0], ox = r.out[0], oz = r.out[1]
       for (let s = s0 + 0.3 + rnd() * 0.5; s < s1 - 0.25; s += 0.7 + rnd() * 0.9) {
         const clump = 1 + Math.floor(rnd() * 3)
         for (let k = 0; k < clump; k++) {
-          const along = s + (rnd() - 0.5) * 0.16, out = CURB_W + 0.1 + rnd() * 0.08
+          const along = s + (rnd() - 0.5) * 0.16, out = off + 0.1 + rnd() * 0.08
           const x = alongX ? along : edge + ox * out, z = alongX ? edge + oz * out : along
           if (clearOfWay(x, z)) tufts.push([x, z, rnd() * Math.PI * 2, 0.8 + rnd() * 0.45])
         }
@@ -255,14 +273,14 @@ export const ShopGround = memo(function ShopGround({ building, door, front, step
       for (const [conv, p, dir] of [[r.convexA, r.a, -1], [r.convexB, r.b, 1]] as const) {
         if (!conv) continue
         for (let k = 0; k < 3; k++) {
-          const along = (alongX ? p[0] : p[1]) + dir * (0.06 + rnd() * 0.12), out = CURB_W + 0.11 + rnd() * 0.08
+          const along = (alongX ? p[0] : p[1]) + dir * (0.06 + rnd() * 0.12), out = off + 0.11 + rnd() * 0.08
           const x = alongX ? along : edge + ox * out, z = alongX ? edge + oz * out : along
           if (clearOfWay(x, z)) tufts.push([x, z, rnd() * Math.PI * 2, 0.9 + rnd() * 0.4])
         }
       }
     }
-    // ---- the earth past the curb: its picture, faded out at its edge
-    const reach = GRAVEL_W + CURB_W + EARTH_BAND
+    // ---- the earth round the building and past the curb: its picture, faded out at its edge
+    const reach = EARTH_REACH
     const shapes: Rect[] = [...building.map((r) => [r[0] - reach, r[1] - reach, r[2] + reach, r[3] + reach] as Rect),
       [apron[0] - CURB_W - EARTH_BAND, apron[1], apron[2] + CURB_W + EARTH_BAND, apron[3] + CURB_W + EARTH_BAND + 0.12]]
     const X0 = Math.min(...shapes.map((r) => r[0])) - EARTH_FADE, X1 = Math.max(...shapes.map((r) => r[2])) + EARTH_FADE
@@ -303,33 +321,39 @@ export const ShopGround = memo(function ShopGround({ building, door, front, step
       g.fillStyle = 'rgba(38,28,20,0.35)'; g.beginPath(); g.ellipse(x + r * 0.3, y + r * 0.4, r, r * 0.7, a, 0, Math.PI * 2); g.fill()
       g.fillStyle = pebble[i % 4]; g.beginPath(); g.ellipse(x, y, r, r * 0.7, a, 0, Math.PI * 2); g.fill()
     }
-    // (moss along the curb, thicker toward its corners, in the damp it keeps; and in patches here and there)
+    // (moss along the plinth's foot and the curb, thicker toward their corners, in the damp they keep; and in patches here and there)
     const moss = ['74,100,50', '92,122,60', '62,86,42', '104,130,66']
-    for (const r of plan.runs) {
+    for (const { r, off } of edges) {
       const alongX = r.out[0] === 0, s0 = alongX ? r.a[0] : r.a[1], s1 = alongX ? r.b[0] : r.b[1]
       const edge = alongX ? r.a[1] : r.a[0], ox = r.out[0], oz = r.out[1]
       for (let s = s0; s < s1; s += 0.025) {
         const nearEnd = Math.min(s - s0, s1 - s), thick = nearEnd < 0.5 ? 0.85 : 0.35
         if (rnd() > thick) continue
-        const out = CURB_W + 0.004 + rnd() * rnd() * 0.09
+        const out = off + 0.004 + rnd() * rnd() * 0.09
         const x = alongX ? s : edge + ox * out, z = alongX ? edge + oz * out : s
-        blob(px(x), pz(z), (0.012 + rnd() * 0.03) * sx, moss[Math.floor(rnd() * 4)], 0.55 + rnd() * 0.3)
+        if (clearOfWay(x, z)) blob(px(x), pz(z), (0.012 + rnd() * 0.03) * sx, moss[Math.floor(rnd() * 4)], 0.55 + rnd() * 0.3)
       }
     }
-    for (let i = 0; i < 26; i++) {
-      const r = plan.runs[Math.floor(rnd() * plan.runs.length)], alongX = r.out[0] === 0
+    // (an edge at random, a long one more often than a short: and a spot along it)
+    const lens = edges.map(({ r }) => Math.hypot(r.b[0] - r.a[0], r.b[1] - r.a[1])), total = lens.reduce((p, q) => p + q, 0)
+    const pick = () => { let t = rnd() * total, i = 0; while (i < lens.length - 1 && t > lens[i]) t -= lens[i++]; return edges[i] }
+    for (let i = 0; i < (total > 0 ? 26 : 0); i++) {
+      const { r, off } = pick(), alongX = r.out[0] === 0
       const s = (alongX ? r.a[0] : r.a[1]) + rnd() * ((alongX ? r.b[0] - r.a[0] : r.b[1] - r.a[1]))
-      const out = CURB_W + 0.05 + rnd() * (EARTH_BAND - 0.05), edge = alongX ? r.a[1] : r.a[0]
+      const out = off + 0.05 + rnd() * (EARTH_BAND - 0.05), edge = alongX ? r.a[1] : r.a[0]
       const x = alongX ? s : edge + r.out[0] * out, z = alongX ? edge + r.out[1] * out : s
+      if (!clearOfWay(x, z)) continue
       for (let k = 0; k < 7; k++) blob(px(x + (rnd() - 0.5) * 0.12), pz(z + (rnd() - 0.5) * 0.12), (0.02 + rnd() * 0.04) * sx, moss[k % 4], 0.5)
     }
-    // (fallen leaves, dry and curled: a few blown up against the curb, the rest about the band)
+    // (fallen leaves, dry and curled: a few blown up against the plinth and the curb, the rest about the earth)
     const leaf = ['150,88,40', '178,120,48', '118,70,36', '190,148,70', '140,60,34']
-    for (let i = 0; i < 38; i++) {
-      const r = plan.runs[Math.floor(rnd() * plan.runs.length)], alongX = r.out[0] === 0
+    for (let i = 0; i < (total > 0 ? 38 : 0); i++) {
+      const { r, off } = pick(), alongX = r.out[0] === 0
       const s = (alongX ? r.a[0] : r.a[1]) + rnd() * ((alongX ? r.b[0] - r.a[0] : r.b[1] - r.a[1]))
-      const out = CURB_W + (i % 3 ? 0.01 + rnd() * 0.05 : 0.05 + rnd() * (EARTH_BAND - 0.02)), edge = alongX ? r.a[1] : r.a[0]
-      const x = px(alongX ? s : edge + r.out[0] * out), y = pz(alongX ? edge + r.out[1] * out : s)
+      const out = off + (i % 3 ? 0.01 + rnd() * 0.05 : 0.05 + rnd() * (EARTH_BAND - 0.02)), edge = alongX ? r.a[1] : r.a[0]
+      const ex = alongX ? s : edge + r.out[0] * out, ez = alongX ? edge + r.out[1] * out : s
+      if (!clearOfWay(ex, ez)) continue
+      const x = px(ex), y = pz(ez)
       const L = (0.022 + rnd() * 0.02) * sx, a = rnd() * Math.PI * 2, col = leaf[Math.floor(rnd() * leaf.length)]
       g.save(); g.translate(x, y); g.rotate(a)
       g.fillStyle = 'rgba(30,20,12,0.3)'; g.beginPath(); g.ellipse(L * 0.12, L * 0.16, L, L * 0.42, 0, 0, Math.PI * 2); g.fill()

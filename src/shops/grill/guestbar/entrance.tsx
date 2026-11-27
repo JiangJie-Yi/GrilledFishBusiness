@@ -22,7 +22,8 @@ import { BlobShadow } from '@/scene/effects/BlobShadow'
  * on the street's ground right of the way in, under the eave, up against the building's side (item 707, the owner's 「幫我貼齊，然後有點陰影」:
  * its rim 2 mm off the facade's dark side panel); out to the street 0.30 so its culms stand in front of the door's frame, not hidden behind
  * its post (item 728, the owner's 「竹往前，不被門吃掉」) (blender/bamboo.py's AT, the same) */
-const DOOR_BAMBOO_AT: [number, number, number] = [0.692, -0.46, 0.622]
+// (its foot 6 mm down into the earth (item 741): it stood in the gravel there, the earth 2 mm under its foot once the gravel was gone)
+const DOOR_BAMBOO_AT: [number, number, number] = [0.692, -0.466, 0.622]
 const DOOR_BAMBOO_SAYS = nameOver('【門口植栽】青竹', '燒杉木箱裡的一叢青竹，迎客，也替門口擋一點街上的目光')
 
 /**
