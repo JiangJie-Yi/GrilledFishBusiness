@@ -141,6 +141,12 @@ def _weave(base, k=0.05, lines=96):
     return (np.array(base, np.float32)[None, None, :] * t[..., None]).clip(0, 1).astype(np.float32)
 
 
+def _weave_k(k=0.05, lines=96):
+    """the weave alone (a factor about 1) to lay over a picture already painted, as _weave lays it over a plain colour"""
+    w = 0.5 + 0.5 * np.sin(_u * lines * 2 * np.pi) * np.sin(_v * lines * 2 * np.pi)
+    return (1.0 + (w - 0.5) * k + (_grain - 0.5) * k * 0.8)[..., None].astype(np.float32)
+
+
 def _weave_at(base, w, h, k=0.05, lines=96):
     """the same weave at w x h pixels (its threads as fine one way as the other)"""
     u = np.tile((np.arange(w) + 0.5) / w, (h, 1))
@@ -163,22 +169,13 @@ M["tenugui"] = pbr("BossTenugui", (1, 1, 1), tex=image("boss_tenugui", _tg.astyp
 # (the kappōgi's cotton: white with its weave, a faint shade down the folds)
 COAT = {"server": (0.2, 0.25, 0.4), "serverF": (0.42, 0.14, 0.24), "stock": (0.42, 0.44, 0.3)}.get(CREW, (0.96, 0.94, 0.9))
 _ct = _weave(COAT, 0.06)
+# (item 793, the owner's 「這些花紋可以加入到員工或是客人的衣服上」 with his sheet of the Edo patterns: the kimono 七宝 (cream rings a quarter
+# over each other, a four-petalled flower in each, on the plum: it had little pink sakura), the samue the striped blocks (pale lines in their
+# rhombi on the indigo: it had a kasuri grid); each over its weave, the tile's repeat whole round it)
 if CREW == "serverF":
-    _fu, _fv = grid01(256)
-    for k in range(0, 9):
-        for j in range(0, 9):
-            cu, cv = (k + 0.5 * (j % 2)) / 9, (j + 0.3) / 9
-            du = (_fu - cu + 0.5) % 1.0 - 0.5
-            dv = _fv - cv
-            a = np.arctan2(dv, du)
-            rr = np.hypot(du, dv)
-            petal = rr < 0.026 * (0.72 + 0.28 * np.abs(np.cos(2.5 * a)))
-            _ct[petal] = (0.95, 0.78, 0.82)
-            _ct[rr < 0.008] = (0.9, 0.7, 0.3)
+    _ct = (edo_pattern("shippou", 256, 256, 256 / 5, COAT, (0.93, 0.86, 0.78), lw=1.1) * _weave_k(0.06)).clip(0, 1).astype(np.float32)
 if CREW == "server":
-    _fu, _fv = grid01(256)
-    st = ((np.abs(((_fu * 20) % 1.0) - 0.5) < 0.04) & (((_fv * 60) % 1.0) < 0.6)) | ((np.abs(((_fv * 20) % 1.0) - 0.5) < 0.04) & (((_fu * 60) % 1.0) < 0.6))
-    _ct[st] = _ct[st] * 0.55 + np.array([0.75, 0.78, 0.86], np.float32) * 0.45
+    _ct = (edo_pattern("blocks", 256, 256, 256 / 4, COAT, (0.74, 0.78, 0.88), lw=0.9, stripes=3) * _weave_k(0.06)).clip(0, 1).astype(np.float32)
 # (a faint shade down the folds)
 _ct = _ct * (1 - 0.05 * (0.5 + 0.5 * np.sin(_u * 2 * np.pi * 9)))[..., None]
 
@@ -240,7 +237,11 @@ if CREW:
 # (indigo cloth for the trousers and a deeper navy for the apron, both dyed a touch unevenly)
 PANTS = {"server": (0.17, 0.21, 0.35), "serverF": (0.36, 0.11, 0.2), "stock": (0.2, 0.2, 0.18)}.get(CREW, (0.2, 0.25, 0.4))
 APRON = {"server": (0.16, 0.1, 0.07)}.get(CREW, (0.12, 0.16, 0.28))
-M["pants"] = pbr("BossPants", (1, 1, 1), tex=image(f"{CREW or 'boss'}_indigo", _weave(PANTS, 0.1)), rough=0.85)
+_pt = _weave(PANTS, 0.1)
+if CREW == "serverF":
+    # (the kimono under the obi the same 七宝 as over it, a shade deeper (item 793))
+    _pt = (edo_pattern("shippou", 256, 256, 256 / 5, PANTS, (0.86, 0.78, 0.7), lw=1.1) * _weave_k(0.1)).clip(0, 1).astype(np.float32)
+M["pants"] = pbr("BossPants", (1, 1, 1), tex=image(f"{CREW or 'boss'}_indigo", _pt), rough=0.85)
 M["apron"] = pbr("BossApron", (1, 1, 1), tex=image(f"{CREW or 'boss'}_navy", _weave(APRON, 0.12, 128)), rough=0.85)
 # (hair: brown with strands combed down from the crown, lighter and darker by turns)
 _hs = 0.75 + 0.25 * np.sin(_u * 2 * np.pi * 60 + np.sin(_u * 2 * np.pi * 7) * 2) * (0.6 + 0.4 * _grain)
@@ -680,6 +681,11 @@ for poly in ap.data.polygons:
 # each of its triangles filled into the picture, the mesh let go: two letters were five hundred triangles)
 _aw, _ah = 512, max(64, round(512 * AP_H / AP_W))
 _ap = _weave_at(APRON, _aw, _ah, 0.12, 128)
+if CREW in (None, "chef", "chefF"):
+    # (item 793, and the owner's 「老闆的也行」: the navy dyed with 青海波, its waves a shade lighter than the ground, the letters over them)
+    # (at 9 across, its lines a 0.9 px half width and 1.6 times the navy, they were all but lost on the apron at the game's distance: 7 across,
+    # 1.3 px, 2.2 times)
+    _ap = (_ap * edo_pattern("seigaiha", _aw, _ah, _aw / 7, (1.0, 1.0, 1.0), (2.2, 2.1, 1.9), lw=1.3)).clip(0, 1).astype(np.float32)
 if CREW not in ("serverF", "stock"):
     bpy.ops.object.text_add(location=(0, 0, 0))
     tx = active()
@@ -908,7 +914,8 @@ def _sample_lin(img, u, v):
 
 # (the coat's cotton, and its creases on it at the body's picture's own size)
 _coat = _creases(_sample_lin(_ct, _bu, _by_ / 1.64), CREASES, _bu, _by_ / 1.64)
-_pant = _sample(_weave_at(PANTS, 256, 256, 0.1), _bu, _by_ / 1.64)
+# (the kimono's 七宝 under the obi as over it, between the tile's pixels as the coat's is (item 793); the rest's trousers as they were)
+_pant = _sample_lin(_pt, _bu, _by_ / 1.64) if CREW == "serverF" else _sample(_weave_at(PANTS, 256, 256, 0.1), _bu, _by_ / 1.64)
 _body = np.where((_by_ < HEM)[..., None], _pant, _coat)
 # (which part each pixel's of: 1 the coat, 2 the apron, 3 the trousers, 0 the rest (item 376: written out for the game to recolour))
 _kind = np.where(_by_ < HEM, 3, 1).astype(np.uint8)

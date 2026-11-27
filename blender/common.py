@@ -91,6 +91,155 @@ def grid01(size):
     return u, u.T.copy()   # u along columns, v along rows (row 0 = bottom)
 
 
+# ---- the five Edo patterns (item 793, the owner's 「這些花紋可以加入到員工或是客人的衣服上」 with a sheet of them, "Patterns of Edo"; the
+# game's own, drawn on a canvas for the mats, are src/scene/props/edoPatterns.ts): 七宝 shippou, the striped blocks, 麻の葉 asanoha, 梅 ume,
+# 青海波 seigaiha, painted into a picture
+def _line_aa(d, hw):
+    """how much of a line a pixel `d` from its middle is, the line `hw` either side of it: soft over a pixel"""
+    return np.clip(hw + 0.5 - d, 0.0, 1.0)
+
+
+def _seg_dist(px, py, ax, ay, bx, by):
+    """each pixel's distance to the segment from a to b"""
+    vx, vy = bx - ax, by - ay
+    t = np.clip(((px - ax) * vx + (py - ay) * vy) / np.maximum(vx * vx + vy * vy, 1e-9), 0, 1)
+    return np.hypot(px - (ax + t * vx), py - (ay + t * vy))
+
+
+def edo_pattern(kind, w, h, unit, bg, line, flower=None, lw=None, aspect=1.0, rings=4, stripes=4):
+    """one of the five on a (h, w) picture (row 0 at its foot, as image() takes it): `unit` a repeat's width (px), fitted so a whole number
+    go across w (and down h, where it repeats down too), `aspect` how many pixels down make one across (a picture stretched where it's laid:
+    a folk's outfit 1.19), `bg` the ground, `line` the lines' colour, `lw` their half width (px), `flower` the flowers' (shippou's four petals,
+    ume's plum); the colours as painted (sRGB 0..1), or factors over 1 to lay over another picture. Returns (h, w, 3) float32."""
+    X = np.tile(np.arange(w, dtype=np.float32) + 0.5, (h, 1))
+    Y = np.tile((np.arange(h, dtype=np.float32) + 0.5)[:, None], (1, w)) / aspect
+    H = h / aspect
+    bg, line = np.asarray(bg, np.float32), np.asarray(line, np.float32)
+    flower = line if flower is None else np.asarray(flower, np.float32)
+    lw = max(0.6, unit / 40) if lw is None else lw
+    out = np.broadcast_to(bg, (h, w, 3)).copy()
+
+    def paint(mask, col):
+        m = np.clip(mask, 0, 1)[..., None]
+        out[:] = out * (1 - m) + col * m
+
+    if kind == "shippou":
+        # (rings on a square grid, each over its four neighbours by a quarter of its round; a four-petalled flower in each, a dot where four meet)
+        a = w / max(1, round(w / unit))
+        b = H / max(1, round(H / unit))
+        r = math.hypot(a, b) / 2
+        ix, iy = np.floor(X / a), np.floor(Y / b)
+        d = np.full(X.shape, 1e9, np.float32)
+        for ox in (0, 1):
+            for oy in (0, 1):
+                d = np.minimum(d, np.abs(np.hypot(X - (ix + ox) * a, Y - (iy + oy) * b) - r))
+        paint(_line_aa(d, lw), line)
+        px, py = X - np.round(X / a) * a, Y - np.round(Y / b) * b
+        bloom = np.zeros_like(X)
+        for k in range(4):
+            t = math.pi / 4 + k * math.pi / 2
+            qx, qy = px - math.cos(t) * 0.17 * r, py - math.sin(t) * 0.17 * r
+            along, across = qx * math.cos(t) + qy * math.sin(t), -qx * math.sin(t) + qy * math.cos(t)
+            bloom = np.maximum(bloom, np.clip((1 - np.hypot(along / (0.15 * r), across / (0.123 * r))) * 0.15 * r + 0.5, 0, 1))
+        bloom = np.maximum(bloom, np.clip(0.07 * r + 0.5 - np.hypot(X - (ix + 0.5) * a, Y - (iy + 0.5) * b), 0, 1))
+        paint(bloom, flower)
+    elif kind == "seigaiha":
+        # (rows of fans of rings, each half a fan over from the last and a quarter of a fan down, the lower in front)
+        u = w / max(1, round(w / unit))
+        R = u / 2
+        rows = 2 * max(1, round(H / R))
+        rh = H / rows
+        dist = np.full(X.shape, np.inf, np.float32)
+        j0 = np.floor(Y / rh)
+        for dj in range(-2, 4):
+            j = j0 + dj
+            off = np.mod(j, 2) * R
+            cx = np.round((X - off) / u) * u + off
+            dd = np.hypot(X - cx, Y - j * rh)
+            dist = np.where(np.isinf(dist) & (dd < R), dd, dist)
+        for k in range(rings):
+            rr = R * (1 - k / rings) - lw
+            if rr > lw:
+                paint(_line_aa(np.abs(dist - rr), lw), line)
+    elif kind == "asanoha":
+        # (a grid of equal triangles, their sides and each one's corners to its middle: the hemp leaf's stars round every point of it)
+        s = w / max(1, round(w / unit))
+        rows = 2 * max(1, round(H / (s * math.sqrt(3))))
+        hh = H / rows
+        b = Y / hh
+        a = X / s - b / 2
+        ia, ib = np.floor(a), np.floor(b)
+        up = (a - ia) + (b - ib) < 1
+
+        def at(A, B):
+            return (A + B / 2) * s, B * hh
+        p0 = at(np.where(up, ia, ia + 1), ib)
+        p1 = at(ia + 1, np.where(up, ib, ib + 1))
+        p2 = at(ia, ib + 1)
+        gx, gy = (p0[0] + p1[0] + p2[0]) / 3, (p0[1] + p1[1] + p2[1]) / 3
+        d = np.minimum.reduce([_seg_dist(X, Y, *p0, *p1), _seg_dist(X, Y, *p1, *p2), _seg_dist(X, Y, *p2, *p0),
+                               _seg_dist(X, Y, *p0, gx, gy), _seg_dist(X, Y, *p1, gx, gy), _seg_dist(X, Y, *p2, gx, gy)])
+        paint(_line_aa(d, lw), line)
+    elif kind == "ume":
+        # (five-petalled plum blossoms in columns, each column half a step down from the next, dotted lines between the columns)
+        a = w / max(1, round(w / unit))
+        b = H / max(1, round(H / unit))
+        lx = np.mod(X, a / 2)
+        lx = np.minimum(lx, a / 2 - lx)
+        ly = (np.mod(Y / (b / 12), 1.0) - 0.5) * (b / 12)
+        paint(np.clip(lw * 0.7 + 0.5 - np.hypot(lx, ly), 0, 1), line)
+        pr, pd = 0.085 * a, 0.088 * a
+        for (f0, g0) in ((0.25, 0.25), (0.75, 0.75)):
+            px = X - (np.floor(X / a - f0 + 0.5) + f0) * a
+            py = Y - (np.floor(Y / b - g0 + 0.5) + g0) * b
+            pet = np.zeros_like(X)
+            for k in range(5):
+                t = math.pi / 2 + k * 2 * math.pi / 5
+                pet = np.maximum(pet, np.clip(pr + 0.5 - np.hypot(px - math.cos(t) * pd, py - math.sin(t) * pd), 0, 1))
+            paint(pet, flower)
+            heart = np.clip(0.028 * a + 0.5 - np.hypot(px, py), 0, 1)
+            for k in range(5):
+                t = math.pi / 2 + math.pi / 5 + k * 2 * math.pi / 5
+                heart = np.maximum(heart, np.clip(0.009 * a + 0.5 - np.hypot(px - math.cos(t) * 0.05 * a, py - math.sin(t) * 0.05 * a), 0, 1))
+            paint(heart, bg)
+    elif kind == "blocks":
+        # (a honeycomb of upright hexagons, each three rhombi round its middle (a block seen from a corner), each filled with lines along one
+        # of its sides, the three each their own way round)
+        sx = w / max(1, round(w / unit))
+        rows = 2 * max(1, round(H / (sx / math.sqrt(3) * 1.5)))
+        sy = H / rows
+        hy = sy / 1.5
+        best = np.full(X.shape, np.inf, np.float32)
+        cxs, cys = np.zeros_like(X), np.zeros_like(X)
+        j0 = np.round(Y / sy)
+        for dj in (-1, 0, 1):
+            j = j0 + dj
+            off = np.mod(j, 2) * sx / 2
+            cx = np.round((X - off) / sx) * sx + off
+            cy = j * sy
+            dd = np.hypot(X - cx, Y - cy)
+            take = dd < best
+            best, cxs, cys = np.where(take, dd, best), np.where(take, cx, cxs), np.where(take, cy, cys)
+        px, py = X - cxs, Y - cys
+        UL, UR, BT = (-sx / 2, hy / 2), (sx / 2, hy / 2), (0.0, -hy)
+        d = np.full(X.shape, np.inf, np.float32)
+        for (U_, V_, along) in ((UL, UR, "u"), (UL, BT, "v"), (UR, BT, "u")):
+            det = U_[0] * V_[1] - U_[1] * V_[0]
+            al = (px * V_[1] - py * V_[0]) / det
+            be = (U_[0] * py - U_[1] * px) / det
+            inside = (al >= -1e-4) & (al <= 1 + 1e-4) & (be >= -1e-4) & (be <= 1 + 1e-4)
+            t, e = (be, al) if along == "u" else (al, be)
+            tn = t * stripes - 0.5
+            k = np.round(tn)
+            dl = np.abs(tn - k) / stripes * abs(det) / math.hypot(*(U_ if along == "u" else V_))
+            ok = inside & (e > 0.08) & (e < 0.92) & (k >= 0) & (k <= stripes - 1)
+            d = np.where(ok, np.minimum(d, dl), d)
+        paint(_line_aa(d, lw), line)
+    else:
+        raise ValueError(kind)
+    return out.astype(np.float32)
+
+
 def oil_broth(size, base_dark, base_light, oil_color, droplets=170):
     """Broth surface with floating oil droplets; returns (color, height)."""
     base = mix(base_dark, base_light, fbm(size, 3, 3))
