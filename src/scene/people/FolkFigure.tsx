@@ -29,7 +29,8 @@ import { ROD_TIP, canopyScale, coatPictures, rainMats, useKasa, type GearAt } fr
  * A customer in the boss's style (blender/folk.py: public/models/folk.glb): an Overcooked cook's big round head on a short plump body, no
  * legs, floating mitten hands, the boss's height; low in faces and shaded smooth, the detail painted. What they wear is a picture round the
  * body (textures/folk/outfit_<kind>_<n>.jpg), their face a picture over the front of the head, one of eight expressions in a strip
- * (textures/folk/face_<type>.png: as they are, blinking, delighted, cross, sad, chewing, talking, surprised), slid along to the one they
+ * (painted in the page, faceSheet's guestFaceStrip: as they are, blinking, delighted, cross, sad, chewing, talking, surprised; the
+ * textures/folk/face_<type>.png blender/folk.py writes aren't fetched any more, item 767), slid along to the one they
  * show; their hair one of a dozen styles, and what some of them have about them (glasses, a hat, headphones, a randoseru...) shown as
  * their kind has it. Skin and hair in their own colours (lookOf, as the old figures had them).
  *
@@ -266,17 +267,19 @@ export function folkSpec(id: number): FolkSpec {
     briefcase: (kind === 'salaryman' && id % 2 === 0) || kind === 'civilServant', faceLook: Math.floor(hash(id, 59) * LOOKS[face].length) % LOOKS[face].length }
 }
 
-/** the pictures: every kind's clothes (two ways, two colours each: item 377) and the four faces, loaded together before any customer's drawn */
+/** the pictures: every kind's clothes (two ways, two colours each: item 377) and their folds, loaded together before any customer's drawn;
+ * the faces are painted in the page (item 767: their four PNGs were fetched and decoded only to be painted over, faceSheet's strips put in
+ * their place) */
 const KINDS: GuestKind[] = GUEST_KINDS.map((k) => k.kind)
-const PICTURES = [...KINDS.flatMap((k) => [0, 1, 2, 3].map((n) => `outfit_${k}_${n}`)), 'face_male', 'face_female', 'face_elder', 'face_kid', 'outfit_normal']
+const PICTURES = [...KINDS.flatMap((k) => [0, 1, 2, 3].map((n) => `outfit_${k}_${n}`)), 'outfit_normal']
 /** the clothes' folds and weave as a normal map (item 375, blender/folk.py's fold_normals): one for every customer's clothes, set as the
  * pictures load, on every customer's material (one program for them all) */
 const FOLD_N: { t: THREE.Texture | null } = { t: null }
-// (the clothes JPEGs (item 347: at twice the pixels, PNGs were four times the bytes), the faces PNGs (their strip's painted afresh anyway))
-const PICTURE_URLS = PICTURES.map((n) => TEX + n + (n.startsWith('outfit_') && n !== 'outfit_normal' ? '.jpg' : '.png'))
+// (the clothes JPEGs (item 347: at twice the pixels, PNGs were four times the bytes), the folds' PNG)
+const PICTURE_URLS = PICTURES.map((n) => TEX + n + (n !== 'outfit_normal' ? '.jpg' : '.png'))
 const prepared = new WeakSet<THREE.Texture>()
 const otherFaces = new Map<string, THREE.Texture>()
-/** a face type's other design's strip, as a picture set up as the loaded faces are */
+/** a face type's design's strip (the first, `face_<type>`, too), painted, as a picture set up as the loaded pictures are */
 function otherFace(kind: FaceKind, n: number) {
   const key = `${kind}_${n}`
   let t = otherFaces.get(key)
@@ -303,15 +306,16 @@ function usePictures() {
         if (PICTURES[i].startsWith('outfit')) t.wrapS = THREE.RepeatWrapping
         // (the folds' normal map: data, not a colour)
         if (PICTURES[i] === 'outfit_normal') { t.colorSpace = THREE.NoColorSpace; FOLD_N.t = t }
-        // (the faces painted afresh, as the owner's and the staff's are (scene/faceSheet: Overcooked's bold eyes, brows and mouths), in the
-        // file's strip of eight and its order)
-        if (PICTURES[i].startsWith('face_')) (t as THREE.Texture<unknown>).image = guestFaceStrip(PICTURES[i].slice(5) as FaceKind)
         t.needsUpdate = true
       }
       out.set(PICTURES[i], t)
     })
-    // (each face type's other designs (item 466): their strips painted as the first's are, made once for the page)
-    for (const kind of ['male', 'female', 'elder', 'kid'] as const) for (let n = 1; n < LOOKS[kind].length; n++) out.set(`face_${kind}_${n}`, otherFace(kind, n))
+    // (the faces painted as the owner's and the staff's are (scene/faceSheet: Overcooked's bold eyes, brows and mouths), in blender/folk.py's
+    // strip of eight and its order: each face type's first design as `face_<type>`, its others (item 466) as `face_<type>_<n>`, made once
+    // for the page)
+    for (const kind of ['male', 'female', 'elder', 'kid'] as const) {
+      for (let n = 0; n < LOOKS[kind].length; n++) out.set(n === 0 ? `face_${kind}` : `face_${kind}_${n}`, otherFace(kind, n))
+    }
     return out
   }, [list])
 }
