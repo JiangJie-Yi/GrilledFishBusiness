@@ -3,12 +3,12 @@ import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import { StaticBatch } from '@/scene/render/StaticBatch'
 import { SIGN_FONT } from '@/scene/props/signFont'
-import { STORE, STORE_STATE, WALL_OUT, FRIDGE_GAP, FRIDGE, handOver, nameOver, WC_ROOM } from '@/shops/grill/bar'
+import { STORE, STORE_STATE, WALL_OUT, FRIDGE_GAP, FRIDGE, handOver, nameOver, WC_ROOM, BACK_TOP } from '@/shops/grill/bar'
 import { EditBlock } from '@/shops/grill/editor/Movable'
 import { getEdit } from '@/shops/grill/edit'
 import { setTip } from '@/scene/interact/hoverTip'
 import { canvasTex, WALL_H } from './base'
-import { WcWall, WC_T, WcMass } from './wc'
+import { WcWall, WC_T, WcMass, WC_CAP } from './wc'
 import { NO_RAY } from '@/scene/interact/pickable'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { unlitShade, lightOn } from '@/game/world/roomLights'
@@ -313,7 +313,8 @@ const STORE_FLOOR = canvasTex(256, 1024, (g) => {
 const STORE_BLOCK_MAT = new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide })
 const stopHere = (e: { stopPropagation: () => void }) => e.stopPropagation()
 export function StoreRoom({ door, room, deep, fridges }: { door: [number, number]; room: [number, number]; deep: number; fridges: [number, number][] }) {
-  const h = STORE.doorH, top = h + 0.3
+  // (its walls' tops: their caps level with the head over the fridges (item 745): 0.3 over its doorway's height before, 10 cm under it)
+  const h = STORE.doorH, top = BACK_TOP - WC_CAP
   // (the fridges' openings framed as the doorway is (item 535, the owner's 「梁柱要留」: from the stock room the wall's hidden, and the fridges
   // stood in nothing, black boxes with no frame round them): a post at either side of each, a head over them all (its foot 3 mm under the
   // openings' tops, behind the fridges), each through the wall's thickness out of its back; the posts proud of its face on the shop's side as
@@ -327,7 +328,7 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
   const frame = useMemo(() => {
     const ops = [...fridges].sort((p, q) => p[0] - q[0])
     if (!ops.length) return null
-    const headY = FRIDGE.H + 0.012 - 0.003, headTop = FRIDGE.H + 0.012 + STORE_HEAD
+    const headY = FRIDGE.H + 0.012 - 0.003, headTop = BACK_TOP
     const posts: [number, number][] = []
     // (and where two stand side by side, the gap between their cabinets (3 cm) filled at their backs with a strip of their own black, as
     // built-in coolers are: open, the shop's light showed through it from the stock room in a bright line, and the stock room from the shop)

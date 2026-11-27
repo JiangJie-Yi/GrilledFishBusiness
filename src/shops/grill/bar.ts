@@ -550,6 +550,12 @@ export function fridgesOf(cs: Counter[]) {
 export const FRIDGE_GAP = 0.055
 /** the fridge's size: across, up, deep */
 export const FRIDGE = { W: 0.86, H: 2.17, D: 0.75 }
+/**
+ * The back's line along its top (item 745, the owner's 「這邊要平行」, a shot from over the stock room: the head over the drinks fridges'
+ * backs (dining/storeRoom's, on them: their 2.17, 1.2 cm, its 7) stood 7 cm over the toilets' walls' caps beside it and 10 over the stock
+ * room's end walls, the top's edge in two pieces at two heights): the toilets' and the stock room's walls' caps' tops level with the head's
+ */
+export const BACK_TOP = FRIDGE.H + 0.012 + 0.07
 /** each fridge's door: how many are at it just now (GuestBar3D), whether the stocker's filling it (its back's hatch held open for him,
  * from the stock room: items 431, 535; its front door before), and whether the player's opened it (a click) */
 // (`rear`: how far its back's doors are open, 0 shut to 1 open past square (item 554: DiningRoom's FridgeDoor keeps it; the stocker waits on it))

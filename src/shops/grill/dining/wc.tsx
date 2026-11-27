@@ -9,7 +9,7 @@ import { inkModel } from '@/scene/render/inkHull'
 import { heard } from '@/scene/interact/sfx'
 import { useGLTF } from '@react-three/drei'
 import { SIGN_FONT } from '@/scene/props/signFont'
-import { tipOver, POINTER_HINT, TOILETS, WALL_OUT, WC_ROOM, WC_SLIDE, WC_W } from '@/shops/grill/bar'
+import { tipOver, POINTER_HINT, TOILETS, WALL_OUT, WC_ROOM, WC_SLIDE, WC_W, BACK_TOP } from '@/shops/grill/bar'
 import { Movable } from '@/shops/grill/editor/Movable'
 import { getEdit } from '@/shops/grill/edit'
 import { setTip } from '@/scene/interact/hoverTip'
@@ -588,7 +588,7 @@ export function WcMass({ x, y, z, cap = true, cast = false }: { x: [number, numb
 }
 /** the height of the rooms' dark cedar outside (their wainscot's), and of the dark wooden cap along their walls' tops */
 const WC_WAIST = 0.9
-const WC_CAP = 0.03
+export const WC_CAP = 0.03
 /** how far back the toilets' block reaches behind the shop's wall's face, in their rooms' frame: the far corner post's back (D + 0.012, its
  * middle, and half its 0.07): the wing of wall at their end runs back to it (item 747), and the shop's base under the wing (guestbar/floors) */
 export const WC_BACK_LINE = WC_ROOM.D + 0.047
@@ -836,7 +836,9 @@ function WcRoom({ w, h, who, wing }: { w: number; h: number; who: 'm' | 'f'
   wing?: number }) {
   const { D, E, X0 } = WC_ROOM
   const s = who === 'm' ? -1 : 1
-  const top = h + 0.3
+  // (its walls' tops: their caps level with the head over the drinks fridges' backs along the back (item 745); 0.3 over the door's head
+  // before, the caps 7 cm under the fridges' head)
+  const top = BACK_TOP - WC_CAP
   const name = who === 'm' ? '男廁' : '女廁'
   // (the toilet's room: from X0 back to the back wall, from the washroom's side E on along the wall)
   const SW = D - X0, SX = (X0 + D) / 2, SZ = s * (w / 2 + E / 2)
