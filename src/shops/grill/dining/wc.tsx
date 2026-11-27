@@ -454,14 +454,30 @@ const WC_WINDOW_FALL = (() => {
  * seen from the shop or from above, a dark band ran over the plaster above the doors and down beside the stalls' noren, flickering with the
  * walls it shared a plane with. In from them, the walls in front of it hide it and nothing outside the room is darkened */
 const WC_DARK_IN = 0.02
-function WcDark({ who, rooms }: { who: 'm' | 'f'; rooms: [number, number, number, number, number][] }) {
+/** a box of the toilet's own, from `x[0]` to `x[1]`, `y`, `z` the same (its rooms' frame) */
+type WcVol = [[number, number], [number, number], [number, number]]
+function WcDark({ who, rooms, lit: vols }: { who: 'm' | 'f'; rooms: [number, number, number, number, number][]; lit: WcVol[] }) {
   const mat = useMemo(() => new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0, depthWrite: false }), [])
   /** and the other way: its light on after dark, its rooms warmly lit within (item 126, the owner's, 2026-11-15: "the toilets' light at night
    * isn't right: shut it's fine, open the door and it gives itself away": the floor outside the door bright with its spill, the room inside
-   * as dim as the shop's night), laid on once over what's in them */
-  const warm = useMemo(() => new THREE.MeshBasicMaterial({ color: WC_ROOM_WARM, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending,
-    toneMapped: false }), [])
-  useEffect(() => () => { mat.dispose(); warm.dispose() }, [mat, warm])
+   * as dim as the shop's night), laid on once over what's in them. Laid on what's IN its rooms, not on a box's faces (item 733, the owner's
+   * 「廁所光源有點怪」): drawn on a box's faces, seen from outside where the rooms are cut open (from above, from behind), the boxes showed
+   * as slabs of warm glass hung in the air, hard edged, twice as bright where the washroom's and the toilet's room's overlapped down the
+   * noren. Now each room's box is only a bound: where its near faces are seen in front of what's drawn, the stencil's marked (nothing
+   * drawn); then where its far faces are behind what's drawn, within those marks, the warm's added and the marks cleared: what's warm is
+   * just what's between, the room's floor, walls and things, seen from any side. (Added on the far faces and taken off again on the near
+   * ones, without the stencil, clipped in the canvas's 8 bits: bright things in front of a room lost the warm's worth, the lit door's paper
+   * among them, dark ones gained it.) The boxes run 2 cm into the walls (their faces lit, not fought: nothing in a wall's thickness to
+   * share a plane with), meet each other by the stall's noren without overlapping, and a thin one in the doorway lights the door's back;
+   * the shop's side of the wall is outside them all. No light added or switched (rule 6); no new program (basic, both sides drawn already) */
+  const warm = useMemo(() => ({
+    mark: new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, transparent: true, side: THREE.FrontSide,
+      stencilWrite: true, stencilFunc: THREE.AlwaysStencilFunc, stencilRef: 1, stencilZPass: THREE.ReplaceStencilOp }),
+    add: new THREE.MeshBasicMaterial({ color: WC_ROOM_WARM, transparent: true, opacity: 0, depthWrite: false, depthFunc: THREE.GreaterEqualDepth,
+      side: THREE.BackSide, blending: THREE.AdditiveBlending, toneMapped: false,
+      stencilWrite: true, stencilFunc: THREE.EqualStencilFunc, stencilRef: 1, stencilZPass: THREE.ZeroStencilOp, stencilZFail: THREE.ZeroStencilOp }),
+  }), [])
+  useEffect(() => () => { mat.dispose(); warm.mark.dispose(); warm.add.dispose() }, [mat, warm])
   const group = useRef<THREE.Group>(null)
   const lit = useRef<THREE.Group>(null)
   useFrame(() => {
@@ -470,16 +486,21 @@ function WcDark({ who, rooms }: { who: 'm' | 'f'; rooms: [number, number, number
     mat.opacity += (want - mat.opacity) * 0.08
     if (group.current) group.current.visible = mat.opacity > 0.01
     const glow = on ? (sky === 'night' ? 1 : sky === 'day' ? 0 : 0.5) : 0
-    warm.opacity += (glow - warm.opacity) * 0.08
-    if (lit.current) lit.current.visible = warm.opacity > 0.01
+    warm.add.opacity += (glow - warm.add.opacity) * 0.08
+    if (lit.current) lit.current.visible = warm.add.opacity > 0.01
   })
+  // (each box marked and lit in turn, after the room's dark, before the lamps' glow: an order each, the toilets' apart)
+  const order = 4.1 + (who === 'f' ? 0.1 : 0)
   return (
     <>
       <group ref={group} visible={false}>
         {rooms.map(([sx, sy, sz, x, z], i) => <mesh key={i} geometry={WC_DARK} material={mat} position={[x, sy / 2, z]} scale={[sx - 2 * WC_DARK_IN, sy, sz - 2 * WC_DARK_IN]} renderOrder={4} />)}
       </group>
       <group ref={lit} visible={false}>
-        {rooms.map(([sx, sy, sz, x, z], i) => <mesh key={i} geometry={WC_DARK} material={warm} position={[x, sy / 2, z]} scale={[sx - 2 * WC_DARK_IN, sy, sz - 2 * WC_DARK_IN]} renderOrder={4} raycast={() => {}} />)}
+        {vols.map(([[x0, x1], [y0, y1], [z0, z1]], i) => (['mark', 'add'] as const).map((k, j) => (
+          <mesh key={`${i}${k}`} geometry={WC_DARK} material={warm[k]} position={[(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2]}
+            scale={[x1 - x0, y1 - y0, z1 - z0]} renderOrder={order + i * 0.02 + j * 0.01} raycast={() => {}} />
+        )))}
       </group>
     </>
   )
@@ -730,6 +751,18 @@ function WcRoom({ w, h, who }: { w: number; h: number; who: 'm' | 'f' }) {
   const name = who === 'm' ? '男廁' : '女廁'
   // (the toilet's room: from X0 back to the back wall, from the washroom's side E on along the wall)
   const SW = D - X0, SX = (X0 + D) / 2, SZ = s * (w / 2 + E / 2)
+  // (where its lamps' warm falls (item 733): its two rooms, each 2 cm into its walls (the cut-away back's face too), from under the floor
+  // to a centimetre under the walls' tops; the washroom on to 5 mm past its side's line, the toilet's room from there (its noren in it,
+  // 3 cm on); and the door's back, in the doorway (its board's inside at -0.024, its paper's at -0.03 left out; under the head, 1.85))
+  const warmIn = useMemo<WcVol[]>(() => {
+    const across = (a: number, b: number): [number, number] => (s > 0 ? [a, b] : [-b, -a])
+    const up: [number, number] = [-0.03, top - 0.01]
+    return [
+      [[0.006, D + 0.02], up, across(-w / 2 - 0.02, w / 2 + 0.005)],
+      [[X0 - 0.02, D + 0.02], up, across(w / 2 + 0.005, w / 2 + E + 0.02)],
+      [[-0.027, 0.003], [0.005, h - 0.005], [-w / 2 + 0.004, w / 2 - 0.004]],
+    ]
+  }, [D, E, X0, s, top, w, h])
   // (the long noren across the way into it: two panels, each its half of the one picture, a slit between)
   const OP = WC_STALL_W, NL = WC_STALL_L
   const noren = useMemo(() => [-1, 1].map((sd) => {
@@ -756,7 +789,7 @@ function WcRoom({ w, h, who }: { w: number; h: number; who: 'm' | 'f' }) {
   return (
     <group>
       {/* (dark in it while its switch by the door is off) */}
-      <WcDark who={who} rooms={[[D, top - 0.03, w, D / 2, 0], [SW, top - 0.03, E, SX, SZ]]} />
+      <WcDark who={who} rooms={[[D, top - 0.03, w, D / 2, 0], [SW, top - 0.03, E, SX, SZ]]} lit={warmIn} />
       <StaticBatch plain>
       <WcFloor wx={D} wz={w} at={[D / 2, 0.004, 0]} />
       <WcFloor wx={SW} wz={E} at={[SX, 0.004, SZ]} />

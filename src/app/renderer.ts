@@ -19,7 +19,8 @@ export const makeRenderer = ({ canvas }: { canvas: any }) => {
   let last: unknown
   for (const t of tries) {
     try {
-      const r = new THREE.WebGLRenderer({ canvas, alpha: true, ...t })
+      // (with a stencil: the toilets' warm light is laid only on what's inside their rooms by it, item 733)
+      const r = new THREE.WebGLRenderer({ canvas, alpha: true, stencil: true, ...t })
       r.toneMapping = THREE.NoToneMapping
       normalizeRenderer(r)
       return r
