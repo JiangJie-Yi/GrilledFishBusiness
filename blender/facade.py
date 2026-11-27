@@ -422,7 +422,11 @@ def keep(o, mat):
 
 # the post, the beam
 keep(box_obj("FacadePost", [((POST_X[0], 0.002, POST_Z[0]), (POST_X[1], BEAM[0] - 0.003, POST_Z[1]), "y")]), M["wood"])
-keep(box_obj("FacadeBeam", [((XL, BEAM[0], Z0), (XR, BEAM[1], Z1))]), M["wood"])
+# (item 790, the owner's 「有缺角」: the beam stopped at the north wall's outer face (XR), the eave, the band over it and the wall behind it went
+# on 45 cm past it to the eave's end, and under that stretch the corner stood open to the sky, a notch out of the front's lower edge; now
+# the beam runs on out to the eave's end board (a beam's end out past the wall, 出桁), the lattice strip over it with it)
+XE = EAVE_X[1] - 0.004
+keep(box_obj("FacadeBeam", [((XL, BEAM[0], Z0), (XE, BEAM[1], Z1))]), M["wood"])
 
 # the band over the eave (item 349, the owner's, 2026-11-18: 「有缺口、牌子換成一排排的燈籠」): from the eave's one end to the other (it stopped
 # at the north wall's face, the eave going on 45 cm past it, the sky over that stretch); its foot rail, its top rail and the coping on it, a
@@ -526,7 +530,7 @@ bm = bmesh.new()
 uvl = bm.loops.layers.uv.new()
 lx0, lx1 = LATTICE_X[0] + STILE_W / 2, LATTICE_X[1] - STILE_W / 2
 # (the middle bay's own lattice gone for its lanterns (item 442): the strip under the eave alone)
-for (x0, x1, y0, y1, z, u1) in ((XL + 0.03, XR - 0.03, LOW_LATTICE[0], LOW_LATTICE[1], BACK_Z[1] + 0.005, (XR - XL - 0.06) / 0.46),):
+for (x0, x1, y0, y1, z, u1) in ((XL + 0.03, XE - 0.03, LOW_LATTICE[0], LOW_LATTICE[1], BACK_Z[1] + 0.005, (XE - XL - 0.06) / 0.46),):
     vs = [bm.verts.new(P(x, y, z)) for (x, y) in ((x0, y0), (x1, y0), (x1, y1), (x0, y1))]
     f = bm.faces.new(vs)
     for lp, uv in zip(f.loops, ((0, 0), (u1, 0), (u1, 1), (0, 1))):
