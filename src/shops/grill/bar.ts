@@ -198,9 +198,10 @@ if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window,
  * along; guestbar/floors' RoomFloor lays it), measured round the rice sacks and the sake barrels as they stand (tests/e2e/_rice717c.mjs:
  * the sacks x -3.215..-2.726, z 2.711..3.849, the barrels x -4.394..-3.31, z 2.824..3.816), 5 cm out from them, in 1 cm from the floor's
  * dark edging along its open side and its end (0.04 wide), clear of the willow's pot (from x -2.545); and how thick it is: the sacks and
- * the barrels stood on it that much higher (DiningRoom), not sunk into it
+ * the barrels stood on it that much higher (DiningRoom), not sunk into it. Run on into the room to 1 cm short of the floor's seam (item 742,
+ * the owner's 「草蓆要延伸」, a red box over the strip of boards left between it and that seam: it began 5 cm in front of the sacks)
  */
-export const RICE_MAT = { x: [-4.42, -2.68] as [number, number], z: [2.66, 3.67] as [number, number], t: 0.006 }
+export const RICE_MAT = { x: [-4.42, -2.68] as [number, number], z: [2.41, 3.67] as [number, number], t: 0.006 }
 export const SHOE_CELLS = keep(import.meta.hot, 'SHOE_CELLS', { shoes: new Map<number, string>(), kick: new Map<number, number>(), at: new THREE.Vector3(), ready: false })
 if (import.meta.env?.DEV && typeof window !== 'undefined') (window as unknown as { __shoes?: typeof SHOE_CELLS }).__shoes = SHOE_CELLS
 export const TISSUES_KEY = 'jgs-tissues-1'
