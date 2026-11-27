@@ -4,7 +4,8 @@ import * as THREE from 'three'
 import { StaticBatch } from '@/scene/render/StaticBatch'
 import { SIGN_FONT } from '@/scene/props/signFont'
 import { STORE, STORE_STATE, WALL_OUT, FRIDGE_GAP, FRIDGE, handOver, nameOver, WC_ROOM, BACK_TOP } from '@/shops/grill/bar'
-import { EditBlock } from '@/shops/grill/editor/Movable'
+import { EditBlock, Movable } from '@/shops/grill/editor/Movable'
+import { PatternMat } from '@/scene/props/PatternMat'
 import { getEdit } from '@/shops/grill/edit'
 import { setTip } from '@/scene/interact/hoverTip'
 import { canvasTex, WALL_H, BASE_DEPTH } from './base'
@@ -350,6 +351,8 @@ const STORE_BLOCK_MAT = new THREE.MeshBasicMaterial({ visible: false, side: THRE
  * no wall to cast the sun's shadow by day)
  */
 const STORE_SHADE_MAT = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false })
+/** how far the mat before its doorway reaches out into the shop (item 756) */
+const STORE_MAT_D = 0.42
 /** where its far end wall begins, out from the shop's wall's face (item 762): just behind the fridges' backs */
 const END_IN = -FRIDGE_GAP + 0.006
 const stopHere = (e: { stopPropagation: () => void }) => e.stopPropagation()
@@ -531,6 +534,15 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
         onPointerOver={stopHere} onPointerMove={stopHere} onClick={stopHere}>
         <planeGeometry args={[zE - door[1] - STORE_POST, WALL_H]} />
       </mesh>
+      {/* (a mat before its doorway on the shop's floor (item 756, the owner's 「倉庫玄關口要有地墊。」, a red box on the boards before the
+          doorway's noren; item 763: the owner's navy 青海波 with blossoms, the dirt of the back's coming and going not seen on it): the
+          doorway's width less 3 cm each side, 42 cm out into the shop from 3 cm off the wall; 4 mm thick, half a millimetre over the boards
+          (their top 4 mm up), a dark rubber border; the stock keeper walks over it) */}
+      <Movable id="storemat" label="倉庫門口地墊" ground={0.0045}>
+        <group position={[-0.03 - STORE_MAT_D / 2, 0.0045, (door[0] + door[1]) / 2]} rotation-y={Math.PI / 2}>
+          <PatternMat art="navyWaves" w={outerW - 0.06} d={STORE_MAT_D} t={0.004} edge={0.03} rim="#1b1e26" />
+        </group>
+      </Movable>
       {/* its mortar floor (item 739), over the shop's boards (their top 4 mm up here: at a millimetre it was under them, never seen), 2.5 mm
           over them and drawn in front of them; the crates' feet a few millimetres into it, as they were into the boards */}
       {/* (from the wall's line on the shop's side: the wall's thickness behind the fridges and the doorway's sill were a strip of the shop's

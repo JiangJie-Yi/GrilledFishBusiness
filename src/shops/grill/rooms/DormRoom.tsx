@@ -1,4 +1,5 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { PatternMat } from '@/scene/props/PatternMat'
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
@@ -751,6 +752,12 @@ export function DormRoom({ crew = [], open = false, fallback, working }: { crew?
       <OwnerBeside living={living} marks={marks} mats={mats} wallX={leftX} />
       {/* (what the view 二樓 looks at: over the table; its +z the room's open front, which the view faces) */}
       <group name="look-dorm" position={look} />
+      {/* (item 763, the owner's four 和風 pictures: a rug on the tatami before the television, cream with blossoms and flowing water, clear of
+          the cushions and the table and 10 cm short of the set's stand (a futon laid at night lies over a part of it); and a bath mat before
+          the bathroom's door on the landing, 青海波 in turquoise with sprays of blossom, 2 cm off the door; each half a millimetre over the floor
+          (0.055), thin as they are, walked over) */}
+      <group position={[0.55, 0.0555, -0.65]}><PatternMat art="sakuraStream" w={0.6} d={0.4} t={0.004} edge={0.022} rim="#b9a37f" stitch="rgba(255,248,232,0.8)" /></group>
+      <group position={[1.36, 0.0555, -1.19]}><PatternMat art="tealWaves" w={0.52} d={0.34} t={0.006} edge={0.02} rim="#2f7f84" stitch="rgba(240,250,250,0.85)" /></group>
       {/* (the window's view, in depth (item 452)) */}
       {ALLEY && <mesh ref={alley} position={[ALLEY_AT.x, ALLEY_AT.y, ALLEY_AT.z]} material={ALLEY.mat} raycast={() => {}}>
         <planeGeometry args={[ALLEY_AT.w, ALLEY_AT.h]} />
