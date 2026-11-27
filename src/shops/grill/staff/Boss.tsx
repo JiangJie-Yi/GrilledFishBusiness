@@ -42,6 +42,12 @@ const CURSOR_SHAKE = glyphCursor('handShake', [8, 8]), CURSOR_GRAB = glyphCursor
 /** (item 624) how long he stirs, woken with nothing to get up for, before he's off again (ms); (item 635) how high he's held off the floor
  * as he's carried (his parent's units); how near his round's line he must be let down to stand there (else he's put back where he was) */
 const STIR_MS = 2600, CARRY_UP = 0.16
+/** (item 748) walked by the keys: how long he stands where he's been walked to once they're let go, before he goes back to his place; how
+ * near his round's line counts as on it (he may walk it, in the cook table's notch, where the shop's walk map has no room for him) */
+const DRIVE_STAY = 14, DRIVE_ROUND = 0.12
+const DRIVE_V = new THREE.Vector3()
+/** the boards' thickness over the floor roasting/kitchen's floorAt gives (Roasting's frame): the kitchen's boards' top over its floor */
+const DRIVE_BOARDS = KITCHEN_FLOOR_Y - floorAt(CHEF_AT)
 /** (item 652) how near his round's line (his frame) he must come down to be on his round from there, not put somewhere off it */
 const ON_ROUND = 0.1
 import { crewFaceSheet, crewFrame, faceRange, markFace, ownShape, setFace, squash as jelly, type CrewFace } from '@/scene/people/faceSheet'
@@ -52,6 +58,9 @@ import { warmLater } from '@/scene/render/Prewarm'
 import { UCHIWA_URL, uchiwaInHand } from '@/scene/people/uchiwa'
 import { GIVE, giveWay, type Floor, type GiveWay } from '@/game/staff/giveWay'
 import { steppingAside } from '@/shops/grill/roasting/hearthGuard'
+import { CHEF_AT, KITCHEN_FLOOR_Y, floorAt } from '@/shops/grill/roasting/kitchen'
+import { DRIVE, canJump, driveStep, noKeys, slide, type DriveKeys } from '@/game/staff/bossDrive'
+import { VIEW_NOW } from '@/scene/kit/viewNow'
 
 /**
  * The owner (blender/boss.py): an Overcooked 2 cook (a big round head on a short plump body rounding off underneath, floating mitten
@@ -692,6 +701,57 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
   // (item 659 d: his making way for those walking near him on his way)
   const giving = useRef(newGiving())
   const bed = useRef<BedTrip>({ phase: 'off', pts: [], len: 0, d: 0, t: 0, foot: new THREE.Vector3(), feet: new THREE.Vector3(), off: new THREE.Vector3(), head: new THREE.Vector3(), bar: 1, lie: 0 })
+  // (item 748, the owner's 「當老闆視角切成第一人稱時，可WASD移動，空白跳躍。」: through his own eyes (the 'boss' view), W and S walk him on and
+  // back, A and D turn him, Space a jump (game/staff/bossDrive); the keys held, a jump asked for, whether he was being walked last frame)
+  const keys = useRef<DriveKeys & { jump: boolean; was: boolean }>({ w: false, a: false, s: false, d: false, jump: false, was: false })
+  useEffect(() => {
+    const typing = (t: EventTarget | null) => t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || (t instanceof HTMLElement && t.isContentEditable)
+    const set = (e: KeyboardEvent, on: boolean) => {
+      // (taken only in his view, not in edit mode, not while something's typed, not with a modifier; let go anywhere)
+      if (on && (VIEW_NOW.id !== 'boss' || getEdit().on || e.ctrlKey || e.metaKey || e.altKey || typing(e.target))) return
+      const k = keys.current
+      if (e.code === 'KeyW') k.w = on
+      else if (e.code === 'KeyS') k.s = on
+      else if (e.code === 'KeyA') k.a = on
+      else if (e.code === 'KeyD') k.d = on
+      else if (e.code === 'Space') { if (on && !e.repeat) k.jump = true }
+      else return
+      if (on) e.preventDefault()
+    }
+    const down = (e: KeyboardEvent) => set(e, true), up = (e: KeyboardEvent) => set(e, false)
+    // (all let go as the page loses the keys (a click into another window): a key let go out there never comes up here)
+    const blur = () => { const k = keys.current; k.w = k.a = k.s = k.d = k.jump = false }
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    window.addEventListener('blur', blur)
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', blur) }
+  }, [])
+  // (his round's line, from his place out to the aisle's mouth and along the aisle (as where he's let go is judged on it, item 652); from his
+  // place, not past it toward the fire (the table's there: walked on into it from his place, he went 11 cm into its edge round the line's
+  // rounded end, the first try))
+  const roundSegs = useMemo(() => {
+    if (!aisle) return [[0, 0, to[0], to[1], 0]]
+    const [mx, mz] = aisle.mouth, [ax, az] = aisle.dir
+    return [[0, 0, mx, mz, 0], [mx + ax * aisle.range[0], mz + az * aisle.range[0], mx + ax * aisle.range[1], mz + az * aisle.range[1], 1]]
+  }, [aisle, to])
+  // (`notch`: on its first stretch only, his place to the mouth: the cook table's notch, its wooden step under him)
+  const onRound = (x: number, z: number, notch = false) => roundSegs.some(([x0, z0, x1, z1, capA], i) => {
+    if (notch && i > 0) return false
+    const dx = x1 - x0, dz = z1 - z0, l2 = dx * dx + dz * dz || 1
+    const raw = ((x - x0) * dx + (z - z0) * dz) / l2
+    if (!capA && raw < -1e-4) return false
+    const k = Math.max(0, Math.min(1, raw))
+    return Math.hypot(x0 + dx * k - x, z0 + dz * k - z) < DRIVE_ROUND
+  })
+  /** the floor under (x, z) of his frame, in his frame: the kitchen's raised floor or the customers' (roasting/kitchen's floorAt, in
+   * Roasting's frame), the boards on it as at his place */
+  const groundAt = (m: THREE.Object3D, x: number, z: number) => {
+    const f = BOSS_BED.frame, p = m.parent
+    if (!f || !p) return 0
+    const q = f.worldToLocal(p.localToWorld(DRIVE_V.set(x, 0, z)))
+    q.y = floorAt(q) + DRIVE_BOARDS
+    return p.worldToLocal(f.localToWorld(q)).y
+  }
   /** (item 637) the business day whose night he last went up for (once a night) */
   const nightGone = useRef(-1)
   /** (item 635, the owner's 「老闆可以用滑鼠左鍵拖曳」) him carried by the pointer: where it is, where he was taken from (his parent's frame);
@@ -1063,6 +1123,14 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     // (his height on his way and at his futon as worked out above: the floor's under his way (the dining room's higher than the kitchen's),
     // not the ground's probe or the kitchen's floor his walk round keeps to)
     const bedY = s.y
+    // (item 748: the keys only in his view and out of edit mode (left in another view, they're let go); walked by them while he's on his feet,
+    // not in bed, carried, nor off to taste or drink something)
+    const kk = keys.current
+    if (VIEW_NOW.id !== 'boss' || edit) { kk.w = kk.a = kk.s = kk.d = kk.jump = false }
+    const driving = !noKeys(kk) && !bedOn && !carry.current && !ask && !!m.parent
+    // (let go on his round's line: on with his round from there, not stood there and walked home)
+    if (kk.was && !driving && onRound(s.x, s.z)) away.current = null
+    kk.was = driving
     // (item 635: carried by the pointer, or let go and settling where he's put: nothing else moves him meanwhile)
     const cr = carry.current
     if (cr && m.parent && !bedOn) {
@@ -1088,6 +1156,21 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
       // (his futon (item 444): where he is and which way he faces worked out above; a walk's waddle while he walks)
       speed = bedSpeed
       act = 'idle'
+    } else if (driving) {
+      // (item 748: walked by the keys: turned by A and D, on along his facing by W, back by S; where the shop's walk map lets him stand (the room,
+      // clear of what's on its floor, not the genkan), or on his round's line (his place in the cook table's notch, out to the aisle); into
+      // what's in his way at a slant, slid along it. Stood there a while once they're let go, then home (item 652's way back))
+      const r = driveStep(kk, s.yaw, dt)
+      s.yaw = r.yaw
+      const par = m.parent!
+      const [nx, nz] = slide(s.x, s.z, r.dx, r.dz, (x, z) => onRound(x, z) || !!BOSS_BED.clear?.(par.localToWorld(DRIVE_V.set(x, 0, z))))
+      const moved = Math.hypot(nx - s.x, nz - s.z)
+      s.x = nx; s.z = nz
+      s.stride += moved
+      speed = moved / Math.max(dt, 1e-4)
+      act = 'idle'
+      s.t = 0
+      away.current = { since: performance.now(), stay: DRIVE_STAY }
     } else if (ask) {
       // (the nearest he can come to it: on the aisle, by way of the notch's mouth; with no aisle given, along his walk's line, not behind it)
       let goal: [number, number]
@@ -1196,7 +1279,11 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     // it smoothly as he walks
     const deck = aisle?.step
     const out = deck ? (s.x * aisle!.mouth[0] + s.z * aisle!.mouth[1]) / (Math.hypot(aisle!.mouth[0], aisle!.mouth[1]) || 1) : 0
-    if (deck && out < deck.to) s.ground = deck.h
+    // (the notch's step under him only in the notch, on its stretch of his round's line (his place to its mouth): `out` is how far along its
+    // mouth's way he is, anywhere, and walked by the keys or put down out of it (item 748; item 652's let-go too), along the aisle at the
+    // kitchen's side counter it had him stand the step's height over the floor there)
+    if (deck && out < deck.to && onRound(s.x, s.z, true)) s.ground = deck.h
+    else if (driving) s.ground = groundAt(m, s.x, s.z)
     else if (speed > 0) s.ground = 0
     // (looked for again only when it may have changed: he's stopped somewhere new, or the editor's on (anything under him may be moved) or
     // has just gone off; standing at his place all through business, it was five rays a second through the room for the same answer)
@@ -1205,7 +1292,10 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
       s.ground = groundBelow(m, s.x, s.z)
     }
     const scale = m.parent?.getWorldScale(new THREE.Vector3()).y || 1
-    if (speed > 0) { s.y += (s.ground - s.y) * Math.min(1, dt * 14); s.vy = 0 }
+    // (item 748: a jump asked for, on his feet: up he springs (the fall below brings him down, a little bounce as he lands))
+    if (kk.jump) { kk.jump = false; if (!bedOn && !carry.current && canJump(s.y, s.ground, s.vy)) s.vy = DRIVE.jump / scale }
+    // (walked by the keys, his height his own (a jump, a step down): not held to the floor as on his round's walk)
+    if (speed > 0 && !driving) { s.y += (s.ground - s.y) * Math.min(1, dt * 14); s.vy = 0 }
     else if (s.y > s.ground + 1e-4 || s.vy > 0) {
       s.vy -= (9 / scale) * dt
       s.y += s.vy * dt

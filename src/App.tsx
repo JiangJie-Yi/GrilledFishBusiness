@@ -122,6 +122,7 @@ import { DISHES, type Dish as DishInfo } from '@/data/menu'
 import { VIEW_SPOTS, viewKey, viewName, type ViewId } from '@/data/views'
 import { ViewToast } from '@/ui/hud/ViewToast'
 import { tl } from '@/data/i18n'
+import { VIEW_NOW } from '@/scene/kit/viewNow'
 import { hhmm, skyAt, themeOf, type Clock, type Sky } from '@/game/world/clock'
 import { advanceClock, getClock, minutesNow, setClock, useClock } from '@/ui/kit/clockStore'
 import { startAdminLink, type AdminSnap } from '@/ui/admin/link'
@@ -1611,6 +1612,8 @@ export default function App() {
   const beforeUp = useRef<ViewId>('free')
   const viewNow = useRef(view)
   viewNow.current = view
+  // (item 748: the view kept for the scene too (scene/kit/viewNow): the owner walked by the keys through his own eyes)
+  useEffect(() => { VIEW_NOW.id = view }, [view])
   const goView = useCallback((id: ViewId | 'down') => {
     setViewMenu(false)
     const cur = viewNow.current
@@ -2882,6 +2885,14 @@ export default function App() {
             out of the way, and the buttons under them move up into the room left) */}
         {showFire && <FireControl onAdd={() => addCharcoal(COAL_BRIDGE.place ? COAL_BRIDGE.place() : undefined)} lang={lang} />}
         {showFull && <Fullness kcal={kcal} full={FULL_KCAL} lang={lang} rating={rating.n ? rating.sum / rating.n : null} lastTry={lastTry} />}
+        {/* (item 748: in his eyes, how to walk him: the keys) */}
+        {showFull && !editOn && (
+          <div className="boss-keys" aria-label={tl(lang, '操作', '操作', 'Keys')}>
+            <kbd>W</kbd><kbd>S</kbd><span>{tl(lang, '前進後退', '前後に歩く', 'walk')}</span>
+            <kbd>A</kbd><kbd>D</kbd><span>{tl(lang, '轉身', '向きを変える', 'turn')}</span>
+            <kbd className="wide">{tl(lang, '空白', 'スペース', 'Space')}</kbd><span>{tl(lang, '跳', 'ジャンプ', 'jump')}</span>
+          </div>
+        )}
         {/* (on a wide screen 經營 and 自動營運 are round buttons in the row top right, and the cash stands on its own here, where 經營 was:
             a click on it opens the books) */}
         {/* (and a click again shuts it, whichever of its pages is open (the owner's)) */}

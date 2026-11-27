@@ -48,7 +48,7 @@ export const VIEW_SPOTS: ViewSpot[] = [
   { id: 'back', zh: '流理台', ja: '流し台', en: 'Sink', anchor: 'look-sink', back: 4.4, up: 5.4, faceOn: true, fov: 40,
     about: { zh: '流理台：水槽、瀝水籃、碗盤架與冷凍櫃', ja: '流し台：シンク、水切りかご、食器ラックと冷凍庫', en: 'The sink: basin, draining basket, dish racks and freezer' } },
   { id: 'boss', zh: '老闆', ja: '店主', en: 'Owner', anchor: 'BossFollow', follow: true,
-    about: { zh: '老闆的第一人稱：從他的眼睛看出去，跟著他走、跟著他轉（閉店時）', ja: '店主の目線：店主の目から、歩けばついて、向けば向く（閉店中）', en: 'Through the owner’s eyes: where he goes and where he looks (while closed)' } },
+    about: { zh: '老闆的第一人稱：從他的眼睛看出去；W／S 前進後退、A／D 轉身、空白鍵跳，放開一陣子他會走回爐前', ja: '店主の目線：W／S で前後に歩き、A／D で向きを変え、スペースでジャンプ。しばらく放すと持ち場に戻る', en: 'Through the owner’s eyes: W/S walk, A/D turn, Space jumps; let go a while and he goes back to his fire' } },
   // (the owner's, item 181, 2026-11-15: "a new view, its key `, from 90 degrees, straight down": the whole shop from right above it, the bar's
   // length across the screen; a long lens, so the walls and what stands up lean out as little as can be)
   { id: 'top', zh: '俯視', ja: '真上', en: 'Top-down', fov: 32,

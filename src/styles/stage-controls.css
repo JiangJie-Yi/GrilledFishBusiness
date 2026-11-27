@@ -114,6 +114,44 @@
   flex: none;
 }
 
+/* (item 748) through the owner's eyes, how to walk him: the keys, under his hunger's meter */
+.boss-keys {
+  position: absolute;
+  top: 240px;
+  left: 24px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgb(28 18 10 / 0.6);
+  white-space: nowrap;
+  font-size: 13px;
+  color: #f4ead8;
+  pointer-events: none;
+}
+
+.boss-keys kbd {
+  min-width: 22px;
+  padding: 1px 6px;
+  border: 1px solid rgb(255 255 255 / 0.45);
+  border-bottom-width: 3px;
+  border-radius: 5px;
+  background: rgb(40 28 18 / 0.55);
+  font: inherit;
+  font-weight: 700;
+  text-align: center;
+  text-shadow: none;
+}
+
+.boss-keys kbd.wide {
+  min-width: 46px;
+}
+
+.boss-keys span {
+  margin: 0 10px 0 3px;
+}
+
 .fire-row {
   display: flex;
   align-items: center;
