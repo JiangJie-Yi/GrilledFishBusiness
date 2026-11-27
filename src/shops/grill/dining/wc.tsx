@@ -9,14 +9,14 @@ import { inkModel } from '@/scene/render/inkHull'
 import { heard } from '@/scene/interact/sfx'
 import { useGLTF } from '@react-three/drei'
 import { SIGN_FONT } from '@/scene/props/signFont'
-import { tipOver, POINTER_HINT, TOILETS, WC_ROOM, WC_SLIDE, WC_W } from '@/shops/grill/bar'
+import { tipOver, POINTER_HINT, TOILETS, WALL_OUT, WC_ROOM, WC_SLIDE, WC_W } from '@/shops/grill/bar'
 import { Movable } from '@/shops/grill/editor/Movable'
 import { getEdit } from '@/shops/grill/edit'
 import { setTip } from '@/scene/interact/hoverTip'
 import { getLights } from '@/scene/render/lightsStore'
 import { wcDarkness } from '@/game/world/roomLights'
 import { skyNow } from './ambient'
-import { canvasTex, WC_H, plankBoard } from './base'
+import { canvasTex, WC_H, plankBoard, PLASTER } from './base'
 import { SILL_TEX } from './roundWindow'
 
 /** the restroom's plaque (the owner's, 2026-11-09: a bright figure, not a dark character; no black rim): a warm walnut board, softly
@@ -589,6 +589,70 @@ export function WcMass({ x, y, z, cap = true, cast = false }: { x: [number, numb
 /** the height of the rooms' dark cedar outside (their wainscot's), and of the dark wooden cap along their walls' tops */
 const WC_WAIST = 0.9
 const WC_CAP = 0.03
+/** how far back the toilets' block reaches behind the shop's wall's face, in their rooms' frame: the far corner post's back (D + 0.012, its
+ * middle, and half its 0.07): the wing of wall at their end runs back to it (item 747), and the shop's base under the wing (guestbar/floors) */
+export const WC_BACK_LINE = WC_ROOM.D + 0.047
+/** the wing's dark beam under its cap, and its rail's and its battens' sizes */
+const WING_BEAM = 0.06, WING_RAIL = 0.035
+/**
+ * The end of the toilets' block at the shop's side, made as thick as the shop's wall beside it (item 747, the owner's 「這邊須補齊實際房屋的
+ * 厚度，牆外需要有牆外的裝潢」, a shot from over the corner and one from outside: the women's end wall 6 cm thick at the room's side, the
+ * shop's wall beside it 21 cm out past it and stopping at the toilets, a notch between them where the gravel showed; its outside a plain
+ * cream box over a plain dark one): a wing of wall from the end wall's outside out to the shop's wall's outer face (`z`, out from the rooms'
+ * middle, `s` the side), from that wall's slab's end back to the block's back line (`x`), on the shop's base (its stone plinth run on under
+ * it, guestbar/floors' RoomFloor). Dressed as a Japanese shop's outside is: charred cedar boards (焼杉) to the waist with battens (押縁) over
+ * them, a rail, plaster (the shop's 聚楽) over, a dark beam under its cap, a post at each outer corner; on its three faces that show (the one
+ * against the shop's wall's slab seen only when that wall's hidden, from outside). Its body casts (out of doors: its shadow on the earth)
+ */
+function WcWing({ s, x, z, top }: { s: number; x: [number, number]; z: [number, number]; top: number }) {
+  const [x0, x1] = x, [zi, zo] = z
+  const L = x1 - x0, T = zo - zi, xm = (x0 + x1) / 2, zm = s * (zi + zo) / 2
+  const up = top - WING_BEAM - WC_WAIST
+  const geo = useMemo(() => {
+    // (the cedar's boards their own width whatever the face's length (as WcWall's); the plaster a tile every 1.2, as the shop's walls)
+    const plane = (len: number, h: number, tu: number, tv: number) => {
+      const g = new THREE.PlaneGeometry(len, h)
+      const uv = g.attributes.uv as THREE.BufferAttribute
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * (len / tu), uv.getY(i) * (h / tv))
+      return g
+    }
+    return { cedarL: plane(L, WC_WAIST, 0.3, 0.5), cedarT: plane(T, WC_WAIST, 0.3, 0.5), plasterL: plane(L, up, 1.2, 1.2), plasterT: plane(T, up, 1.2, 1.2) }
+  }, [L, T, up])
+  useEffect(() => () => Object.values(geo).forEach((g) => g.dispose()), [geo])
+  // (its faces: along its outside (out across s), its back (+x) and its front (-x): each a length, where its middle is, the way it faces)
+  const faces: { len: number; at: [number, number]; yaw: number; n: [number, number]; cedar: THREE.BufferGeometry; plaster: THREE.BufferGeometry }[] = [
+    { len: L, at: [xm, s * (zo + 0.001)], yaw: s > 0 ? 0 : Math.PI, n: [0, s], cedar: geo.cedarL, plaster: geo.plasterL },
+    { len: T, at: [x1 + 0.001, zm], yaw: Math.PI / 2, n: [1, 0], cedar: geo.cedarT, plaster: geo.plasterT },
+    { len: T, at: [x0 - 0.001, zm], yaw: -Math.PI / 2, n: [-1, 0], cedar: geo.cedarT, plaster: geo.plasterT },
+  ]
+  // (the battens along its outside: over the boards every 0.3 or so, clear of the corner posts)
+  const nb = Math.max(1, Math.round((L - 0.1) / 0.3) - 1)
+  return (
+    <>
+      <mesh castShadow position={[xm, top / 2, zm]}><boxGeometry args={[L, top, T]} /><meshToonMaterial color="#2e1c10" /></mesh>
+      {faces.map((f, i) => (
+        <group key={i} position={[f.at[0], 0, f.at[1]]} rotation-y={f.yaw}>
+          <mesh geometry={f.cedar} position-y={WC_WAIST / 2}><meshToonMaterial color="#ffffff" map={WC_CEDAR} emissive="#ffffff" emissiveMap={WC_CEDAR} emissiveIntensity={0.22} /></mesh>
+          <mesh geometry={f.plaster} position-y={WC_WAIST + up / 2}><meshToonMaterial color="#efe4cc" map={PLASTER} /></mesh>
+          {/* (the rail over the cedar, the beam under the cap: each out from the face, its back on it) */}
+          <mesh position={[0, WC_WAIST, 0.006]}><boxGeometry args={[f.len, WING_RAIL, 0.012]} /><meshToonMaterial color="#3d2414" /></mesh>
+          <mesh position={[0, top - WING_BEAM / 2, 0.007]}><boxGeometry args={[f.len, WING_BEAM, 0.014]} /><meshToonMaterial color="#2e1c10" /></mesh>
+          {i === 0 && Array.from({ length: nb }, (_, k) => (
+            <mesh key={k} position={[-f.len / 2 + (f.len * (k + 1)) / (nb + 1), (WC_WAIST - WING_RAIL / 2) / 2, 0.004]}>
+              <boxGeometry args={[0.016, WC_WAIST - WING_RAIL / 2, 0.008]} /><meshToonMaterial color="#241710" />
+            </mesh>
+          ))}
+        </group>
+      ))}
+      {/* (a post at each outer corner, 5 mm proud of the faces either side: the cedar, plaster, rail and beam end in it) */}
+      {[x0 + 0.017, x1 - 0.017].map((px) => (
+        <mesh key={px} position={[px, (top + WC_CAP) / 2, s * (zo - 0.017)]}><boxGeometry args={[0.046, top + WC_CAP, 0.046]} /><meshToonMaterial color="#2e1c10" /></mesh>
+      ))}
+      {/* (its cap, as the rooms' walls': 3 mm over theirs, so their caps' ends under it aren't in one plane with it) */}
+      <mesh position={[xm, top + 0.003 + WC_CAP / 2, zm]}><boxGeometry args={[L + 0.024, WC_CAP, T + 0.024]} /><meshToonMaterial color="#2e1c10" /></mesh>
+    </>
+  )
+}
 /** the slatted ceiling over a room (the owner's: from above, the toilet not looked straight down into, the lamps' light showing between
  * the slats): cedar slats across it from the shop's wall to the back, laid on the walls' caps, a gap between each two; `z` across it */
 function WcSlats({ x, z, y }: { x: [number, number]; z: [number, number]; y: number }) {
@@ -767,7 +831,9 @@ function WcSlippers({ who }: { who: 'm' | 'f' }) {
     </>
   )
 }
-function WcRoom({ w, h, who }: { w: number; h: number; who: 'm' | 'f' }) {
+function WcRoom({ w, h, who, wing }: { w: number; h: number; who: 'm' | 'f'
+  /** where the shop's wall's outer face is, out across from its middle (item 747): its end wall's outside made out to it, a wing of wall */
+  wing?: number }) {
   const { D, E, X0 } = WC_ROOM
   const s = who === 'm' ? -1 : 1
   const top = h + 0.3
@@ -850,7 +916,10 @@ function WcRoom({ w, h, who }: { w: number; h: number; who: 'm' | 'f' }) {
       {/* (dark posts at the outer corners: the toilet's room's far corner, and, once for both, the corner between the two toilets) */}
       {/* (the far corner's: 2 mm proud of the end wall (item 425: centred on its face, it stood 3.5 cm out, past the shop's base under it
           once the base was taken in flush)) */}
-      <mesh position={[D + 0.012, (top + WC_CAP) / 2, s * (w / 2 + E + WC_T - 0.0165)]}><boxGeometry args={[0.07, top + WC_CAP, 0.037]} /><meshToonMaterial color="#2e1c10" /></mesh>
+      {/* (with a wing past its end (item 747), the wing's own post at the corner instead: this one's back was in one plane with the wing's) */}
+      {!wing && <mesh position={[D + 0.012, (top + WC_CAP) / 2, s * (w / 2 + E + WC_T - 0.0165)]}><boxGeometry args={[0.07, top + WC_CAP, 0.037]} /><meshToonMaterial color="#2e1c10" /></mesh>}
+      {/* (its end made as thick as the shop's wall beside it, out to that wall's outer face (item 747)) */}
+      {wing !== undefined && <WcWing s={s} x={[WALL_OUT + 0.002, WC_BACK_LINE]} z={[w / 2 + E + WC_T + 0.002, Math.abs(wing)]} top={top} />}
       {s < 0 && <mesh position={[D + 0.012, (top + WC_CAP) / 2, -s * (w / 2 + WC_T)]}><boxGeometry args={[0.07, top + WC_CAP, 0.07]} /><meshToonMaterial color="#2e1c10" /></mesh>}
       {/* (the way through: a cedar post at the short wall's end, as deep as the wall; the noren's rod across it just under the lintel, in the
           wall's depth, from the post's face to the back wall's, each end in a little wooden socket (竿受け) fixed there: it hung on two
@@ -1164,7 +1233,9 @@ export function ToiletHit({ who }: { who: 'm' | 'f' }) {
 /** the door noren's place: its cloth's plane (in front of the panel slid out onto its track, its face at -0.109), its top (up over the
  * head, WC_H to WC_H + 0.07), its rod's height (in front of the head's middle) and the slit between its panels */
 const NOREN_X = -0.138, NOREN_TOP = WC_H + 0.08, NOREN_SLIT = 0.008
-export function ToiletDoor({ who }: { who: 'm' | 'f' }) {
+export function ToiletDoor({ who, wing }: { who: 'm' | 'f'
+  /** (WcRoom's) where the shop's wall's outer face is, past its end, when its end is at the shop's side (item 747) */
+  wing?: number }) {
   const W = WC_W, H = WC_H
   const door = useWcDoor()
   const frame = useMemo(() => door.frame(), [door])
@@ -1183,7 +1254,7 @@ export function ToiletDoor({ who }: { who: 'm' | 'f' }) {
       {/* the frame round the opening: dark cedar posts, the head over them and the sill (blender/wcdoor.py) */}
       <primitive object={frame} />
       {/* (the sliding panel: ToiletPanel, not merged) and the little room behind it */}
-      <WcRoom w={W} h={H} who={who} />
+      <WcRoom w={W} h={H} who={who} wing={wing} />
       {/* the noren, hung from its rod in front of the head: the rod on two little brackets off the head's face, just above the panel's
           way out onto its track (the panel slides out under it, and behind the cloth); the cloth just in front of the rod, its top band over
           it, up over the head (from the room seen from above, nothing of the shoji shows over it: the owner's) */}

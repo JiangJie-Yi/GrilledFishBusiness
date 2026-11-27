@@ -208,7 +208,7 @@ function fileTex(file: string) {
 }
 /** the plaster: a warm earthen wall (聚楽壁) of cream clay, mottled, its fine sand in it, the trowel's long sweeps faint across it, chopped straw
  * here and there (blender/walltex.py: tileable, so no seam where one tile meets the next, as the old drawn one had); a tile every 1.2 */
-const PLASTER = fileTex('plaster_wall.jpg')
+export const PLASTER = fileTex('plaster_wall.jpg')
 
 export function Box({ size, color, ...rest }: { size: [number, number, number]; color: string } & Record<string, unknown>) {
   return (

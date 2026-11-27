@@ -5,7 +5,8 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { StaticBatch, mergeByMaterial } from '@/scene/render/StaticBatch'
 import { FloorPiece } from '@/scene/props/FloorPiece'
 import { inkModel } from '@/scene/render/inkHull'
-import { WC_W, WC_ROOM, kitchenOf, kitchenGatesOf, FLOOR_FAR, FLOOR_NEAR, GENKAN, storeOf, STORE, toiletsOf, roomOf, RICE_MAT, type Counter } from '@/shops/grill/bar'
+import { WC_W, WC_ROOM, kitchenOf, kitchenGatesOf, FLOOR_FAR, FLOOR_NEAR, GENKAN, storeOf, STORE, toiletsOf, roomOf, RICE_MAT, WALL_OUT, farOf, type Counter } from '@/shops/grill/bar'
+import { WC_BACK_LINE } from '@/shops/grill/dining/wc'
 import { Movable } from '@/shops/grill/editor/Movable'
 import { signTexture } from '@/scene/props/signFont'
 import { plinthPlan, type PlinthPlan, type Rect } from '@/game/world/groundLayout'
@@ -649,8 +650,18 @@ function RoomFloorImpl({ counters, drop }: { counters: Counter[]; drop: number }
   }, [back, bump])
   useEffect(() => () => backEdging?.dispose(), [backEdging])
   const A0 = bump?.al[0] ?? back?.al[0] ?? a0, L0 = back?.ly[0] ?? l0, L1 = back?.ly[1] ?? l1
-  const bases = useMemo(() => [[[a0, g0], [l0, l1]], [[g0, a1], [gl, l1]], ...(back ? [[back.al, back.ly]] : []), ...(bump ? [[bump.al, bump.ly]] : [])] as [[number, number], [number, number]][],
-    [a0, g0, l0, l1, a1, gl, back, bump])
+  // (and under the wing of wall at the toilets' end, where they reach the room's side (item 747): from the shop's back wall's slab's outer
+  // face (that wall's face along this frame, as the walls stand, less its WALL_OUT) back to the toilets' block's back line, out from the room's
+  // side to the side wall's outer face (its face at FLOOR_FAR, its slab WALL_OUT behind it))
+  const wing = useMemo(() => {
+    if (!back || back.open[0] || counters.length < 2) return null
+    const c1 = counters[1]
+    const face = c1.at.clone().addScaledVector(c1.lay.clone().normalize(), farOf(c1)).sub(c.at).dot(c.along.clone().normalize())
+    return { al: [face - WC_BACK_LINE, face - WALL_OUT] as [number, number], ly: [FLOOR_FAR - WALL_OUT, l0] as [number, number] }
+  }, [back, counters, c, l0])
+  const bases = useMemo(() => [[[a0, g0], [l0, l1]], [[g0, a1], [gl, l1]], ...(back ? [[back.al, back.ly]] : []), ...(bump ? [[bump.al, bump.ly]] : []),
+    ...(wing ? [[wing.al, wing.ly]] : [])] as [[number, number], [number, number]][],
+    [a0, g0, l0, l1, a1, gl, back, bump, wing])
   // (the building's footprint on the ground, in this frame (x = -lay, z = along): the base's pieces and the genkan's corner in stone)
   const footprint = useMemo(() => [...bases.map(([al, ly]) => [-ly[1], al[0], -ly[0], al[1]] as Rect), [-gl, g0, -l0, a1] as Rect], [bases, gl, g0, l0, a1])
   // (the stone plinth round it (item 744), broken across the doorway, where the stone steps stand out from the genkan's footing)

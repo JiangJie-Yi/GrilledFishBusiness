@@ -3,7 +3,7 @@ import { memo, Suspense, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { StaticBatch } from '@/scene/render/StaticBatch'
-import { GENKAN, fridgesOf, farOf, storeOf, STORE, FRIDGE, WC_W, lampsAlong, RICE_MAT, type Counter } from './bar'
+import { GENKAN, fridgesOf, farOf, storeOf, STORE, FRIDGE, WC_W, WC_ROOM, WALL_OUT, lampsAlong, RICE_MAT, type Counter } from './bar'
 import { EditBlock, Movable } from '@/shops/grill/editor/Movable'
 import { CatClock } from '@/shops/grill/decor/CatClock'
 import { Kabuto } from '@/shops/grill/decor/Kabuto'
@@ -12,7 +12,7 @@ import { type ArtKey, ART_ZH, PRINTS, SCROLLS, Framed, KOI_SAYS, BIJIN_SAYS, BAM
 import { Sudare, RoundShoji, ROUND_AT, WindowDust, RoundWindow } from './dining/roundWindow'
 import { MenuTags } from './dining/menuTags'
 import { WallSigns } from './dining/wallSigns'
-import { ToiletPanel, ToiletHit, ToiletDoor } from './dining/wc'
+import { ToiletPanel, ToiletHit, ToiletDoor, WC_T } from './dining/wc'
 import { STORE_POST, STORE_HEAD, StoreRoom } from './dining/storeRoom'
 import { CornerSupplies } from './dining/supplies'
 import { STAFF_W, KSTAND_H, KSTAND_OFF, KSTAND_ALONG, OUTING_T, OUTING_ALONG, OutingPhoto, KabutoStandModel, StaffDoor } from './dining/staffDoor'
@@ -315,9 +315,13 @@ function DiningWallImpl({ c, from, to, far, lampId, lampName, top, door, altar =
         {/* the toilets, the men's and the women's, side by side */}
         {/* (their doors and frames, shut, stand in edit mode's way as the wall does: not chosen through) */}
         <EditBlock>
-        {door !== undefined && (['m', 'f'] as const).map((who, k) => (
-          <group key={who} position-z={door + (k ? 1 : -1) * (WC_W / 2 + 0.06)}><ToiletDoor who={who} /></group>
-        ))}
+        {/* (the one whose end stands at the wall's end, where the shop's other wall meets this one (the women's): its end made out to that
+            wall's outer face, as thick as it (item 747)) */}
+        {door !== undefined && (['m', 'f'] as const).map((who, k) => {
+          const mid = door + (k ? 1 : -1) * (WC_W / 2 + 0.06), end = mid + (k ? 1 : -1) * (WC_W / 2 + WC_ROOM.E + WC_T)
+          const wing = Math.abs(end - to) < 0.03 ? to + WALL_OUT - mid : undefined
+          return <group key={who} position-z={mid}><ToiletDoor who={who} wing={wing} /></group>
+        })}
         {/* (the toilets' doors slide: not merged) */}
         {door !== undefined && (['m', 'f'] as const).map((who, k) => (
           <group key={who} name={`look-wc-${who}`} position-z={door + (k ? 1 : -1) * (WC_W / 2 + 0.06)}><ToiletPanel who={who} /><ToiletHit who={who} /></group>
