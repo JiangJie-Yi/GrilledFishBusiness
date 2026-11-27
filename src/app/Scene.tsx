@@ -114,6 +114,9 @@ type SceneProps = {
 
 /** the shop's own waiter, there when no one's been hired for the floor: the cooked food is always carried to the customers, never tossed over the bar */
 const HOUSE_SERVER: CrewMember = { id: 'house-server', role: 'server', look: { female: false, age: 'middle' } }
+/** the owner's eyes in his first-person view (item 771): how high (his frame's units) and how far in front of his middle (at his eyes, inside
+ * his head: it's folded away for this view's own draw, staff/Boss), and how far down it looks over 1.6 on (0.55 was 19 degrees; 0.8, 27) */
+const BOSS_EYE = { up: 0.84, out: 0.28, down: 0.8 }
 export function Scene({ omiki, active, orders, theme, sky, reducedMotion, fire, heat, frame, onOffFire, onEat, onNotice, resetView, pins = false, view, onView, ai, research, lang, spotOn, chefOf, crowdOf, crewOf, livingOf, guestsBy, onWalkOut, onVisit, onGuests, notes, inUse, phone, entriesOf, onOrderEntry,
   onOrder, onAddCharcoal, onSay, blessed = false, onDrink, dorm = false, onDormDrawn }: SceneProps) {
   const groups = useRef<(THREE.Group | null)[]>([])
@@ -266,6 +269,9 @@ export function Scene({ omiki, active, orders, theme, sky, reducedMotion, fire, 
     // (one that follows: through his eyes (the owner's, 2026-11-10: first person; it was a portrait of him), carried along wherever he goes and
     // turning as he turns: from just in front of his face (so none of him's in the way), at his eyes' height, looking the way he faces and a
     // little down, at what's before him)
+    // (just in front of his face now, at his nose's tip, and looking a little further down (item 771, the owner's 「第一人稱看的到手」): 0.42
+    // out in front of him, his hands at the fire were behind the camera, never seen; from here what his hands do before him is in the
+    // view's lower part, as one's own are)
     if (spot.follow) {
       const frame = anchor.parent ?? anchor
       frame.updateWorldMatrix(true, false)
@@ -273,8 +279,8 @@ export function Scene({ omiki, active, orders, theme, sky, reducedMotion, fire, 
       const p = anchor.position
       const fwd = new THREE.Vector3(0, 0, OWNER_FACING).transformDirection(anchor.matrixWorld).setY(0).normalize()
       const unit = frame.getWorldScale(new THREE.Vector3()).x
-      const eye = anchor.getWorldPosition(new THREE.Vector3()).setY(frame.localToWorld(new THREE.Vector3(p.x, p.y + 0.98, p.z)).y).addScaledVector(fwd, 0.42 * unit)
-      return { pos: eye, target: eye.clone().addScaledVector(fwd, 1.6 * unit).add(new THREE.Vector3(0, -0.55 * unit, 0)) }
+      const eye = anchor.getWorldPosition(new THREE.Vector3()).setY(frame.localToWorld(new THREE.Vector3(p.x, p.y + BOSS_EYE.up, p.z)).y).addScaledVector(fwd, BOSS_EYE.out * unit)
+      return { pos: eye, target: eye.clone().addScaledVector(fwd, 1.6 * unit).add(new THREE.Vector3(0, -BOSS_EYE.down * unit, 0)) }
     }
     // (seen from the way the whole shop's overview looks in: from the open side of the room, so the walls are always behind what's seen,
     // never the empty outside; from the room's middle a part by the open side looked out into nothing)

@@ -4,6 +4,7 @@
 import { memo, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@/scene/interact/Html'
+import { VIEW_NOW } from '@/scene/kit/viewNow'
 import * as THREE from 'three'
 import { SPEAKERS, STAFF_IDLE, STAFF_TALK, STAFF_TIRED, type StaffWord } from '@/game/world/shopState'
 import { activityOf } from '@/data/staff'
@@ -102,6 +103,8 @@ const Word = memo(function Word({ word }: { word: StaffWord }) {
     // (shown only while they are: not while a stand-in walks for them, nor once they've faded out of a doorway)
     let shown = !!t
     for (let q: THREE.Object3D | null = t; q && shown; q = q.parent) if (!q.visible || (q.userData.fade ?? 1) < 0.5) shown = false
+    // (the owner's own words not while the view is his eyes (item 769): they hung in front of the camera)
+    if (t && t.name === 'BossFollow' && VIEW_NOW.id === 'boss') shown = false
     o.visible = shown
     showEl(el.current, o.visible)
     if (!t) return

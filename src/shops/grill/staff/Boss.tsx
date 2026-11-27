@@ -449,7 +449,9 @@ if (import.meta.env?.DEV && typeof window !== 'undefined') (window as unknown as
 if (import.meta.env?.DEV && typeof window !== 'undefined') (window as unknown as { __bossFx?: typeof BOSS_FX }).__bossFx = BOSS_FX
 /** the parts of him that move on their own (his bones, after his body): his hands, what they hold, his moustache (bobbing as he talks
  * and breathes); his face is a painted patch, its expression a frame of its sheet (scene/faceSheet) */
-const BOSS_BONES = ['BossHandL', 'BossHandR', 'BossTongs', 'BossFan', 'BossMoustache']
+const BOSS_BONES = ['BossHandL', 'BossHandR', 'BossTongs', 'BossFan', 'BossMoustache', 'BossHeadBone']
+/** what's of his head (item 771): folded away through his own eyes; his moustache has its own bone, folded with it */
+const HEAD_FOLD = /^Boss(Head|Face|Glass|Nose|Ear|Hair|Tenugui|Knot|Sideburn|Comb|Cap|Pencil|Eye|Shine|Brow|Cheek|Mouth|Tongue)/
 /**
  * setExpression for the owner: a face he's to make for a while (`face` till `until`, performance.now()), over what he'd show anyway (the
  * character viewer's buttons, a moment's joy or alarm); and `at`, when it was set, for the squash and stretch it sets off.
@@ -499,6 +501,8 @@ function styledBoss(scene: THREE.Group, fan: THREE.Object3D) {
       for (const e of meshes) g.attach(e)
     }
     holder('BossMoustache', /^BossMoustache/)
+    // (and his head on a bone of its own (item 771): folded away for his first person's own draw, the camera at his eyes)
+    holder('BossHeadBone', HEAD_FOLD)
     // ---- his uchiwa the shop's own (item 511): the fan from its holder by the seasonings (scene/uchiwa), its size there, for the little
     // round of plain paper on a stick boss.py gave him (half that size, nothing like the one he'd taken up): that one out of his one mesh,
     // the shop's put on its node once the mesh is made (below)
@@ -685,6 +689,41 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
   }), [root])
   // (his moustache at rest, to bob from)
   const tache = useMemo(() => parts.moustache?.position.clone() ?? new THREE.Vector3(), [parts])
+  // (item 771, the owner's 「第一人稱看的到手」: through his own eyes the camera's at his eyes (app/Scene's BOSS_EYE), and his head (with his
+  // moustache) folded to nothing for that view's own draw: the shadows drawn in it go without it; a washroom's mirror drawn within it (three's
+  // Reflector draws the scene again, from its own camera, in the middle of the view's) has it back for its own picture, folded again after
+  // it for the rest of the view's (his skeleton worked out again: its bones' picture is one, shared by every draw)
+  const sceneNow = useThree((s) => s.scene)
+  const getThree = useThree((s) => s.get)
+  useEffect(() => {
+    const head = root.getObjectByName('BossHeadBone')
+    let skin: THREE.SkinnedMesh | null = null
+    root.traverse((o) => { if (!skin && (o as THREE.SkinnedMesh).isSkinnedMesh) skin = o as THREE.SkinnedMesh })
+    if (!head || !skin) return
+    const sk = (skin as THREE.SkinnedMesh).skeleton
+    const folds = [head, parts.moustache].filter((o): o is THREE.Object3D => !!o)
+    let folded = false
+    const fold = (on: boolean) => {
+      if (on === folded) return false
+      folded = on
+      for (const o of folds) { o.scale.setScalar(on ? 1e-4 : 1); o.updateMatrixWorld(true) }
+      return true
+    }
+    const stack: boolean[] = []
+    const was = sceneNow.onBeforeRender, wasAfter = sceneNow.onAfterRender
+    sceneNow.onBeforeRender = function (...a) {
+      const want = VIEW_NOW.id === 'boss' && a[2] === getThree().camera && !getEdit().on
+      stack.push(want)
+      fold(want)
+      was.apply(this, a)
+    }
+    sceneNow.onAfterRender = function (...a) {
+      wasAfter.apply(this, a)
+      stack.pop()
+      if (fold(stack.length ? stack[stack.length - 1] : false) && stack.length) sk.update()
+    }
+    return () => { sceneNow.onBeforeRender = was; sceneNow.onAfterRender = wasAfter; fold(false) }
+  }, [root, parts, sceneNow, getThree])
   /** the face he made last frame (a change sets off a squash and stretch) */
   const faceWas = useRef<CrewFace>('idle')
   /** his face's life (game/faceLife, item 368) */
@@ -834,9 +873,12 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     // (out on the floor serving, drawn there by GuestBar3D: not here at his place meanwhile)
     // (nor while he's upstairs with her (item 637))
     m.visible = !OWNER_OUT.on && bed.current.phase !== 'upstairs'
+    // (nor through his own eyes (item 769, the owner's 「第一人稱應該看不到老闆自己對話」): his words, gulps and coins floated in front of
+    // the camera that is his eyes)
+    const own = VIEW_NOW.id === 'boss'
     for (const el of floats.current) {
       if (!el.isConnected) { floats.current.delete(el); continue }
-      const vis = m.visible ? '' : 'hidden'
+      const vis = m.visible && !own ? '' : 'hidden'
       if (el.style.visibility !== vis) el.style.visibility = vis
     }
     // (always solid (the owner's, 2026-11-10): he faded to a dithered ghost of himself whenever he stood between the camera and what it was
