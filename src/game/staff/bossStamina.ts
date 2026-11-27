@@ -55,6 +55,31 @@ export function riseBeat(t: number): { phase: RisePhase; k: number } {
   }
   return { phase: 'done', k: 1 }
 }
+/**
+ * (item 750, the owner's 「一直搖老闆，面部會掙扎，坐臥醒後3秒沒給它指令就會睡回去」) shaken awake with nothing to get up for: WAKE_SHAKES shakes,
+ * each within SHAKE_GAP_MS of the last, sit him up (fewer, he screws his face up and sleeps on); sat up awake, he waits AWAKE_WAIT_MS for a
+ * word (a click on him, or the shop wanting him) before he lies back down
+ */
+export const WAKE_SHAKES = 3
+export const SHAKE_GAP_MS = 1600
+export const AWAKE_WAIT_MS = 3000
+/** the shakes' count with one more at `now`: on from the last if it came within SHAKE_GAP_MS of it, else this one the first */
+export const shaken = (n: number, lastAt: number, now: number) => (now - lastAt <= SHAKE_GAP_MS ? n + 1 : 1)
+/** shaken enough to sit up */
+export const shakenAwake = (n: number) => n >= WAKE_SHAKES
+/** sat up awake since `awakeAt`: lies back down, nothing asked of him for AWAKE_WAIT_MS */
+export const sleepsAgain = (awakeAt: number, now: number, asked: boolean) => !asked && now - awakeAt >= AWAKE_WAIT_MS
+/** lying back down from sitting up (s): down onto his back, the quilt pulled up over him; then asleep */
+export const RELIE_S = { lie: 0.9, cover: 0.7 }
+export type ReliePhase = 'lie' | 'cover' | 'asleep'
+export function relieBeat(t: number): { phase: ReliePhase; k: number } {
+  let left = t
+  for (const phase of ['lie', 'cover'] as const) {
+    if (left < RELIE_S[phase]) return { phase, k: Math.max(0, left / RELIE_S[phase]) }
+    left -= RELIE_S[phase]
+  }
+  return { phase: 'asleep', k: 1 }
+}
 /** how long laying it down takes, all told, and getting up */
 export const LAY_TOTAL = LAY_S.unroll + LAY_S.pillow + LAY_S.lie + LAY_S.cover
 export const RISE_TOTAL = RISE_S.sit + RISE_S.stand + RISE_S.fold

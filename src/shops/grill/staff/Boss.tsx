@@ -18,7 +18,7 @@ import { DrinkBottle } from '@/shops/grill/dining/bottles'
 import { gulpSound } from '@/shops/grill/sounds/chewSound'
 import { BOSS_BED, FIGURES, FRIDGE_STOCK, FUTON, KITCHEN_FOLK, NIGHT_WITH, OWNER_GRILL, OWNER_OUT, STAFF_DOOR_HOLD, type DrinkId } from '@/shops/grill/bar'
 import { dormDoing } from '@/game/staff/dormLife'
-import { BOSS_BODY, bossWorn, layBeat, riseBeat, sleepsDown, wakesUp } from '@/game/staff/bossStamina'
+import { BOSS_BODY, bossWorn, layBeat, riseBeat, sleepsDown, wakesUp, shaken, shakenAwake, sleepsAgain, relieBeat, RISE_S } from '@/game/staff/bossStamina'
 import { footDust, newSteps } from '@/scene/effects/DustPuffs'
 const FEET = new THREE.Vector3()
 import { RUSH, SPEAKERS, STAFF_TALK } from '@/game/world/shopState'
@@ -178,10 +178,14 @@ const WALK_SPEED = 0.9
 /** (item 444) his way to his futon the nights he's worn out, and back: where he is along it; laying it down, asleep, getting up; where its
  * foot is and where he lies down on it (his own frame); how far he's lain back (0 standing .. 1 on his back) */
 /** (item 637) 'up': to the staff's door and through it, up the stair to her; 'upstairs': up there (the room upstairs draws him); then 'back' */
-type BedTrip = { phase: 'off' | 'go' | 'lay' | 'sleep' | 'rise' | 'back' | 'up' | 'upstairs'; pts: THREE.Vector3[]; len: number; d: number; t: number
+/** (item 750) 'awake': shaken awake and sat up, waiting for a word; 'relie': lying back down from there, nothing asked of him */
+type BedTrip = { phase: 'off' | 'go' | 'lay' | 'sleep' | 'rise' | 'awake' | 'relie' | 'back' | 'up' | 'upstairs'; pts: THREE.Vector3[]; len: number; d: number; t: number
   foot: THREE.Vector3; feet: THREE.Vector3; off: THREE.Vector3; head: THREE.Vector3; bar: number; lie: number
   /** (item 624) shaken awake with nothing to get up for: till when he stirs, sits up a little and lies down again; till when he's shaken */
   stir?: number; shake?: number
+  /** (item 750) his face screwed up till when (shaken in his sleep); the shakes so far and when the last was; shaken enough to sit up (the
+   * frame's to do); sat up only (not to get up); sat up awake since when */
+  struggle?: number; shakes?: number; shakeAt?: number; wake?: boolean; sitOnly?: boolean; awakeAt?: number
   /** (item 652) the way back being walked is from where the player put him down, not from his futon: he can be taken up again on it */
   home?: boolean }
 /** (item 624) how far he lifts, stirring (0 lying .. 0.08: a stir under the quilt, not a sit up through it, item 631): and down over STIR_MS */
@@ -837,7 +841,7 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     // (no futon down unless he's at it: laying it, in it, or up and folding it (item 561, the owner's 「老闆起身厚，棉被殘留」: he was
     // back at his fire, his own night's state begun again (drawn anew: a change of the code while he slept), and the futon, the shop's,
     // was left lying out by the staff's door)
-    if (ff.on && bd.phase !== 'lay' && bd.phase !== 'sleep' && bd.phase !== 'rise') { ff.on = false; ff.fold = 0; ff.cover = 0; ff.unroll = 0; ff.pillow = 0 }
+    if (ff.on && bd.phase !== 'lay' && bd.phase !== 'sleep' && bd.phase !== 'rise' && bd.phase !== 'awake' && bd.phase !== 'relie') { ff.on = false; ff.fold = 0; ff.cover = 0; ff.unroll = 0; ff.pillow = 0 }
     // (...nor asleep in the shop's eyes (App rests him by it, the office says so) when he isn't on his way or at it)
     if (bd.phase === 'off' && BOSS_BODY.bed !== 'off') BOSS_BODY.bed = 'off'
     // ---- (item 637, the owner's 「只要住宿是女生，好感度達到一定程度，在睡覺時間上樓有機率會恩愛」) a night together upstairs (App's
@@ -972,11 +976,36 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
         // (item 624: shaken with nothing to get up for: he lifts a little and settles again, the quilt left over him (item 631: sat up
         // half way with it slid down, he came up through it))
         bd.lie = 1; ff.cover = 1
-        if (wakesUp(BOSS_BODY.fatigue, BOSS_BED.wanted || BOSS_BED.callAt > BOSS_BODY.since)) { bd.phase = 'rise'; bd.t = 0; BOSS_BODY.bed = 'rising'; BOSS_BODY.since = performance.now(); setAsleep(false) }
+        if (wakesUp(BOSS_BODY.fatigue, BOSS_BED.wanted || BOSS_BED.callAt > BOSS_BODY.since)) { bd.phase = 'rise'; bd.t = 0; bd.sitOnly = false; BOSS_BODY.bed = 'rising'; BOSS_BODY.since = performance.now(); setAsleep(false) }
+        // (item 750: shaken enough, he sits up: the quilt thrown back, up he sits (the rise's sit), and there he waits for a word)
+        else if (bd.wake) {
+          bd.wake = false; bd.stir = 0; bd.phase = 'rise'; bd.t = 0; bd.sitOnly = true; BOSS_BODY.bed = 'rising'; BOSS_BODY.since = performance.now(); setAsleep(false)
+          setSay({ text: pick3('……嗯？怎麼了？', '……ん？どうした？', '...Hm? What is it?'), key: Date.now() })
+        }
+      } else if (bd.phase === 'awake') {
+        // (item 750: sat up, the quilt back, rubbing his eyes: asked (a click on him, the shop wanting him), up he gets and on with the rise
+        // from its stand; asked nothing for AWAKE_WAIT_MS, he lies back down)
+        bd.lie = 0.38; ff.cover = 0
+        const nowA = performance.now(), asked = BOSS_BED.wanted || BOSS_BED.callAt > (bd.awakeAt ?? 0)
+        if (asked) { bd.phase = 'rise'; bd.t = RISE_S.sit; bd.sitOnly = false }
+        else if (sleepsAgain(bd.awakeAt ?? nowA, nowA, false)) {
+          bd.phase = 'relie'; bd.t = 0
+          setSay({ text: pick3('……沒事的話，我再睡一下……', '……用がないなら、もう少し寝る……', '...Nothing? Back to sleep, then...'), key: Date.now() })
+        }
+      } else if (bd.phase === 'relie') {
+        // (item 750: back down onto his back, the quilt pulled up over him, and asleep again; wanted on the way down, up he sits again)
+        bd.t += dt
+        const beat = relieBeat(bd.t)
+        if (BOSS_BED.wanted || BOSS_BED.callAt > BOSS_BODY.since) { bd.phase = 'rise'; bd.t = 0; bd.sitOnly = false }
+        else if (beat.phase === 'lie') { ff.cover = 0; bd.lie = 0.38 + 0.62 * easeIO(beat.k) }
+        else if (beat.phase === 'cover') { bd.lie = 1; ff.cover = easeIO(beat.k) }
+        else { bd.lie = 1; ff.cover = 1; bd.phase = 'sleep'; BOSS_BODY.bed = 'asleep'; BOSS_BODY.since = performance.now(); setAsleep(true) }
       } else if (bd.phase === 'rise') {
         bd.t += dt
         const beat = riseBeat(bd.t)
-        if (beat.phase === 'sit') {
+        // (item 750: shaken up with nothing to get up for, he sits up and no further: there he waits)
+        if (bd.sitOnly && beat.phase !== 'sit') { bd.phase = 'awake'; bd.awakeAt = performance.now(); bd.sitOnly = false; bd.lie = 0.38; ff.cover = 0 }
+        else if (beat.phase === 'sit') {
           // (the quilt thrown back off him first, as he lies, then up he sits (item 631, the owner's 「睡覺動畫有破綻」: he sat up as it was
           // thrown back, through it, his arms and his shirt out through its top))
           ff.cover = 1 - easeIO(Math.min(1, beat.k / 0.45))
@@ -1411,7 +1440,11 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     if (BOSS_FACE.face && now < BOSS_FACE.until) face = BOSS_FACE.face
     // (item 444: asleep, his eyes shut; worn out, or getting up off his futon, tired)
     const bedPhase = bed.current.phase
-    if (bedPhase === 'sleep' || (bedPhase === 'lay' && bed.current.lie > 0.6)) face = 'blink'
+    // (item 750: shaken in his sleep, his face screwed up tight, eyes squeezed shut, brows pressed down (the gulp's face), as long as he's
+    // shaken; sat up awake, a yawn first, then sleepy; lying back down, his eyes shut as his head comes down)
+    if (bedPhase === 'sleep' && now < (bed.current.struggle ?? 0)) face = 'drink'
+    else if (bedPhase === 'sleep' || (bedPhase === 'lay' && bed.current.lie > 0.6) || (bedPhase === 'relie' && bed.current.lie > 0.8)) face = 'blink'
+    else if (bedPhase === 'awake' && now - (bed.current.awakeAt ?? 0) < 900) face = 'talkWide'
     else if (bedPhase !== 'off' || (bossWorn(BOSS_BODY.fatigue) && face === 'idle')) face = 'tired'
     // (the face's life over it (item 368, game/faceLife): a blink at no fixed beat that closes and opens, now and then twice; a new face
     // through a blink; the mouth in syllables while a line of his is up (his muttering or a word to the shop); a glance aside, idle)
@@ -1431,21 +1464,33 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
   })
   /** (item 624) shaken where he sleeps: up if there's something to get up for (the shop opening, someone at his fire: BOSS_BED.wanted),
    * else he stirs, mutters and sleeps on */
+  // (item 750: and his face screwed up as he's shaken; WAKE_SHAKES shakes close together (game/staff/bossStamina) sit him up awake, where he
+  // waits AWAKE_WAIT_MS for a word (callUp) before he lies down again)
   const poke = () => {
     const bd = bed.current, now = performance.now()
     bd.shake = now + 380
+    bd.struggle = now + 700
     if (BOSS_BED.wanted) { BOSS_BED.callAt = now; return }
+    bd.shakes = shaken(bd.shakes ?? 0, bd.shakeAt ?? -1e9, now)
+    bd.shakeAt = now
+    if (shakenAwake(bd.shakes)) { bd.shakes = 0; bd.wake = true; return }
     bd.stir = now + STIR_MS
-    setSay({ text: pick3('嗯……還沒開店吧……讓我再睡一下……', 'んん……まだ開店前だろ……もうちょっと……', 'Mm... not open yet... five more minutes...'), key: Date.now() })
+    if (bd.shakes === 1) setSay({ text: pick3('嗯……還沒開店吧……讓我再睡一下……', 'んん……まだ開店前だろ……もうちょっと……', 'Mm... not open yet... five more minutes...'), key: Date.now() })
+  }
+  /** (item 750) sat up awake: a click on him is the word he waited for: up he gets, folds his futon away and back to his fire */
+  const callUp = () => {
+    BOSS_BED.callAt = performance.now()
+    setSay({ text: pick3('好好好，起來了起來了。', 'はいはい、起きるよ。', "All right, all right, I'm up."), key: Date.now() })
   }
   /** (item 635) whether he can be taken up just now: up and about at his round, not mid-task (a piece in his hands, tasting, drinking,
    * away from his fire) */
   // (item 652: and on his way back from where he was put, he can be taken up again)
   const canCarry = useMemo(() => () => !getEdit().on && (bed.current.phase === 'off' || (bed.current.phase === 'back' && !!bed.current.home)) && !OWNER_GRILL.on
     && !OWNER_OUT.on && !BOSS_TASTE.at && !BOSS_DRINK.at, [])
-  const bossHint = useMemo(() => () => (bed.current.phase === 'sleep' ? pick3('睡著了｜按一下搖醒他（沒事的話會再睡）', '眠っている｜クリックで揺り起こす（用がなければまた寝る）', 'Asleep | click to shake him awake (nothing to do, he sleeps on)')
+  const bossHint = useMemo(() => () => (bed.current.phase === 'sleep' ? pick3('睡著了｜多搖幾下把他搖醒（沒事的話會再睡）', '眠っている｜何度か揺すると起きる（用がなければまた寝る）', 'Asleep | shake him a few times to wake him (nothing to do, he sleeps on)')
+    : bed.current.phase === 'awake' ? pick3('醒了｜按一下叫他起來（三秒內不叫就再睡）', '起きた｜クリックで起こす（3秒以内に呼ばないとまた寝る）', 'Awake | click to get him up (3 s, or he lies back down)')
     : canCarry() ? pick3('按住拖著走，放在哪裡就站在哪裡', 'ドラッグで運べる（下ろした所に立つ）', "Drag to carry him (he stands where he's put)") : ''), [canCarry])
-  const bossCursor = useMemo(() => () => (bed.current.phase === 'sleep' ? CURSOR_SHAKE : canCarry() ? CURSOR_GRAB : null), [canCarry])
+  const bossCursor = useMemo(() => () => (bed.current.phase === 'sleep' ? CURSOR_SHAKE : bed.current.phase === 'awake' ? CURSOR_GRAB : canCarry() ? CURSOR_GRAB : null), [canCarry])
   /** (item 635) taken up by the pointer: carried after it, held off the floor, swinging; let go, down on his round's line near there and on
    * with his round from it; (item 652) let go anywhere else in the shop, down there (or as near it as he'd stand clear), where he stays a
    * while before he finds his way back */
@@ -1549,6 +1594,7 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
         if ((e.nativeEvent as PointerEvent).button !== 0 || getEdit().on) return
         e.stopPropagation()
         if (bed.current.phase === 'sleep') { poke(); return }
+        if (bed.current.phase === 'awake') { callUp(); return }
         if (canCarry()) takeUp(e.nativeEvent.clientX, e.nativeEvent.clientY, e.nativeEvent.target as HTMLElement | null)
       }} />
       {/* (what he's muttering, over his head) */}
