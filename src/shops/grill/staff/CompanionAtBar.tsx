@@ -5,6 +5,10 @@
 // the shop's about to open (or opened early), back off the stool, the stool pushed home, back to the door and up. One figure made with the
 // shop's (no new kind of thing drawn as she comes: the staff's own figure, the stools'), moved about and hidden while she's not down; the
 // room upstairs leaves her out meanwhile (COMPANION.down).
+// (item 770, the owner's 「如果有住宿，下班就有機會跟員工培養感情」, its second half) and tonight's hour together with one living upstairs (bar's
+// UP_WITH, as App set it as it was chosen): once the shop's shut and they're up the stair from work, down the same way to the same stool,
+// what they're at on the bar between them (hourTogether: two cans, the shogi board, the radio, bowls of noodles, her album, the tea), sat an
+// hour of the clock, laughing and talking with him, then back up; while his companion's down by day, after she's gone up.
 import { memo, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
@@ -12,9 +16,12 @@ import { StaffFigure } from '@/scene/people/StaffFigure'
 import { BlobShadow } from '@/scene/effects/BlobShadow'
 import { tick } from '@/scene/kit/speed'
 import { getClock } from '@/ui/kit/clockStore'
-import { COMPANION } from '@/game/world/shopState'
+import { COMPANION, SHOP } from '@/game/world/shopState'
+import { businessDay } from '@/game/world/weather'
+import { hourOver } from '@/game/staff/afterWork'
 import { CANDIDATES } from '@/game/staff/hiring'
-import { alongPath, BOSS_BED, FIGURES, pathLength, SEAT_PULL, STOOL_TUCK, type Seat } from '@/shops/grill/bar'
+import { alongPath, BOSS_BED, FIGURES, pathLength, SEAT_PULL, STOOL_TUCK, UP_WITH, type Seat } from '@/shops/grill/bar'
+import { HourOnBar, HourWarm } from './hourTogether'
 import { SEAT_MARKS, STOOL_OUT, STOOL_STAND, backOf } from '@/shops/grill/guestbar/seats'
 import { STAFF_SCALE } from '@/shops/grill/guestbar/staffPoses'
 import { SPEED } from '@/shops/grill/guestbar/walking'
@@ -46,15 +53,24 @@ export const CompanionAtBar = memo(function CompanionAtBar({ seats, open, top }:
   const [id, setId] = useState<string | null>(COMPANION.id)
   const who = useMemo(() => (id ? Object.values(CANDIDATES).flat().find((w) => w.id === id) ?? null : null), [id])
   const g = useRef<THREE.Group>(null), shade = useRef<THREE.Group>(null), cup = useRef<THREE.Group>(null)
-  const s = useRef({ phase: 'away' as Phase, t: 0, seat: -1, path: [] as THREE.Vector3[], len: 0, d: 0, yaw: 0, smile: 0 })
-  const [pose, setPose] = useState<{ moving: boolean; seated: boolean; face?: CrewFace }>({ moving: false, seated: false })
+  const s = useRef({ phase: 'away' as Phase, t: 0, seat: -1, path: [] as THREE.Vector3[], len: 0, d: 0, yaw: 0, smile: 0, hour: false })
+  const [pose, setPose] = useState<{ moving: boolean; seated: boolean; face?: CrewFace; act?: string | null }>({ moving: false, seated: false })
   const doorAt = useRef<THREE.Object3D | null>(null)
   useFrame((_, dt0) => {
-    if (COMPANION.id !== id) setId(COMPANION.id)
-    const o = g.current, me = s.current
+    const me = s.current
+    const dt = tick(dt0), ck = getClock(), minute = ck.minute
+    // (item 770: tonight's hour together, the shop shut, not over; his companion by day as before. Who's to be down: while one is, them
+    // till they've gone back up; else the hour's one (once up the stair from work, not still on their way out), else his companion)
+    const hourOn = !!UP_WITH.id && !UP_WITH.done && UP_WITH.day === businessDay(ck.day, Math.floor(minute)) && !open
+    const herOn = !!COMPANION.id && !open && minute >= DOWN_FROM && minute < UP_AT
+    const target = me.phase !== 'away' ? id : hourOn && !SHOP.walking.has(UP_WITH.id!) ? UP_WITH.id : herOn ? COMPANION.id : null
+    if (target !== id) setId(target)
+    // (none to have down, none drawn: nothing more to do)
+    const o = g.current
     if (!o || !o.parent) return
-    const dt = tick(dt0), minute = getClock().minute
-    const want = !!who && COMPANION.id === who.id && !open && minute >= DOWN_FROM && minute < UP_AT
+    const want = !!who && who.id === target && (me.phase === 'away' || (me.hour ? hourOn && UP_WITH.id === who.id : herOn && COMPANION.id === who.id))
+    // (the hour cut short (the shop opening): to begin again from its start when it's next on)
+    if (!want && me.hour && UP_WITH.up && !UP_WITH.done) UP_WITH.up = false
     const st = me.seat >= 0 ? seats[me.seat] : undefined
     // (her stool where it's been moved to by hand, as the customers sit on theirs (SEAT_MARKS))
     const shift = (n: number) => {
@@ -88,16 +104,18 @@ export const CompanionAtBar = memo(function CompanionAtBar({ seats, open, top }:
           path[0] = front; path[path.length - 1] = stand
         }
         me.path = path; me.len = pathLength(path); me.d = 0; me.phase = 'walkIn'; me.t = 0
-        COMPANION.down = true
+        me.hour = !!who && who.id === UP_WITH.id && hourOn
+        if (me.hour) UP_WITH.down = true
+        else COMPANION.down = true
         o.visible = true
       }
     } else if (!want && (me.phase === 'walkIn' || me.phase === 'pull')) {
       // (called away before she's sat: back the way she came from where she is)
-      if (open) { me.phase = 'away'; o.visible = false; COMPANION.down = false; if (me.seat >= 0) SEAT_PULL.delete(me.seat) }
+      if (open) { me.phase = 'away'; o.visible = false; COMPANION.down = false; UP_WITH.down = false; if (me.seat >= 0) SEAT_PULL.delete(me.seat) }
       else { me.phase = 'walkOut'; me.d = me.len - me.d; me.path = [...me.path].reverse(); me.t = 0; if (me.seat >= 0) SEAT_PULL.delete(me.seat) }
     } else if (!want && open) {
       // (the shop opened early: gone up at once to get ready (she'd be met coming down for work as she went))
-      me.phase = 'away'; o.visible = false; COMPANION.down = false; if (me.seat >= 0) SEAT_PULL.delete(me.seat)
+      me.phase = 'away'; o.visible = false; COMPANION.down = false; UP_WITH.down = false; if (me.seat >= 0) SEAT_PULL.delete(me.seat)
     }
     if (me.phase === 'away' || !st) {
       if (o.visible && me.phase === 'away') o.visible = false
@@ -116,7 +134,7 @@ export const CompanionAtBar = memo(function CompanionAtBar({ seats, open, top }:
         if (dir.lengthSq() > 1e-8) me.yaw = Math.atan2(dir.x, dir.z)
         if (me.d >= me.len - 1e-4) {
           if (me.phase === 'walkIn') { me.phase = 'pull'; me.t = 0 }
-          else { me.phase = 'away'; o.visible = false; COMPANION.down = false; me.seat = -1 }
+          else { me.phase = 'away'; o.visible = false; COMPANION.down = false; UP_WITH.down = false; me.seat = -1 }
         }
         next = { moving: me.phase === 'walkIn' || me.phase === 'walkOut', seated: false }
         break
@@ -159,10 +177,21 @@ export const CompanionAtBar = memo(function CompanionAtBar({ seats, open, top }:
         SEAT_PULL.set(me.seat, 0)
         seatAt(me.seat, 0, o.position).setY(SIT_Y)
         me.yaw = st.yaw
+        // (item 770: the hour begins as they sit, and is over an hour of the clock later: up and away the next moment)
+        if (me.hour && want) {
+          if (!UP_WITH.up) { UP_WITH.up = true; UP_WITH.from = minute }
+          else if (hourOver(UP_WITH.from, minute)) { UP_WITH.up = false; UP_WITH.done = true }
+        }
         if (!want) { me.phase = 'slideOut'; me.t = 0 }
-        // (a smile his way now and then, and now and then a shy look away; mostly just sat with her tea)
-        const cyc = (me.t + (who?.id.length ?? 0) * 1.7) % 11
-        next = { moving: false, seated: true, face: cyc < 1.6 ? 'happy' : cyc > 6 && cyc < 7.2 ? 'shy' : undefined }
+        if (me.hour) {
+          // (the hour: talking and laughing with him, a shy look away now and then over her tea or her pictures from home)
+          const cyc = (me.t + (who?.id.length ?? 0) * 1.3) % 8, shy = UP_WITH.act === 'tea' || UP_WITH.act === 'hometown'
+          next = { moving: false, seated: true, face: cyc < 1.4 ? 'happy' : cyc > 2.4 && cyc < 3.6 ? 'talk' : shy && cyc > 5 && cyc < 6.2 ? 'shy' : undefined, act: UP_WITH.act }
+        } else {
+          // (a smile his way now and then, and now and then a shy look away; mostly just sat with her tea)
+          const cyc = (me.t + (who?.id.length ?? 0) * 1.7) % 11
+          next = { moving: false, seated: true, face: cyc < 1.6 ? 'happy' : cyc > 6 && cyc < 7.2 ? 'shy' : undefined }
+        }
         break
       }
       case 'push': {
@@ -183,13 +212,16 @@ export const CompanionAtBar = memo(function CompanionAtBar({ seats, open, top }:
     if (cup.current) {
       const sat = me.phase === 'sit' || me.phase === 'slide'
       cup.current.visible = me.phase === 'sit'
-      if (sat) cup.current.position.copy(st.plate).add(shift(me.seat)).addScaledVector(back, 0.1).setY(top)
+      // (turned with the bar: its x along it, its z toward the stool (the hour's things laid so))
+      if (sat) { cup.current.position.copy(st.plate).add(shift(me.seat)).addScaledVector(back, 0.1).setY(top); cup.current.rotation.y = Math.atan2(back.x, back.z) }
     }
-    if (next.moving !== pose.moving || next.seated !== pose.seated || next.face !== pose.face) setPose(next)
+    if (next.moving !== pose.moving || next.seated !== pose.seated || next.face !== pose.face || next.act !== pose.act) setPose(next)
   })
-  if (!who) return null
+  // (item 770: the hour's things kept in the shop from the start, hidden: made with it as it loads)
+  if (!who) return <HourWarm />
   return (
     <>
+      <HourWarm />
       <group ref={g} visible={false} name="companion-at-bar">
         <group ref={shade}><BlobShadow r={0.17} /></group>
         <group scale={STAFF_SCALE}>
@@ -198,8 +230,12 @@ export const CompanionAtBar = memo(function CompanionAtBar({ seats, open, top }:
         </group>
       </group>
       <group ref={cup} visible={false}>
-        <mesh geometry={CUP_GEO} material={CUP_MAT} raycast={() => {}} />
-        <mesh geometry={TEA_GEO} material={TEA_MAT} raycast={() => {}} />
+        {pose.act ? <HourOnBar act={pose.act} /> : (
+          <>
+            <mesh geometry={CUP_GEO} material={CUP_MAT} raycast={() => {}} />
+            <mesh geometry={TEA_GEO} material={TEA_MAT} raycast={() => {}} />
+          </>
+        )}
       </group>
     </>
   )

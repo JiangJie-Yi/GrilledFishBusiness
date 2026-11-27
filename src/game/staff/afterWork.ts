@@ -25,7 +25,7 @@ export const AFTER_ACTS: readonly AfterAct[] = [
     bond: 3, minBond: 30, dorm: true, who: 'm', cost: 0 },
   { id: 'tea', label: ['喝杯茶', 'お茶', 'Tea'], hint: ['泡一壺熱茶，陪她聊聊天', 'お茶を淹れて、少し話す', 'A pot of tea and a chat'],
     bond: 3, minBond: 0, dorm: true, who: 'f', cost: 0 },
-  { id: 'latebite', label: ['請吃宵夜', '夜食', 'Late bite'], hint: ['帶她去巷口的攤子吃碗熱湯麵', '路地の屋台で温かいそばをご馳走する', 'A bowl of hot noodles at the stall up the lane, on the owner'],
+  { id: 'latebite', label: ['請吃宵夜', '夜食', 'Late bite'], hint: ['從巷口的攤子買兩碗熱湯麵回來，一起吃宵夜', '路地の屋台でそばを二杯買ってきて、一緒に夜食', 'Two bowls of hot noodles from the stall up the lane, a late bite together, on the owner'],
     bond: 4, minBond: 0, dorm: true, who: 'f', cost: 300 },
   { id: 'hometown', label: ['聊家鄉', '故郷の話', 'Home town'], hint: ['聽她說說家鄉的事', '故郷の話を聞く', 'Hear about where she grew up'],
     bond: 5, minBond: 55, dorm: true, who: 'f', cost: 0 },
@@ -33,18 +33,24 @@ export const AFTER_ACTS: readonly AfterAct[] = [
 
 export type AfterOne = { female: boolean; lives: boolean; bond: number }
 export type AfterDone = { afterDay?: number; thankDay?: number }
-/** why one can't be done now: done already today (the thanks) or tonight (the hour together), or not fond enough yet */
-export type AfterWhy = 'done' | 'bond' | null
+/** why one can't be done now: done already today (the thanks) or tonight (the hour together), the owner's evening already spoken for
+ * (an hour together with another tonight: he has the one), or not fond enough yet */
+export type AfterWhy = 'done' | 'busy' | 'bond' | null
 
-/** what can be done with this one after work today (`day`, the business day): theirs, each with why not, if not */
-export function afterActs(p: AfterOne, done: AfterDone, day: number): { act: AfterAct; why: AfterWhy }[] {
+/** what can be done with this one after work today (`day`, the business day): theirs, each with why not, if not; `busy`, the owner's hour
+ * tonight already another's */
+export function afterActs(p: AfterOne, done: AfterDone, day: number, busy = false): { act: AfterAct; why: AfterWhy }[] {
   return AFTER_ACTS
     .filter((a) => (a.who === 'any' || (a.who === 'f') === p.female) && (!a.dorm || p.lives))
     .map((a) => {
       const did = a.dorm ? done.afterDay === day : done.thankDay === day
-      return { act: a, why: did ? 'done' : p.bond < a.minBond ? 'bond' : null }
+      return { act: a, why: did ? 'done' : a.dorm && busy ? 'busy' : p.bond < a.minBond ? 'bond' : null }
     })
 }
+/** the hour together's length, in the clock's minutes (item 770: the owner up at the table with them, as long as that) */
+export const HOUR_TOGETHER = 60
+/** whether the hour together that began at the clock's minute `from` is over at `now` (over midnight too); not begun (`from` < 0), not */
+export const hourOver = (from: number, now: number) => from >= 0 && (((Math.floor(now) - Math.floor(from)) % 1440) + 1440) % 1440 >= HOUR_TOGETHER
 /** the same day's done marks, after `id` was done */
 export function afterDone(done: AfterDone, id: AfterId, day: number): AfterDone {
   const a = AFTER_ACTS.find((x) => x.id === id)

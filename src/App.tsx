@@ -44,7 +44,7 @@ import { commuteOf, delayOf, lineOf, talkersOf } from '@/game/staff/commute'
 import { CLOSE_DORM, CLOSE_HOME, LAST_ORDER, OPEN_DORM, OPEN_HOME } from '@/data/commuteLines'
 import { GAME_SPEED, paused } from '@/scene/kit/speed'
 import { BOARD_SLOTS } from '@/game/kitchen/fireSlots'
-import { BOARD, CALM_ASK, COAL_BRIDGE, DRINK_PANEL, DRINKS, DRINKS_KEY, NIGHT_WITH, TASTED_KEY, type DrinkId, onDrinkPanel, onPantryAsk, onPantryShut, PANTRY, payIn, RIDERS, setDrinkPanel, SHOP_PURSE, SIDE_SALE, TILL_CASH, TILL_STATE } from '@/shops/grill/bar'
+import { BOARD, CALM_ASK, COAL_BRIDGE, DRINK_PANEL, DRINKS, DRINKS_KEY, NIGHT_WITH, UP_WITH, TASTED_KEY, type DrinkId, onDrinkPanel, onPantryAsk, onPantryShut, PANTRY, payIn, RIDERS, setDrinkPanel, SHOP_PURSE, SIDE_SALE, TILL_CASH, TILL_STATE } from '@/shops/grill/bar'
 import { unitCost } from '@/game/stock/drinkStock'
 import { RICE_SIDE, riceName } from '@/data/sides'
 import { getEdit, setCharHidden, setEditLang, toggleEdit, useEditSel } from '@/shops/grill/edit'
@@ -638,6 +638,9 @@ export default function App() {
       return { ...h, [dishId]: { ...h[dishId], [w.id]: { ...x, ...afterDone(x, id, day), bond, bondLog: bondLogged(x.bondLog, { d: day, k: id, v: bond - bondOf(x.bond) }) } } }
     })
     if (a.act.cost) book('food', a.act.cost, 'after')
+    // (item 770: the hour together, his and hers: down by the staff's door to the stool by the owner's fire once the shop's shut (now, if it
+    // is), what they're at on the bar between them (CompanionAtBar); he stays up for it (Boss))
+    if (a.act.dorm) Object.assign(UP_WITH, { id: w.id, act: id, day, down: false, up: false, from: -1, done: false })
     const k = Math.floor(Math.random() * 3)
     sayStaff.current('owner', AFTER_OWNER[id], day, k)
     window.setTimeout(() => sayStaff.current(w.id, AFTER_REPLY[id], day, k), 1200)
@@ -3321,11 +3324,14 @@ export default function App() {
         // (off duty (out of the door, up the stair, or not on today): after work's things instead (items 770, 796))
         const off = !!w && (!ON_DUTY.in.has(w.id) || ON_DUTY.out.has(w.id))
         const ck = getClock(), aday = businessDay(ck.day, Math.floor(ck.minute)), li = lang === 'ja' ? 1 : lang === 'en' ? 2 : 0
-        const after = off && w && r ? afterActs({ female: w.look.female, lives: !!r.lives, bond: bondOf(r.bond) }, r, aday).map(({ act, why }) => ({
+        // (item 770: the owner's one evening: an hour together already set tonight with another, none with this one)
+        const busy = UP_WITH.id !== null && UP_WITH.day === aday && !UP_WITH.done && UP_WITH.id !== w?.id
+        const after = off && w && r ? afterActs({ female: w.look.female, lives: !!r.lives, bond: bondOf(r.bond) }, r, aday, busy).map(({ act, why }) => ({
           id: act.id, label: act.label[li],
           hint: tl(lang, `${act.hint[0]}（好感 +${act.bond}${act.cost ? `，NT$${act.cost}` : ''}）`, `${act.hint[1]}（好感度 +${act.bond}${act.cost ? `、NT$${act.cost}` : ''}）`,
             `${act.hint[2]} (bond +${act.bond}${act.cost ? `, NT$${act.cost}` : ''})`),
           why: why === 'done' ? (act.dorm ? tl(lang, '今晚已經一起度過了', '今夜はもう一緒に過ごした', 'Already spent the evening together') : tl(lang, '今天已經說過了', '今日はもう声をかけた', 'Already thanked today'))
+            : why === 'busy' ? tl(lang, '老闆今晚已經跟別人約好了', '今夜はもう先約がある', 'The owner’s evening is already spoken for')
             : why === 'bond' ? tl(lang, `再熟一點才行（好感 ${act.minBond} 以上）`, `もう少し打ち解けてから（好感度 ${act.minBond} 以上）`, `Once closer (bond ${act.minBond} or more)`) : null })) : null
         return (
           <StaffPop lang={lang} at={w ? staffPop : null} name={w ? (SPEAKERS.get(w.id) ?? personName(w, lang)) : ''} praiseOk={ok}

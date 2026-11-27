@@ -178,6 +178,15 @@ export const STAFF_DOOR_HOLD = keep(import.meta.hot, 'STAFF_DOOR_HOLD', { until:
 export const NIGHT_WITH = keep(import.meta.hot, 'NIGHT_WITH', { id: null as string | null, day: -1, up: false, at: 0 })
 if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __nightWith: NIGHT_WITH })
 /**
+ * (item 770, the owner's 「如果有住宿，下班就有機會跟員工培養感情」, its second half: the hour together shown) tonight's hour together after
+ * hours with one of those living upstairs (game/staff/afterWork's, set by App as it's chosen): with whom (none: null), doing what (its id),
+ * the business day; once the shop's shut they come down by the staff's door to the stool by his fire (CompanionAtBar), and he stays up for
+ * it (Boss): whether they're down (the room upstairs leaves them out meanwhile), sat there now, the clock's minute they sat down, and
+ * whether it's over (its hour gone by, or the shop opening)
+ */
+export const UP_WITH = keep(import.meta.hot, 'UP_WITH', { id: null as string | null, act: '', day: -1, down: false, up: false, from: -1, done: false })
+if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __upWithState: UP_WITH })
+/**
  * The shoe cupboard's cubbies (the owner's: a customer's shoes go into one as they come in and out of it as they go): the colour of the
  * shoes in each (by cell, 0..8), when each one's door was last opened for them (performance.now(): open a moment), and where the cupboard
  * stands (the world: the customers turn to it)

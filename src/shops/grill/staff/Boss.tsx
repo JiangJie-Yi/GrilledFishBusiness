@@ -16,8 +16,9 @@ import { bossSituation } from '@/game/staff/talkTime'
 import { getClock } from '@/ui/kit/clockStore'
 import { DrinkBottle } from '@/shops/grill/dining/bottles'
 import { gulpSound } from '@/shops/grill/sounds/chewSound'
-import { BOSS_BED, FIGURES, FRIDGE_STOCK, FUTON, KITCHEN_FOLK, NIGHT_WITH, OWNER_GRILL, OWNER_OUT, STAFF_DOOR_HOLD, type DrinkId } from '@/shops/grill/bar'
+import { BOSS_BED, FIGURES, FRIDGE_STOCK, FUTON, KITCHEN_FOLK, NIGHT_WITH, OWNER_GRILL, OWNER_OUT, STAFF_DOOR_HOLD, UP_WITH, type DrinkId } from '@/shops/grill/bar'
 import { dormDoing } from '@/game/staff/dormLife'
+import { businessDay } from '@/game/world/weather'
 import { BOSS_BODY, bossWorn, layBeat, riseBeat, sleepsDown, wakesUp, shaken, shakenAwake, sleepsAgain, relieBeat, RISE_S } from '@/game/staff/bossStamina'
 import { footDust, newSteps } from '@/scene/effects/DustPuffs'
 const FEET = new THREE.Vector3()
@@ -793,6 +794,8 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
   }
   /** (item 637) the business day whose night he last went up for (once a night) */
   const nightGone = useRef(-1)
+  /** (item 770) whether tonight's hour together at the bar was still to come last frame: just over, he's off to his futon if worn out */
+  const hourWasDue = useRef(false)
   /** (item 635, the owner's 「老闆可以用滑鼠左鍵拖曳」) him carried by the pointer: where it is, where he was taken from (his parent's frame);
    * let go, where he's settling to and till when */
   const carry = useRef<{ on: boolean; px: number; py: number; from: [number, number]; to: [number, number]; until: number } | null>(null)
@@ -946,12 +949,18 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     if (ff.on && bd.phase !== 'lay' && bd.phase !== 'sleep' && bd.phase !== 'rise' && bd.phase !== 'awake' && bd.phase !== 'relie') { ff.on = false; ff.fold = 0; ff.cover = 0; ff.unroll = 0; ff.pillow = 0 }
     // (...nor asleep in the shop's eyes (App rests him by it, the office says so) when he isn't on his way or at it)
     if (bd.phase === 'off' && BOSS_BODY.bed !== 'off') BOSS_BODY.bed = 'off'
+    // ---- (item 770) an hour together at the bar after hours still to come tonight (App's UP_WITH; CompanionAtBar sits them by his fire):
+    // he stays up for it, at his fire, neither off to his futon nor up the stair, till it's over
+    const ckNow = getClock()
+    const hourDue = !!UP_WITH.id && !UP_WITH.done && UP_WITH.day === businessDay(ckNow.day, Math.floor(ckNow.minute))
+    const hourEnded = hourWasDue.current && !hourDue
+    hourWasDue.current = hourDue
     // ---- (item 637, the owner's 「只要住宿是女生，好感度達到一定程度，在睡覺時間上樓有機率會恩愛」) a night together upstairs (App's
     // NIGHT_WITH, settled as the shop shut): not to his futon but out by the staff's door and up the stair to her, once that night, worn out
     // or not; the room upstairs draws him by her while he's up there; down again and back to his fire as she wakes (eleven: game/dormLife),
     // or wanted (the shop opening, the player come to his fire)
     if (bd.phase === 'off' && !edit && !open && !away.current && m.parent && NIGHT_WITH.id && NIGHT_WITH.day !== nightGone.current && BOSS_BED.way && BOSS_BED.frame
-      && dormDoing(getClock().minute) === 'sleep') {
+      && dormDoing(getClock().minute) === 'sleep' && !hourDue) {
       const frame = BOSS_BED.frame
       const w = BOSS_BED.way(frame.worldToLocal(m.getWorldPosition(new THREE.Vector3())))
       if (w) {
@@ -987,7 +996,7 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
         away.current = null
       }
     }
-    if (bd.phase === 'off' && !edit && !open && !away.current && m.parent && BOSS_BED.way && BOSS_BED.frame && ((shutting && sleepsDown(BOSS_BODY.fatigue)) || TO_BED.now)) {
+    if (bd.phase === 'off' && !edit && !open && !away.current && m.parent && BOSS_BED.way && BOSS_BED.frame && !hourDue && (((shutting || hourEnded) && sleepsDown(BOSS_BODY.fatigue)) || TO_BED.now)) {
       TO_BED.now = false
       const frame = BOSS_BED.frame
       const w = BOSS_BED.way(frame.worldToLocal(m.getWorldPosition(new THREE.Vector3())))
