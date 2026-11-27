@@ -8,6 +8,7 @@ import { sameProps } from '@/scene/kit/sameProps'
 import { TAKEOUT } from '@/shops/grill/bar'
 import { ALONG, nameOver } from '@/shops/grill/bar'
 import { TasteBowlImpl } from './serving'
+import { warmLater } from '@/scene/render/Prewarm'
 
 /** The tasting bowl (試食碗): a deep round bowl of the same plum-blossom ware, where whatever's cooked by hand to try is put. */
 /**
@@ -18,6 +19,9 @@ import { TasteBowlImpl } from './serving'
  * Taiwan: a black box, red inside, its rice in its own end (white, a pickled plum on it) and the food beside it; shut, a black lid wrapped in
  * the shop's printed paper (掛け紙: 聞野, 焼魚, its red seal), a red cord round it, the chopsticks in their sleeve under it. Named when
  * pointed at.) One draw for the box, two for the lid.
+ * (item 740, the owner's 「外帶餐盒要木質感」: in thin cedar now, as a 折箱 (折詰) is: the box, its lining, its cells' walls and the lid
+ * pale sugi with its grain, the lid still wrapped in the shop's paper and tied with the red cord. The wood one material of its own (its grain
+ * a picture, tinted on the points): two draws for the box, three for the lid, while one's out (three boxes at most).)
  */
 // (a bento's size: a fish at the plate's size lies in it, its length across the table, three side by side along it)
 // (long enough for a whole saury, the longest (0.545 at the plate's size): 0.4 long, a saury's tail and a squid hung out over its end)
@@ -55,11 +59,75 @@ const bentoTurned = (w: number, h: number, d: number, x: number, y: number, z: n
   colourVertices(g, c)
   return g
 }
-const BENTO_BLACK = new THREE.Color('#1d1a18'), BENTO_RICE = new THREE.Color('#f2eee4')
+const BENTO_RICE = new THREE.Color('#f2eee4')
 const CORD_RED = new THREE.Color('#c0262a'), SLEEVE_WHITE = new THREE.Color('#f4efe4')
-/** inside the box (item 122, the owner's, 2026-11-15: a bento as in the picture they sent): a charcoal-black lining and walls, as moulded
- * takeaway boxes are, where it was lacquer red */
-const BENTO_IN = new THREE.Color('#2e2b29')
+/** the cedar (item 740): the box's outside and its bottom, its lining (paler, as the shaved 経木 lining a 折箱 is), its cells' walls, the lid
+ * (it was a black moulded box, charcoal inside: item 122) */
+const BENTO_CEDAR = new THREE.Color('#d4b282'), BENTO_CEDAR_IN = new THREE.Color('#e6d2a8')
+const BENTO_CEDAR_WALL = new THREE.Color('#cba876'), BENTO_CEDAR_LID = new THREE.Color('#d8ba8a')
+/** the cedar's grain (item 740): straight and fine along u, the latewood's darker lines a little apart and a little wavy, near white (the
+ * cedar's own colour is on the points); 512 by 128 over 24 by 6 cm, tiled */
+const GRAIN_U = 0.24, GRAIN_V = 0.06
+const BENTO_GRAIN = (() => {
+  if (typeof document === 'undefined') return null
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128
+  const g = c.getContext('2d')!
+  g.fillStyle = '#fbf6ec'; g.fillRect(0, 0, 512, 128)
+  let s = 4021
+  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647
+  // (the earlywood's soft bands, then the latewood's lines over them: tiling top to bottom and end to end)
+  for (let y = 0; y < 128; y += 2) {
+    g.fillStyle = `rgba(150,110,60,${0.03 + 0.05 * rnd()})`
+    g.fillRect(0, y, 512, 2)
+  }
+  let y = 0
+  while (y < 128) {
+    const w = 0.8 + rnd() * 1.6, a = 0.16 + rnd() * 0.22, ph = rnd() * Math.PI * 2, amp = 0.6 + rnd() * 1.2
+    g.strokeStyle = `rgba(122,82,40,${a})`
+    g.lineWidth = w
+    g.beginPath()
+    for (let x = 0; x <= 512; x += 16) {
+      const yy = y + amp * Math.sin((x / 512) * Math.PI * 2 * 2 + ph)
+      if (x === 0) g.moveTo(x, yy); else g.lineTo(x, yy)
+    }
+    g.stroke()
+    y += 3 + rnd() * 7
+  }
+  for (let i = 0; i < 1800; i++) {
+    g.fillStyle = `rgba(110,75,35,${0.05 + 0.08 * rnd()})`
+    g.fillRect(rnd() * 512, rnd() * 128, 2 + rnd() * 6, 1)
+  }
+  const tex = new THREE.CanvasTexture(c)
+  tex.colorSpace = THREE.SRGBColorSpace
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping
+  tex.anisotropy = 4
+  return tex
+})()
+/** the cedar's one material, shared: its tints on the points, its grain the picture (the shoe cupboard's wood's program) */
+const BENTO_WOOD_MAT = new THREE.MeshToonMaterial({ vertexColors: true, map: BENTO_GRAIN })
+// (the boxes are put in only while the shop's open: the material made ready at load, rule 7)
+if (typeof document !== 'undefined') {
+  const w = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.01, 0.01), BENTO_WOOD_MAT)
+  colourVertices(w.geometry, BENTO_CEDAR)
+  w.castShadow = true
+  w.receiveShadow = true
+  warmLater(w)
+}
+/** a board of the cedar: its grain laid on each face at the face's own size (u along its long way, the box's length or across its ends),
+ * started a different way along for each board (`k`) so no two show the same grain */
+const woodBlock = (w: number, h: number, d: number, x: number, y: number, z: number, c: THREE.Color, k: number) => {
+  const g = new THREE.BoxGeometry(w, h, d)
+  const uv = g.attributes.uv as THREE.BufferAttribute
+  // (BoxGeometry's faces in order +x, -x, +y, -y, +z, -z, four points each: what u and v run along on each)
+  const sides = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]]
+  for (let i = 0; i < uv.count; i++) {
+    const [du, dv] = sides[Math.floor(i / 4)]
+    uv.setXY(i, uv.getX(i) * du / GRAIN_U + k * 0.37, uv.getY(i) * dv / GRAIN_V + k * 0.61)
+  }
+  g.translate(x, y, z)
+  colourVertices(g, c)
+  return g
+}
 /** the bento's sides' colours (item 78, 122): the leaf, broccoli and its stalk, carrot, the salad's shredded cabbage and purple cabbage,
  * lemon, sesame; the miso soup's cup, the soup, its wakame and tofu */
 const BENTO_LEAF = new THREE.Color('#8cc152')
@@ -70,7 +138,7 @@ const BENTO_WAKAME = new THREE.Color('#2f4a22'), BENTO_TOFU = new THREE.Color('#
 /** (item 331) the pickled plum, the takuan and the shibazuke, the rolled omelette and its browned top */
 const BENTO_PLUM = new THREE.Color('#b8232e'), BENTO_TAKUAN = new THREE.Color('#f2d23a'), BENTO_SHIBA = new THREE.Color('#b0477a')
 const BENTO_EGG = new THREE.Color('#f6d35c'), BENTO_EGG_TOP = new THREE.Color('#e3a93a')
-/** the box and its lid's black, red and white, coloured on their points: one material for both */
+/** what's in the box and on its lid (the food, the cord, the sleeve), coloured on their points: one material for both */
 const BENTO_MAT = new THREE.MeshToonMaterial({ vertexColors: true })
 /** a flat round face, up, filled in rows across it (a zigzag from one side to the other: no fan of triangles to its middle point) */
 function ladderDisc(r: number, n: number, x: number, y: number, z: number, c: THREE.Color) {
@@ -91,7 +159,7 @@ function ladderDisc(r: number, n: number, x: number, y: number, z: number, c: TH
   colourVertices(g, c)
   return g
 }
-let bentoGeo: THREE.BufferGeometry | null = null
+let bentoGeo: { wood: THREE.BufferGeometry; food: THREE.BufferGeometry } | null = null
 /**
  * The bento's cells, in its own frame (x its long side, z across it from the back): as a grilled-fish bento's are laid out (item 331, the
  * owner's, 2026-11-18: 「便當有點亂塞」: the rice squeezed in a strip at the back, three great flat leaves over the middle, the broccoli and
@@ -110,20 +178,22 @@ function bentoBox() {
   if (bentoGeo) return bentoGeo
   const T = 0.008, D = BOX_Z1 - BOX_Z0, zc = (BOX_Z0 + BOX_Z1) / 2, L = 0.002, gap = 0.0005, F = 0.0075
   const B = BENTO
-  const wallH = BOX_H * 0.78, wall = (w: number, d: number, x: number, z: number) => bentoBlock(w, wallH, d, x, F + wallH / 2, z, BENTO_IN)
-  const parts = [
-    bentoBlock(BOX_W, 0.005, D, 0, 0.0025, zc, BENTO_BLACK),
-    bentoBlock(BOX_W - 2 * T - 2 * gap, L, D - 2 * T - 2 * gap, 0, 0.005 + gap + L / 2, zc, BENTO_IN),
+  // (the cedar: its bottom, its lining, its sides and their lining; the cells' walls of thin cedar too (item 740))
+  let k = 0
+  const wallH = BOX_H * 0.78, wall = (w: number, d: number, x: number, z: number) => woodBlock(w, wallH, d, x, F + wallH / 2, z, BENTO_CEDAR_WALL, k++)
+  const wood = [
+    woodBlock(BOX_W, 0.005, D, 0, 0.0025, zc, BENTO_CEDAR, k++),
+    woodBlock(BOX_W - 2 * T - 2 * gap, L, D - 2 * T - 2 * gap, 0, 0.005 + gap + L / 2, zc, BENTO_CEDAR_IN, k++),
     ...[BOX_Z0, BOX_Z1].flatMap((z, i) => {
       const s2 = i === 0 ? 1 : -1
       return [
-        bentoBlock(BOX_W, BOX_H, T, 0, BOX_H / 2, z + s2 * T / 2, BENTO_BLACK),
-        bentoBlock(BOX_W - 2 * T - 2 * gap, BOX_H - 0.012, L, 0, BOX_H / 2, z + s2 * (T + gap + L / 2), BENTO_IN),
+        woodBlock(BOX_W, BOX_H, T, 0, BOX_H / 2, z + s2 * T / 2, BENTO_CEDAR, k++),
+        woodBlock(BOX_W - 2 * T - 2 * gap, BOX_H - 0.012, L, 0, BOX_H / 2, z + s2 * (T + gap + L / 2), BENTO_CEDAR_IN, k++),
       ]
     }),
     ...[-1, 1].flatMap((sx) => [
-      bentoBlock(T, BOX_H, D - 2 * T, sx * (BOX_W / 2 - T / 2), BOX_H / 2, zc, BENTO_BLACK),
-      bentoBlock(L, BOX_H - 0.012, D - 2 * T - 2 * gap - 2 * L, sx * (BOX_W / 2 - T - gap - L / 2), BOX_H / 2, zc, BENTO_IN),
+      woodBlock(T, BOX_H, D - 2 * T, sx * (BOX_W / 2 - T / 2), BOX_H / 2, zc, BENTO_CEDAR, k++),
+      woodBlock(L, BOX_H - 0.012, D - 2 * T - 2 * gap - 2 * L, sx * (BOX_W / 2 - T - gap - L / 2), BOX_H / 2, zc, BENTO_CEDAR_IN, k++),
     ]),
     // (the cells' walls: between the back row and the front; across the back row; the side column's, and across it)
     wall(0.556, 0.005, 0, B.back[1]),
@@ -131,6 +201,8 @@ function bentoBox() {
     wall(0.005, B.front[1] - B.front[0] - 0.006, B.side[0], (B.front[0] + B.front[1]) / 2),
     wall(B.side[1] - B.side[0] - 0.006, 0.005, (B.side[0] + B.side[1]) / 2, B.sideSplit),
   ]
+  // (what's in it)
+  const parts: THREE.BufferGeometry[] = []
   // (the rice: its bed and a rounded top in its cell, clumps of grains over it, black sesame, a pickled plum in its middle)
   const riceX = (B.rice[0] + B.rice[1]) / 2, riceZ = (B.back[0] + B.back[1]) / 2
   const riceW = B.rice[1] - B.rice[0] - 0.012, riceD = B.back[1] - B.back[0] - 0.012
@@ -191,8 +263,11 @@ function bentoBox() {
   })
   // (a wedge of lemon in the main cell's far corner, for the fish)
   const lemon = bentoTurned(0.034, 0.016, 0.014, B.main[1] - 0.03, F + 0.012, B.front[1] - 0.02, BENTO_LEMON, 0, 0.5)
-  bentoGeo = mergeGeometries([...parts, ...grains, ...sesame, plum, ...pickles, cup, soup, ...inSoup, leaf, ...greens, ...carrots, ...omelette, lemon]
-    .map((g) => (g.index ? g.toNonIndexed() : g)))!
+  const flat = (g: THREE.BufferGeometry) => (g.index ? g.toNonIndexed() : g)
+  bentoGeo = {
+    wood: mergeGeometries(wood.map(flat))!,
+    food: mergeGeometries([...parts, ...grains, ...sesame, plum, ...pickles, cup, soup, ...inSoup, leaf, ...greens, ...carrots, ...omelette, lemon].map(flat))!,
+  }
   return bentoGeo
 }
 /** where the `row`-th of `n` pieces of an order lies in its box (its own frame: x along the box, z across it): in the main cell, side by side
@@ -201,16 +276,16 @@ export function bentoSpot(row: number, n: number) {
   const B = BENTO, k = Math.max(3, Math.min(5, n)), d = (B.front[1] - B.front[0] - 0.02) / k
   return { x: (B.main[0] + B.main[1]) / 2, z: B.front[0] + 0.01 + d * (Math.min(row, k - 1) + 0.5) }
 }
-let lidGeo: THREE.BufferGeometry | null = null
-/** the lid, made once: black, over the box's rim; a red cord round it across the table (down both its long sides), the chopsticks in their
- * white sleeve (a red band at its top) along the cook's edge, under the cord */
+let lidGeo: { wood: THREE.BufferGeometry; rest: THREE.BufferGeometry } | null = null
+/** the lid, made once: of the cedar (item 740; it was black), over the box's rim; a red cord round it across the table (down both its long
+ * sides), the chopsticks in their white sleeve (a red band at its top) along the cook's edge, under the cord */
 function bentoLid() {
   if (lidGeo) return lidGeo
   const D = BOX_Z1 - BOX_Z0, zc = (BOX_Z0 + BOX_Z1) / 2, top = BOX_H + 0.012
   // (the cord near the box's far end, clear of the print; the sleeve long enough to go under it)
   const cordZ = BOX_Z1 - 0.03, cw = 0.006
+  const board = woodBlock(BOX_W + 0.012, 0.012, D + 0.012, 0, BOX_H + 0.006, zc, BENTO_CEDAR_LID, 11)
   const parts = [
-    bentoBlock(BOX_W + 0.012, 0.012, D + 0.012, 0, BOX_H + 0.006, zc, BENTO_BLACK),
     // (the cord: over the top (above the paper) and down both sides, a hair out from the lid's)
     bentoBlock(BOX_W + 0.018, 0.004, cw, 0, top + 0.004, cordZ, CORD_RED),
     ...[-1, 1].map((sx) => bentoBlock(0.003, 0.03, cw, sx * (BOX_W / 2 + 0.0075), top - 0.012, cordZ, CORD_RED)),
@@ -218,7 +293,7 @@ function bentoLid() {
     bentoBlock(0.026, 0.006, 0.26, -BOX_W / 2 + 0.075, top + 0.0045, zc + 0.05, SLEEVE_WHITE),
     bentoBlock(0.0265, 0.0065, 0.035, -BOX_W / 2 + 0.075, top + 0.0046, zc + 0.05 - 0.09, CORD_RED),
   ]
-  lidGeo = mergeGeometries(parts.map((g) => g.toNonIndexed()))!
+  lidGeo = { wood: board.toNonIndexed(), rest: mergeGeometries(parts.map((g) => g.toNonIndexed()))! }
   return lidGeo
 }
 /** the wrapping paper's print (掛け紙): cream paper, a red double rule round it, the shop's name down it in black, 焼魚 beside it in red, the
@@ -275,9 +350,11 @@ const OneBox = memo(function OneBox({ tier }: { tier: number }) {
   })
   return (
     <group ref={g} position-y={tier * BOX_TIER} visible={false}>
-      <mesh geometry={bentoBox()} material={BENTO_MAT} castShadow receiveShadow raycast={raycastShown} />
+      <mesh geometry={bentoBox().wood} material={BENTO_WOOD_MAT} castShadow receiveShadow raycast={raycastShown} />
+      <mesh geometry={bentoBox().food} material={BENTO_MAT} castShadow receiveShadow raycast={raycastShown} />
       <group ref={lid} visible={false}>
-        <mesh geometry={bentoLid()} material={BENTO_MAT} castShadow receiveShadow raycast={raycastShown} />
+        <mesh geometry={bentoLid().wood} material={BENTO_WOOD_MAT} castShadow receiveShadow raycast={raycastShown} />
+        <mesh geometry={bentoLid().rest} material={BENTO_MAT} castShadow receiveShadow raycast={raycastShown} />
         <mesh geometry={kakegami()} material={KAKEGAMI_MAT} receiveShadow raycast={raycastShown} />
       </group>
     </group>
