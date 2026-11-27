@@ -189,7 +189,8 @@ export const ShadowPacer = memo(function ShadowPacer() {
       if (!s) return
       s.shadow.needsUpdate = true
       // (what's in an indoor box, its sphere clear of the box's sides by SUN_IN_MARGIN, or a piece (under SUN_PIECE_R) whose middle's in one,
-      // left out of this draw of the sun's map)
+      // left out of this draw of the sun's map; and what casts for a lamp's sake only (`userData.sunless`: the stock room's unseen slabs that
+      // keep its bulb's light in it, item 754))
       const list = casters.current, o = off.current
       for (let i = 0; i < list.length; i++) {
         const m = list[i]
@@ -198,7 +199,7 @@ export const ShadowPacer = memo(function ShadowPacer() {
         if (!b) continue
         SUN_AT.copy(b.center).applyMatrix4(m.matrixWorld)
         const r = b.radius * m.matrixWorld.getMaxScaleOnAxis()
-        if (!insideIndoors(SUN_AT.x, SUN_AT.y, SUN_AT.z, r, SUN_IN_MARGIN) && !(r < SUN_PIECE_R && centreIndoors(SUN_AT.x, SUN_AT.y, SUN_AT.z, SUN_EDGE))) continue
+        if (!m.userData.sunless && !insideIndoors(SUN_AT.x, SUN_AT.y, SUN_AT.z, r, SUN_IN_MARGIN) && !(r < SUN_PIECE_R && centreIndoors(SUN_AT.x, SUN_AT.y, SUN_AT.z, SUN_EDGE))) continue
         m.castShadow = false
         o.push(m)
       }

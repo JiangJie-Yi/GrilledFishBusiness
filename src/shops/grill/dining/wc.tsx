@@ -471,16 +471,24 @@ function WcDark({ who, rooms, lit: vols }: { who: 'm' | 'f'; rooms: [number, num
    * ones, without the stencil, clipped in the canvas's 8 bits: bright things in front of a room lost the warm's worth, the lit door's paper
    * among them, dark ones gained it.) The boxes run 2 cm into the walls (their faces lit, not fought: nothing in a wall's thickness to
    * share a plane with), meet each other by the stall's noren without overlapping, and a thin one in the doorway lights the door's back;
-   * the shop's side of the wall is outside them all. No light added or switched (rule 6); no new program (basic, both sides drawn already) */
+   * the shop's side of the wall is outside them all. No light added or switched (rule 6); no new program (basic, both sides drawn already).
+   * Laid on as a lamp's light falls (item 754, the owner's 「廁所有點霧霧的黃光」): added alone, one warm over all of it alike, the dark cedar,
+   * the vanity and the floor went from black to one muddy yellow-brown (2 to 60 of 255, the room's middle tone from 25 to 67), a fog over
+   * the room more than a light in it. Now within the marks a gain first, each thing made brighter by its own colour times the warm (dst +
+   * dst * c, WC_ROOM_GAIN: the plaster and the porcelain warm and bright, what's dark staying dark), the marks kept; then a little added,
+   * a sixth of what was (WC_ROOM_FILL: the fill a lit room's dark corners have), and the marks cleared */
   // (a box's own warm each: one box's can be laid without the marks while the eye's inside it)
   const warm = useMemo(() => ({
     mark: new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, transparent: true, side: THREE.FrontSide,
       stencilWrite: true, stencilFunc: THREE.AlwaysStencilFunc, stencilRef: 1, stencilZPass: THREE.ReplaceStencilOp }),
-    adds: vols.map(() => new THREE.MeshBasicMaterial({ color: WC_ROOM_WARM, transparent: true, opacity: 0, depthWrite: false, depthFunc: THREE.GreaterEqualDepth,
+    gains: vols.map(() => new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, depthWrite: false, depthFunc: THREE.GreaterEqualDepth,
+      side: THREE.BackSide, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.DstColorFactor, blendDst: THREE.OneFactor,
+      toneMapped: false, stencilWrite: true, stencilFunc: THREE.EqualStencilFunc, stencilRef: 1, stencilZPass: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp })),
+    adds: vols.map(() => new THREE.MeshBasicMaterial({ color: WC_ROOM_FILL, transparent: true, opacity: 0, depthWrite: false, depthFunc: THREE.GreaterEqualDepth,
       side: THREE.BackSide, blending: THREE.AdditiveBlending, toneMapped: false,
       stencilWrite: true, stencilFunc: THREE.EqualStencilFunc, stencilRef: 1, stencilZPass: THREE.ZeroStencilOp, stencilZFail: THREE.ZeroStencilOp })),
   }), [vols])
-  useEffect(() => () => { mat.dispose(); warm.mark.dispose(); warm.adds.forEach((m) => m.dispose()) }, [mat, warm])
+  useEffect(() => () => { mat.dispose(); warm.mark.dispose(); warm.gains.forEach((m) => m.dispose()); warm.adds.forEach((m) => m.dispose()) }, [mat, warm])
   const group = useRef<THREE.Group>(null)
   const lit = useRef<THREE.Group>(null)
   const eye = useMemo(() => new THREE.Vector3(), [])
@@ -509,6 +517,10 @@ function WcDark({ who, rooms, lit: vols }: { who: 'm' | 'f'; rooms: [number, num
       const [[x0, x1], [y0, y1], [z0, z1]] = vols[i]
       const inside = g.visible && eye.x > x0 - near && eye.x < x1 + near && eye.y > y0 - near && eye.y < y1 + near && eye.z > z0 - near && eye.z < z1 + near
       m.stencilFunc = inside ? THREE.AlwaysStencilFunc : THREE.EqualStencilFunc
+      // (the gain's fading in and out by its colour: a blend by the colour under it, its opacity's no part of it)
+      const gm = warm.gains[i]
+      gm.color.copy(WC_ROOM_GAIN).multiplyScalar(k)
+      gm.stencilFunc = m.stencilFunc
     })
   })
   // (each box marked and lit in turn, after the room's dark, before the lamps' glow: an order each, the toilets' apart)
@@ -522,16 +534,18 @@ function WcDark({ who, rooms, lit: vols }: { who: 'm' | 'f'; rooms: [number, num
           laid the warm on two or three times over, Optimization's note): the glass is in the washroom's box, so the warm's laid on what it
           shows once, here, as on the wall beside it) */}
       <group ref={lit} visible={false}>
-        {vols.map(([[x0, x1], [y0, y1], [z0, z1]], i) => (['mark', 'add'] as const).map((k, j) => (
-          <mesh key={`${i}${k}`} geometry={WC_DARK} material={k === 'mark' ? warm.mark : warm.adds[i]} position={[(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2]}
-            scale={[x1 - x0, y1 - y0, z1 - z0]} renderOrder={order + i * 0.02 + j * 0.01} raycast={() => {}} userData={{ noMirror: true }} />
+        {vols.map(([[x0, x1], [y0, y1], [z0, z1]], i) => (['mark', 'gain', 'add'] as const).map((k, j) => (
+          <mesh key={`${i}${k}`} geometry={WC_DARK} material={k === 'mark' ? warm.mark : k === 'gain' ? warm.gains[i] : warm.adds[i]} position={[(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2]}
+            scale={[x1 - x0, y1 - y0, z1 - z0]} renderOrder={order + i * 0.02 + j * 0.005} raycast={() => {}} userData={{ noMirror: true }} />
         )))}
       </group>
     </>
   )
 }
-/** how much warm light a lit toilet's rooms are given after dark (added, item 126) */
-const WC_ROOM_WARM = new THREE.Color('#3a2a16')
+/** how much warm light a lit toilet's rooms are given after dark (item 126): a gain, each thing brighter by its own colour times this (item
+ * 754: added alone, #3a2a16, it was a yellow fog over the rooms), and a little added over all of it (the display's values) */
+const WC_ROOM_GAIN = new THREE.Color().setRGB(0.6, 0.5, 0.2, THREE.SRGBColorSpace)
+const WC_ROOM_FILL = new THREE.Color().setRGB(0.04, 0.028, 0.016, THREE.SRGBColorSpace)
 /** a wall of the toilet's rooms, facing into them: charred cedar to the waist with a rail along it, cream plaster over; `len` along it, its
  * middle at `at`, turned `yaw` (unturned, it faces +z); the cedar's boards their own width whatever its length. `cut`: the wall that's cut
  * away for the view from outside (seen from behind, its faces aren't drawn), its rail a strip on its face, not a bar left floating */

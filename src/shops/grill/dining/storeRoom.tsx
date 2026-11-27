@@ -7,7 +7,7 @@ import { STORE, STORE_STATE, WALL_OUT, FRIDGE_GAP, FRIDGE, handOver, nameOver, W
 import { EditBlock } from '@/shops/grill/editor/Movable'
 import { getEdit } from '@/shops/grill/edit'
 import { setTip } from '@/scene/interact/hoverTip'
-import { canvasTex, WALL_H } from './base'
+import { canvasTex, WALL_H, BASE_DEPTH } from './base'
 import { WcWall, WC_T, WcMass, WC_CAP } from './wc'
 import { NO_RAY } from '@/scene/interact/pickable'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
@@ -311,6 +311,15 @@ const STORE_FLOOR = canvasTex(256, 1024, (g) => {
 /** an unseen sheet over the wall's face on the shop's side that takes the pointer and stops it there (item 735: the goods behind the wall,
  * pointed at now, aren't pointed at through it; as the toilets' walls do, WcBlock) */
 const STORE_BLOCK_MAT = new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide })
+/**
+ * (item 754, the owner's 「注意光影不透出來」, a red ring round the earth lit out behind the stock room at night) its lamp kept in it: its back
+ * cut open to be seen into from outside, and its near end taken away (item 488), one-sided faces that stop no light (a shadow's map is
+ * drawn from the backs of what's one-sided), the bulb lit the earth out behind it and its plinth through where its walls stand. A closed
+ * slab where each stands, from the earth up to its walls' tops, drawn into the shadows' maps only (no colour, no depth: unseen, never in
+ * the way of the view in); the bulb's map only (`userData.sunless`: left out of the sun's, app/sceneParts' ShadowPacer: the near end has
+ * no wall to cast the sun's shadow by day)
+ */
+const STORE_SHADE_MAT = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false })
 const stopHere = (e: { stopPropagation: () => void }) => e.stopPropagation()
 export function StoreRoom({ door, room, deep, fridges }: { door: [number, number]; room: [number, number]; deep: number; fridges: [number, number][] }) {
   // (its walls' tops: their caps level with the head over the fridges (item 745): 0.3 over its doorway's height before, 10 cm under it)
@@ -369,6 +378,8 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
   // (its noren only named now, nothing to do with it (item 735, the owner's 「應該是點擊貨物而非門簾」): the goods in there open the drinks'
   // stock, pointed at themselves (ShopProps' StockHit); it lit and opened the stock, the doorway as one thing to point at (item 430))
   const hit = useMemo(() => nameOver('儲藏室', '只有倉儲員工進出｜點裡面的貨看飲料庫存'), [])
+  // (the unseen slabs' own userData, one each, kept from one redraw to the next (item 754))
+  const shade = useMemo(() => [0, 1].map(() => ({ noWorld: true, sunless: true })), [])
   return (
     <group ref={whole}>
       <EditBlock>
@@ -449,6 +460,13 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
       <group ref={noren} name="look-store" position={[-0.05, h + STORE_HEAD - 0.02, (door[0] + door[1]) / 2]}>
         {[-1, 1].map((sd) => <StoreNorenPanel key={sd} sd={sd} wide={norenW} />)}
       </group>
+      {/* (its lamp's light kept in it (item 754): unseen slabs where its open back and near end are, casting) */}
+      <mesh castShadow material={STORE_SHADE_MAT} position={[deep + 0.031, (top - BASE_DEPTH) / 2, mid]} raycast={NO_RAY} userData={shade[0]}>
+        <boxGeometry args={[0.06, top + BASE_DEPTH, len + 0.06]} />
+      </mesh>
+      <mesh castShadow material={STORE_SHADE_MAT} position={[(WALL_OUT + deep + 0.061) / 2, (top - BASE_DEPTH) / 2, z0 - 0.064]} raycast={NO_RAY} userData={shade[1]}>
+        <boxGeometry args={[deep + 0.061 - WALL_OUT, top + BASE_DEPTH, 0.06]} />
+      </mesh>
       {/* (its lamp, on a bracket from the top of its far end wall, over the stock (item 713)) */}
       <StoreLamp at={[(WALL_OUT + deep) / 2, top - 0.1, zE - 0.006]} />
       {/* the noren, named when pointed at (item 735): over its cloth only, so the goods seen under it through the doorway are pointed at
