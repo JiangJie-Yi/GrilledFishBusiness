@@ -25,7 +25,9 @@ export type Rota = { fatigue: number; shift?: Shift; streak?: number; last?: num
    * companion) his companion, the day she asked to stay (not yet answered), the day she was last turned down; the last few things that moved
    * their bond (game/affinity's bondLogged: the day, what, by how much, the gift if one) */
   giftDay?: number; giftLast?: string; gifts?: Record<string, string>; companion?: boolean; compAsk?: number; compNo?: number
-  bondLog?: BondNote[] }
+  bondLog?: BondNote[]
+  /** (items 770, 796, game/afterWork) the business day of their last hour with the owner after work, and of his last word of thanks */
+  afterDay?: number; thankDay?: number }
 /** a thing that moved someone's bond (item 696): the business day, what (praise, meal, gift, raise, cut, lodgeYes, lodgeNo, stayYes, stayNo,
  * night, day: the day's own ups and downs together), by how much, the gift if it was one */
 export type BondNote = { d: number; k: string; v: number; g?: string }

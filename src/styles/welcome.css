@@ -389,6 +389,22 @@
 .staff-pop-acts > button + button { background: #c4612a; }
 .staff-pop-acts > button:hover:not(:disabled) { filter: brightness(1.1); }
 .staff-pop-acts > button:disabled { opacity: 0.45; cursor: default; }
+/* (items 770, 796) off duty: a note, and after work's things, two a row, in the evening's indigo */
+.staff-pop-off { font-size: 12px; color: #4a5d8f; white-space: nowrap; }
+.staff-pop-after { display: grid; grid-template-columns: repeat(2, auto); gap: 6px; }
+.staff-pop-after > button {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: #3f5288;
+  color: #fff;
+  font: 700 13px/1 var(--brush);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.staff-pop-after > button:first-child { background: #1d6b34; }
+.staff-pop-after > button:hover:not(:disabled) { filter: brightness(1.12); }
+.staff-pop-after > button:disabled { opacity: 0.45; cursor: default; }
 
 .g3-label .mood-face {
   width: 22px;

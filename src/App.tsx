@@ -73,6 +73,9 @@ import { traysAt } from '@/game/service/tableware'
 import { getBgmOff } from '@/ui/kit/bgmStore'
 import { energyOver, freshMeter, meterAdd, nextDay, type Meter } from '@/game/money/utilities'
 import { pour } from '@/game/world/drain'
+import { businessDay } from '@/game/world/weather'
+import { afterActs, afterDone, nightBond, type AfterId } from '@/game/staff/afterWork'
+import { AFTER_NIGHT, AFTER_OWNER, AFTER_REPLY } from '@/data/afterLines'
 import { boughtVisits, flowOf, keepVisits, rateShop, REVIEW_PACKS, reviewsOf, visitStars, writesReview, type Visit } from '@/game/guests/reputation'
 import { ReviewPop } from '@/ui/panels/ReviewPop'
 import { refillBoxes, TISSUE, tissueOrder } from '@/game/stock/tissues'
@@ -541,6 +544,8 @@ export default function App() {
     __setBond: (id: string, v: number) => setHired((h) => Object.fromEntries(Object.entries(h).map(([shop, ws]) => [shop, ws[id] ? { ...ws, [id]: { ...ws[id], bond: v } } : ws]))),
     // (item 696: any of their rota's fields set by hand, to try what follows: __setRota(id, { compAsk: 3 }), __setRota(id, { companion: true, lives: true }))
     __setRota: (id: string, patch: Partial<Rota>) => setHired((h) => Object.fromEntries(Object.entries(h).map(([shop, ws]) => [shop, ws[id] ? { ...ws, [id]: { ...ws[id], ...patch } } : ws]))),
+    // (items 770, 796: who's hired as it stands, each one's sex, living upstairs and bond, for the probes)
+    __hired: () => Object.entries(hiredNow.current).flatMap(([shop, ws]) => Object.entries(ws).map(([id, r]) => ({ id, female: !!CANDIDATES[shop]?.find((x) => x.id === id)?.look.female, lives: !!r.lives, bond: r.bond, afterDay: r.afterDay, thankDay: r.thankDay }))),
   })
   // (each one's pace for how they feel, and the shop's air from those on today (game/affinity, item 323): for the 3D's pace
   // (shopState's STAFF_BOND, ATMOS) and the office's meter)
@@ -617,6 +622,26 @@ export default function App() {
     moodFor(w.id, 'surprised', 1600)
     sayStaff.current('owner', URGE_OWNER, SHOP.day, Math.floor(Math.random() * 3))
     window.setTimeout(() => sayStaff.current(w.id, URGE_STAFF, SHOP.day, Math.floor(Math.random() * 3)), 1100)
+  }
+  /** (items 770, 796, game/staff/afterWork) one of the staff after work: a word of thanks, or, living upstairs, an hour together (his and
+   * hers): fonder by it, what it costs booked, the owner's word and theirs over their heads, a look on their face */
+  const afterWith = (dishId: string, w: Hand, id: AfterId) => {
+    const r = hired[dishId]?.[w.id]
+    if (!r) return
+    const c = getClock(), day = businessDay(c.day, Math.floor(c.minute))
+    const a = afterActs({ female: w.look.female, lives: !!r.lives, bond: bondOf(r.bond) }, r, day).find((x) => x.act.id === id)
+    if (!a || a.why) return
+    setHired((h) => {
+      const x = h[dishId]?.[w.id]
+      if (!x) return h
+      const bond = Math.max(0, Math.min(100, bondOf(x.bond) + a.act.bond))
+      return { ...h, [dishId]: { ...h[dishId], [w.id]: { ...x, ...afterDone(x, id, day), bond, bondLog: bondLogged(x.bondLog, { d: day, k: id, v: bond - bondOf(x.bond) }) } } }
+    })
+    if (a.act.cost) book('food', a.act.cost, 'after')
+    const k = Math.floor(Math.random() * 3)
+    sayStaff.current('owner', AFTER_OWNER[id], day, k)
+    window.setTimeout(() => sayStaff.current(w.id, AFTER_REPLY[id], day, k), 1200)
+    moodFor(w.id, id === 'tea' || id === 'hometown' ? 'shy' : 'happy', 4500)
   }
   // (one of the staff clicked in the room (StaffFigure's jgs-staff): the owner's ways with them by the pointer (ui/StaffPop))
   const [staffPop, setStaffPop] = useState<StaffPopAt | null>(null)
@@ -2376,7 +2401,7 @@ export default function App() {
               `The shop put to bed, the boss doesn't lay out his own futon tonight; he slips upstairs. ${personName(w, lang)} is still awake.`)), 0)
           }
           // (and living upstairs (game/lodging, item 361): one who wants to and is fond enough asks; one fallen out with him moves out)
-          const asks: Hand[] = [], leaves: Hand[] = [], stays: Hand[] = [], ends: Hand[] = []
+          const asks: Hand[] = [], leaves: Hand[] = [], stays: Hand[] = [], ends: Hand[] = [], nights: { w: Hand; id: AfterId }[] = []
           setHired((h) => {
             // (item 696: one asking to stay at a time; none while he has a companion)
             let taken = Object.values(h).some((ws) => Object.values(ws).some((r) => r.companion || (r.compAsk ?? -1) >= 0))
@@ -2388,6 +2413,12 @@ export default function App() {
               next = { ...next, bondLog: bondLogged(next.bondLog, { d: day, k: 'day', v: bondOf(next.bond) - bondOf(r.bond) }) }
               if (id === her) next = { ...next, bond: afterTogether(next.bond ?? 0), bondLog: bondLogged(next.bondLog, { d: day, k: 'night', v: TOGETHER_BOND }) }
               const w = CANDIDATES[shop]?.find((x) => x.id === id)
+              // (items 770: one living upstairs, not hers tonight, comes to him of their own accord some nights (game/afterWork's nightBond))
+              const nb = w && id !== her && next.lives ? nightBond({ id, female: w.look.female, lives: true, bond: bondOf(next.bond) }, day, next) : null
+              if (w && nb) {
+                next = { ...next, afterDay: day, bond: Math.min(100, bondOf(next.bond) + nb.bond), bondLog: bondLogged(next.bondLog, { d: day, k: nb.act.id, v: nb.bond }) }
+                if (!nights.some((q) => q.w === w)) nights.push({ w, id: nb.act.id })
+              }
               if (w && movesOut(next)) { next = { ...next, lives: false }; if (!leaves.includes(w)) leaves.push(w) }
               else if (w && asksToday(id, next, day + 1)) { next = { ...next, lodgeAsk: day + 1 }; if (!asks.includes(w)) asks.push(w) }
               // (item 696: his companion fallen out of fondness, or moved out, his companion no longer; one this fond asks to stay)
@@ -2416,6 +2447,11 @@ export default function App() {
               `${personName(w, lang)}: "Maybe we should... just be colleagues." (Her bond fell; she no longer keeps you company)`))
             for (const w of leaves) talk('staff', tl(lang, `${personName(w, lang)}搬出了二樓：「我還是自己住好了。」`, `${personName(w, lang)}が二階を出た。「やっぱり自分で部屋を借ります。」`,
               `${personName(w, lang)} moved out from upstairs: "I'd rather find my own place."`))
+            // (items 770: the nights one of them came to him of their own accord)
+            for (const { w, id } of nights) {
+              const pool = AFTER_NIGHT[id]
+              if (pool) talk('staff', `${lineOf(pool[lang], 0, day).replaceAll('{n}', personName(w, lang))}${tl(lang, '（好感上升）', '（好感度アップ）', ' (fonder)')}`)
+            }
           }, 0)
           setPairs((p) => dayPairs(p, crew))
           for (const { w } of quits) talk('staff', tl(lang, `${personName(w, lang)}遞了辭呈：「老闆，我做到今天就好……」（好感度連續 ${QUIT_AFTER} 天低於 ${LOW_BOND}）`,
@@ -3282,13 +3318,24 @@ export default function App() {
         const w = staffPop ? staffOf(dish.id).find((x) => x.id === staffPop.id) : undefined
         const r = w ? hired[dish.id]?.[w.id] : undefined
         const h = w ? hoursToday(w.id) : 0, done = r?.praised === dutyDay(ai), ok = !!w && !!r && canPraise(h, done)
+        // (off duty (out of the door, up the stair, or not on today): after work's things instead (items 770, 796))
+        const off = !!w && (!ON_DUTY.in.has(w.id) || ON_DUTY.out.has(w.id))
+        const ck = getClock(), aday = businessDay(ck.day, Math.floor(ck.minute)), li = lang === 'ja' ? 1 : lang === 'en' ? 2 : 0
+        const after = off && w && r ? afterActs({ female: w.look.female, lives: !!r.lives, bond: bondOf(r.bond) }, r, aday).map(({ act, why }) => ({
+          id: act.id, label: act.label[li],
+          hint: tl(lang, `${act.hint[0]}（好感 +${act.bond}${act.cost ? `，NT$${act.cost}` : ''}）`, `${act.hint[1]}（好感度 +${act.bond}${act.cost ? `、NT$${act.cost}` : ''}）`,
+            `${act.hint[2]} (bond +${act.bond}${act.cost ? `, NT$${act.cost}` : ''})`),
+          why: why === 'done' ? (act.dorm ? tl(lang, '今晚已經一起度過了', '今夜はもう一緒に過ごした', 'Already spent the evening together') : tl(lang, '今天已經說過了', '今日はもう声をかけた', 'Already thanked today'))
+            : why === 'bond' ? tl(lang, `再熟一點才行（好感 ${act.minBond} 以上）`, `もう少し打ち解けてから（好感度 ${act.minBond} 以上）`, `Once closer (bond ${act.minBond} or more)`) : null })) : null
         return (
           <StaffPop lang={lang} at={w ? staffPop : null} name={w ? (SPEAKERS.get(w.id) ?? personName(w, lang)) : ''} praiseOk={ok}
             praiseWhy={done ? tl(lang, '今天已經稱讚過了', '今日はもう褒めた', 'Already praised today')
               : ok ? tl(lang, `上了 ${h.toFixed(1)} 小時的班：稱讚（好感 +3）`, `${h.toFixed(1)} 時間勤務：褒める（好感度 +3）`, `On ${h.toFixed(1)} h: praise (bond +3)`)
                 : tl(lang, `上班滿 ${PRAISE_AFTER_H} 小時後才能稱讚`, `${PRAISE_AFTER_H} 時間働いてから褒められる`, `Praise after ${PRAISE_AFTER_H} hours on`)}
             urgeWait={w ? urgeWait(URGED.get(w.id), performance.now()) : 0}
-            onPraise={() => { if (w) praise(dish.id, w); setStaffPop(null) }} onUrge={() => { if (w) urge(dish.id, w); setStaffPop(null) }} onClose={closeStaffPop} />
+            after={after}
+            onPraise={() => { if (w) praise(dish.id, w); setStaffPop(null) }} onUrge={() => { if (w) urge(dish.id, w); setStaffPop(null) }}
+            onAfter={(id) => { if (w) afterWith(dish.id, w, id as AfterId); setStaffPop(null) }} onClose={closeStaffPop} />
         )
       })()}
       <TillPanel lang={lang} open={tillOpen} cash={cash} read={tillDrawer} locked={tillLocked} onTake={tillTake} onTakings={tillTakings} onAll={tillAll}

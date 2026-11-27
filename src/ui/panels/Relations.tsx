@@ -33,6 +33,10 @@ const NOTE_WORDS: Record<string, [string, string, string]> = {
   lodgeNo: ['住宿沒答應', '住み込みを断られた', 'Lodging turned down'], stayYes: ['答應她住下來', '住むのを承諾', 'Said yes to staying'],
   stayNo: ['沒答應她住下來', '申し出を断った', 'Said no to staying'], stayEnd: ['說好只當同事', '同僚に戻った', 'Back to colleagues'],
   night: ['跟老闆共度', '店主と過ごした', 'A night together'], day: ['一天下來', '一日を終えて', 'The day itself'],
+  // (items 770, 796: after work)
+  thanks: ['道聲辛苦了', 'お疲れさま', 'Thanked'], beer: ['一起喝一杯', '一杯やった', 'A beer together'], shogi: ['下了一盤將棋', '将棋を指した', 'Played shogi'],
+  radio: ['一起聽棒球', '野球中継を聴いた', 'The ball game'], tea: ['一起喝茶', 'お茶を飲んだ', 'Tea together'], latebite: ['請吃宵夜', '夜食をご馳走', 'A late bite'],
+  hometown: ['聊了家鄉', '故郷の話', 'Talked of home'],
 }
 const TASTE_WORDS: Record<Taste, [string, string, string]> = {
   love: ['很喜歡', '大好き', 'Loves it'], like: ['喜歡', '好き', 'Likes it'], meh: ['普通', 'ふつう', 'So-so'], dislike: ['不喜歡', '苦手', 'Not keen'],
