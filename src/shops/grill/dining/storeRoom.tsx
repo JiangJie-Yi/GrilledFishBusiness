@@ -130,13 +130,42 @@ const HIT_MAT = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, dep
 const LAMP_INSIDE = new THREE.MeshBasicMaterial({ color: '#fff3dc', toneMapped: false, side: THREE.BackSide })
 const BULB_GLASS_MAT = new THREE.MeshBasicMaterial({ color: '#f4f1ea', transparent: true, opacity: 0.2, depthWrite: false, toneMapped: false })
 const BULB_FIL_MAT = new THREE.MeshBasicMaterial({ color: '#2c2420', toneMapped: false })
-const LAMP_GLOW = new THREE.SpriteMaterial({ map: GLOW, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, color: '#ffd9a0', opacity: 0 })
+/**
+ * The glow at its mouth (item 761, the owner's 「且光的方向要真實」: a round glow all about the bulb lit the wall over the shade too, which
+ * a shade keeps dark): under the shade's rim only, brightest at the mouth and fading down and out, nothing over it (a sprite's up is the
+ * screen's: the shade seen from the side or from a little over it, its glow under it)
+ */
+const MOUTH_GLOW = (() => {
+  if (typeof document === 'undefined') return null
+  const N = 128, c = document.createElement('canvas')
+  c.width = c.height = N
+  const g = c.getContext('2d')!
+  const img = g.createImageData(N, N)
+  // (its middle the mouth, a little up the picture: the light falls from there)
+  const cx = N / 2, cy = N * 0.38
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const dx = (x - cx) / (N * 0.5), dy = (y - cy) / (N * 0.62)
+    const r = Math.hypot(dx * 1.15, dy)
+    // (over the mouth's line, cut off within a few pixels: the shade's own)
+    const below = Math.min(1, Math.max(0, (y - cy + 3) / 9))
+    const a = Math.max(0, 1 - r) ** 2.2 * below
+    const i = (y * N + x) * 4
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = 255; img.data[i + 3] = Math.round(a * 255)
+  }
+  g.putImageData(img, 0, 0)
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace
+  return t
+})()
+const LAMP_GLOW = new THREE.SpriteMaterial({ map: MOUTH_GLOW ?? GLOW, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, color: '#ffd9a0', opacity: 0 })
 const C_INSIDE_ON = new THREE.Color('#fff3dc'), C_INSIDE_OFF = new THREE.Color()
 const C_GLASS_OFF = new THREE.Color('#f4f1ea'), C_GLASS_ON = new THREE.Color('#ffe0a4')
 const C_FIL_OFF = new THREE.Color('#2c2420'), C_FIL_HOT = new THREE.Color('#ff7428'), C_FIL_ON = new THREE.Color('#fff2cc')
 /** the bulb's light: its strength (candela) at full, how far it reaches (this frame's units: the floor 1.66 under it, the cone's far edge on
  * the floor 2.74 off), its cone's half angle (the shade's mouth: 0.104 out, 0.082 down) */
 const BULB_CD = 30, BULB_REACH = 2.8, BULB_CONE = 0.92
+/** how much of its cone's edge fades out (item 761, the owner's 「可以的話，再揉一些」: 0.18, a hard rim to its pool) */
+const BULB_SOFT = 0.6
 /** the pull: how far down it's drawn and how long that takes, how long it's held there, how long it springs back; the bead's swing after */
 const PULL_D = 0.028, PULL_DOWN = 0.09, PULL_HOLD = 0.04, PULL_BACK = 0.34, SWING = 0.24, SWING_T = 0.85, SWING_DIE = 2.2
 const easeOutBack = (t: number) => { const c = 1.9; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2 }
@@ -240,7 +269,8 @@ function StoreLamp({ at }: { at: [number, number, number] }) {
         <mesh geometry={BULB_LEADS} material={LAMP_IRON} raycast={NO_RAY} />
         <mesh geometry={BULB_FILAMENT} material={BULB_FIL_MAT} raycast={NO_RAY} />
         <mesh geometry={BULB_GLASS} material={BULB_GLASS_MAT} position-y={BULB_AT} raycast={NO_RAY} />
-        <sprite ref={glow} scale={0.55} position-y={BULB_AT} material={LAMP_GLOW} raycast={NO_RAY} />
+        {/* (its centre (the picture's mouth, 38% down it) at the shade's mouth, a little under the bulb) */}
+        <sprite ref={glow} scale={0.5} position-y={BULB_AT - 0.012 - 0.5 * (0.5 - 0.38)} material={LAMP_GLOW} raycast={NO_RAY} />
         {/* its pull cord: the slant out past the bulb, then what hangs from there, swinging there (its bead and the box that's clicked) */}
         <mesh geometry={PULL_TOP} material={LAMP_COTTON} raycast={NO_RAY} />
         <group ref={swing} position={CORD_BEND.toArray()}>
@@ -251,7 +281,7 @@ function StoreLamp({ at }: { at: [number, number, number] }) {
             onPointerOut={(e: ThreeEvent<PointerEvent>) => { hover.current = false; handOver.onPointerOut(e as never); setTip(null) }} />
         </group>
         {/* its light: down through the shade's mouth from the filament, its shadows hard (a tungsten filament's as good as a point) */}
-        <spotLight ref={light} position-y={BULB_AT + 0.004} angle={BULB_CONE} penumbra={0.18} decay={2} color="#ffc98e" intensity={lightOn(getLights(), 'store') ? BULB_CD : 0}
+        <spotLight ref={light} position-y={BULB_AT + 0.004} angle={BULB_CONE} penumbra={BULB_SOFT} decay={2} color="#ffc98e" intensity={lightOn(getLights(), 'store') ? BULB_CD : 0}
           castShadow={QUALITY.shadows} shadow-mapSize-width={1024} shadow-mapSize-height={1024} shadow-radius={1} shadow-bias={0.0003} shadow-normalBias={0.05} />
         <object3D ref={aim} position-y={-1} />
       </group>
@@ -320,6 +350,8 @@ const STORE_BLOCK_MAT = new THREE.MeshBasicMaterial({ visible: false, side: THRE
  * no wall to cast the sun's shadow by day)
  */
 const STORE_SHADE_MAT = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false })
+/** where its far end wall begins, out from the shop's wall's face (item 762): just behind the fridges' backs */
+const END_IN = -FRIDGE_GAP + 0.006
 const stopHere = (e: { stopPropagation: () => void }) => e.stopPropagation()
 export function StoreRoom({ door, room, deep, fridges }: { door: [number, number]; room: [number, number]; deep: number; fridges: [number, number][] }) {
   // (its walls' tops: their caps level with the head over the fridges (item 745): 0.3 over its doorway's height before, 10 cm under it)
@@ -356,7 +388,7 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
   // (its far end the men's toilet's room's end wall (its outside, 4 mm on), as deep as that room; past it a short wall of its own on to the
   // back)
   const zE = z1 + 0.004
-  const mid = (z0 + zE) / 2, len = zE - z0, dx = deep - WALL_OUT
+  const mid = (z0 + zE) / 2, len = zE - z0
   // (the doorway's whole stretch (item 467), its frame's posts against the wall's end and the fridge's side: the noren, its rod and their
   // brackets within the posts' outer sides (they reached 1 to 2 cm past them, into the fridge now it's beside), the head 2 mm in from them
   // (its ends not in one plane with the posts' sides))
@@ -375,6 +407,21 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
     if (!g) return
     g.children.forEach((p, i) => { p.rotation.z = st.push * (0.62 - i * 0.08) })
   })
+  // (the small wall over the doorway and the fridges (item 762): its outline across them, the doorway's stretch from over its lintel, the
+  // fridges' from the doorway's height (their lintel gone), up to the head; through the wall's thickness, 4 mm in from either face)
+  const smallWall = useMemo(() => {
+    if (!frame) return null
+    const za = door[0] - STORE_POST + 0.004, zb = door[1] + STORE_POST, zc = frame.z1 - 0.004
+    const ya = h + STORE_HEAD - 0.001, yb = h - 0.001, yt = frame.headY + 0.001
+    const x0 = Math.max(0.004, -FRIDGE_GAP + 0.002), x1 = WALL_OUT - 0.004
+    const sh = new THREE.Shape([new THREE.Vector2(za, ya), new THREE.Vector2(zb, ya), new THREE.Vector2(zb, yb), new THREE.Vector2(zc, yb),
+      new THREE.Vector2(zc, yt), new THREE.Vector2(za, yt)])
+    // (drawn in its z-y plane, carried through the wall along its x: turned a quarter so the shape's x is the room's z, its depth the room's x)
+    const g = new THREE.ExtrudeGeometry(sh, { depth: x1 - x0, bevelEnabled: false })
+    g.rotateY(-Math.PI / 2).translate(x1, 0, 0)
+    return g
+  }, [frame, door, h])
+  useEffect(() => () => smallWall?.dispose(), [smallWall])
   // (its noren only named now, nothing to do with it (item 735, the owner's 「應該是點擊貨物而非門簾」): the goods in there open the drinks'
   // stock, pointed at themselves (ShopProps' StockHit); it lit and opened the stock, the doorway as one thing to point at (item 430))
   const hit = useMemo(() => nameOver('儲藏室', '只有倉儲員工進出｜點裡面的貨看飲料庫存'), [])
@@ -398,22 +445,23 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
         {/* inside: its back wall; its far end in front of the men's room's end wall (6 mm off it) */}
         {/* (its back cut open as the toilets' rooms' are, seen through from outside (item 482, the owner's 「這邊要通透」: a solid back made it a
             blank grey box from behind the shop, the stocker and the stock out of sight): one face, turned in, nothing behind it) */}
-        <WcWall len={len} at={[deep, 0, mid]} yaw={-Math.PI / 2} top={top} cut />
+        <WcWall len={len} at={[deep, 0, mid]} yaw={-Math.PI / 2} top={top} cut soft />
         {/* (its near end, by the wall's start, taken away (item 488, the owner's 「這面牆拿掉」: past the side wall's end it stood alone, a panel
             of cedar and plaster beside the doorway, from the room and from outside); the far end, in front of the men's room's end wall) */}
         {/* (6 mm in front of that wall's plaster, 4 mm clear of its corner post's face (item 503, the owner's 「紅圈處理」: 2 mm off it stood
             in one plane with the men's room's dark corner post, itself 2 mm proud of that plaster (item 425), and the post showed through the
             stock room's plaster as a dark strip up its far corner)) */}
-        <WcWall len={dx} at={[(WALL_OUT + deep) / 2, 0, zE - 0.006]} yaw={Math.PI} top={top} />
+        {/* (and from the fridges' backs, through the shop's wall's thickness (item 762, the owner's 「這邊要補齊」: it began at the wall's outer
+            face, and with that wall hidden (seen from outside) a slot 20 cm wide stood open between it and the fridges, the men's room seen
+            through it, a dark strip from the floor up); 1.6 cm clear of the last fridge's side) */}
+        <WcWall len={deep - END_IN} at={[(END_IN + deep) / 2, 0, zE - 0.006]} yaw={Math.PI} top={top} soft />
         {/* outside: the short end's body past the men's room (its back open, item 482) */}
         {/* (casting: with the men's room's end, the bulb's light stopped at the far end, item 730) */}
         <WcMass x={[WC_ROOM.D + WC_T + 0.002, deep]} y={[0, top]} z={[zE, zE + WC_T]} cast />
         {/* (no slatted ceiling on its caps (item 498, the owner's 「倉庫不用這個」): it's open over, the stock seen from above) */}
-        {/* (a dark post at its far back corner, the open back's edge; the near one went with the near end) */}
-        {[zE + WC_T].map((z) => (
-          // (4 mm proud of the end walls' backs: not in one plane with them)
-          <mesh key={z} position={[deep - WC_T / 2 + 0.004, top / 2, z - 0.015]}><boxGeometry args={[WC_T, top, 0.034]} /><meshToonMaterial color="#2e1c10" /></mesh>
-        ))}
+        {/* (no dark post at its far back corner (item 760, the owner's 「注意這條線」, a shot from over the back: beside the men's room's own
+            corner post, a second dark line from the top to the floor with a sliver of the end's outside between them): the end's body's own
+            corner there, cream over its cedar; the near one went with the near end (item 488)) */}
         {/* the doorway's frame: the head over the doorway out to the wall's end, the wall over it carrying it. Its posts taken away (item 709,
             the owner's 「紅圈與紅框部份的柱子拿掉」: the one against the fridge's side, up to the fridges' head, and its sill across the foot,
             the one at the wall's end before it (item 503)); and the fridges' openings' posts (item 535), the one past the last fridge by the
@@ -431,11 +479,8 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
             go 2.5 cm up behind it) */}
         {/* (its shop's face behind the fridges' back doors since they stand back in the opening (item 746: their backs 6 mm behind the
             wall's face, the outer door 2 cm proud of the back, the hatches' tops 2.5 cm up behind the lintel): a centimetre clear of them) */}
-        {frame && (
-          <mesh position={[(-FRIDGE_GAP + 0.03 + WALL_OUT + 0.004) / 2, h + STORE_HEAD / 2, (door[1] + STORE_POST - 0.002 + frame.z1 - 0.002) / 2]}>
-            <boxGeometry args={[WALL_OUT + 0.004 + FRIDGE_GAP - 0.03, STORE_HEAD, frame.z1 - door[1] - STORE_POST]} /><meshToonMaterial color="#35200f" />
-          </mesh>
-        )}
+        {/* (taken away (item 762, the owner's 「梁柱那要拿掉」: from the stock room a black beam across the fridges' backs): the small wall's
+            plaster down to its foot over them instead (below)) */}
         {/* the fridges' openings' head (item 535) */}
         {frame && (
           <mesh position={[(WALL_OUT + 0.004 + 0.002) / 2, (frame.headY + frame.headTop) / 2, (frame.z0 + frame.z1) / 2]}>
@@ -451,11 +496,9 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
             the head and the post) */}
         {/* (its shop's face 2 mm behind the fridges' backs (item 746: 4 mm in from the wall's face before, the fridges standing out in front
             of it)) */}
-        {frame && (
-          <mesh position={[(Math.max(0.004, -FRIDGE_GAP + 0.002) + WALL_OUT - 0.004) / 2, (h + STORE_HEAD + frame.headY) / 2, (door[0] - STORE_POST + 0.004 + frame.z1 - 0.004) / 2]}>
-            <boxGeometry args={[WALL_OUT - 0.004 - Math.max(0.004, -FRIDGE_GAP + 0.002), frame.headY - h - STORE_HEAD + 0.002, frame.z1 - 0.004 - (door[0] - STORE_POST + 0.004)]} /><meshToonMaterial color="#ece0c6" />
-          </mesh>
-        )}
+        {/* (and over the fridges from the doorway's height (item 762: the lintel that was across their backs there taken away): one shape,
+            an L, so no faces back to back where the two heights meet (item 753)) */}
+        {smallWall && <mesh geometry={smallWall}><meshToonMaterial color="#ece0c6" /></mesh>}
         {/* (the strip between two fridges side by side (item 554), 3 mm proud of their backs toward the stock room, 4.5 cm into the gap) */}
         {frame?.fillers.map(([a, b]) => (
           <mesh key={`ff${a}`} position={[-FRIDGE_GAP + 0.003 - 0.024, FRIDGE.H / 2, (a + b) / 2]}><boxGeometry args={[0.048, FRIDGE.H, b - a]} /><meshToonMaterial color="#1d1e21" /></mesh>

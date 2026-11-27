@@ -546,10 +546,23 @@ function WcDark({ who, rooms, lit: vols }: { who: 'm' | 'f'; rooms: [number, num
  * 754: added alone, #3a2a16, it was a yellow fog over the rooms), and a little added over all of it (the display's values) */
 const WC_ROOM_GAIN = new THREE.Color().setRGB(0.6, 0.5, 0.2, THREE.SRGBColorSpace)
 const WC_ROOM_FILL = new THREE.Color().setRGB(0.04, 0.028, 0.016, THREE.SRGBColorSpace)
+/**
+ * A toon ramp that eases from the shadowed side's 0.7 to the lit side's full over a wide turn, not three's default one step at a turn of 66
+ * degrees (item 761, the owner's 「可以的話，再揉一些」: the stock room's bulb hangs a hand from its end wall, and that step drew a hard arch of
+ * light on the plaster and the cedar under it): for walls a lamp hangs by
+ */
+export const SOFT_RAMP = (() => {
+  const t = new THREE.DataTexture(new Uint8Array([178, 178, 184, 204, 235, 255]), 6, 1, THREE.RedFormat)
+  t.minFilter = THREE.LinearFilter
+  t.magFilter = THREE.LinearFilter
+  t.needsUpdate = true
+  return t
+})()
 /** a wall of the toilet's rooms, facing into them: charred cedar to the waist with a rail along it, cream plaster over; `len` along it, its
  * middle at `at`, turned `yaw` (unturned, it faces +z); the cedar's boards their own width whatever its length. `cut`: the wall that's cut
- * away for the view from outside (seen from behind, its faces aren't drawn), its rail a strip on its face, not a bar left floating */
-export function WcWall({ len, at, yaw, top, cut = false }: { len: number; at: [number, number, number]; yaw: number; top: number; cut?: boolean }) {
+ * away for the view from outside (seen from behind, its faces aren't drawn), its rail a strip on its face, not a bar left floating. `soft`:
+ * its light eased (SOFT_RAMP), for a lamp hung by it (the stock room's) */
+export function WcWall({ len, at, yaw, top, cut = false, soft = false }: { len: number; at: [number, number, number]; yaw: number; top: number; cut?: boolean; soft?: boolean }) {
   const geo = useMemo(() => {
     const lower = new THREE.PlaneGeometry(len, 0.9)
     const uv = lower.attributes.uv as THREE.BufferAttribute
@@ -561,9 +574,9 @@ export function WcWall({ len, at, yaw, top, cut = false }: { len: number; at: [n
   return (
     <group position={at} rotation-y={yaw}>
       {/* (lifted a touch by its own grain: from above, in the corners behind the toilet, the charred cedar went a dead black) */}
-      <mesh geometry={geo.lower} position-y={0.45}><meshToonMaterial color="#ffffff" map={WC_CEDAR} emissive="#ffffff" emissiveMap={WC_CEDAR} emissiveIntensity={0.22} /></mesh>
-      <mesh geometry={geo.upper} position-y={0.9 + (top - 0.9) / 2}><meshToonMaterial color="#ffffff" vertexColors /></mesh>
-      <mesh geometry={geo.rail} position={[0, 0.9, cut ? 0.003 : 0.012]}><meshToonMaterial color="#6a4428" /></mesh>
+      <mesh geometry={geo.lower} position-y={0.45}><meshToonMaterial color="#ffffff" map={WC_CEDAR} emissive="#ffffff" emissiveMap={WC_CEDAR} emissiveIntensity={0.22} gradientMap={soft ? SOFT_RAMP : null} /></mesh>
+      <mesh geometry={geo.upper} position-y={0.9 + (top - 0.9) / 2}><meshToonMaterial color="#ffffff" vertexColors gradientMap={soft ? SOFT_RAMP : null} /></mesh>
+      <mesh geometry={geo.rail} position={[0, 0.9, cut ? 0.003 : 0.012]}><meshToonMaterial color="#6a4428" gradientMap={soft ? SOFT_RAMP : null} /></mesh>
     </group>
   )
 }
