@@ -378,8 +378,17 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
   // (its noren only named now, nothing to do with it (item 735, the owner's 「應該是點擊貨物而非門簾」): the goods in there open the drinks'
   // stock, pointed at themselves (ShopProps' StockHit); it lit and opened the stock, the doorway as one thing to point at (item 430))
   const hit = useMemo(() => nameOver('儲藏室', '只有倉儲員工進出｜點裡面的貨看飲料庫存'), [])
-  // (the unseen slabs' own userData, one each, kept from one redraw to the next (item 754))
-  const shade = useMemo(() => [0, 1].map(() => ({ noWorld: true, sunless: true })), [])
+  // (the unseen slabs (item 754), the back's and the near end's, one mesh: one draw in the view (nothing written there) and one in the bulb's
+  // shadow map; its userData kept from one redraw to the next)
+  const shadeGeo = useMemo(() => {
+    const back = new THREE.BoxGeometry(0.06, top + BASE_DEPTH, len + 0.06).translate(deep + 0.031, (top - BASE_DEPTH) / 2, mid)
+    const end = new THREE.BoxGeometry(deep + 0.061 - WALL_OUT, top + BASE_DEPTH, 0.06).translate((WALL_OUT + deep + 0.061) / 2, (top - BASE_DEPTH) / 2, z0 - 0.064)
+    const g = mergeGeometries([back, end])
+    back.dispose(); end.dispose()
+    return g
+  }, [top, len, deep, mid, z0])
+  useEffect(() => () => shadeGeo.dispose(), [shadeGeo])
+  const shadeData = useMemo(() => ({ noWorld: true, sunless: true }), [])
   return (
     <group ref={whole}>
       <EditBlock>
@@ -461,12 +470,7 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
         {[-1, 1].map((sd) => <StoreNorenPanel key={sd} sd={sd} wide={norenW} />)}
       </group>
       {/* (its lamp's light kept in it (item 754): unseen slabs where its open back and near end are, casting) */}
-      <mesh castShadow material={STORE_SHADE_MAT} position={[deep + 0.031, (top - BASE_DEPTH) / 2, mid]} raycast={NO_RAY} userData={shade[0]}>
-        <boxGeometry args={[0.06, top + BASE_DEPTH, len + 0.06]} />
-      </mesh>
-      <mesh castShadow material={STORE_SHADE_MAT} position={[(WALL_OUT + deep + 0.061) / 2, (top - BASE_DEPTH) / 2, z0 - 0.064]} raycast={NO_RAY} userData={shade[1]}>
-        <boxGeometry args={[deep + 0.061 - WALL_OUT, top + BASE_DEPTH, 0.06]} />
-      </mesh>
+      <mesh castShadow geometry={shadeGeo} material={STORE_SHADE_MAT} raycast={NO_RAY} userData={shadeData} />
       {/* (its lamp, on a bracket from the top of its far end wall, over the stock (item 713)) */}
       <StoreLamp at={[(WALL_OUT + deep) / 2, top - 0.1, zE - 0.006]} />
       {/* the noren, named when pointed at (item 735): over its cloth only, so the goods seen under it through the doorway are pointed at
