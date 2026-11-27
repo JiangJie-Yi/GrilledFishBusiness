@@ -20,7 +20,7 @@ import { KamiCopy } from './dining/shrine'
 import { Pendant } from './dining/pendant'
 import { ALTAR_SCALE, ALTAR_D, ALTAR_Y, AltarTable, Altar } from './dining/altar'
 import { SakeStack, WillowModel, LAMP_DROP } from './dining/props'
-import { MilkCrate, DrinkCartons, SakeHit, CrateBoxes, CrateBottles } from './dining/crates'
+import { MilkCrate, DrinkCartons, SakeHit, CrateBoxes, CrateBottles, StockHit } from './dining/crates'
 import { WallSpeaker } from './dining/speaker'
 import { ExitSign } from './dining/exitSign'
 import { GENKAN_SWITCH, SWITCH_STEP, WC_POST_FACE, LightSwitch, DoubleSwitch } from './dining/switches'
@@ -371,6 +371,8 @@ function ShopPropsImpl({ counters }: { counters: Counter[] }) {
   const milkAt = useMemo(() => (st ? [st.at(st.room[1] - 1.919, STORE.deep - 0.16), st.at(st.room[1] - 1.529, STORE.deep - 0.16)] : null), [st])
   // (the cartons' stack 0.44 deep: its back a centimetre off the back wall, not in its face)
   const cartonAt = useMemo(() => (fr && st ? st.at(st.room[1] - 0.894, STORE.deep - 0.23) : new THREE.Vector3()), [fr, st])
+  // (the goods as drawn, for StockHit to try the pointer against: the crates' piece's own group)
+  const stockGoods = useMemo(() => () => cratesRef.current, [])
   return (
     // (each piece is its own batch inside its own Movable, so each can be moved by hand when the shop's shut: key G)
     // (not keyed by the language any more: that was for a mat with words on it, long gone, and each switch built all four again, their
@@ -426,7 +428,9 @@ function ShopPropsImpl({ counters }: { counters: Counter[] }) {
         <group name="look-crates" position={cartonAt} rotation-y={Math.atan2(counters[1].lay.x, counters[1].lay.z) + 0.02}><DrinkCartons /></group>
 
       </group>
-        {/* (the back stock's pointed at by the stock room's doorway now: what's running low, a click opens the drinks' stock) */}
+        {/* (the back stock pointed at itself (item 735, the owner's 「應該是點擊貨物而非門簾」; it was the stock room's doorway, item 430):
+            the goods light up and say what's running low, a click opens the drinks' stock) */}
+        <StockHit goods={stockGoods} />
       </Movable>}
     </>
   )

@@ -11,7 +11,7 @@ import { SIGN_FONT } from '@/scene/props/signFont'
 import { CASE_SIZE } from '@/game/stock/drinkStock'
 import { CARTON_CASES, cartonStack } from '@/game/stock/cartonStack'
 import { cartonMaterials } from '@/shops/grill/stock/drinkCartons'
-import { askPantry, SUPPLIES, DRINK_BACK, DRINKS, FRIDGE_UNITS, handOver } from '@/shops/grill/bar'
+import { askPantry, SUPPLIES, DRINK_BACK, DRINKS, FRIDGE_UNITS, handOver, setDrinkPanel } from '@/shops/grill/bar'
 import { getEdit } from '@/shops/grill/edit'
 import { setTip } from '@/scene/interact/hoverTip'
 import { drawGlyph } from '@/ui/art/glyphs'
@@ -220,6 +220,35 @@ export function SakeHit({ lit }: { lit: () => THREE.Object3D | null }) {
 }
 /** the stack's size (in the frame it's turned in): the box pointed at over it */
 const SAKE_HIT: [number, number, number] = [0.9, 0.98, 0.76]
+/**
+ * The stock room's goods to point at (item 735, the owner's 「應該是點擊貨物而非門簾」: the noren in its doorway lit up and opened the drinks'
+ * stock; the crates and cartons in there do now): tried against the goods as drawn (`goods`: the beer crates, their bottles, the cartons
+ * and the milk crates), so it's taken only where they are, seen under the noren through the doorway or from over the room's open top;
+ * pointed at, they light up together and say what's lowest in the back; a click opens the drinks' stock. (The wall in front of them stops
+ * the pointer on the shop's side: StoreRoom's sheets.) Unseen itself, not drawn.
+ */
+export function StockHit({ goods }: { goods: () => THREE.Object3D | null }) {
+  const hint = () => `後場最少：${lowestBack().slice(0, 3).map((id) => `${drinkLabel(id)} ${DRINK_BACK.back[id] ?? 0}`).join('、')}｜點一下打開飲料庫存`
+  const raycast = useMemo(() => {
+    const found: THREE.Intersection[] = []
+    return function (this: THREE.Mesh, ray: THREE.Raycaster, hits: THREE.Intersection[]) {
+      const drawn = goods()
+      if (!drawn) return
+      found.length = 0
+      ray.intersectObject(drawn, true, found)
+      if (found.length) hits.push({ ...found[0], object: this })
+    }
+  }, [goods])
+  return (
+    <mesh raycast={raycast}
+      onClick={(e) => { e.stopPropagation(); if (getEdit().on) return; setDrinkPanel(true) }}
+      onPointerOver={(e) => { if (getEdit().on) return; handOver.onPointerOver({ ...e, eventObject: goods() ?? e.eventObject }); setTip({ title: '後場的飲料', hint: hint() }) }}
+      onPointerOut={(e) => { handOver.onPointerOut({ ...e, eventObject: goods() ?? e.eventObject }); setTip(null) }}>
+      <boxGeometry args={[0.01, 0.01, 0.01]} />
+      <meshBasicMaterial visible={false} />
+    </mesh>
+  )
+}
 /**
  * The beer bottles standing in the crates' cells: only their tops show over the crates' walls, so only the tops are made (the owner's: each
  * was a whole bottle, 12 round): the shoulder, the neck and its lip in brown glass, 8 round, open below where the cells hide it; the foil

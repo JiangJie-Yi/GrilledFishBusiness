@@ -3,13 +3,12 @@ import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import { StaticBatch } from '@/scene/render/StaticBatch'
 import { SIGN_FONT } from '@/scene/props/signFont'
-import { STORE, STORE_STATE, WALL_OUT, FRIDGE_GAP, DRINK_BACK, setDrinkPanel, FRIDGE, handOver, WC_ROOM } from '@/shops/grill/bar'
+import { STORE, STORE_STATE, WALL_OUT, FRIDGE_GAP, FRIDGE, handOver, nameOver, WC_ROOM } from '@/shops/grill/bar'
 import { EditBlock } from '@/shops/grill/editor/Movable'
 import { getEdit } from '@/shops/grill/edit'
 import { setTip } from '@/scene/interact/hoverTip'
-import { canvasTex } from './base'
+import { canvasTex, WALL_H } from './base'
 import { WcWall, WC_T, WcMass } from './wc'
-import { drinkLabel, lowestBack } from './crates'
 import { NO_RAY } from '@/scene/interact/pickable'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { unlitShade, lightOn } from '@/game/world/roomLights'
@@ -259,6 +258,60 @@ function StoreLamp({ at }: { at: [number, number, number] }) {
     </group>
   )
 }
+/**
+ * The stock room's floor (item 739, the owner's 「儲藏室的地板要稍微鋪個材質，你覺得甚麼好?」, answered: a mortar floor, 土間): a back room's
+ * floor in a real izakaya, cement, as the crates are dragged over it and it's hosed down; grey, the trowel's sweeps faint in it, its grit,
+ * a damp stain or two where the crates stand by the back wall, a control joint across it every so often and the dirt along the walls' feet.
+ * Laid on the shop's boards that run on into it (item 710: no step up), from the wall's line on the shop's side to the back wall, so the shop's
+ * wood stops at the doorway. Across its width (u) from the wall to the back wall, along its length (v) from the far end to the wall's start.
+ */
+const STORE_FLOOR = canvasTex(256, 1024, (g) => {
+  let s = 7331
+  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647
+  g.fillStyle = '#8c8881'; g.fillRect(0, 0, 256, 1024)
+  // (soft mottling, lighter and darker, as a cement floor dries unevenly)
+  for (let i = 0; i < 150; i++) {
+    const x = rnd() * 256, y = rnd() * 1024, r = 16 + rnd() * 56, dark = rnd() < 0.5
+    const gr = g.createRadialGradient(x, y, 0, x, y, r)
+    gr.addColorStop(0, dark ? 'rgba(58,54,48,0.11)' : 'rgba(206,202,194,0.10)'); gr.addColorStop(1, 'rgba(0,0,0,0)')
+    g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r)
+  }
+  // (the trowel's sweeps: faint arcs, a little lighter or darker)
+  g.lineCap = 'round'
+  for (let i = 0; i < 30; i++) {
+    const x = rnd() * 256, y = rnd() * 1024, r = 34 + rnd() * 70, a = rnd() * Math.PI * 2
+    g.lineWidth = 4 + rnd() * 6
+    g.strokeStyle = rnd() < 0.55 ? 'rgba(214,210,202,0.08)' : 'rgba(66,62,56,0.07)'
+    g.beginPath(); g.arc(x, y, r, a, a + 0.8 + rnd() * 0.9); g.stroke()
+  }
+  // (its grit)
+  for (let i = 0; i < 6000; i++) {
+    const x = rnd() * 256, y = rnd() * 1024
+    g.fillStyle = rnd() < 0.5 ? `rgba(52,49,45,${0.16 + 0.22 * rnd()})` : `rgba(218,215,208,${0.14 + 0.2 * rnd()})`
+    g.fillRect(x, y, 1, 1)
+  }
+  // (damp where the crates stand, along the back wall toward the far end: darker, soft edged)
+  for (const [x, y, r] of [[212, 760, 70], [200, 905, 58], [222, 600, 44], [190, 470, 36]]) {
+    const gr = g.createRadialGradient(x, y, r * 0.2, x, y, r)
+    gr.addColorStop(0, 'rgba(48,46,42,0.26)'); gr.addColorStop(0.7, 'rgba(48,46,42,0.12)'); gr.addColorStop(1, 'rgba(48,46,42,0)')
+    g.fillStyle = gr; g.fillRect(x - r, y - r * 1.4, 2 * r, 2.8 * r)
+  }
+  // (control joints across it, a groove with its lit edge)
+  for (const y of [340, 690]) {
+    g.fillStyle = 'rgba(44,42,38,0.55)'; g.fillRect(0, y, 256, 2)
+    g.fillStyle = 'rgba(220,216,208,0.22)'; g.fillRect(0, y + 2, 256, 1)
+  }
+  // (dirt along the walls' feet, both long sides)
+  for (const [x0, x1] of [[0, 22], [256, 234]]) {
+    const gr = g.createLinearGradient(x0, 0, x1, 0)
+    gr.addColorStop(0, 'rgba(40,38,34,0.30)'); gr.addColorStop(1, 'rgba(40,38,34,0)')
+    g.fillStyle = gr; g.fillRect(Math.min(x0, x1), 0, 22, 1024)
+  }
+})
+/** an unseen sheet over the wall's face on the shop's side that takes the pointer and stops it there (item 735: the goods behind the wall,
+ * pointed at now, aren't pointed at through it; as the toilets' walls do, WcBlock) */
+const STORE_BLOCK_MAT = new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide })
+const stopHere = (e: { stopPropagation: () => void }) => e.stopPropagation()
 export function StoreRoom({ door, room, deep, fridges }: { door: [number, number]; room: [number, number]; deep: number; fridges: [number, number][] }) {
   const h = STORE.doorH, top = h + 0.3
   // (the fridges' openings framed as the doorway is (item 535, the owner's 「梁柱要留」: from the stock room the wall's hidden, and the fridges
@@ -312,14 +365,9 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
     if (!g) return
     g.children.forEach((p, i) => { p.rotation.z = st.push * (0.62 - i * 0.08) })
   })
-  const hit = useMemo(() => {
-    const hint = () => `只有倉儲員工進出｜後場最少：${lowestBack().slice(0, 3).map((id) => `${drinkLabel(id)} ${DRINK_BACK.back[id] ?? 0}`).join('、')}｜點一下打開飲料庫存`
-    return {
-      onClick: (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); if (getEdit().on) return; setDrinkPanel(true) },
-      onPointerOver: (e: ThreeEvent<PointerEvent>) => { if (getEdit().on) return; handOver.onPointerOver({ ...e, eventObject: noren.current ?? e.eventObject }); setTip({ title: '儲藏室', hint: hint() }) },
-      onPointerOut: (e: ThreeEvent<PointerEvent>) => { handOver.onPointerOut({ ...e, eventObject: noren.current ?? e.eventObject }); setTip(null) },
-    }
-  }, [])
+  // (its noren only named now, nothing to do with it (item 735, the owner's 「應該是點擊貨物而非門簾」): the goods in there open the drinks'
+  // stock, pointed at themselves (ShopProps' StockHit); it lit and opened the stock, the doorway as one thing to point at (item 430))
+  const hit = useMemo(() => nameOver('儲藏室', '只有倉儲員工進出｜點裡面的貨看飲料庫存'), [])
   return (
     <group ref={whole}>
       <EditBlock>
@@ -349,6 +397,22 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
             the owner's 「紅圈與紅框部份的柱子拿掉」: the one against the fridge's side, up to the fridges' head, and its sill across the foot,
             the one at the wall's end before it (item 503)); and the fridges' openings' posts (item 535), the one past the last fridge by the
             koi's wall with them: the head over all of it as it was */}
+        {/* (the doorway's post at the wall's start (item 738, the owner's 「上方的梁柱跟旁邊的柱也得補上」: the head and the lintel ended in
+            the air there, nothing under them, since item 503 took the post that was (from the shop it stood proud of the wall's face, and
+            the owner had it out)): from the floor up into the head, in the wall's thickness, its shop's face 2 mm behind the wall's line
+            (not proud now), its stock room's face 2 mm proud of the lintel's; the lintel's and the small wall's ends in it) */}
+        <mesh position={[(0.002 + WALL_OUT + 0.006) / 2, ((frame ? frame.headY : h + STORE_HEAD) + 0.001) / 2, door[0] - STORE_POST / 2 + 0.001]}>
+          <boxGeometry args={[WALL_OUT + 0.004, (frame ? frame.headY : h + STORE_HEAD) + 0.001, STORE_POST - 0.002]} /><meshToonMaterial color="#35200f" />
+        </mesh>
+        {/* (and the lintel carried on over the fridges' backs to the head's end (item 738, the owner's red box over their tops): one lintel at
+            the doorway's height the whole stretch, as the head is one (item 562); in the wall's thickness only, behind the fridges (their
+            backs in front of the wall's face), its stock room's face flush with the doorway's lintel's; the restock hatches' tops (1.875)
+            go 2.5 cm up behind it) */}
+        {frame && (
+          <mesh position={[(0.004 + WALL_OUT + 0.004) / 2, h + STORE_HEAD / 2, (door[1] + STORE_POST - 0.002 + frame.z1 - 0.002) / 2]}>
+            <boxGeometry args={[WALL_OUT, STORE_HEAD, frame.z1 - door[1] - STORE_POST]} /><meshToonMaterial color="#35200f" />
+          </mesh>
+        )}
         {/* the fridges' openings' head (item 535) */}
         {frame && (
           <mesh position={[(WALL_OUT + 0.004 + 0.002) / 2, (frame.headY + frame.headTop) / 2, (frame.z0 + frame.z1) / 2]}>
@@ -357,13 +421,14 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
         )}
         {/* (its back as deep in the stock room as the head over it and the posts (item 562): it stopped 4 mm short of them) */}
         <mesh position={[(WALL_OUT + 0.004 - 0.035) / 2, h + STORE_HEAD / 2, (door[0] + door[1]) / 2]}><boxGeometry args={[WALL_OUT + 0.004 + 0.035, STORE_HEAD, outerW - 0.004]} /><meshToonMaterial color="#35200f" /></mesh>
-        {/* (and over it, up to the head over the whole stretch (item 562), a small wall (小壁) of the room's plaster, as a framed wall has: the
+        {/* (and over it, up to the head over the whole stretch (item 562), a small wall (小壁) of the room's plaster, as a framed wall has (on
+            over the fridges' lintel too, item 738, to the head's end): the
             shop's wall over the doorway is drawn from the shop's side only, and from the stock room the head and the lintel were two bars
             across nothing, the shop seen between them; in the wall's thickness, 4 mm in from either face, a millimetre into the lintel,
             the head and the post) */}
         {frame && (
-          <mesh position={[WALL_OUT / 2, (h + STORE_HEAD + frame.headY) / 2, (door[0] - STORE_POST + 0.004 + door[1] + 0.001) / 2]}>
-            <boxGeometry args={[WALL_OUT - 0.008, frame.headY - h - STORE_HEAD + 0.002, door[1] + 0.001 - (door[0] - STORE_POST + 0.004)]} /><meshToonMaterial color="#ece0c6" />
+          <mesh position={[WALL_OUT / 2, (h + STORE_HEAD + frame.headY) / 2, (door[0] - STORE_POST + 0.004 + frame.z1 - 0.004) / 2]}>
+            <boxGeometry args={[WALL_OUT - 0.008, frame.headY - h - STORE_HEAD + 0.002, frame.z1 - 0.004 - (door[0] - STORE_POST + 0.004)]} /><meshToonMaterial color="#ece0c6" />
           </mesh>
         )}
         {/* (the strip between two fridges side by side (item 554), 3 mm proud of their backs toward the stock room, 4.5 cm into the gap) */}
@@ -381,10 +446,28 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
       </group>
       {/* (its lamp, on a bracket from the top of its far end wall, over the stock (item 713)) */}
       <StoreLamp at={[(WALL_OUT + deep) / 2, top - 0.1, zE - 0.006]} />
-      {/* the doorway as one thing to point at: what's in there and what's lowest, a click opens the drinks' stock */}
-      <mesh position={[-0.06, (h + STORE_HEAD) / 2, (door[0] + door[1]) / 2]} rotation-y={-Math.PI / 2} {...hit}>
-        <planeGeometry args={[door[1] - door[0] + 2 * STORE_POST, h + STORE_HEAD]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} />
+      {/* the noren, named when pointed at (item 735): over its cloth only, so the goods seen under it through the doorway are pointed at
+          themselves; a click on it stopped there (it went through to them) */}
+      <mesh position={[-0.06, h + STORE_HEAD - 0.02 - STORE_NOREN_L / 2, (door[0] + door[1]) / 2]} rotation-y={-Math.PI / 2} material={STORE_BLOCK_MAT} {...hit} onClick={stopHere}>
+        <planeGeometry args={[outerW, STORE_NOREN_L]} />
+      </mesh>
+      {/* (the wall's face on the shop's side over the doorway, and on past it to the far end, the fridges' with it: the pointer stopped there,
+          the goods behind not pointed at through it; the fridges' own in front of it) */}
+      <mesh position={[-0.004, (h + STORE_HEAD - 0.02 + WALL_H) / 2, (door[0] + door[1]) / 2]} rotation-y={-Math.PI / 2} material={STORE_BLOCK_MAT}
+        onPointerOver={stopHere} onPointerMove={stopHere} onClick={stopHere}>
+        <planeGeometry args={[outerW, WALL_H - (h + STORE_HEAD - 0.02)]} />
+      </mesh>
+      <mesh position={[-0.004, WALL_H / 2, (door[1] + STORE_POST + zE) / 2]} rotation-y={-Math.PI / 2} material={STORE_BLOCK_MAT}
+        onPointerOver={stopHere} onPointerMove={stopHere} onClick={stopHere}>
+        <planeGeometry args={[zE - door[1] - STORE_POST, WALL_H]} />
+      </mesh>
+      {/* its mortar floor (item 739), over the shop's boards (their top 4 mm up here: at a millimetre it was under them, never seen), 2.5 mm
+          over them and drawn in front of them; the crates' feet a few millimetres into it, as they were into the boards */}
+      {/* (from the wall's line on the shop's side: the wall's thickness behind the fridges and the doorway's sill were a strip of the shop's
+          boards along the room) */}
+      <mesh position={[(0.006 + deep - 0.002) / 2, 0.0065, (z0 + z1) / 2]} rotation-x={-Math.PI / 2} receiveShadow raycast={NO_RAY}>
+        <planeGeometry args={[deep - 0.008, z1 - z0]} />
+        <meshToonMaterial color="#ffffff" map={STORE_FLOOR} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-2} />
       </mesh>
     </group>
   )
