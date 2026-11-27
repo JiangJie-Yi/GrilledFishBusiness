@@ -11,7 +11,7 @@ no legs, floating mitten hands; but lighter, low in faces and shaded smooth, the
 - Folk_hair_<style>: a dozen hairstyles, each one mesh in the hair's colour (tinted by the game): crop, part, long, bob, bunLow,
   bunHigh, twin, pony, perm, bald, pomp, spiky, kid, gyaru.
 - Folk_acc_<name>: what some of them have about them: glasses, a moustache, headphones, a sun hat and a camera, a yellow school cap and
-  a randoseru, a backpack, a maid's frilled cap, a bōsōzoku's hachimaki, hoop earrings, a yukata's obi bow and hairpin, a knitted shawl,
+  a randoseru, a backpack, a maid's frilled cap, a b?s?zoku's hachimaki, hoop earrings, a yukata's obi bow and hairpin, a knitted shawl,
   a towel round the neck, a gakuran's stand collar.
 - FolkHandL, FolkHandR: the mittens, in their skin.
 Every part's own place; the game shows the ones each customer has.
@@ -32,7 +32,7 @@ import numpy as np
 from mathutils import Vector
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import pbr, export_dish, ladder_fill  # noqa: E402
+from common import pbr, export_dish, ladder_fill, edo_pattern  # noqa: E402
 
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 PROJECT = argv[0] if argv else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -612,7 +612,7 @@ def hair_cap(name, hairline, seg=14, rings=4, full=0.02):
 
 
 def drill(name, top, down, length, r0, turns=2.2, sides=5, rings=7):
-    """a ringlet (縦ロール) hanging from `top` along `down`: a lock twisted round on itself, two spiral ridges running round it to its tip,
+    """a ringlet (蝮艾?潦) hanging from `top` along `down`: a lock twisted round on itself, two spiral ridges running round it to its tip,
     swelling a little below its root and narrowing to a point; clean quads, a fan only at its tip and a cap at its root (in the hair)"""
     d = down.normalized()
     u = d.cross(Vector((0, 0, 1)))
@@ -1058,7 +1058,7 @@ acc("backpack", backpack("bp", M["pack"], 0.32, 0.3, 0.14, 0.2, 0.08))
 frill = tube("mfb", [head_at(math.radians(85) * (2 * u - 1), math.radians(60) + math.radians(30) * (1 - abs(2 * u - 1)), 0.03) for u in [k / 10 for k in range(11)]], 0.018, M["white"], most=5)
 frills = [sphere(f"mf{k}", head_at(math.radians(85) * (2 * (k / 4) - 1), math.radians(60) + math.radians(30) * (1 - abs(2 * (k / 4) - 1)), 0.045), 0.032, M["white"], seg=5, rings=3) for k in range(5)]
 acc("maidcap", [frill] + frills)
-# (the bōsōzoku's hachimaki: a white band round the brow, the rising sun on its front)
+# (the b?s?zoku's hachimaki: a white band round the brow, the rising sun on its front)
 hb = tube("hcb", [head_at(2 * math.pi * k / 11, math.asin(0.11 / R) - 0.1 * max(0.0, -math.cos(2 * math.pi * k / 11)), 0.022) for k in range(11)], 0.02, M["white"], cyclic=True, most=11)
 sun = sphere("hsun", head_at(0.0, math.asin(0.11 / R), 0.04), 0.026, M["red"], seg=6, rings=3, scale=(1, 1, 0.3))
 acc("hachimaki", [hb, sun])
@@ -1088,7 +1088,7 @@ acc("towel", tw)
 # (a gakuran's stand collar, black, round the neck)
 acc("collar", [lathe("collar", [(0.53, 0.2), (0.57, 0.185), (0.61, 0.16)], M["dark"], seg=10, solid=0.015)])
 
-# ---- (item 377, the owner's 「客人的種類需要多一點」: the new kinds' things. The hats sized over the hair as the school cap is (its crown 0.298
+# ---- (item 377, the owner's ?恥鈭箇?蝔桅??閬?銝暺? the new kinds' things. The hats sized over the hair as the school cap is (its crown 0.298
 # over the head's middle, a hat over the hair and never the hair through it); none of them fanned into a point (their tops shut by ladders))
 # (the construction worker's hard hat: yellow, a dome over the hair, a brim all round, a ridge from front to back over its top, the green
 # cross of safety on its front)
@@ -1116,7 +1116,7 @@ _cp = lathe("cpd", [(C.y + 0.07, R + 0.048), (C.y + 0.2, R + 0.013), (C.y + 0.28
 _cv = lathe("cpv", [(C.y + 0.088, R + 0.044), (C.y + 0.072, R + 0.16)], M["capblue"], seg=6, a0=-0.75, a1=0.75, solid=0.012)
 _ct = sphere("cpt", Vector((0.0, C.y + 0.327, 0.0)), 0.02, M["capblue"], seg=6, rings=3, scale=(1, 0.6, 1))
 acc("cap", [_cp, _cv, _ct])
-# (the band man's guitar on his back (item 464, the owner's 「吉他也太簡陋了」: it was its black bag, two black balls and a bar): an acoustic
+# (the band man's guitar on his back (item 464, the owner's ??隞?憭芰陛???? it was its black bag, two black balls and a bar): an acoustic
 # guitar as a real one's made, slung across his back by its strap, its neck up past his head a little to the side (behind it: the head's back
 # and its hair are 0.27 back there, its neck 0.31), its top (the sound hole's side) out from his back. In its own frame: x across it, y up it
 # from the body's foot, z through it (out from his back less); tipped GT in its plane about GPV, its centre plane at GZ
@@ -1259,7 +1259,7 @@ def write_png(path, arr):
 OW, OH = 512, 256
 U = np.tile((np.arange(OW) + 0.5) / OW, (OH, 1))
 V = np.tile(((np.arange(OH) + 0.5) / OH)[:, None], (1, OW))
-DU = U - 0.5                       # (round from the front: 0 at its middle, ±0.5 at the back)
+DU = U - 0.5                       # (round from the front: 0 at its middle, 簣0.5 at the back)
 AY = V * BODY_TOP                  # (height on the body)
 WAIST = 0.42
 NECK = 0.86
@@ -1332,7 +1332,7 @@ def lapels(img, col, depth=0.3):
     put(img, (V > tip) & (V < NECK) & (edge < 0.008), col)
 
 
-# ---- (item 347, the owner's 「模型服裝真的太簡單了」: the clothes were flat colour and a pattern: no seam, pocket, belt or stitch, no shade of a
+# ---- (item 347, the owner's ?芋??鋆??云蝪∪鈭? the clothes were flat colour and a pattern: no seam, pocket, belt or stitch, no shade of a
 # collar or a fold. Painted in now, the low-poly way (the body's faces as they were): its light and shade, its seams and hem, and each kind's
 # own pockets, belts, collars, buttons that catch the light)
 def dim(img, mask, k):
@@ -1346,7 +1346,7 @@ def lift(img, mask, k):
 
 
 def drape():
-    """(item 375, the owner's 「衣服質感陰影要有」: the clothes were flat, a shade and a seam) the cloth's folds over the body, as a height (0
+    """(item 375, the owner's ?﹝?釭?敶梯??? the clothes were flat, a shade and a seam) the cloth's folds over the body, as a height (0
     flat, + raised, - in a crease): broad folds hanging from the chest, unevenly spaced, deeper toward the hem; a few creases fanning down
     from under each arm; two or three soft creases round the waist; the hem turned up. Every customer's the same body, so one for all"""
     h = np.zeros((OH, OW), np.float32)
@@ -1486,7 +1486,7 @@ def apron_mask(half=0.18, top=0.64, bib=0.13):
 
 
 def more_outfits(kind, n):
-    """(item 377, the owner's 「服裝樣式也多變些」) each kind's second way of dressing (its pictures 2 and 3, two colours of it), and the new
+    """(item 377, the owner's ??鋆見撘?憭?鈭? each kind's second way of dressing (its pictures 2 and 3, two colours of it), and the new
     kinds' two ways (0 and 1, 2 and 3): not another colour of the same, another thing to wear"""
     c = n % 2
     if kind == "salaryman":
@@ -1537,7 +1537,7 @@ def more_outfits(kind, n):
         put(img, V < WAIST, "#5a5e66")
         belt(img, "#1a1614", WAIST, 0.022)
     elif kind == "grandma":
-        # (her kappōgi: the white smock over her kimono, its collar crossed at her neck, its hem below)
+        # (her kapp?gi: the white smock over her kimono, its collar crossed at her neck, its hem below)
         kim = ["#6a4a5a", "#4a5a6a"][c]
         img = fill("#f4f2ec")
         put(img, crossing(0.3, 0.7), kim)
@@ -1946,11 +1946,15 @@ def outfit(kind, n):
         dim(img, np.abs(np.abs(DU) - 0.09 * np.clip((V - (NECK - 0.3)) / 0.3, 0, 1)) < 0.005, 0.3)
         belt(img, "#4a3020", WAIST, 0.024)
     elif kind == "yukataLady":
-        base = ["#3a5a8c", "#a84a6a"][n]
-        img = fill(base)
-        dots(img, "#f4efe6", 0.08, 0.18, 0.02, petals=5)
-        dots(img, "#f2c84a", 0.08, 0.18, 0.005)
-        cross = (np.abs(DU - (V - 0.6) * 0.32) < 0.03) & (V > 0.6) | (np.abs(DU + (V - 0.6) * 0.32) < 0.03) & (V > 0.66)
+        # (item 793, the owner's ???梁??臭誑??啣撌交??臬恥鈭箇?銵??銝?with his sheet of the Edo patterns: the first a black yukata of white
+        # 璇?between dotted lines, the second a pink one of 暻颯??in a deeper rose, as the sheet has them (they were blue and rose, five-petalled
+        # dots on both); the picture's stretched up 1.19 on her (its height 0.42 of its width round her), so each drawn as tall again)
+        stretch = OH / (0.42 * OW)
+        if n == 0:
+            img = edo_pattern("ume", OW, OH, OW / 9, rgb("#1d1c22"), rgb("#cbc6bc"), flower=rgb("#f4efe6"), lw=0.8, aspect=stretch)
+        else:
+            img = edo_pattern("asanoha", OW, OH, OW / 14, rgb("#f1a8a4"), rgb("#bf4b6d"), lw=0.75, aspect=stretch)
+        cross =(np.abs(DU - (V - 0.6) * 0.32) < 0.03) & (V > 0.6) | (np.abs(DU + (V - 0.6) * 0.32) < 0.03) & (V > 0.66)
         put(img, cross, "#f4efe6")
         put(img, (V > 0.42) & (V < 0.58), ["#e8b84a", "#e8d8a8"][n])
         put(img, np.abs(V - 0.5) < 0.008, "#c8302a")
@@ -2046,19 +2050,28 @@ KINDS = ["salaryman", "officeLady", "schoolgirl", "schoolboy", "grandma", "grand
          "housewife", "taxiDriver", "nurse", "constructionWorker", "marketWorker", "bandman", "offShiftChef"]
 # (written as a PNG, then made a JPEG at 88 (item 347): at twice the pixels each way the weave's grain made the PNGs four times the bytes; a
 # JPEG holds the clothes as well at less than the old PNGs. The PNG let go)
-write_png(os.path.join(TEX_DIR, "outfit_normal.png"), fold_normals())
+if not os.environ.get("OUTFITS"):
+    write_png(os.path.join(TEX_DIR, "outfit_normal.png"), fold_normals())
 _jpg = bpy.context.scene.render.image_settings
 _jpg.file_format = "JPEG"
 _jpg.quality = 88
 # (item 377: four pictures a kind, two ways of dressing in two colours each: 0 and 1 the first, 2 and 3 the second)
+# (OUTFITS="kind:n,n;kind:n": only those written, the rest of the pictures, the faces and the model left as they are (item 793: the two
+# yukatas painted again, nothing else touched))
+_only = {f"{k}:{x}" for part in os.environ.get("OUTFITS", "").split(";") if ":" in part for k, xs in [part.split(":")] for x in xs.split(",")}
 for kind in KINDS:
     for n in (0, 1, 2, 3):
+        if _only and f"{kind}:{n}" not in _only:
+            continue
         _png = os.path.join(TEX_DIR, f"outfit_{kind}_{n}.png")
         write_png(_png, outfit(kind, n))
         _im = bpy.data.images.load(_png)
         _im.save_render(os.path.join(TEX_DIR, f"outfit_{kind}_{n}.jpg"), scene=bpy.context.scene)
         bpy.data.images.remove(_im)
         os.remove(_png)
+if _only:
+    print("FOLK_OUTFITS_ONLY", ",".join(sorted(_only)))
+    sys.exit(0)
 
 # ---- faces: eight expressions side by side, each a cell 256 across, painted in degrees round the head (so a circle is a circle)
 FC = 256
