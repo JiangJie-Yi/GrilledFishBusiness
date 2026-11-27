@@ -5,7 +5,6 @@ import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { homeCopy } from '@/scene/render/StaticBatch'
-import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { latheSolid } from '@/scene/people/trayGeometry'
 import { signTexture } from '@/scene/props/signFont'
 import { inkModel, inkTogether } from '@/scene/render/inkHull'
@@ -543,39 +542,41 @@ function BenchShoesImpl({ sitters }: { sitters: { current: Map<number, { id: num
  */
 /** the cats' stand's top step's height, the koban on it (0.84 once: item 96) */
 export const CAT_TOP = 0.74
-/**
- * The felt over one of the cats' stand's tiers (`d` deep, its top at `h`, `l` long; grown `g` all round for its ink): one piece of cloth
- * across the top and down the front, its front edge rounded over as cloth drapes (the cats stand in it a little, as on a cushion), its
- * ends softened (item 379, docs/MODELING.md's 造型感). Its faces against the tier sit 2 mm inside it (no two faces in one plane); made once
- * for each tier
- */
-const FELT_T = 0.012, FELT_DROP = 0.075
-/** the felt's top over its tier (its thickness and its bevel's swell): what stands on it stands this high */
+/** the felt's thickness over each of the stand's steps (blender/catstand.py's FELT_T) */
+const FELT_T = 0.012
+/** the felt's top over its step (its thickness and its edge's swell): what stands on it stands this high */
 export const FELT_TOP = FELT_T + 0.0018
-const FELTS = new Map<string, THREE.BufferGeometry>()
-export function feltGeo(d: number, h: number, l: number, g: number) {
-  const key = [d, h, l, g].join('|')
-  let geo = FELTS.get(key)
-  if (geo) return geo
-  // (its section across the tier, x out from the wall (its front at -d/2), y up; the outer corners rounded, the cloth's fold at the front
-  // fullest)
-  const xb = d / 2 + 0.004 + g, xf = -d / 2 - FELT_T - g, yt = h + FELT_T + g, yb = h - FELT_DROP - g, xi = -d / 2 + 0.002, yi = h - 0.002
-  const sh = new THREE.Shape()
-  const rf = 0.016 + g, rb = 0.006 + g
-  sh.moveTo(xb, yi)
-  sh.lineTo(xb, yt)
-  sh.lineTo(xf + rf, yt)
-  sh.absarc(xf + rf, yt - rf, rf, Math.PI / 2, Math.PI, false)
-  sh.lineTo(xf, yb + rb)
-  sh.absarc(xf + rb, yb + rb, rb, Math.PI, Math.PI * 1.5, false)
-  sh.lineTo(xi, yb)
-  sh.lineTo(xi, yi)
-  sh.closePath()
-  const b = 0.003
-  geo = new THREE.ExtrudeGeometry(sh, { depth: l + 0.008 + 2 * g - 2 * b, bevelEnabled: true, bevelThickness: b, bevelSize: b * 0.6, bevelSegments: 1, curveSegments: 2 })
-  geo.translate(0, 0, -(l + 0.008 + 2 * g - 2 * b) / 2)
-  FELTS.set(key, geo)
-  return geo
+/**
+ * The beckoning cats' stand by the way in (blender/catstand.py, item 736, the owner's 「招財貓台的模型有點怪」 and a wireframe of it): three
+ * steps of dark wood, each a plain box with its edges chamfered alike, each with a red felt (緋毛氈) over its top and down its front, the
+ * next step standing on that felt. It was made here: one unit box with a 12 % round scaled to each step (the rounds stretched, their light
+ * in bands down the faces, the long faces two thin triangles), a felt the steps' full size over the rounded tops, its corners standing
+ * out. Its back against the wall (x 0.10 in the stand's frame, its front toward -x), the steps' sizes and heights as they were (DOOR_CATS,
+ * CAT_TOP, FELT_TOP). Toon-lit in its own colours, an ink line round it, casting as the boxes did. 580 triangles (the boxes and felts were
+ * some 2,000).
+ */
+const CAT_STAND_URL = import.meta.env.BASE_URL + 'models/catstand.glb'
+useGLTF.preload(CAT_STAND_URL)
+const CAT_STAND_MATS = new Map<string, THREE.MeshToonMaterial>()
+export function CatStand() {
+  const gltf = useGLTF(CAT_STAND_URL) as unknown as { scene: THREE.Group }
+  const obj = useMemo(() => {
+    const r = (gltf.scene.getObjectByName('CatStand') ?? gltf.scene).clone(true)
+    r.position.set(0, 0, 0)
+    r.traverse((o) => {
+      const m = o as THREE.Mesh
+      if (!m.isMesh) return
+      const src = m.material as THREE.MeshStandardMaterial
+      let mat = CAT_STAND_MATS.get(src.name)
+      if (!mat) CAT_STAND_MATS.set(src.name, (mat = new THREE.MeshToonMaterial({ color: src.color.clone() })))
+      m.material = mat
+      m.castShadow = true
+      m.receiveShadow = true
+    })
+    inkModel(r, () => false, { width: 0.0012 })
+    return r
+  }, [gltf])
+  return <primitive object={obj} />
 }
 export const DOOR_CATS = [
   // (on the stand: x out from the wall, y the tier's top, z along it; the big white pair on the upper tier)
@@ -588,8 +589,3 @@ export const DOOR_CATS = [
   { x: -0.27, y: 0.32, z: -0.3, yaw: 0.25, kind: 2 as const, h: 0.38 },
   { x: -0.27, y: 0.32, z: 0.3, yaw: -0.25, kind: 1 as const, h: 0.42 },
 ]
-/** the cats' stand's tiers by the way in (entrance.tsx), a rounded box scaled to each. (Seven more shapes were made here at load and never
- * drawn, left from when the register was built in code: a model since; taken out, item 731) */
-export const REG_GEO = {
-  round: new RoundedBoxGeometry(1, 1, 1, 3, 0.12),
-}

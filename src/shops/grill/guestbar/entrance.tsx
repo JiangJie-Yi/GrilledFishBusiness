@@ -11,11 +11,10 @@ import { rainAmbience } from '@/shops/grill/sounds/restroomSound'
 import { FLOOR } from '@/scene/props/floors'
 import { FIGURES, nameOver, GENKAN } from '@/shops/grill/bar'
 import { ALONG } from './walking'
-import { INK, Part } from './part'
 import { crestNorenTexture } from './decorTex'
 import { ShopFront, DOOR_SPILL, SPILL_IN, SPILL_OUT, DOOR_OPEN, RAIN_NOW, doorLight, DOOR_RUN, DOOR_INV, GenkanDoor } from './shopFront'
 import { BIG_HANG, NorenModel, NOREN_REACH, NOREN_PUSH, NOREN_FOLD, NOREN_UNDER, NOREN_GOING, DOOR_GAP, norenBreeze, type ClothUniforms, NOREN_BIG, NOREN_WIDE, NOREN_CORD, CHOCHIN_PAIR, CHOCHIN_OFF, Chochin, FISH_LANTERN_OUT, FishLantern } from './lanterns'
-import { ShoeVases, CAT_STAND_Z, SHOE_CAB_Z, SHOE_CAB_X, ShoeCupboard, CAT_TOP, FELT_TOP, feltGeo, DOOR_CATS, REG_GEO } from './genkan'
+import { ShoeVases, CAT_STAND_Z, SHOE_CAB_Z, SHOE_CAB_X, ShoeCupboard, CAT_TOP, FELT_TOP, DOOR_CATS, CatStand } from './genkan'
 import { KASA_AT, KasaStand, RainGearWarm } from './seats'
 import { DoorBambooHit, DoorBambooModel } from '@/shops/grill/decor/BarFurnish'
 import { BlobShadow } from '@/scene/effects/BlobShadow'
@@ -193,17 +192,9 @@ function EntranceImpl({ at, mark }: { at: THREE.Vector3; mark: string }) {
             step at the back of the upper one, for the koban (the owner's, 2026-11-12); that step deeper and shorter along the wall (the
             owner's, 2026-11-12: 'the third step thicker, its width shorter, the cats moved to either side of it'): 0.2 deep, 0.26 long, the
             two big cats either side of it); and lower, 0.14 over the upper tier where it was 0.24 (the owner's, 2026-11-14, item 96) */}
-        {[[-0.12, 0.44, 0.32, 0.84], [-0.02, 0.24, 0.6, 0.7], [0, 0.2, CAT_TOP, 0.26]].map(([x, d, h, l], i) => (
-          <group key={i}>
-            <Part geo={REG_GEO.round} color={i === 1 ? '#4a2e1c' : i === 2 ? '#3e2616' : '#5a3a24'} outline={1.02} position={[x, h / 2, 0]} scale={[d, h, l]} />
-            {/* (a red felt (毛氈) laid over each tier, hanging down its front, as under a festival's dolls: one soft piece, its front edge
-                rounded over as cloth drapes (item 379: two thin sheets, 8 mm, their edges sharp), an ink line round it) */}
-            <group position={[x, 0, 0]}>
-              <mesh geometry={feltGeo(d, h, l, 0)}><meshToonMaterial color="#b3241b" /></mesh>
-              <mesh geometry={feltGeo(d, h, l, 0.003)}><meshBasicMaterial color={INK} side={THREE.BackSide} /></mesh>
-            </group>
-          </group>
-        ))}
+        {/* (a red felt (毛氈) laid over each step, hanging down its front, as under a festival's dolls; one model since item 736, the owner's
+            「招財貓台的模型有點怪」: genkan.tsx's CatStand, blender/catstand.py) */}
+        <CatStand />
       </group>
       </StaticBatch></Movable>
       {/* (each cat its own piece in edit mode, on the stand's frame) */}
