@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { curbStones, groundPlan, plinthPlan, type Rect } from '@/game/world/groundLayout'
+import { curbStones, groundPlan, outlineOf, plinthPlan, type Rect } from '@/game/world/groundLayout'
 
 // (a shop like ours, in the floor's plane: the room, a narrower strip out behind it, a deeper bump out of that, and the genkan's corner
 // at the front by the door; the door's apron out before it)
@@ -150,6 +150,32 @@ feature('石子只鋪門前、店的基座下面是一圈石台（第 741、744 
         const mx = (r.a[0] + r.b[0]) / 2, mz = (r.a[1] + r.b[1]) / 2
         expect(strictly(STEPS, mx, mz)).toBe(false)
       }
+    })
+  })
+})
+
+feature('店的底座只沿整棟的外框做一圈，不是一塊一個盒子（第 753 項）', () => {
+  scenario('相鄰的幾塊合起來，交界處沒有面，頂面不重疊', ({ given, then, and }) => {
+    let o: ReturnType<typeof outlineOf>
+    given('一間有凹凸的店（主廳、後面一條、倉庫凸出、玄關一角）', () => { o = outlineOf(BUILDING) })
+    then('每一段外框的外側都在店外、內側都在店裡', () => {
+      for (const r of o.runs) {
+        const mx = (r.a[0] + r.b[0]) / 2, mz = (r.a[1] + r.b[1]) / 2
+        expect(inBuilding(mx + r.out[0] * 0.01, mz + r.out[1] * 0.01)).toBe(false)
+        expect(inBuilding(mx - r.out[0] * 0.01, mz - r.out[1] * 0.01)).toBe(true)
+      }
+    })
+    and('頂面的格子互不重疊，面積等於整棟的面積', () => {
+      for (let i = 0; i < o.cells.length; i++) for (let j = i + 1; j < o.cells.length; j++) {
+        const a = o.cells[i], b = o.cells[j]
+        expect(a[0] < b[2] - 1e-9 && b[0] < a[2] - 1e-9 && a[1] < b[3] - 1e-9 && b[1] < a[3] - 1e-9).toBe(false)
+      }
+      let inCells = 0, inBld = 0
+      for (let x = -4.6; x < 1.8; x += 0.05) for (let z = -5.8; z < 3.8; z += 0.05) {
+        if (inBuilding(x, z)) inBld++
+        if (o.cells.some((c) => x > c[0] && x < c[2] && z > c[1] && z < c[3])) inCells++
+      }
+      expect(inCells).toBe(inBld)
     })
   })
 })

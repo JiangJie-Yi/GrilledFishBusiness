@@ -93,6 +93,54 @@ export function groundPlan(building: readonly Rect[], width: number, apron: Rect
   return { gravel, runs }
 }
 
+/**
+ * The outline of rects taken together (item 753, the owner's 「這邊有重疊，要注意一下。」: the base drawn a box a rect, their faces where two
+ * rects met in one plane, back to back, inside it, seen overlapping in the editor's wireframe): its runs, each a straight stretch with the
+ * outside across it (`out`), joined where they run on in one line; none where two rects meet. A hole (a rect not covered, inside) has its
+ * own runs, facing into it; and its area in whole rects, none over another (its top drawn once, not a rect's top over its neighbour's).
+ * The runs' corners aren't worked out (convexA, convexB both true)
+ */
+export function outlineOf(rects: readonly Rect[]): { runs: Run[]; cells: Rect[] } {
+  const xs = levels(rects.flatMap((r) => [r[0], r[2]])), zs = levels(rects.flatMap((r) => [r[1], r[3]]))
+  const nx = xs.length - 1, nz = zs.length - 1
+  const solid: boolean[] = []
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    const cx = (xs[i] + xs[i + 1]) / 2, cz = (zs[j] + zs[j + 1]) / 2
+    solid.push(rects.some((r) => inside(r, cx, cz)))
+  }
+  const at = (i: number, j: number) => i >= 0 && j >= 0 && i < nx && j < nz && solid[j * nx + i]
+  // (its area: a row's runs of solid cells, each carried down while the next row has the very same run)
+  const spans: [number, number, number, number][] = []
+  for (let j = 0; j < nz; j++) {
+    for (let i = 0; i < nx; i++) {
+      if (!at(i, j)) continue
+      let k = i
+      while (at(k + 1, j)) k++
+      const up = spans.find((m) => m[0] === i && m[1] === k && m[3] === j - 1)
+      if (up) up[3] = j
+      else spans.push([i, k, j, j])
+      i = k
+    }
+  }
+  const cells: Rect[] = spans.map(([i0, i1, j0, j1]) => [xs[i0], zs[j0], xs[i1 + 1], zs[j1 + 1]])
+  const segs: { a: [number, number]; b: [number, number]; out: [number, number] }[] = []
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    if (!at(i, j)) continue
+    if (!at(i, j + 1)) segs.push({ a: [xs[i], zs[j + 1]], b: [xs[i + 1], zs[j + 1]], out: [0, 1] })
+    if (!at(i, j - 1)) segs.push({ a: [xs[i], zs[j]], b: [xs[i + 1], zs[j]], out: [0, -1] })
+    if (!at(i + 1, j)) segs.push({ a: [xs[i + 1], zs[j]], b: [xs[i + 1], zs[j + 1]], out: [1, 0] })
+    if (!at(i - 1, j)) segs.push({ a: [xs[i], zs[j]], b: [xs[i], zs[j + 1]], out: [-1, 0] })
+  }
+  const same = (p: [number, number], q: [number, number]) => Math.abs(p[0] - q[0]) < 1e-6 && Math.abs(p[1] - q[1]) < 1e-6
+  const lines: { a: [number, number]; b: [number, number]; out: [number, number] }[] = []
+  for (const s of segs.sort((p, q) => p.a[0] - q.a[0] || p.a[1] - q.a[1])) {
+    const on = lines.find((l) => l.out[0] === s.out[0] && l.out[1] === s.out[1] && same(l.b, s.a))
+    if (on) on.b = s.b
+    else lines.push({ a: [...s.a], b: [...s.b], out: s.out })
+  }
+  return { runs: lines.map((l) => ({ ...l, convexA: true, convexB: true })), cells }
+}
+
 /** what's left of a rect with another taken out of it: up to four rects (the strips either side, then those over and under between them) */
 function minus(r: Rect, c: Rect): Rect[] {
   if (c[0] >= r[2] || c[2] <= r[0] || c[1] >= r[3] || c[3] <= r[1]) return [r]

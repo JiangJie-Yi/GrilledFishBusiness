@@ -9,7 +9,7 @@ import { WC_W, WC_ROOM, kitchenOf, kitchenGatesOf, FLOOR_FAR, FLOOR_NEAR, GENKAN
 import { WC_BACK_LINE } from '@/shops/grill/dining/wc'
 import { Movable } from '@/shops/grill/editor/Movable'
 import { signTexture } from '@/scene/props/signFont'
-import { plinthPlan, type PlinthPlan, type Rect } from '@/game/world/groundLayout'
+import { outlineOf, plinthPlan, type PlinthPlan, type Rect, type Run } from '@/game/world/groundLayout'
 import { normalFromHeight } from '@/scene/render/normalFromHeight'
 import { EARTH_Y, ShopGround } from './ground'
 
@@ -238,6 +238,37 @@ function plinthGeometry(plan: PlinthPlan, top: number, foot: number, earth: numb
   return g
 }
 /**
+ * A shell of timber round an outline (item 753, the owner's 「這邊有重疊，要注意一下。」: drawn a box a rect, the base's rects' boxes met in
+ * one plane back to back inside it, seen in the editor's wireframe as one board laid over another): along each of its runs a face from `y0`
+ * to `y1`, turned out; over each of its cells (if given) a top at `y1`. Its boards by where they are (`along` a repeat along, `across` up),
+ * so they run on round its corners and from one rect into the next
+ */
+function shellGeometry(runs: Run[], cells: Rect[] | null, y0: number, y1: number, along: number, across: number) {
+  const pos: number[] = [], nor: number[] = [], uv: number[] = []
+  const quad = (p: [number, number, number][], t: [number, number][], n: [number, number, number]) => {
+    const [a, b, c] = p
+    const cr = [(b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]), (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]),
+      (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])]
+    const order = cr[0] * n[0] + cr[1] * n[1] + cr[2] * n[2] >= 0 ? [0, 1, 2, 0, 2, 3] : [0, 2, 1, 0, 3, 2]
+    for (const i of order) { pos.push(...p[i]); uv.push(...t[i]); nor.push(...n) }
+  }
+  for (const r of runs) {
+    const [ox, oz] = r.out, [ax, az] = r.a, [bx, bz] = r.b
+    const u = (x: number, z: number) => (oz * x - ox * z) / along
+    quad([[ax, y0, az], [bx, y0, bz], [bx, y1, bz], [ax, y1, az]], [[u(ax, az), 0], [u(bx, bz), 0], [u(bx, bz), (y1 - y0) / across], [u(ax, az), (y1 - y0) / across]], [ox, 0, oz])
+  }
+  for (const [x0, z0, x1, z1] of cells ?? []) {
+    quad([[x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1]], [[x0 / along, z0 / across], [x1 / along, z0 / across], [x1 / along, z1 / across], [x0 / along, z1 / across]], [0, 1, 0])
+  }
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3))
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2))
+  return g
+}
+/** the base's rects ([along, lay] pairs, as RoomFloor keeps them) as the floor's frame's rects (x = -lay, z = along) */
+const asRects = (rs: [[number, number], [number, number]][]) => rs.map(([al, ly]) => [-ly[1], al[0], -ly[0], al[1]] as Rect)
+/**
  * The shop's base: a thick plinth under the whole room (the customers' floor on a solid fill, the kitchen's lower floor in a well in it), a
  * pale rim board round under the fill, on a plinth of stone (item 744: a dark body of boards and a toe board under the rim before, timber
  * down to the gravel), the stone proud of it and down into the earth (the gravel round it gone, item 741): so it all sits on something
@@ -251,15 +282,13 @@ function ShopBase({ rects, genkan, drop, step, plinth }: { rects: [[number, numb
   const top = -drop - 0.003
   // (the plinth's top: the rim board's foot, the rim on it as a sill on its stone (土台))
   const stoneTop = top - 0.06
-  // (each piece of the base is cut exactly to the room's own outline: the floor's pieces and the genkan's corner, no more; its sides take no
-  // shadow: what stands by the floor's edge threw its shadow out onto the plinth's face, hanging there below the floor)
-  const layers = (al: [number, number], ly: [number, number], key: string) => {
-    const cx = -(ly[0] + ly[1]) / 2, cz = (al[0] + al[1]) / 2
-    const W = ly[1] - ly[0], L = al[1] - al[0]
-    // (its rim board, the grain running along it, on the stone plinth (its dark body's boards and its toe board under it gone, item 744: the
-    // plinth in their place; the fill over it, under the floor's boards, in the body's boards still))
-    return <mesh key={`${key}r`} position={[cx, top - 0.03, cz]} geometry={timberBox(W, 0.06, L, BASE_TILE.along, BASE_TILE.across)} material={BASE_TIMBER[0]} />
-  }
+  // (cut exactly to the room's own outline: the floor's pieces and the genkan's corner, no more; its sides take no shadow: what stands by the
+  // floor's edge threw its shadow out onto the plinth's face, hanging there below the floor)
+  // (its rim board, the grain running along it, on the stone plinth (its dark body's boards and its toe board under it gone, item 744: the
+  // plinth in their place; the fill over it, under the floor's boards, in the body's boards still): round the rects' outline taken
+  // together (item 753: a box a rect before, their faces back to back where two met))
+  const rimGeo = useMemo(() => shellGeometry(outlineOf(asRects(rects)).runs, null, top - 0.06, top, BASE_TILE.along, BASE_TILE.across), [rects, top])
+  useEffect(() => () => rimGeo.dispose(), [rimGeo])
   const [gal, gly] = genkan
   // (under the genkan's stone, solid up to it, and in stone: granite courses from its stones down to the base's foot (item 287), where the
   // rest of the base is timber over its stone plinth)
@@ -308,7 +337,7 @@ function ShopBase({ rects, genkan, drop, step, plinth }: { rects: [[number, numb
   useEffect(() => () => plinthGeo.dispose(), [plinthGeo])
   return (
     <>
-      {rects.flatMap(([al, ly], i) => layers(al, ly, `r${i}`))}
+      <mesh geometry={rimGeo} material={BASE_TIMBER[0]} />
       <primitive object={steps} />
       {PLINTH_MAT && <mesh name="shop-plinth" geometry={plinthGeo} material={PLINTH_MAT} />}
     </>
@@ -664,6 +693,13 @@ function RoomFloorImpl({ counters, drop }: { counters: Counter[]; drop: number }
     [a0, g0, l0, l1, a1, gl, back, bump, wing])
   // (the building's footprint on the ground, in this frame (x = -lay, z = along): the base's pieces and the genkan's corner in stone)
   const footprint = useMemo(() => [...bases.map(([al, ly]) => [-ly[1], al[0], -ly[0], al[1]] as Rect), [-gl, g0, -l0, a1] as Rect], [bases, gl, g0, l0, a1])
+  // (the fill under the boards: the base's rects (round the kitchen's well when it's sunk), one shell (item 753))
+  const fillGeo = useMemo(() => {
+    const fill = bases.flatMap(([al, ly]) => (drop > 0 ? minus(al, ly, kitchen) : [[al, ly] as [[number, number], [number, number]]]))
+    const o = outlineOf(asRects(fill))
+    return shellGeometry(o.runs, o.cells, 0.001 - (baseDrop + 0.004), 0.001, BASE_TILE.along, BASE_TILE.across)
+  }, [bases, drop, kitchen, baseDrop])
+  useEffect(() => () => fillGeo.dispose(), [fillGeo])
   // (the stone plinth round it (item 744), broken across the doorway, where the stone steps stand out from the genkan's footing)
   const plinth = useMemo(() => plinthPlan(footprint, PLINTH_OUT, [[-gl, a1 - 0.05, -l0, a1 + 2 * STEP_GO + 0.01]]), [footprint, gl, l0, a1])
   // (the kitchen's cut out of the boards: it lies lower, KitchenPit)
@@ -690,13 +726,9 @@ function RoomFloorImpl({ counters, drop }: { counters: Counter[]; drop: number }
         <meshBasicMaterial map={GROUND_SHADOW} transparent depthWrite={false} toneMapped={false} />
       </mesh>
       {/* (and a solid fill under the boards right down to the base: round the kitchen's well when it's sunk, under the kitchen's dais as
-          well when it's raised; nothing to see through between the floor and the base) */}
-      {bases.flatMap(([al, ly], n) => (drop > 0 ? minus(al as [number, number], ly as [number, number], kitchen)
-        : [[al, ly] as [[number, number], [number, number]]]).map(([a, l], i) => (
-        // (its sides, showing as the step down into the kitchen, in the base's dark timber boards)
-        <mesh key={`fill${n}${i}`} position={[-(l[0] + l[1]) / 2, 0.001 - (baseDrop + 0.004) / 2, (a[0] + a[1]) / 2]}
-          geometry={timberBox(l[1] - l[0], baseDrop + 0.004, a[1] - a[0], BASE_TILE.along, BASE_TILE.across)} material={BASE_TIMBER[1]} />
-      )))}
+          well when it's raised; nothing to see through between the floor and the base: its sides (the step down into the kitchen too) in
+          the base's dark timber boards, its top under the floor's (item 753: one shell round them all, not a box a rect)) */}
+      <mesh geometry={fillGeo} material={BASE_TIMBER[1]} />
       {drop > 0 ? <KitchenPit counters={counters} drop={drop} /> : <KitchenDais counters={counters} rise={-drop} />}
       {/* (the genkan's side's low curb of stone, from its stone up to the boards over the footing's side (StoneSide, item 287 and 496), is
           gone (item 539, the owner's 「這塊拿掉」)) */}
