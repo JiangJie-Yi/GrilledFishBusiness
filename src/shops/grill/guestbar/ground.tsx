@@ -54,8 +54,10 @@ const STEP_RX = 0.16, STEP_RZ = 0.12, STEP_PITCH = 0.29
 
 /**
  * A puddle (item 752): one shape, a little uneven round its edge (16 points round, closed by a ladder of quads across it, rule 2: no fan),
- * copied to each; still water, dark, smooth and a little see-through, the sky and the lights caught in it (standard, smooth: no
- * transmission). Its rain rings as the drain's water (one program with the washstand's stream)
+ * laid at each place in one mesh; still water, dark and a little see-through, the sky's light in soft streaks across it, painted (item 772,
+ * the Optimization window's count: shining, a standard material mirroring a sky of its own, they made three programs more, theirs and the
+ * two three blurs that sky with; now the earth's own (toon, its picture, see-through), lighter by day and darker after dark). Its rain
+ * rings as the drain's water (one program with the washstand's stream)
  */
 const PUDDLES = 6
 const PUDDLE_GEO = (() => {
@@ -84,15 +86,15 @@ const PUDDLE_GEO = (() => {
  */
 const PUDDLE_TEX = (() => {
   const N = 128, data = new Uint8Array(N * N * 4)
-  const water = [96, 106, 114], rim = [40, 31, 24]
+  const water = [110, 122, 134], rim = [40, 31, 24]
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
     const u = (x + 0.5) / N - 0.5, v = (y + 0.5) / N - 0.5, r = Math.hypot(u, v), a = Math.atan2(v, u)
     const edge = 0.3 + 0.03 * Math.sin(2 * a + 0.7) + 0.02 * Math.sin(5 * a + 1.3)
     const alpha = Math.min(1, Math.max(0, (edge - r) / 0.07))
     // (the rim: soaked earth from the edge in, over a third of the way)
     const wetRim = Math.min(1, Math.max(0, (r - edge * 0.55) / (edge * 0.45)))
-    // (streaks of the sky's light across it, soft)
-    const streak = 0.22 * Math.max(0, Math.sin(u * 14 + v * 5 + 1.1)) * Math.max(0, Math.sin(u * 3 - v * 9))
+    // (streaks of the sky's light across it, soft: what it mirrors, painted)
+    const streak = 0.34 * Math.max(0, Math.sin(u * 14 + v * 5 + 1.1)) * Math.max(0, Math.sin(u * 3 - v * 9))
     const i = (y * N + x) * 4
     for (let c = 0; c < 3; c++) data[i + c] = Math.round(Math.min(255, (water[c] * (1 - wetRim) + rim[c] * wetRim) * (1 + streak)))
     data[i + 3] = Math.round(255 * alpha * (0.88 + 0.12 * wetRim))
@@ -105,27 +107,27 @@ const PUDDLE_TEX = (() => {
   t.needsUpdate = true
   return t
 })()
-/** the sky the puddles mirror: its own (the room's studio's is a room's), an overcast's light grey brightest at the horizon, the ground under
- * it dark (an equirectangular picture, three making its own blurred copies from it) */
-const PUDDLE_SKY = (() => {
-  if (typeof document === 'undefined') return null
-  const c = document.createElement('canvas')
-  c.width = 256; c.height = 128
-  const g = c.getContext('2d')!
-  const gr = g.createLinearGradient(0, 0, 0, 128)
-  gr.addColorStop(0, '#7f8a95'); gr.addColorStop(0.42, '#b9c3cb'); gr.addColorStop(0.5, '#d3d9de'); gr.addColorStop(0.53, '#5a5048'); gr.addColorStop(1, '#2e2822')
-  g.fillStyle = gr; g.fillRect(0, 0, 256, 128)
-  const t = new THREE.CanvasTexture(c)
-  t.mapping = THREE.EquirectangularReflectionMapping
-  t.colorSpace = THREE.SRGBColorSpace
-  return t
-})()
-const PUDDLE_MAT = new THREE.MeshStandardMaterial({ color: '#ffffff', map: PUDDLE_TEX, roughness: 0.04, metalness: 0, transparent: true, depthWrite: false,
-  envMap: PUDDLE_SKY, envMapIntensity: 1.0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 })
-/** how much of that sky they mirror, by the sky now (dim after dark: the lanterns' and the window's light the most of it then) */
-const PUDDLE_SHINE: Record<string, number> = { day: 0.8, dawn: 0.6, dusk: 0.45, night: 0.18 }
+const PUDDLE_MAT = new THREE.MeshToonMaterial({ color: '#ffffff', map: PUDDLE_TEX, transparent: true, depthWrite: false,
+  polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 })
 PUDDLE_MAT.name = 'ShopPuddle'
-const PUDDLE_M = new THREE.Matrix4(), PUDDLE_Q = new THREE.Quaternion(), PUDDLE_P = new THREE.Vector3(), PUDDLE_S = new THREE.Vector3(), PUDDLE_UP = new THREE.Vector3(0, 1, 0)
+/** how light they are by the sky now (the sky's light in them, dim after dark) */
+const PUDDLE_SHINE: Record<string, number> = { day: 1, dawn: 0.86, dusk: 0.78, night: 0.62 }
+type Puddle = { x: number; z: number; r: number; turn: number; long: number }
+/** the puddles' mesh laid `s` as full as they get (1 full): each the shape stretched `long` along its turn and `r` across, flat on the earth */
+function layPuddles(g: THREE.BufferGeometry, puddles: readonly Puddle[], s: number) {
+  const base = PUDDLE_GEO.attributes.position.array as Float32Array, n = base.length / 3
+  const pos = g.attributes.position as THREE.BufferAttribute, a = pos.array as Float32Array
+  puddles.forEach((q, i) => {
+    const c = Math.cos(q.turn), sn = Math.sin(q.turn), sx = q.r * q.long * s, sz = q.r * s
+    for (let v = 0; v < n; v++) {
+      const x = base[v * 3] * sx, z = base[v * 3 + 2] * sz, o = (i * n + v) * 3
+      a[o] = q.x + x * c + z * sn
+      a[o + 1] = EARTH_Y + 0.0022
+      a[o + 2] = q.z - x * sn + z * c
+    }
+  })
+  pos.needsUpdate = true
+}
 const RIPPLE_GEO = new THREE.RingGeometry(0.72, 1, 16).rotateX(-Math.PI / 2)
 const RIPPLE_MATS = Array.from({ length: 8 }, () => new THREE.MeshBasicMaterial({ color: '#dfe8ec', transparent: true, opacity: 0, depthWrite: false, toneMapped: false }))
 
@@ -517,7 +519,7 @@ export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut
     const earth = new THREE.PlaneGeometry(W, H)
     // ---- where the puddles stand after rain (item 752): in the earth along the plinth's foot, a hand to a forearm out from it, clear of the
     // way out, the bed and what's kept clear; and one by the drain's basin, where its run-off gathers
-    const puddles: { x: number; z: number; r: number; turn: number; long: number }[] = []
+    const puddles: Puddle[] = []
     for (let tries = 0; puddles.length < PUDDLES && tries < 200; tries++) {
       const { r, off } = pick()
       if (off !== 0.004) continue
@@ -555,14 +557,27 @@ export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut
   // from their edges as they dry; rain's rings on them while it rains)
   const puddleMesh = useMemo(() => {
     if (!made || !made.puddles.length) return null
-    const im = new THREE.InstancedMesh(PUDDLE_GEO, PUDDLE_MAT, made.puddles.length)
-    im.name = 'shop-puddles'
-    im.raycast = () => null
-    im.renderOrder = 1
-    im.frustumCulled = false
-    return im
+    const n = PUDDLE_GEO.attributes.position.count, k = made.puddles.length
+    const g = new THREE.BufferGeometry()
+    const nor = new Float32Array(k * n * 3), uv = new Float32Array(k * n * 2)
+    for (let i = 0; i < k * n; i++) nor[i * 3 + 1] = 1
+    for (let i = 0; i < k; i++) uv.set(PUDDLE_GEO.attributes.uv.array as Float32Array, i * n * 2)
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(k * n * 3), 3))
+    g.setAttribute('normal', new THREE.BufferAttribute(nor, 3))
+    g.setAttribute('uv', new THREE.BufferAttribute(uv, 2))
+    // (its bounds as full as they get, so it's culled right however full; then laid dry, as nothing, till the clock says)
+    layPuddles(g, made.puddles, 1)
+    g.computeBoundingSphere()
+    layPuddles(g, made.puddles, 0)
+    const me = new THREE.Mesh(g, PUDDLE_MAT)
+    me.name = 'shop-puddles'
+    me.raycast = () => null
+    me.renderOrder = 1
+    me.receiveShadow = true
+    me.visible = false
+    return me
   }, [made])
-  useEffect(() => () => puddleMesh?.dispose(), [puddleMesh])
+  useEffect(() => () => puddleMesh?.geometry.dispose(), [puddleMesh])
   const wet = useRef({ key: '', fill: -1, damp: -1, shown: -1, want: { puddles: 0, damp: 0 } })
   const rings = useRef<(THREE.Mesh | null)[]>([])
   const ringLife = useRef(RIPPLE_MATS.map(() => ({ t: 1, at: 0, x: 0, z: 0, r: 0 })))
@@ -582,21 +597,14 @@ export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut
       STONE_MAT.color.setScalar(1 - 0.18 * damp)
     }
     w.damp = damp
-    PUDDLE_MAT.envMapIntensity = PUDDLE_SHINE[skyNow()] ?? 1
-    const im = puddleMesh
-    // (their size as drawn: set again only as it changes by a little, and gone below a trace)
+    PUDDLE_MAT.color.setScalar(PUDDLE_SHINE[skyNow()] ?? 1)
+    const pm = puddleMesh
+    // (their size as drawn: laid again only as it changes by a little, and gone below a trace)
     const s = fill > 0.02 ? 0.3 + 0.7 * Math.sqrt(fill) : 0
-    if (im && (Math.abs(s - w.shown) > 0.002 || (s === 0) !== (w.shown === 0))) {
+    if (pm && (Math.abs(s - w.shown) > 0.002 || (s === 0) !== (w.shown === 0))) {
       w.shown = s
-      made.puddles.forEach((q, i) => {
-        PUDDLE_Q.setFromAxisAngle(PUDDLE_UP, q.turn)
-        PUDDLE_P.set(q.x, EARTH_Y + 0.0022, q.z)
-        PUDDLE_S.set(q.r * q.long * s, 1, q.r * s)
-        PUDDLE_M.compose(PUDDLE_P, PUDDLE_Q, PUDDLE_S)
-        im.setMatrixAt(i, PUDDLE_M)
-      })
-      im.instanceMatrix.needsUpdate = true
-      im.visible = s > 0
+      layPuddles(pm.geometry, made.puddles, s)
+      pm.visible = s > 0
     }
     w.fill = fill
     // (rain on them: a ring here and there spreading out and fading, each in a puddle as full as it is)
