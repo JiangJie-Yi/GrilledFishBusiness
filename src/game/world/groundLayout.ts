@@ -231,3 +231,17 @@ export function curbStones(runs: readonly Run[], w: number, len: number, spread:
   }
   return out
 }
+
+/**
+ * Where the toilets' drain comes out of the plinth (item 755, the owner's 「並在橘色位置增加排水口」: an orange ring on the plinth's face at the
+ * back, under the men's toilet, just along from the corner where the stock room's base stands out past the toilets'): on the toilets' back
+ * plinth face (`back` the along of their footprint's back edge, the face `out` behind it), `from` along that face from the corner (from the
+ * face of the stock room's plinth there). `toilets`, `store`: their lay ranges. In the floor's frame (x = -lay, z = along); the face looks
+ * to -z
+ */
+export function drainSpot(toilets: readonly [number, number], store: readonly [number, number], back: number, out: number, from: number) {
+  // (which way the toilets lie from the stock room, along the back: its side facing them, the corner the plinth turns there)
+  const toward = (toilets[0] + toilets[1]) / 2 < (store[0] + store[1]) / 2 ? -1 : 1
+  const edge = toward < 0 ? store[0] : store[1]
+  return { x: -(edge + toward * (out + from)), z: back - out }
+}

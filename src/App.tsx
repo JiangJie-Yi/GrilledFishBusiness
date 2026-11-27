@@ -68,10 +68,11 @@ import { REGISTER } from '@/shops/grill/till/cashRegister'
 import type { Restock } from '@/ui/panels/Menu'
 import type { GuestView, Notes, Step, Talk } from '@/game/types'
 import { SAY_EACH, sayChunks } from '@/game/guests/say'
-import { CUBBY_OPEN, gripe, LATE_GRIPE, GRILL_SEATS, setTissues, SINK, SUPPLIES, GUEST_BILLS, TISSUES_KEY, tissuesAt, TOILETS, UTILITY, KAKUBAT, SERVICE, FIRE_FLARE, SHOP_MENU } from '@/shops/grill/bar'
+import { CUBBY_OPEN, DRAIN_FLOW, gripe, LATE_GRIPE, GRILL_SEATS, setTissues, SINK, SUPPLIES, GUEST_BILLS, TISSUES_KEY, tissuesAt, TOILETS, UTILITY, KAKUBAT, SERVICE, FIRE_FLARE, SHOP_MENU } from '@/shops/grill/bar'
 import { traysAt } from '@/game/service/tableware'
 import { getBgmOff } from '@/ui/kit/bgmStore'
 import { energyOver, freshMeter, meterAdd, nextDay, type Meter } from '@/game/money/utilities'
+import { pour } from '@/game/world/drain'
 import { boughtVisits, flowOf, keepVisits, rateShop, REVIEW_PACKS, reviewsOf, visitStars, writesReview, type Visit } from '@/game/guests/reputation'
 import { ReviewPop } from '@/ui/panels/ReviewPop'
 import { refillBoxes, TISSUE, tissueOrder } from '@/game/stock/tissues'
@@ -2114,9 +2115,10 @@ export default function App() {
       const uses = UTILITY.uses
       UTILITY.uses = {}
       // (the sink's tap left running: a minute's worth a minute of the game's clock, k of them a tick (item 210: it was counted as a second's))
-      if (SINK.tap) uses.tap = (uses.tap ?? 0) + k
+      // (and down the drain at the back as it runs (item 764): a second's worth of its minute a tick, the drain's clock being the pictures')
+      if (SINK.tap) { uses.tap = (uses.tap ?? 0) + k; pour(DRAIN_FLOW, 'tap', k / 60) }
       // (and the toilets' washstand taps, turned on by hand and left running)
-      for (const w of [TOILETS.m, TOILETS.f]) if (w.tap) uses.wcTap = (uses.wcTap ?? 0) + k
+      for (const w of [TOILETS.m, TOILETS.f]) if (w.tap) { uses.wcTap = (uses.wcTap ?? 0) + k; pour(DRAIN_FLOW, 'wcTap', k / 60) }
       // (and the power drawn over the tick's k minutes of the game's clock (item 210: drawn over k seconds, a sixtieth of it))
       const m = meterAdd(meterRef.current, energyOver(k * 60, { open: aiRef.current.ai, lights: getLights().on, door: getLights().door, wcM: getLights().wc.m, wcF: getLights().wc.f, fire: fire.current > 0, music: !getBgmOff(),
         freezerSet: FREEZER_TEMP.set, freezerOpen: FREEZER.open, fridgeOpen: CUBBY_OPEN.left || CUBBY_OPEN.right }), uses)
@@ -2143,6 +2145,8 @@ export default function App() {
     meterRef.current = d.meter
     if (d.charge) book('utility', d.charge)
     UTILITY.uses.mop = (UTILITY.uses.mop ?? 0) + 1
+    // (the mop's bucket emptied down the drain at the back (item 764))
+    pour(DRAIN_FLOW, 'mop')
     setMeterShown(d.meter)
     const boxes = Array.from({ length: GRILL_SEATS.length }, (_, i) => tissuesAt(i))
     const spares = stockRef.current[TISSUE] ?? 0

@@ -13,6 +13,7 @@ import type { Gripe } from '@/game/guests/reputation'
 import { DRINK_DEFAULT, DRINK_MAX, DRINK_MIN, stepDrinkTemp } from '@/game/stock/fridgeTemp'
 import { BOX_SHEETS } from '@/game/stock/tissues'
 import type { Use } from '@/game/money/utilities'
+import { newDrain, pour } from '@/game/world/drain'
 import type { HearthRole } from '@/game/kitchen/hearthGuard'
 import { glowLeave, glowOnly, HOVER } from '@/scene/interact/hoverGlow'
 import { aimTip, figureCursorOn, setTip } from '@/scene/interact/hoverTip'
@@ -159,7 +160,10 @@ export const PANTRY = keep(import.meta.hot, 'PANTRY', { fresh: {} as Record<stri
 /** water (and the power heating it) used about the shop since App last metered it (game/utilities' uses: a plate washed, a flush, the
  * washlet, hands washed, the dipper...): App drains it every second into the month's meter */
 export const UTILITY: { uses: Partial<Record<Use, number>> } = keep(import.meta.hot, 'UTILITY', { uses: {} })
-export const meterWater = (u: Use, n = 1) => { UTILITY.uses[u] = (UTILITY.uses[u] ?? 0) + n }
+/** the water on its way out of the drain at the back (item 764, game/world/drain): run on by the drain itself (guestbar/drain's ShopDrain) */
+export const DRAIN_FLOW = keep(import.meta.hot, 'DRAIN_FLOW', newDrain())
+// (what's metered goes down the drain too, a little later (item 764): the flush, the hands washed, the washing-up...)
+export const meterWater = (u: Use, n = 1) => { UTILITY.uses[u] = (UTILITY.uses[u] ?? 0) + n; pour(DRAIN_FLOW, u, n) }
 /** the cook table's fridges' doors open (for what they draw open) */
 export const CUBBY_OPEN = keep(import.meta.hot, 'CUBBY_OPEN', { left: false, right: false })
 /** when the chef last reached into each fridge under the cook table (performance.now()): its doors open part way for him a moment */
@@ -857,6 +861,8 @@ export const TOILETS = keep(import.meta.hot, 'TOILETS', { m: wcOf(), f: wcOf() }
 /** points off the taste of what each guest eats, for what they found in the toilet (Roasting reads it) */
 export const WC_GRUMBLE = keep(import.meta.hot, 'WC_GRUMBLE', new Map<number, number>())
 if (import.meta.env?.DEV && typeof window !== 'undefined') (window as unknown as { __toilets?: typeof TOILETS }).__toilets = TOILETS
+// (and the drain's water on its way, item 764: its flow and wet, read by the probes)
+if (import.meta.env?.DEV && typeof window !== 'undefined') (window as unknown as { __drainFlow?: typeof DRAIN_FLOW }).__drainFlow = DRAIN_FLOW
 
 /**
  * How far the kitchen's floor lies below the customers' (in the scene's own units): less than 0, it's raised above it, a dais the

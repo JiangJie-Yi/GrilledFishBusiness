@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { curbStones, groundPlan, outlineOf, plinthPlan, type Rect } from '@/game/world/groundLayout'
+import { curbStones, drainSpot, groundPlan, outlineOf, plinthPlan, type Rect } from '@/game/world/groundLayout'
 
 // (a shop like ours, in the floor's plane: the room, a narrower strip out behind it, a deeper bump out of that, and the genkan's corner
 // at the front by the door; the door's apron out before it)
@@ -177,5 +177,25 @@ feature('店的底座只沿整棟的外框做一圈，不是一塊一個盒子�
       }
       expect(inCells).toBe(inBld)
     })
+  })
+})
+
+feature('廁所的排水口從後面的石台面出來，在男廁底下、倉庫凸出的轉角旁（第 755 項）', () => {
+  // (the toilets' lay range and the stock room's, as BACK and BUMP above have them: x = -lay)
+  const TOILETS: [number, number] = [-1.5, 1.9], STORE: [number, number] = [1.9, 3.2]
+  scenario('排水口在廁所後面那段石台面上，離倉庫那邊的轉角一小段', ({ given, then, and }) => {
+    let d: ReturnType<typeof drainSpot>
+    given('倉庫在廁所的一邊凸出去，石台凸出 1.8 公分', () => { d = drainSpot(TOILETS, STORE, BACK[1], 0.018, 0.15) })
+    then('它在廁所後面的石台面上（後緣再往外 1.8 公分）', () => { expect(d.z).toBeCloseTo(BACK[1] - 0.018, 6) })
+    and('從倉庫石台的側面往廁所那邊 15 公分，在廁所那段的範圍裡、不在倉庫底下', () => {
+      expect(d.x).toBeCloseTo(BUMP[2] + 0.018 + 0.15, 6)
+      expect(inRects([BACK], d.x, BACK[1] + 0.01)).toBe(true)
+      expect(inRects([BUMP], d.x, BUMP[1] + 0.01)).toBe(false)
+    })
+  })
+  scenario('倉庫在另一邊時，排水口也在靠倉庫的那個轉角旁', ({ given, then }) => {
+    let d: ReturnType<typeof drainSpot>
+    given('倉庫在廁所的另一邊', () => { d = drainSpot([1.9, 3.2], [-1.5, 1.9], BACK[1], 0.018, 0.15) })
+    then('它在倉庫那一側的轉角往廁所那邊 15 公分', () => { expect(d.x).toBeCloseTo(-(1.9 + 0.018 + 0.15), 6) })
   })
 })

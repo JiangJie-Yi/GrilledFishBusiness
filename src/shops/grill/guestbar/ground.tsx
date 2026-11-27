@@ -193,15 +193,17 @@ class Faces {
   }
 }
 
-export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut, door, front, stepsFoot }: {
+export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut, door, front, stepsFoot, keep }: {
   /** the building's footprint on the ground: its rects, [x0, z0, x1, z1] in the floor's frame */
   building: Rect[]
   /** its stone plinth (item 744, ShopBase's): the ring it stands proud of the footprint, and its face's runs; how far proud */
   plinth: PlinthPlan; plinthOut: number
   /** the doorway across x at the front; the front's z; where the stone steps out from it end */
   door: [number, number]; front: number; stepsFoot: number
+  /** places on the earth no tuft, moss or leaf is put in (what stands there: the toilets' drain's basin and its damp, item 755) */
+  keep?: Rect[]
 }) {
-  const key = JSON.stringify([building, plinth, plinthOut, door, front, stepsFoot])
+  const key = JSON.stringify([building, plinth, plinthOut, door, front, stepsFoot, keep])
   const made = useMemo(() => {
     if (typeof document === 'undefined') return null
     const rnd = seeded(726)
@@ -256,7 +258,8 @@ export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut
     // bed, on its curb or on the way out
     const edges: { r: Run; off: number }[] = [...plinth.runs.map((r) => ({ r, off: 0.004 })), ...plan.runs.map((r) => ({ r, off: CURB_W }))]
     const clearOfWay = (x: number, z: number) => !(z > front && Math.abs(x - mid) < STEP_RX + 0.2) &&
-      !(x > apron[0] - CURB_W - 0.04 && x < apron[2] + CURB_W + 0.04 && z > apron[1] - 0.02 && z < apron[3] + CURB_W + 0.04)
+      !(x > apron[0] - CURB_W - 0.04 && x < apron[2] + CURB_W + 0.04 && z > apron[1] - 0.02 && z < apron[3] + CURB_W + 0.04) &&
+      !(keep ?? []).some(([x0, z0, x1, z1]) => x > x0 && x < x1 && z > z0 && z < z1)
     // ---- the tufts: in clumps along the edges, out in the earth, and three at each of their outer corners
     const tufts: [number, number, number, number][] = []
     for (const { r, off } of edges) {

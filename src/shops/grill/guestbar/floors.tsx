@@ -9,9 +9,10 @@ import { WC_W, WC_ROOM, kitchenOf, kitchenGatesOf, FLOOR_FAR, FLOOR_NEAR, GENKAN
 import { WC_BACK_LINE } from '@/shops/grill/dining/wc'
 import { Movable } from '@/shops/grill/editor/Movable'
 import { signTexture } from '@/scene/props/signFont'
-import { outlineOf, plinthPlan, type PlinthPlan, type Rect, type Run } from '@/game/world/groundLayout'
+import { drainSpot, outlineOf, plinthPlan, type PlinthPlan, type Rect, type Run } from '@/game/world/groundLayout'
 import { normalFromHeight } from '@/scene/render/normalFromHeight'
 import { EARTH_Y, ShopGround } from './ground'
+import { DRAIN_CLEAR, DRAIN_FROM, ShopDrain } from './drain'
 
 /**
  * The customers' side of the shop floored in wide old boards: one even rectangle under the whole bar, the row of
@@ -702,6 +703,14 @@ function RoomFloorImpl({ counters, drop }: { counters: Counter[]; drop: number }
   useEffect(() => () => fillGeo.dispose(), [fillGeo])
   // (the stone plinth round it (item 744), broken across the doorway, where the stone steps stand out from the genkan's footing)
   const plinth = useMemo(() => plinthPlan(footprint, PLINTH_OUT, [[-gl, a1 - 0.05, -l0, a1 + 2 * STEP_GO + 0.01]]), [footprint, gl, l0, a1])
+  // (the toilets' drain (item 755): out of the plinth's face behind them, beside the corner the stock room's base makes; its face looking out
+  // behind (its frame turned half round); what it takes of the earth kept clear of the tufts and moss)
+  const drain = useMemo(() => {
+    if (!back || !bump) return null
+    const d = drainSpot(back.wc, bump.ly, back.al[0], PLINTH_OUT, DRAIN_FROM)
+    const [x0, z0, x1, z1] = DRAIN_CLEAR
+    return { at: [d.x, d.z] as [number, number], keep: [[d.x - x1, d.z - z1, d.x - x0, d.z - z0]] as Rect[] }
+  }, [back, bump])
   // (the kitchen's cut out of the boards: it lies lower, KitchenPit)
   const piece = (al: [number, number], ly: [number, number], k: string) => minus(al, ly, kitchen).map(([a, l], i) => (
     <FloorPiece key={`${k}${i}`} w={l[1] - l[0]} l={a[1] - a[0]} position={[-(l[0] + l[1]) / 2, 0.004, (a[0] + a[1]) / 2]} />
@@ -737,7 +746,9 @@ function RoomFloorImpl({ counters, drop }: { counters: Counter[]; drop: number }
       </StaticBatch>
       {/* (the ground it stands on: its gravel bed before the door, curb, stepping stones, tufts and the earth round it (items 708, 725, 726,
           741)) */}
-      <ShopGround building={footprint} plinth={plinth} plinthOut={PLINTH_OUT} door={[-gl, -l0]} front={a1} stepsFoot={a1 + 2 * STEP_GO} />
+      <ShopGround building={footprint} plinth={plinth} plinthOut={PLINTH_OUT} door={[-gl, -l0]} front={a1} stepsFoot={a1 + 2 * STEP_GO} keep={drain?.keep} />
+      {/* (the toilets' drain out of the plinth at the back, into its stone basin (item 755)) */}
+      {drain && <Movable id="drain" label="排水口" ground={EARTH_Y}><ShopDrain at={drain.at} yaw={Math.PI} /></Movable>}
       {/* (the rush mat under the rice by the sake (item 717)) */}
       <Movable id="ricemat" label="草蓆" ground={0}><RiceMat /></Movable>
       {/* the genkan: its stones laid crazy-paving in pebble-wash, the shoe-off stone at the step, the threshold, the polished keyaki step
