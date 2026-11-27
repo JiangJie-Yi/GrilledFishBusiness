@@ -10,6 +10,12 @@ Its own frame is the doorway's (look-door's: x along the front, + away from the 
 to the box's foot's middle (AT, where the game puts it): what's round it there was measured in the game (tests/e2e/_bamboo703b.mjs) and
 its branches and leaves are kept out of it: the fish lantern hung beside it (and its bracket back to the eave), the eave's rafters over it.
 
+Item 737 (the owner's 「根部種植的位置應該要center一點，且枝葉往外垂，然後陰影要算出來」, circling the culms' feet in the box's back
+corner, an arrow from the leaves out and down): the culms' feet in toward the box's middle (they stood 7.5 cm to the building's side of it on
+average, 2.5 now), leaning a touch the door's way as they rise to stay clear of the fish lantern over the box's other half; their branches
+out away from the door and the building, to the street (OUT), near level, the twigs and the leaves on them hanging (a culm's top tuft too);
+its shadow the game's (BarFurnish's DoorBambooModel casts).
+
 Run:
     blender -b --factory-startup --python blender/bamboo.py -- <project path> [preview.png]
 """
@@ -230,8 +236,12 @@ def door_bamboo():
     # ---- the culms: each its base on the soil, its height, its lean, its girth; nodes closer at the foot, longer up it. (Item 707: a tight
     # clump on the planter's side by the building, between its wall (x 0.525 back from z 0.49) and the fish lantern's box (from x 0.73 up
     # from y 0.94, 4.5 cm clear): standing all but straight across, leaning out to the street (+z); their branches find their own way out)
-    culms = [((-0.085, -0.03), 2.35, (-0.01, 0.10), 0.022), ((-0.06, 0.05), 2.15, (0.0, 0.22), 0.02),
-             ((-0.105, 0.075), 1.95, (-0.015, 0.28), 0.018), ((-0.05, -0.09), 1.55, (0.01, -0.05), 0.016)]
+    # (item 737: in toward the box's middle, the feet 2.5 cm to the building's side of it on average (7.5 cm before), leaning the door's way
+    # a little as they rise, to pass the fish lantern's box (from 1.36 up over the box's other half) and out to the street)
+    culms = [((-0.03, -0.04), 2.35, (-0.07, 0.12), 0.022), ((0.0, 0.035), 2.15, (-0.12, 0.22), 0.02),
+             ((-0.05, 0.075), 1.95, (-0.05, 0.28), 0.018), ((-0.02, -0.085), 1.55, (-0.03, -0.04), 0.016)]
+    # (which way is out (item 737): away from the door and the building's side, to the street)
+    OUT = math.atan2(1.0, 0.6)
     # (each culm's middle kept clear of the lantern's box and the building's side, its girth with it: said, not made, if not)
     for (bx, bz), h, (lx, lz), r0 in culms:
         for t in [i / 20 for i in range(21)]:
@@ -293,11 +303,15 @@ def door_bamboo():
                 continue
             base = pt(tn)
             for attempt in range(5):
-                ang = (i * 1.65 + k * 1.7 + (i % 2) * 2.6 + attempt * 1.1) % (2 * math.pi)
-                dirv = Vector((math.cos(ang), 0.6, math.sin(ang))).normalized()
+                # (out, item 737: within some 75 degrees of OUT either side by turns, each try a little further round; near level, rising
+                # only a little off the node, where they rose at 30 degrees all round)
+                spread = (0.25 + 0.95 * ((i * 0.618 + k * 0.37) % 1.0)) * (1 if (i + k) % 2 else -1)
+                ang = OUT + spread + (attempt * 0.35 if spread > 0 else -attempt * 0.35)
+                dirv = Vector((math.cos(ang), 0.18, math.sin(ang))).normalized()
                 blen = 0.13 + 0.08 * rng.random()
                 tip = base + dirv * blen
-                tw_dir = (dirv + Vector((0, -0.3, 0))).normalized()
+                # (the twig on from it bending down, hanging (it rose a little before))
+                tw_dir = (dirv + Vector((0, -0.85, 0))).normalized()
                 tw_len = 0.09 + 0.05 * rng.random()
                 tw_tip = tip + tw_dir * tw_len
                 if not (clear(tip) and clear(tw_tip) and clear((base + tip) / 2)):
@@ -311,7 +325,7 @@ def door_bamboo():
                     side_sign = 1 if j % 2 else -1
                     la = math.atan2(flat.z, flat.x) + (0.0 if j == n_leaf - 1 else side_sign * (0.7 + 0.4 * rng.random()))
                     L = 0.13 + rng.random() * 0.05
-                    d0 = Vector((math.cos(la), -0.3 - 0.3 * rng.random(), math.sin(la))).normalized()
+                    d0 = Vector((math.cos(la), -0.6 - 0.35 * rng.random(), math.sin(la))).normalized()
                     plan.append((at, d0, L, rng.uniform(-0.5, 0.5)))
                 made = sum(leaf_at(at, d0, L, tw_, i + k + j) for j, (at, d0, L, tw_) in enumerate(plan))
                 if not made:
@@ -327,7 +341,7 @@ def door_bamboo():
                     got = 0
                     for j in range(3):
                         la = math.atan2(sflat.z, sflat.x) + (j - 1) * 0.8
-                        d0 = Vector((math.cos(la), -0.35 - 0.25 * rng.random(), math.sin(la))).normalized()
+                        d0 = Vector((math.cos(la), -0.6 - 0.3 * rng.random(), math.sin(la))).normalized()
                         got += leaf_at(mid + sd * (0.03 + 0.02 * j), d0, 0.12 + rng.random() * 0.04, rng.uniform(-0.5, 0.5), i + k + j + 1)
                     if got:
                         fin(tube(f"BambooBranchSide{k}_{i}", [mid, st_tip], [0.0022, 0.0015], 3, [0.0, 1.0], cap_bottom=False), f"BambooBranchSide{k}_{i}", M["node"], parts)
@@ -336,7 +350,7 @@ def door_bamboo():
         top = pt(1.0)
         for j in range(6):
             la = j * 1.05 + k * 0.6
-            d0 = Vector((math.cos(la), 0.25 - 0.35 * rng.random(), math.sin(la))).normalized()
+            d0 = Vector((math.cos(la), -0.05 - 0.4 * rng.random(), math.sin(la))).normalized()
             leaf_at(top + Vector((0, -0.02, 0)), d0, 0.15 + rng.random() * 0.04, rng.uniform(-0.4, 0.4), j + k)
     me = bpy.data.meshes.new("BambooLeaves")
     leaf_bm.to_mesh(me)

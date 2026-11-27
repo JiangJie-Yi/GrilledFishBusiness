@@ -110,7 +110,14 @@ export function BambooModel() {
 /** the tall clump of green bamboo out by the door (item 703), its box's foot's middle at its origin, in the doorway's frame's axes */
 export function DoorBambooModel() {
   const gltf = useGLTF(DOOR_BAMBOO_URL) as unknown as { scene: THREE.Group }
-  const obj = useMemo(() => toonOf(DOOR_BAMBOO_URL, gltf.scene), [gltf])
+  const obj = useMemo(() => {
+    const o = toonOf(DOOR_BAMBOO_URL, gltf.scene)
+    // (item 737, the owner's 「然後陰影要算出來」: out under the eave, in the sun, it casts and takes shadows: its culms, its box and its
+    // leaves, these cut out by their picture (alphaTest: toonOf's Cutout), so the sun's map has them leaf shaped, not as cards; its batch
+    // carries the flag on (StaticBatch))
+    o.traverse((m) => { if ((m as THREE.Mesh).isMesh) { m.castShadow = true; m.receiveShadow = true } })
+    return o
+  }, [gltf])
   return <primitive object={obj} />
 }
 /** an unseen box over the door's bamboo, the size of its box and culms (not its leaves' spread): what's said when it's pointed at */
