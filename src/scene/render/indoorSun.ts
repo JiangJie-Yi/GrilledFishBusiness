@@ -13,7 +13,8 @@ import * as THREE from 'three'
  * The boxes are set from the scene (app/sceneParts' IndoorSun); `indoorSunPaused` while another canvas draws (the editor's character viewer,
  * its figures stood at the world's middle, in the shop's box, lit by its own lights).
  */
-const BOXES = 4
+// (the shop's four and the dorm's (item 758: a fourth of the shop's, the boards along its front))
+const BOXES = 5
 /** each box's matrix, shared by every material's uniforms (a typed array: three's clone of a material's uniforms keeps it, not a copy) */
 const MATS: Float32Array[] = []
 /** the boxes' edges' softness as set (the last of each matrix), kept while they're paused */

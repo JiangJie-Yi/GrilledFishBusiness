@@ -25,6 +25,10 @@ const SHOP_INDOORS: { min: THREE.Vector3Tuple; max: THREE.Vector3Tuple }[] = [
   { min: [-4.465, -0.3, -5.435], max: [1.655, 9, 3.44] },
   { min: [-4.465, -0.3, 3.4], max: [1.655, 2.3, 3.62] },
   { min: [-4.465, -0.3, -5.675], max: [-1.84, 9, -5.4] },
+  // (and the boards along the front past the facade's line, left of the genkan, to 4 mm short of their edge (item 758, the owner's 「注意陰影
+  // 不切到室內」: the floor runs on 10 cm past the facade's box, its last strip out of doors, and the eave's shadow lay along it inside the
+  // room by the till at any hour); low, so the base's face under that edge and the facade stay out of doors)
+  { min: [-4.465, -0.1, 3.4], max: [0.4, 0.25, 3.712] },
 ]
 /** how far in (bar units) the sun's gone entirely: its edge eased over 4 mm (the wall within it 5 mm in, the plinth 5 mm out), no stair of
  * light and dark across what stands at the door's line */
