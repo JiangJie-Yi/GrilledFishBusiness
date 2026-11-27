@@ -470,24 +470,44 @@ function WcDark({ who, rooms, lit: vols }: { who: 'm' | 'f'; rooms: [number, num
    * among them, dark ones gained it.) The boxes run 2 cm into the walls (their faces lit, not fought: nothing in a wall's thickness to
    * share a plane with), meet each other by the stall's noren without overlapping, and a thin one in the doorway lights the door's back;
    * the shop's side of the wall is outside them all. No light added or switched (rule 6); no new program (basic, both sides drawn already) */
+  // (a box's own warm each: one box's can be laid without the marks while the eye's inside it)
   const warm = useMemo(() => ({
     mark: new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, transparent: true, side: THREE.FrontSide,
       stencilWrite: true, stencilFunc: THREE.AlwaysStencilFunc, stencilRef: 1, stencilZPass: THREE.ReplaceStencilOp }),
-    add: new THREE.MeshBasicMaterial({ color: WC_ROOM_WARM, transparent: true, opacity: 0, depthWrite: false, depthFunc: THREE.GreaterEqualDepth,
+    adds: vols.map(() => new THREE.MeshBasicMaterial({ color: WC_ROOM_WARM, transparent: true, opacity: 0, depthWrite: false, depthFunc: THREE.GreaterEqualDepth,
       side: THREE.BackSide, blending: THREE.AdditiveBlending, toneMapped: false,
-      stencilWrite: true, stencilFunc: THREE.EqualStencilFunc, stencilRef: 1, stencilZPass: THREE.ZeroStencilOp, stencilZFail: THREE.ZeroStencilOp }),
-  }), [])
-  useEffect(() => () => { mat.dispose(); warm.mark.dispose(); warm.add.dispose() }, [mat, warm])
+      stencilWrite: true, stencilFunc: THREE.EqualStencilFunc, stencilRef: 1, stencilZPass: THREE.ZeroStencilOp, stencilZFail: THREE.ZeroStencilOp })),
+  }), [vols])
+  useEffect(() => () => { mat.dispose(); warm.mark.dispose(); warm.adds.forEach((m) => m.dispose()) }, [mat, warm])
   const group = useRef<THREE.Group>(null)
   const lit = useRef<THREE.Group>(null)
-  useFrame(() => {
+  const eye = useMemo(() => new THREE.Vector3(), [])
+  const scale = useMemo(() => new THREE.Vector3(), [])
+  useFrame(({ camera }) => {
     const on = getLights().wc[who], sky = skyNow()
     const want = wcDarkness(on, sky)
     mat.opacity += (want - mat.opacity) * 0.08
     if (group.current) group.current.visible = mat.opacity > 0.01
     const glow = on ? (sky === 'night' ? 1 : sky === 'day' ? 0 : 0.5) : 0
-    warm.add.opacity += (glow - warm.add.opacity) * 0.08
-    if (lit.current) lit.current.visible = warm.add.opacity > 0.01
+    const k = warm.adds[0].opacity + (glow - warm.adds[0].opacity) * 0.08
+    const g = lit.current
+    if (!g) return
+    g.visible = k > 0.01
+    // (the eye inside a room (close in, in the editor or a preview: Optimization's note), or nearer one than the camera's near plane (the
+    // game's own camera, zoomed into a toilet, is held at its doorway, 2 cm from the washroom's box): its near faces behind the eye or cut
+    // off by that plane, nothing's marked and the room went unlit; while it's that close, that room's warm laid on all that's in front of
+    // its far faces, which is all that's seen from there that's in the room)
+    let near = 0
+    if (g.visible) {
+      g.worldToLocal(eye.copy(camera.position))
+      near = ((camera as THREE.PerspectiveCamera).near ?? 0.1) / (g.getWorldScale(scale).x || 1) * 1.5
+    }
+    warm.adds.forEach((m, i) => {
+      m.opacity = k
+      const [[x0, x1], [y0, y1], [z0, z1]] = vols[i]
+      const inside = g.visible && eye.x > x0 - near && eye.x < x1 + near && eye.y > y0 - near && eye.y < y1 + near && eye.z > z0 - near && eye.z < z1 + near
+      m.stencilFunc = inside ? THREE.AlwaysStencilFunc : THREE.EqualStencilFunc
+    })
   })
   // (each box marked and lit in turn, after the room's dark, before the lamps' glow: an order each, the toilets' apart)
   const order = 4.1 + (who === 'f' ? 0.1 : 0)
@@ -496,10 +516,13 @@ function WcDark({ who, rooms, lit: vols }: { who: 'm' | 'f'; rooms: [number, num
       <group ref={group} visible={false}>
         {rooms.map(([sx, sy, sz, x, z], i) => <mesh key={i} geometry={WC_DARK} material={mat} position={[x, sy / 2, z]} scale={[sx - 2 * WC_DARK_IN, sy, sz - 2 * WC_DARK_IN]} renderOrder={4} />)}
       </group>
+      {/* (none of it in the washroom's round mirror (decor/mirror.ts: its picture has no stencil, so every test there passes and the boxes
+          laid the warm on two or three times over, Optimization's note): the glass is in the washroom's box, so the warm's laid on what it
+          shows once, here, as on the wall beside it) */}
       <group ref={lit} visible={false}>
         {vols.map(([[x0, x1], [y0, y1], [z0, z1]], i) => (['mark', 'add'] as const).map((k, j) => (
-          <mesh key={`${i}${k}`} geometry={WC_DARK} material={warm[k]} position={[(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2]}
-            scale={[x1 - x0, y1 - y0, z1 - z0]} renderOrder={order + i * 0.02 + j * 0.01} raycast={() => {}} />
+          <mesh key={`${i}${k}`} geometry={WC_DARK} material={k === 'mark' ? warm.mark : warm.adds[i]} position={[(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2]}
+            scale={[x1 - x0, y1 - y0, z1 - z0]} renderOrder={order + i * 0.02 + j * 0.01} raycast={() => {}} userData={{ noMirror: true }} />
         )))}
       </group>
     </>

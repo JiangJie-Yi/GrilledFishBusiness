@@ -84,6 +84,8 @@ export function roundMirror(r: number): Mirror {
         if ((o as THREE.Light).isLight || (o as THREE.SkinnedMesh).isSkinnedMesh) { o.layers.enable(LAYER); return }
         const m = o as THREE.Mesh
         if (!m.isMesh || o === glass || !m.geometry) return
+        // (what's kept out of it: the toilets' warm boxes, item 733 (its picture has no stencil; the warm's laid on the glass where it hangs))
+        if (o.userData.noMirror) return
         if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere()
         sphere.copy(m.geometry.boundingSphere!).applyMatrix4(m.matrixWorld)
         if (sphere.center.distanceTo(at) - sphere.radius < REACH) o.layers.enable(LAYER)
