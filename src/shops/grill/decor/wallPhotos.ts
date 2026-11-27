@@ -300,7 +300,9 @@ export type WallPiece = { id: string; label: string; back: number; up: number; t
   rect: Rect; edge: Rect; hold?: Hold; tape?: number; lean?: boolean; round?: boolean }
 /** the display ledge (item 409): a slim shelf of the frames' dark wood, `deep` out from the wall, `thick`, its lip along its front `lip`
  * thick and `lipUp` over its top; from `back0` to `back1` back, its top `up` */
-export const WALL_LEDGE = { id: 'sign-ledge', label: '展示層架', back0: 0.52, back1: 1.24, up: 1.3, deep: 0.045, thick: 0.018, lip: 0.008, lipUp: 0.012 }
+// (item 792, the owner's 「薄一點」: its front 3 cm tall (the shelf 18 mm, the lip 12 mm over it) read as a heavy dark beam under the boards;
+// the shelf 10 mm, the lip 7 mm thick and 8 mm over it: 1.8 cm)
+export const WALL_LEDGE = { id: 'sign-ledge', label: '展示層架', back0: 0.52, back1: 1.24, up: 1.3, deep: 0.045, thick: 0.01, lip: 0.007, lipUp: 0.008 }
 /** the design (item 409): on the ledge, 3.5 cm apart, the tanzaku (its top at 1.62), the shikishi (1.55), the round one (1.48) and the
  * little gold one (1.45); the photographs over the shikishi and the round one, centred on them, 1.585 to 1.735; the column by the door (its
  * middle 0.40 back) the black card (its foot on the photographs' line), the polaroid and the wooden board (its top on the ledge's line); the
