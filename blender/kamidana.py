@@ -1067,7 +1067,19 @@ ao = np.array(img_a.pixels[:], np.float32).reshape(BK, BK, 4)[..., :1]
 # (no darker than 60% (item 60, 2026-11-14): down to 35% the groove where the chest's ball meets the belly's baked into a dark band across
 # him, the owner saw it; the carved hollows still read at 60%)
 col[..., :3] *= 0.6 + 0.4 * np.clip(ao, 0, 1) ** 1.4
-img_c.pixels = col.ravel()
+# (item 799: baked at BK, kept at EB_OUT, each four pixels averaged into one (the normals' directions averaged and made whole again): he's
+# some 60 to 160 pixels tall where the shrine's view shows him, half behind a door leaf, and two pictures of 2048 were 42 MB on the card
+# as they're drawn in dev, two of 1024 are a quarter of it; up close (the editor's camera) he reads as before)
+EB_OUT = 1024
+_f = BK // EB_OUT
+col = col.reshape(EB_OUT, _f, EB_OUT, _f, 4).mean(axis=(1, 3))
+nrm = np.array(img_n.pixels[:], np.float32).reshape(EB_OUT, _f, EB_OUT, _f, 4)
+nv = (nrm[..., :3] * 2 - 1).mean(axis=(1, 3))
+nv /= np.maximum(np.linalg.norm(nv, axis=-1, keepdims=True), 1e-6)
+nrm = np.concatenate([nv * 0.5 + 0.5, np.ones((EB_OUT, EB_OUT, 1), np.float32)], axis=-1)
+img_c.scale(EB_OUT, EB_OUT); img_n.scale(EB_OUT, EB_OUT)
+img_c.pixels.foreach_set(col.ravel())
+img_n.pixels.foreach_set(nrm.ravel())
 img_c.pack(); img_n.pack()
 M["ebisuStone"] = pbr("KamiEbisuStone", (1, 1, 1), tex=img_c, nrm=img_n, nrm_strength=1.0, rough=0.85)
 lo.data.materials.clear(); lo.data.materials.append(M["ebisuStone"])
