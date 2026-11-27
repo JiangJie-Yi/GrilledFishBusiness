@@ -1,8 +1,10 @@
 import { memo, useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
+import { useProgress } from '@react-three/drei'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { bakeable, colourVertices, keyOf, plainShared } from './StaticBatch'
+import { laterPending, laterSeen, sceneDrawn } from './Later'
 import { HOVER, anyLit } from '@/scene/interact/hoverGlow'
 import { WORLD, giveBack, mergeAway, mergeState, takeOut, type WorldSpan } from './worldMerge'
 import { paused } from '@/scene/kit/speed'
@@ -16,6 +18,9 @@ const ADD_MS = 3000
 /** (item 598) how long a piece must have kept still to be added to what's merged once it's made: the plates, bowls and food set down for a
 // while were merged after 2.4 s and taken out again as they were picked up, the merge growing all the while the shop was open */
 const SETTLED_MS = 30_000
+/** (item 767) the first making held till the shop's all in (the loading veil's own test, ui/LoadingScreen's: nothing loading, every staged
+ * part in, the shop drawn) through two looks, so all of it's kept still; made at FIRST_BY_MS whatever (a file that never comes) */
+const FIRST_BY_MS = 40_000
 /** (item 523, the owner's 「先啟用整間合併」) by default the whole room merged, a look at a time, by stretches of the room (CELL 3, 6 since item 529): the
  * overview 1,587 draws to 1,119 (the ink lines alone merged, as before, about 1,400), the close views 20 to 30% fewer, their triangles about as
  * unmerged (one mesh a look for the whole room, `?world=1`, drew fewer still, 888, but two to three times the close views' triangles: the merge
@@ -132,6 +137,10 @@ export const WorldBatch = memo(function WorldBatch() {
   const madeAt = useRef(0)
   const mountedAt = useRef(performance.now())
   const strikes = useRef(new WeakMap<THREE.Mesh, number>())
+  /** (item 767) how many looks running the shop's been all in; what's been offered to be added already (a look of its own in its stretch,
+   * nothing to merge it with, it was offered again every few seconds for nothing: 18 to 45 ms frames, 3.6 s apart, all day) */
+  const loadedLooks = useRef(0)
+  const tried = useRef(new WeakSet<THREE.Mesh>())
   const frame = useRef(0)
   const undo = useRef(() => {})
   undo.current = () => {
@@ -146,11 +155,11 @@ export const WorldBatch = memo(function WorldBatch() {
   useEffect(() => () => undo.current(), [])
   /** `list` merged, a mesh for each look they share; `more`: added to what's merged (what's come in and kept still since), not made anew */
   const build = (list: THREE.Mesh[], more = false) => {
-    if (more) WORLD.adds++
-    else {
+    if (!more) {
       WORLD.dirty = false
       WORLD.builds++
       WORLD.out = 0
+      tried.current = new WeakSet()
     }
     const groups = new Map<string, { mat: THREE.Material; list: THREE.Mesh[]; cast: boolean; take: boolean; order: number; colours: boolean; root: THREE.Object3D; layers: number; plain: boolean }>()
     for (const m of list) {
@@ -246,6 +255,8 @@ export const WorldBatch = memo(function WorldBatch() {
       })
     }
     const b = built.current
+    // (an add counted only as something's merged by it (item 767))
+    if (more && made.length) WORLD.adds++
     if (more && b) { b.meshes.push(...made); b.watch.push(...watch) }
     else built.current = made.length ? { meshes: made, watch, base: made.length } : null
   }
@@ -285,12 +296,26 @@ export const WorldBatch = memo(function WorldBatch() {
     })
     seen.current = next
     since.current = nextSince
+    // (the shop all in this look: the loading veil's own test (ui/LoadingScreen), item 767)
+    const loaded = !useProgress.getState().active && laterPending() === 0 && laterSeen() && sceneDrawn()
+    loadedLooks.current = loaded ? loadedLooks.current + 1 : 0
     // (come into the room and kept still since it was made (the room still loading, a piece put down): merged on their own and added to it, what's
     // merged left as it is (made again whole each time, it was made thirteen times in its first two minutes as the room loaded, each a hitch:
     // every piece in the room baked again); made again whole only once what's added has come to half as many meshes as it was made with)
     // (added only what's kept still a while (SETTLED_MS): not what's only set down a moment)
+    // (and only as ADD_MIN of it are new since the last offer (item 767): what's alone in its look in its stretch had nothing to merge with and
+    // was offered again every look past ADD_MS, a 18 to 45 ms frame each 3.6 s; offered again with the new, which it might go with)
     const settled = b ? keep.filter((o) => now - (nextSince.get(o) ?? now) >= SETTLED_MS) : keep
-    if (b && !WORLD.dirty && settled.length >= ADD_MIN && now - madeAt.current > ADD_MS && !anyLit()) { build(settled, true); madeAt.current = now; return }
+    if (b && !WORLD.dirty && settled.length >= ADD_MIN && now - madeAt.current > ADD_MS && !anyLit()) {
+      let fresh = 0
+      for (const m of settled) if (!tried.current.has(m)) fresh++
+      if (fresh >= ADD_MIN) {
+        for (const m of settled) tried.current.add(m)
+        build(settled, true)
+        madeAt.current = now
+        return
+      }
+    }
     // ---- grown too far from what it was made as: made again whole (item 598, the Tester window's three days: what came in and kept still
     // since was added as merges of its own and never folded back, and what was taken out stayed in the old merges drawn in to a point, so the
     // room's merge grew some 44 meshes a day (227 to 315 in three), the draws some 200 a day, the frames 60 to 54; the line above always said
@@ -306,8 +331,10 @@ export const WorldBatch = memo(function WorldBatch() {
     // still through two looks (looked at while merged, it was hidden, and none of it counted as still)
     if (b && WORLD.dirty) { undo.current(); seen.current = new Map(); since.current = new Map(); return }
     // ---- made once something's kept still and nothing's lit by the pointer just now
-    // (the first time not before the room's mostly in: two hundred kept still, or twenty seconds on)
-    if (!b && keep.length > 1 && (keep.length >= 200 || now - mountedAt.current > 20_000) && !anyLit()) { build(keep); madeAt.current = now }
+    // (the first time not before the shop's all in, through two looks (item 767: made at two hundred kept still, or twenty seconds on, what
+    // came in after it (the sink, the shrine, the till, the cats at the door, ...) waited 30 s and was merged on its own only as 24 or more
+    // of it had, fewer never: the overview's draws 934 to 1,008 by which came in first); FIRST_BY_MS whatever)
+    if (!b && keep.length > 1 && (loadedLooks.current >= 2 || now - mountedAt.current > FIRST_BY_MS) && !anyLit()) { build(keep); madeAt.current = now }
   })
   return null
 })
