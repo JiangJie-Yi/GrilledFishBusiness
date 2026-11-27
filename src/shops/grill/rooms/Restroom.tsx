@@ -1102,6 +1102,10 @@ export function WashstandLive({ who }: { who: Who }) {
     // black discs (the owner's: 「奇怪的黑影」); so they go with the wall, seen from behind it)
     const mirrorSet = new THREE.Group()
     mirrorSet.name = 'WashMirrorSet'
+    // (and the room's merge (scene/WorldBatch) puts what it merges of it under it, hidden with it (item 749, found shooting item 747): merged
+    // with the room's own while it showed, the frame's back, its ink and the plain glass hung on over the stand a second or two once the eye
+    // went round behind, a dark disc (silver at dusk), till the merge saw them hidden and took them out; as a wall's are (DiningRoom's)
+    mirrorSet.userData.hideRoot = true
     root.add(mirrorSet)
     const mirrorBits: THREE.Object3D[] = []
     root.traverse((o) => { if (/^WashMirror/.test(o.name) && (o as THREE.Mesh).isMesh) mirrorBits.push(o) })
