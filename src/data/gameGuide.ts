@@ -2,7 +2,8 @@
  * The game's guide (item 388, the owner's, 2026-11-20: 「左下加入一個小Icon 是有關魚遊戲說明，引導、教學、玩法，及員工、客人各種狀態說明。」): what
  * the little fish at the bottom left opens (ui/GameGuide), a booklet in six tabs: how to start (the first day's four steps, and the first day's
  * guide to see again), how a day of business runs, grilling yourself, the staff (who does what, what shows over their heads and what to do
- * about it), the customers (what shows of them, and why), and the controls. Each page a few short lines, a head and a sentence or two, as
+ * about it), the customers (what shows of them, and why), and the controls; and the developer mode's (item 768, the owner's 「開發者操作也需要
+ * 寫入到遊戲說明那」: its keys as edit.ts has them, the shop's editor and the back office). Each page a few short lines, a head and a sentence or two, as
  * the game is now (the numbers from where they're kept: game/hours, data/recipes' MENU_MIN and MENU_MAX, game/affinity, game/crewMood).
  * In the three languages; the pictures by each line drawn by the guide (the staff's own stickers over their heads, the game's glyphs).
  */
@@ -11,9 +12,9 @@ export type Tri = { zh: string; ja: string; en: string }
 export type GuideIcon =
   | 'alarm' | 'anger' | 'shy' | 'sparkle' | 'gloom' | 'sweat' | 'note'
   | 'steam' | 'cross' | 'hop'
-  | 'box' | 'person' | 'notes' | 'calendar' | 'refresh' | 'coin' | 'heart' | 'fast' | 'eye' | 'gamepad' | 'thumb' | 'receipt' | 'drop' | 'bolt' | 'people' | 'list' | 'search' | 'globe' | 'tools'
+  | 'box' | 'person' | 'notes' | 'calendar' | 'refresh' | 'coin' | 'heart' | 'fast' | 'eye' | 'gamepad' | 'thumb' | 'receipt' | 'drop' | 'bolt' | 'people' | 'list' | 'search' | 'globe' | 'tools' | 'ban' | 'undo'
 export type GuideLine = { icon: GuideIcon; head: Tri; text: Tri }
-export type GuidePage = { id: 'start' | 'shop' | 'grill' | 'staff' | 'guests' | 'keys'; tab: Tri; title: Tri; lines: GuideLine[] }
+export type GuidePage = { id: 'start' | 'shop' | 'grill' | 'staff' | 'guests' | 'keys' | 'dev'; tab: Tri; title: Tri; lines: GuideLine[] }
 
 const t = (zh: string, ja: string, en: string): Tri => ({ zh, ja, en })
 
@@ -112,8 +113,31 @@ export const GAME_GUIDE: GuidePage[] = [
         text: t('點員工（稱讚、催促）、冰箱（補貨）、牆上的菜單、收銀機下的說明書、電燈開關……很多東西都能點。', 'スタッフ、冷蔵庫、壁のお品書き、レジ下の説明書、照明スイッチ……いろいろ押せる。', 'Click the staff, the fridge, the menu on the wall, the booklet under the till, the light switches: much of the shop answers.') },
       { icon: 'globe', head: t('語言', '言語', 'Language'),
         text: t('右上可以切換中文、日文、英文。', '右上で中国語・日本語・英語を切り替え。', 'Switch between Chinese, Japanese and English top right.') },
+      { icon: 'person', head: t('老闆視角', '店主の目線', 'Through the owner’s eyes'),
+        text: t('按 0 從老闆的眼睛看出去：W／S 前進後退、A／D 轉身、空白鍵跳；放開一陣子他會自己走回爐前。', '0 で店主の目線に。W／S で前後に歩き、A／D で向きを変え、スペースでジャンプ。しばらく放すと持ち場に戻る。', 'Press 0 to see through the owner’s eyes: W/S walk, A/D turn, Space jumps; let go a while and he walks back to his fire.') },
       { icon: 'tools', head: t('店面編輯', '店の編集', 'Arrange the shop'),
-        text: t('按 G 進出編輯模式，可以移動擺設。', 'G で編集モード、置き物を動かせる。', 'Press G to go in and out of edit mode and move things about.') },
+        text: t('按 G 進出編輯模式，可以移動擺設；所有開發者操作在「開發者」這一頁。', 'G で編集モード、置き物を動かせる。開発者の操作は「開発者」のページに。', 'Press G to go in and out of edit mode and move things about; every developer key is on the Developer page.') },
+    ],
+  },
+  {
+    id: 'dev', tab: t('開發者', '開発者', 'Developer'), title: t('開發者模式：店面編輯', '開発者モード：店の編集', 'Developer mode: arranging the shop'),
+    lines: [
+      { icon: 'tools', head: t('進出', '出入り', 'In and out'),
+        text: t('G：在遊戲畫面原地進出開發者模式（營業中不能開）。Shift+G：在新分頁開獨立的店面編輯器，一打開就在編輯，上方選單、左邊階層、右邊屬性。', 'G：その場で開発者モードの出入り（営業中は不可）。Shift+G：別タブで店のエディタを開く。開いた時から編集中、上にメニュー、左に階層、右に属性。', 'G: in and out of developer mode right in the game (not while open). Shift+G: the shop’s editor in a tab of its own, always editing, menus on top, the tree on the left, properties on the right.') },
+      { icon: 'search', head: t('選取與工具', '選択とツール', 'Pick and tools'),
+        text: t('點擺設（或左邊階層）選取。Q 選取、W 移動、E 旋轉、R 縮放；同一個鍵再按一次，在世界座標與自身座標之間切換。', '置き物（または左の階層）を押して選択。Q 選択、W 移動、E 回転、R 拡縮。同じキーをもう一度で、ワールドとローカルの座標を切り替え。', 'Click a piece (or its row in the tree) to pick it. Q picks, W moves, E turns, R scales; the same key again switches between the world’s axes and its own.') },
+      { icon: 'eye', head: t('看與對準', '見る・合わせる', 'Look and frame'),
+        text: t('F 對準選取的擺設、A 看整間店、Esc 取消選取（沒選東西時離開開發者模式）。1～5 換顯示方式（4 是線框）。', 'F で選んだ物に合わせ、A で店全体、Esc で選択解除（何も選んでいなければ終了）。1～5 で表示を切り替え（4 はワイヤー）。', 'F frames what’s picked, A the whole shop, Esc lets go (with nothing picked, leaves developer mode). 1 to 5 change how it’s drawn (4 is the wireframe).') },
+      { icon: 'gamepad', head: t('縮放與軸心', '拡縮と軸', 'Scale and pivot'),
+        text: t('X、Y、Z 選要縮放的軸（再按一次三軸一起），+、− 調操作軸的大小；D 切換軸心模式，可以移動擺設的軸心。', 'X・Y・Z で拡縮の軸（もう一度で三軸）、＋・− で操作ハンドルの大きさ。D で軸の位置を動かすモード。', 'X, Y, Z pick the axis to scale along (again: all three); + and - size the handles; D switches to moving a piece’s pivot.') },
+      { icon: 'ban', head: t('藏起與刪除', '隠す・消す', 'Hide and delete'),
+        text: t('H 藏起選取的擺設、Alt+H 全部顯示；動線圖上的禁區與路點，選取後按 Delete 刪除。', 'H で選んだ物を隠し、Alt+H で全部表示。動線図の立入禁止と経由点は、選んで Delete で削除。', 'H hides what’s picked, Alt+H shows all that’s hidden; on the paths’ map, pick a keep-clear patch or a waypoint and press Delete.') },
+      { icon: 'undo', head: t('復原與儲存', '元に戻す・保存', 'Undo and save'),
+        text: t('Ctrl+Z 復原，Ctrl+Y（或 Ctrl+Shift+Z）重做。獨立編輯器裡 Ctrl+S 儲存；檔案選單可以捨棄未儲存的修改，或「試玩」先存再開遊戲。', 'Ctrl+Z で元に戻す、Ctrl+Y（Ctrl+Shift+Z）でやり直し。エディタでは Ctrl+S で保存。ファイルメニューで未保存の変更を破棄、「試遊」で保存してゲームを開く。', 'Ctrl+Z undoes, Ctrl+Y (or Ctrl+Shift+Z) redoes. In the editor Ctrl+S saves; the File menu throws away what’s unsaved, or Play saves and opens the game.') },
+      { icon: 'list', head: t('後台', 'バックオフィス', 'Back office'),
+        text: t('編輯器的「視窗 → 後台」：連著正在跑的遊戲分頁，看營運、帳本、評價、客人、員工與日誌，可以調速度、跳時間。', 'エディタの「ウィンドウ → バックオフィス」：動いているゲームのタブにつながり、営業・帳簿・評判・客・スタッフ・日誌を見て、速さや時間を変えられる。', 'The editor’s Window, then Back office: hooked to the game running in another tab, its business, books, reviews, customers, staff and log, its speed and its clock.') },
+      { icon: 'bolt', head: t('效能條', '性能バー', 'Performance bar'),
+        text: t('F：顯示或藏起右上角的效能條（每秒畫面數、繪製次數、三角面……）；在開發者模式裡 F 是對準選取的擺設。', 'F：右上の性能バーを表示／非表示（FPS・描画回数・ポリゴン数…）。開発者モードでは F は選んだ物に合わせる。', 'F shows or hides the performance bar top right (frames a second, draw calls, triangles...); in developer mode F frames what’s picked instead.') },
     ],
   },
 ]
