@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import { shopPicture } from '@/scene/render/flatGate'
 import { signTexture } from '@/scene/props/signFont'
@@ -226,6 +226,27 @@ export const WC_H = 1.85
 /** upright boards of warm brown wood for the wall's foot (the wainscot), twelve to a tile 1.44 across and the wainscot's height, each its own
  * tone, most flat-sawn and some quarter-sawn, a knot here and there, a V-groove between (blender/walltex.py) */
 const WALL_BOARDS = fileTex('wainscot_boards.jpg')
+/**
+ * (item 743, the owner's 「店內米白色牆要有微微褐色漸變，輕輕地即可」) the shop's cream walls a shade browner low down, by the wainscot's rail (an
+ * old wall's warmth there, where hands and the years have been), fading to their own cream by the frieze: a colour multiplied over the
+ * wall's own, by the height in it (the same at a height on every piece of wall, so each meets the next), linear from PLASTER_AGE at the
+ * rail to none at the wall's top. Its points' colour (the plaster's material drawing them: no new program)
+ */
+const PLASTER_AGE = new THREE.Color('#ece2cf'), PLASTER_WHITE = new THREE.Color('#ffffff')
+export function plasterTint(y: number, out = new THREE.Color()) {
+  const k = Math.min(1, Math.max(0, (WALL_H - y) / (WALL_H - WAINSCOT)))
+  return out.copy(PLASTER_WHITE).lerp(PLASTER_AGE, k)
+}
+/** a plane's points coloured by plasterTint at their heights (the plane `h` high, its middle `ym` up the wall), times `base` */
+export function tintByHeight(g: THREE.BufferGeometry, ym: number, base = PLASTER_WHITE) {
+  const pos = g.attributes.position, col = new Float32Array(pos.count * 3), c = new THREE.Color()
+  for (let i = 0; i < pos.count; i++) {
+    plasterTint(ym + pos.getY(i), c).multiply(base)
+    col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3))
+  return g
+}
 export function WallPiece({ z0, z1, y0, y1, plaster = false }: { z0: number; z1: number; y0: number; y1: number; plaster?: boolean }) {
   const map = useMemo(() => {
     const src = plaster ? PLASTER : WALL_BOARDS
@@ -242,10 +263,15 @@ export function WallPiece({ z0, z1, y0, y1, plaster = false }: { z0: number; z1:
     t.needsUpdate = true
     return t
   }, [z0, z1, y0, y1, plaster])
+  // (the plaster's points tinted by their height (item 743))
+  const geo = useMemo(() => {
+    const g = new THREE.PlaneGeometry(z1 - z0, y1 - y0)
+    return plaster ? tintByHeight(g, (y0 + y1) / 2) : g
+  }, [z0, z1, y0, y1, plaster])
+  useEffect(() => () => geo.dispose(), [geo])
   return (
-    <mesh position={[0, (y0 + y1) / 2, (z0 + z1) / 2]} rotation-y={-Math.PI / 2} receiveShadow>
-      <planeGeometry args={[z1 - z0, y1 - y0]} />
-      <meshToonMaterial color="#ffffff" map={map} />
+    <mesh geometry={geo} position={[0, (y0 + y1) / 2, (z0 + z1) / 2]} rotation-y={-Math.PI / 2} receiveShadow>
+      <meshToonMaterial color="#ffffff" map={map} vertexColors={plaster} />
     </mesh>
   )
 }

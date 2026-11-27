@@ -16,7 +16,7 @@ import { setTip } from '@/scene/interact/hoverTip'
 import { getLights } from '@/scene/render/lightsStore'
 import { wcDarkness } from '@/game/world/roomLights'
 import { skyNow } from './ambient'
-import { canvasTex, WC_H, plankBoard, PLASTER } from './base'
+import { canvasTex, WC_H, plankBoard, PLASTER, tintByHeight } from './base'
 import { SILL_TEX } from './roundWindow'
 
 /** the restroom's plaque (the owner's, 2026-11-09: a bright figure, not a dark character; no black rim): a warm walnut board, softly
@@ -412,6 +412,8 @@ const WC_FLOOR = canvasTex(128, 64, (g) => {
     }
   }
 }, true)
+/** the rooms' plaster's cream (its points' colour, item 743) */
+const WC_PLASTER = new THREE.Color('#ece0c6')
 /** charred cedar boards (焼杉), the dark upright planks of a traditional wall's foot */
 const WC_CEDAR = canvasTex(64, 128, (g) => {
   g.fillStyle = '#2a1d15'
@@ -538,14 +540,15 @@ export function WcWall({ len, at, yaw, top, cut = false }: { len: number; at: [n
     const lower = new THREE.PlaneGeometry(len, 0.9)
     const uv = lower.attributes.uv as THREE.BufferAttribute
     for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * (len / 0.3), uv.getY(i) * (0.9 / 0.5))
-    return { lower, upper: new THREE.PlaneGeometry(len, top - 0.9), rail: cut ? new THREE.PlaneGeometry(len, 0.035) : new THREE.BoxGeometry(len, 0.035, 0.03) }
+    // (its plaster a shade browner low down, as the shop's walls are (item 743): its cream on its points, by their height)
+    return { lower, upper: tintByHeight(new THREE.PlaneGeometry(len, top - 0.9), 0.9 + (top - 0.9) / 2, WC_PLASTER), rail: cut ? new THREE.PlaneGeometry(len, 0.035) : new THREE.BoxGeometry(len, 0.035, 0.03) }
   }, [len, top, cut])
   useEffect(() => () => { geo.lower.dispose(); geo.upper.dispose(); geo.rail.dispose() }, [geo])
   return (
     <group position={at} rotation-y={yaw}>
       {/* (lifted a touch by its own grain: from above, in the corners behind the toilet, the charred cedar went a dead black) */}
       <mesh geometry={geo.lower} position-y={0.45}><meshToonMaterial color="#ffffff" map={WC_CEDAR} emissive="#ffffff" emissiveMap={WC_CEDAR} emissiveIntensity={0.22} /></mesh>
-      <mesh geometry={geo.upper} position-y={0.9 + (top - 0.9) / 2}><meshToonMaterial color="#ece0c6" /></mesh>
+      <mesh geometry={geo.upper} position-y={0.9 + (top - 0.9) / 2}><meshToonMaterial color="#ffffff" vertexColors /></mesh>
       <mesh geometry={geo.rail} position={[0, 0.9, cut ? 0.003 : 0.012]}><meshToonMaterial color="#6a4428" /></mesh>
     </group>
   )
