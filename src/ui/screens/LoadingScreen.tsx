@@ -1,6 +1,7 @@
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useProgress } from '@react-three/drei'
 import { GrillingFish } from '@/ui/art/GrillingFish'
+import { EMBER_SHEETS, NOREN_CREST } from '@/ui/art/loadingLook'
 import { laterPending, laterSeen, sceneDrawn } from '@/scene/render/Later'
 import { LOADING_LINES, lineStep } from '@/data/loadingLines'
 import { loadingPct, loadingStep } from '@/game/system/loadingCreep'
@@ -10,6 +11,17 @@ const STALL_MS = 20000
 /** the staged parts the veil waits for (scene/Later's stages 1 to 3), and how much of the shown progress the shop's own first files are */
 const STAGES = 3
 const STAGE_FROM = 0.45
+/** how long the veil takes to lift once the shop's all in (ms; loading.css .is-leaving's 0.6 s, and a frame or two) */
+const LIFT_MS = 650
+
+// (the veil's still parts (item 798): the same as the page's first placeholder's (ui/art/loadingLook, written into index.html's #boot),
+// the embers going up from the grill and the shop's own noren hung across the top, its crest on the middle panel)
+const Embers = memo(function Embers() {
+  return <div className="loading-embers" aria-hidden="true">{Array.from({ length: EMBER_SHEETS }, (_, i) => <i key={i} />)}</div>
+})
+const Noren = memo(function Noren() {
+  return <div className="loading-noren" aria-hidden="true"><span /><span dangerouslySetInnerHTML={{ __html: NOREN_CREST }} /><span /></div>
+})
 
 /**
  * The loading veil over the 3D shop: how far the models and pictures have come in (never more than 100%, never "Infinity", which drei's own
@@ -58,6 +70,12 @@ export const LoadingScreen = memo(function LoadingScreen({ scene = true }: { sce
     return () => window.clearInterval(t)
   }, [])
   const { active, loaded, total, errors, progress } = prog
+  // (its endless motions (the noren swaying, the embers, the fire, the glint) counted from the page's start, as the placeholder's are
+  // (index.html): put in its place, it takes each up where it was, not from its beginning, and the change can't be seen)
+  const veil = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    try { for (const a of veil.current?.getAnimations({ subtree: true }) ?? []) a.startTime = 0 } catch { /* (an older browser: from their beginnings) */ }
+  }, [])
   const [stuck, setStuck] = useState(false)
   // (only the first load is covered: once the shop has come in, a model or picture fetched later (a guest, a light) loads behind the scenes,
   // never bringing the veil back over the game; and a count that never started (nothing went through the loaders' tally) isn't waited on)
@@ -89,25 +107,37 @@ export const LoadingScreen = memo(function LoadingScreen({ scene = true }: { sce
   }, [active, loaded])
   // (some files are only looked for (the HDRIs are tried by several names): a miss isn't a failure unless the loading has stopped too)
   const failed = errors.length > 0 && stuck
+  // (once it's all in, lifted (item 798: it was cut away in a frame): the noren drawn up and the veil faded off the shop (loading.css
+  // .is-leaving), nothing under it held up meanwhile, then gone)
+  const [gone, setGone] = useState(false)
+  useEffect(() => {
+    if (!done) return
+    const t = window.setTimeout(() => setGone(true), LIFT_MS)
+    return () => window.clearTimeout(t)
+  }, [done])
   // (shown until the shop's all in: between one stage's files and the next's nothing's loading, and it went away in that gap)
-  if (done) return null
+  if (gone) return null
   const pct = total > 0 && Number.isFinite(progress) ? shown : null
   return (
-    <div className="loading-screen" role="status" aria-live="polite">
-      <GrillingFish done={(pct ?? 0) / 100} />
-      <div className="loading-board">
-        <h1>聞野</h1>
-        <small>日式烤魚</small>
-        <div className="loading-bar"><i style={{ width: `${pct ?? 0}%`, '--done': (pct ?? 0) / 100 } as React.CSSProperties} /></div>
-        {/* (what the shop's doing to get ready, by how far it's come (data/loadingLines, item 175): a wait with something happening in it) */}
-        <p>{pct === null ? `${LOADING_LINES[line][1]}…` : `${LOADING_LINES[line][1]} ${pct.toFixed(0)}%`}</p>
-      </div>
-      {stuck && (
-        <div className="loading-stuck">
-          <p>{failed ? `有 ${errors.length} 個檔案沒有載入成功` : '載入好像卡住了'}（可能是模型正在更新，或開發伺服器在重啟）</p>
-          <button type="button" onClick={() => window.location.replace(window.location.pathname + '?v=' + Date.now())}>重新載入</button>
+    <div ref={veil} className={done ? 'loading-screen is-leaving' : 'loading-screen'} role="status" aria-live="polite">
+      <Embers />
+      <Noren />
+      <div className="loading-stage">
+        <GrillingFish done={(pct ?? 0) / 100} />
+        <div className="loading-board">
+          <h1>聞野</h1>
+          <small>日式烤魚</small>
+          <div className="loading-bar"><i style={{ width: `${pct ?? 0}%`, '--done': (pct ?? 0) / 100 } as React.CSSProperties} /></div>
+          {/* (what the shop's doing to get ready, by how far it's come (data/loadingLines, item 175): a wait with something happening in it) */}
+          <p><span>{pct === null ? `${LOADING_LINES[line][1]}…` : LOADING_LINES[line][1]}</span>{pct !== null && <b>{pct.toFixed(0)}%</b>}</p>
         </div>
-      )}
+        {stuck && (
+          <div className="loading-stuck">
+            <p>{failed ? `有 ${errors.length} 個檔案沒有載入成功` : '載入好像卡住了'}（可能是模型正在更新，或開發伺服器在重啟）</p>
+            <button type="button" onClick={() => window.location.replace(window.location.pathname + '?v=' + Date.now())}>重新載入</button>
+          </div>
+        )}
+      </div>
     </div>
   )
 })

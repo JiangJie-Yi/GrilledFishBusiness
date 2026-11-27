@@ -6,8 +6,27 @@ import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
+import { bootMarkup } from './src/ui/art/loadingLook.ts'
 
 const LIVE_STATE = fileURLToPath(new URL('./blender/live_state.json', import.meta.url))
+
+/**
+ * The page's first placeholder (item 798): index.html's #boot, shown till the app's code has come, and its look written in from what the
+ * app's own loading veil is drawn with (ui/art/loadingLook, src/styles/loading.css and the fish emblem's), so the two are one and the same
+ * and the one takes the other's place unseen. It was a copy kept by hand in the page, and had drifted (a lighter board than the app's).
+ */
+function bootLook(): Plugin {
+  const css = () => ['loading.css', 'fish-emblem.css'].map((f) => readFileSync(fileURLToPath(new URL(`./src/styles/${f}`, import.meta.url)), 'utf8')).join('\n')
+  return {
+    name: 'boot-look',
+    transformIndexHtml: {
+      order: 'pre',
+      handler: (html) => html
+        .replace('<!-- boot look -->', () => `<style>\n${css()}</style>`)
+        .replace('<!-- boot -->', () => `<div id="boot" class="loading-screen" role="status" aria-live="polite">${bootMarkup()}</div>`),
+    },
+  }
+}
 
 /**
  * Dev-only bridge to Blender: the page POSTs what's on screen (dish, ordered items) and we write it to
@@ -82,7 +101,7 @@ function assetHashes(): Record<string, string> {
 const REPO = process.env.GITHUB_REPOSITORY?.split('/')[1] ?? 'GrilledFishBusiness'
 export default defineConfig(({ command, isPreview }) => ({
   base: command === 'build' || isPreview ? `/${REPO}/` : '/',
-  plugins: [react(), blenderBridge()],
+  plugins: [react(), blenderBridge(), bootLook()],
   // (the game's version, shown on the about tab: up 0.01 with every push to main, gameVersion above)
   // (and, built, each model's and picture's content hash: scene/render/assetVersions)
   define: { __GAME_VERSION__: JSON.stringify(gameVersion()), __ASSET_HASH__: JSON.stringify(command === 'build' ? assetHashes() : {}) },

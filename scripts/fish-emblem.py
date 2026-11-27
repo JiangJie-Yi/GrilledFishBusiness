@@ -1,5 +1,7 @@
-"""Writes the loading screens' emblem (a salt-grilled ayu on a bamboo skewer over flames, in a gold-ringed medallion) into both places it
-shows: src/ui/art/fishEmblem.ts (the app's loading veil, cooked by --done) and index.html's first splash (raw). Run: python scripts/fish-emblem.py"""
+"""Writes the loading screens' emblem (a salt-grilled ayu on a bamboo skewer over flames, in a gold-ringed medallion): src/ui/art/fishEmblem.ts
+and its rules, src/styles/fish-emblem.css. Both loading screens show it from there: the app's veil (ui/screens/LoadingScreen, cooked by
+--done) and index.html's first placeholder (raw), which vite.config.ts's bootLook writes into the page (item 798; this wrote it into
+index.html itself before). Run: python scripts/fish-emblem.py"""
 import math
 import os
 import re
@@ -139,10 +141,4 @@ open(os.path.join(ROOT, 'src', 'ui', 'art', 'fishEmblem.ts'), 'w', encoding='utf
 p = os.path.join(ROOT, 'src', 'styles', 'fish-emblem.css')
 open(p, 'w', encoding='utf-8').write('/* ---- fish emblem (scripts/fish-emblem.py) ---- */\n' + CSS + '\n/* ---- end fish emblem ---- */\n')
 
-p = os.path.join(ROOT, 'index.html')
-s = open(p, encoding='utf-8').read()
-s = re.sub(r'<svg class="(grilling-fish|fish-emblem)".*?</svg>', lambda m: svg, s, count=1, flags=re.S)
-s = re.sub(r'      /\* fish emblem \*/.*?/\* end fish emblem \*/\n', '', s, flags=re.S)
-s = s.replace('    </style>', '      /* fish emblem */\n' + '\n'.join('      ' + l.replace('.fish-emblem', '#boot .fish-emblem') for l in CSS.split('\n')) + '\n      /* end fish emblem */\n    </style>', 1)
-open(p, 'w', encoding='utf-8').write(s)
 print('ok', len(svg))

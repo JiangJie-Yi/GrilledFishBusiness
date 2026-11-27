@@ -1,41 +1,158 @@
-/* ---- the loading veil over the 3D shop (ui/LoadingScreen): the shop's own look, a dark board with its name in the sign's lettering, a strip of
-   paper filling as the models come in, paper buttons ---- */
-.loading-screen { position: fixed; inset: 0; z-index: 20000; display: grid; place-content: center; justify-items: center; gap: 18px;
-  background: radial-gradient(ellipse at 50% 40%, #3a2618 0%, #1c120b 70%); color: var(--washi, #fbf3e4); font-size: 13px; }
-.loading-board { display: grid; justify-items: center; gap: 6px; padding: 26px 46px 22px; border-radius: 14px;
-  background: var(--plate-grain) center / 100% 100%, linear-gradient(#5a3a22, #3e2716); border: 2px solid #2a1a0f;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 14px 32px -12px rgb(0 0 0 / 0.7); }
-.loading-board h1 { margin: 0; font: 400 46px/1 'Zen Antique', var(--brush, serif); letter-spacing: 0.12em; color: #f6e7c8;
-  text-shadow: 0 2px 0 #1c110a, 0 0 18px rgb(242 196 109 / 0.25); }
-.loading-board small { font: 400 13px 'Zen Antique', var(--brush, serif); letter-spacing: 0.4em; color: #d9c29a; margin-bottom: 10px; }
-.loading-board p { margin: 4px 0 0; color: #e8d6b4; letter-spacing: 0.08em; }
-.loading-bar { width: 220px; height: 8px; border-radius: 4px; background: rgb(0 0 0 / 0.35); box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.5); overflow: hidden; }
+/* ---- the loading veil over the 3D shop (ui/LoadingScreen; the page's first placeholder, index.html's #boot, is the same look, this file put
+   in the page's head by vite.config.ts's bootLook, item 798): the shop's way in by night. Its own noren (the 3D one's: unbleached cotton, the
+   crest in dark brown) hung across the top from a lacquered rod, stirring a little; under it the fish on the coals, cooking as the shop comes
+   in, its name in gold and a strip of coal catching along as the files come in; the grill's glow from below, embers going up in it, the sea's
+   waves faint in the dark. Every endless motion a transform or an opacity, the compositor's (the page is busy reading the models meanwhile) */
+.loading-screen { position: fixed; inset: 0; z-index: 20000; display: grid; grid-template-rows: auto 1fr; justify-items: center; overflow: hidden;
+  background:
+    radial-gradient(ellipse 85% 42% at 50% 112%, rgb(255 112 38 / 0.3), transparent 72%),
+    radial-gradient(ellipse 52% 40% at 50% 56%, rgb(128 72 30 / 0.24), transparent 72%),
+    linear-gradient(#0d0a0e, #150d09 52%, #1d120b);
+  color: var(--washi, #fbf3e4); font: 13px/1.6 var(--brush, 'LXGW WenKai TC', 'Noto Serif TC', serif); }
+/* (the sea's waves (青海波) in gold, faint, coming up out of the dark below and gone by the middle) */
+.loading-screen::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.075;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='12' viewBox='0 0 24 12'%3E%3Cdefs%3E%3Cg id='s'%3E%3Cpath d='M-12 0a12 12 0 0 1 24 0z'/%3E%3Cpath d='M-12 0a12 12 0 0 1 24 0M-8.4 0a8.4 8.4 0 0 1 16.8 0M-4.8 0a4.8 4.8 0 0 1 9.6 0' fill='none' stroke='%23e2ba64' stroke-width='.7'/%3E%3C/g%3E%3C/defs%3E%3Cuse href='%23s' x='0' y='6'/%3E%3Cuse href='%23s' x='24' y='6'/%3E%3Cuse href='%23s' x='12' y='12'/%3E%3Cuse href='%23s' x='0' y='18'/%3E%3Cuse href='%23s' x='24' y='18'/%3E%3C/svg%3E") 50% 100% / 34px 17px;
+  -webkit-mask-image: linear-gradient(transparent 42%, #000 96%); mask-image: linear-gradient(transparent 42%, #000 96%); }
+
+/* (the embers: hot points in their glow going up from the grill below, thick over its middle and fewer out to the sides, gone by halfway up.
+   Three sheets of them, each its own speed (the near ones bigger and quicker), each twice the screen's height with its points set out the
+   same in both halves, going up by one half and round again: three moving things, not one for every ember (with the 3D shop drawing behind
+   it, every moving thing on the veil cost the page about 3 ms a second, item 798)) */
+.loading-embers { position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+  -webkit-mask-image: radial-gradient(ellipse 58% 75% at 50% 100%, #000 30%, transparent 78%);
+  mask-image: radial-gradient(ellipse 58% 75% at 50% 100%, #000 30%, transparent 78%); }
+.loading-embers i { position: absolute; left: 0; right: 0; top: 0; height: 200%; background-size: 100% 50%;
+  animation: loading-embers-up 15s linear infinite; }
+.loading-embers i:nth-child(1) {
+  background-image:
+    radial-gradient(circle at 36% 18%, #fff3c8 0 1.4px, rgb(255 173 72 / 0.8) 2.4px, transparent 6px),
+    radial-gradient(circle at 58% 41%, #fff3c8 0 1.2px, rgb(255 173 72 / 0.8) 2.2px, transparent 5px),
+    radial-gradient(circle at 47% 67%, #fff3c8 0 1.5px, rgb(255 173 72 / 0.8) 2.6px, transparent 6px),
+    radial-gradient(circle at 66% 86%, #fff3c8 0 1.2px, rgb(255 173 72 / 0.8) 2.2px, transparent 5px),
+    radial-gradient(circle at 29% 93%, #fff3c8 0 1.1px, rgb(255 173 72 / 0.8) 2px, transparent 5px); }
+.loading-embers i:nth-child(2) { animation-duration: 10.5s; animation-delay: -4s;
+  background-image:
+    radial-gradient(circle at 52% 9%, #fff6d6 0 1.8px, rgb(255 160 60 / 0.85) 3px, transparent 8px),
+    radial-gradient(circle at 41% 38%, #fff6d6 0 1.6px, rgb(255 160 60 / 0.85) 2.8px, transparent 7px),
+    radial-gradient(circle at 62% 59%, #fff6d6 0 2px, rgb(255 160 60 / 0.85) 3.2px, transparent 8px),
+    radial-gradient(circle at 34% 80%, #fff6d6 0 1.6px, rgb(255 160 60 / 0.85) 2.8px, transparent 7px); }
+.loading-embers i:nth-child(3) { animation-duration: 21s; animation-delay: -9s; opacity: 0.8;
+  background-image:
+    radial-gradient(circle at 44% 6%, #ffe9b0 0 1px, rgb(255 140 50 / 0.7) 1.8px, transparent 4px),
+    radial-gradient(circle at 71% 27%, #ffe9b0 0 0.9px, rgb(255 140 50 / 0.7) 1.6px, transparent 4px),
+    radial-gradient(circle at 24% 46%, #ffe9b0 0 1px, rgb(255 140 50 / 0.7) 1.8px, transparent 4px),
+    radial-gradient(circle at 55% 63%, #ffe9b0 0 0.9px, rgb(255 140 50 / 0.7) 1.6px, transparent 4px),
+    radial-gradient(circle at 38% 78%, #ffe9b0 0 1px, rgb(255 140 50 / 0.7) 1.8px, transparent 4px),
+    radial-gradient(circle at 64% 95%, #ffe9b0 0 0.9px, rgb(255 140 50 / 0.7) 1.6px, transparent 4px); }
+@keyframes loading-embers-up { to { transform: translateY(-50%); } }
+
+/* (the noren: three panels side by side, the slits between them only just open, hung down from the top on two cords) */
+.loading-noren { --nw: min(660px, 84vw); position: relative; display: flex; gap: 3px; width: var(--nw); height: min(calc(var(--nw) * 0.3), 24vh);
+  margin-top: 30px; color: #3e2a1c; }
+/* (the rod through the cloth's sleeves: black-red lacquer, brass at each end, round in the light) */
+.loading-noren::before { content: ''; position: absolute; z-index: 1; left: -18px; right: -18px; top: -5px; height: 10px; border-radius: 5px;
+  background:
+    linear-gradient(rgb(255 236 210 / 0.32), transparent 45%, rgb(0 0 0 / 0.38)),
+    linear-gradient(90deg, #c99a3e 0 11px, #5c1e12 11px calc(100% - 11px), #c99a3e calc(100% - 11px));
+  box-shadow: 0 3px 5px rgb(0 0 0 / 0.55); }
+/* (its two cords, up from the rod's ends to above the screen) */
+.loading-noren::after { content: ''; position: absolute; left: -12px; right: -12px; top: -40px; height: 36px;
+  background: linear-gradient(90deg, #6e4c30 0 2px, transparent 2px calc(100% - 2px), #6e4c30 calc(100% - 2px)); }
+/* (each panel: the cotton's weave, its soft folds, the eave's shadow at the top and the grill's warm light at the hem, which is turned up
+   and stitched; each stirring on its own, hung from the rod: a slant, so its foot moves and its top doesn't) */
+.loading-noren > span { flex: 1; position: relative; transform-origin: 50% 0; animation: loading-sway 5.6s ease-in-out infinite alternate;
+  background:
+    repeating-linear-gradient(0deg, rgb(110 88 60 / 0.07) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgb(110 88 60 / 0.05) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgb(60 40 20 / 0) 0, rgb(60 40 20 / 0.07) 19px, rgb(60 40 20 / 0) 38px),
+    linear-gradient(rgb(18 9 4 / 0.34), transparent 36%),
+    linear-gradient(#d7ccb5, #ebe1cb 62%, #f2e2c2);
+  box-shadow: 0 12px 20px -8px rgb(0 0 0 / 0.6); }
+.loading-noren > span:nth-child(2) { animation-duration: 6.3s; animation-delay: -2.1s; background-position: 0 0, 0 0, 11px 0, 0 0, 0 0; }
+.loading-noren > span:nth-child(3) { animation-duration: 5.1s; animation-delay: -3.7s; background-position: 0 0, 0 0, 23px 0, 0 0, 0 0; }
+.loading-noren > span::after { content: ''; position: absolute; left: 0; right: 0; bottom: 8px; height: 1px;
+  background: repeating-linear-gradient(90deg, rgb(62 42 28 / 0.4) 0 5px, transparent 5px 9px); }
+@keyframes loading-sway { from { transform: skewX(-0.8deg); } to { transform: skewX(0.9deg); } }
+.loading-crest { display: block; width: 100%; height: 100%; }
+.loading-crest-mark { font: 400 19px 'Zen Antique', var(--brush, serif); fill: currentColor; text-anchor: middle; dominant-baseline: central; }
+.loading-crest-name { font: 700 5.6px Georgia, 'Times New Roman', serif; fill: currentColor; }
+
+/* (under the noren: the fish on the coals in a warm light, and the name; a little above the middle of what's left, the grill's glow kept
+   clear below, and on a tall screen kept nearer the noren (it stood a third of the screen under it on a tablet held upright)) */
+.loading-stage { display: grid; justify-items: center; align-content: center; padding-bottom: max(8vh, calc(100vh - 860px)); }
+/* (its own box for laying out, its size set here (the emblem's, 300 by 220 less the 10 it sits down into the name's space), and a plain
+   block (not a grid): the fire, the sparks and the steam in it move every frame, and an SVG's parts moved are laid out again, the boxes
+   round them with them) */
+.fish-emblem-wrap { position: relative; width: min(300px, 64vw); aspect-ratio: 300 / 210; contain: size layout; }
+.fish-emblem-wrap::before { content: ''; position: absolute; z-index: -1; left: 50%; top: 50%; width: 150%; aspect-ratio: 1; translate: -50% -50%;
+  background: radial-gradient(circle, rgb(255 150 60 / 0.17), rgb(255 120 40 / 0.05) 40%, transparent 66%); }
+.loading-board { display: grid; justify-items: center; margin-top: 18px; }
+/* (the name in gold leaf, spaced; its spacing's last share given back so it stands in the middle) */
+.loading-board h1 { margin: 0 -0.3em 0 0; font: 400 clamp(42px, 4.6vw, 54px)/1.12 'Zen Antique', var(--brush, serif); letter-spacing: 0.3em;
+  white-space: nowrap; color: transparent; background: linear-gradient(#fff4d8 18%, #ecc67e 56%, #b9863a 90%); -webkit-background-clip: text;
+  background-clip: text; filter: drop-shadow(0 2px 0 #120a05) drop-shadow(0 0 16px rgb(240 176 90 / 0.3)); }
+/* (and what it is, between two fine gold lines) */
+.loading-board small { display: flex; align-items: center; gap: 14px; margin: 10px 0 24px; font: 400 13px 'Zen Antique', var(--brush, serif);
+  letter-spacing: 0.55em; color: #d9c29a; white-space: nowrap; }
+.loading-board small::before, .loading-board small::after { content: ''; width: 46px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(214 170 90 / 0.85)); }
+.loading-board small::after { margin-left: -0.55em; transform: scaleX(-1); }
+.loading-board p { display: flex; align-items: baseline; gap: 10px; margin: 14px 0 0; color: #d6c09a; letter-spacing: 0.1em; white-space: nowrap; }
+.loading-board p b { font-weight: 400; color: #f0cf8a; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
+/* (the bar: a strip of coal in a fine gold line, catching from its left as the files come in, dark red to the hot yellow at its head, its glow
+   growing as it goes. Its own box for laying out (contain): the fill's width eases on every frame, and the whole veil was laid out again
+   with it) */
+.loading-bar { width: min(340px, 70vw); height: 5px; border-radius: 3px; background: #0b0705; contain: size layout;
+  box-shadow: 0 0 0 1px rgb(201 162 74 / 0.3), inset 0 1px 2px rgb(0 0 0 / 0.7); }
 .loading-bar i {
-  /* (it cooks as the fish does: from a raw fish's cool silver to grilled gold as the shop comes in, mixed in Oklab so the way between stays
-     even and never goes muddy; a sheen on top) */
   --done: 0;
-  --cook: color-mix(in oklab, oklch(0.84 0.03 230) calc((1 - var(--done)) * 100%), oklch(0.78 0.14 70));
-  display: block; height: 100%; border-radius: 4px; transition: width 0.3s ease;
-  background: linear-gradient(in oklab, color-mix(in oklab, var(--cook), white 30%), var(--cook));
+  display: block; height: 100%; border-radius: 3px; transition: width 0.3s ease;
+  background: linear-gradient(90deg, #4a1205, #a8300b 35%, #ee7424 74%, #ffd98e);
+  box-shadow: 0 0 calc(5px + var(--done) * 9px) rgb(255 120 40 / calc(0.35 + var(--done) * 0.35));
   position: relative; overflow: hidden;
 }
 /* (a glint running along it (item 592): while the shop's models are read and made ready the page can't change the number for seconds at a
    time (it stood at 50% for 5.7 s, nothing able to run), but a moving transform is the compositor's, and goes on: it's not hung) */
 .loading-bar i::after {
   content: ''; position: absolute; inset: 0; will-change: transform;
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.45), transparent);
+  background: linear-gradient(90deg, transparent, rgb(255 238 200 / 0.55), transparent);
   transform: translateX(-100%); animation: loading-glint 1.8s ease-in-out infinite;
 }
 @keyframes loading-glint { to { transform: translateX(100%); } }
-@media (prefers-reduced-motion: reduce) { .loading-bar i::after { animation: none; opacity: 0; } }
-.loading-stuck { display: grid; justify-items: center; gap: 10px; max-width: 420px; text-align: center; color: #d9c29a; }
+.loading-stuck { display: grid; justify-items: center; gap: 10px; max-width: 420px; margin-top: 22px; text-align: center; color: #d9c29a; }
 .loading-stuck p { margin: 0; }
 .loading-stuck button { padding: 7px 22px; border: 1px solid #2a1a0f; border-radius: 8px; background: var(--washi, #fbf3e4); color: var(--ink, #3b2a20);
   font: inherit; font-weight: 700; letter-spacing: 0.1em; cursor: pointer; box-shadow: 0 3px 0 #2a1a0f; }
 .loading-stuck button:active { transform: translateY(2px); box-shadow: 0 1px 0 #2a1a0f; }
 
+/* (lifted once the shop's all in (ui/LoadingScreen's LIFT_MS): the noren drawn up out of the way as at a shop's door, the fish and the name a
+   little nearer, the whole fading off the shop; nothing under it held up meanwhile) */
+.loading-screen.is-leaving { pointer-events: none; animation: loading-fade 0.6s ease-in forwards; }
+.loading-screen.is-leaving .loading-noren { animation: loading-lift 0.6s cubic-bezier(0.55, 0, 0.8, 0.4) forwards; }
+.loading-screen.is-leaving .loading-stage { animation: loading-nearer 0.6s ease-in forwards; }
+@keyframes loading-fade { to { opacity: 0; } }
+@keyframes loading-lift { to { transform: translateY(-120%); } }
+@keyframes loading-nearer { to { transform: scale(1.05); } }
+
+/* (the page's first placeholder (index.html's #boot) before the app's code is here: nothing counted yet, so a glow goes to and fro along the
+   empty strip (the strip's own, not the fill's: a moving fill with its glint moving in it was drawn again by the page every frame, 2 ms a
+   frame, item 798); the word and the button only once its own script finds nothing's come for a while) */
+#boot .loading-bar { position: relative; overflow: hidden; }
+#boot .loading-bar i { display: none; }
+#boot .loading-bar::before { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 30%; border-radius: 3px;
+  background: linear-gradient(90deg, transparent, #b8360c 30%, #ffb45a 62%, transparent); animation: loading-to-fro 1.5s ease-in-out infinite alternate; }
+@keyframes loading-to-fro { from { transform: translateX(-70%); } to { transform: translateX(310%); } }
+#boot .loading-stuck { display: none; }
+#boot.is-stuck .loading-stuck { display: grid; }
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-bar i::after { animation: none; opacity: 0; }
+  .loading-embers { display: none; }
+  .loading-noren > span, #boot .loading-bar::before, .loading-screen.is-leaving .loading-noren,
+  .loading-screen.is-leaving .loading-stage { animation: none; }
+}
+
 /* ---- English: what stands upright in Chinese and Japanese lies across, smaller where it has to fit a small space ---- */
 html[lang='en'] :is(.heat-label, .brand-sub, .menu-title, .strip-price, .strip-en) { writing-mode: horizontal-tb; letter-spacing: 0.02em; }
 html[lang='en'] .brand-sub { font-size: 0.62em; white-space: nowrap; }
 html[lang='en'] .heat-label { font-size: 13px; }
-
