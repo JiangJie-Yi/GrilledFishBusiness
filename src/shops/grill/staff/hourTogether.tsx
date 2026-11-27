@@ -1,5 +1,6 @@
-import { memo } from 'react'
+import { memo, useLayoutEffect, useRef } from 'react'
 import * as THREE from 'three'
+import { inkModel } from '@/scene/render/inkHull'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { signTexture } from '@/scene/props/signFont'
 
@@ -202,13 +203,26 @@ function Between({ act, at }: { act: string; at: [number, number, number] }) {
 /** the hour's things on the bar for what they're at (none: nothing) */
 export const HourOnBar = memo(function HourOnBar({ act }: { act: string | null }) {
   const l = act ? LAYOUT[act] : undefined
+  // (their line round each, as everything on the bar has (the bench's width, welded so it doesn't split at the lathe's seams); the lines'
+  // own shapes let go with them)
+  const root = useRef<THREE.Group>(null)
+  useLayoutEffect(() => {
+    const g = root.current
+    if (!g) return
+    const had = new Set<THREE.Object3D>()
+    g.traverse((o) => had.add(o))
+    inkModel(g, () => false, { width: 0.0016, weld: true })
+    const lines: THREE.BufferGeometry[] = []
+    g.traverse((o) => { const m = o as THREE.Mesh; if (!had.has(o) && m.isMesh) lines.push(m.geometry) })
+    return () => { for (const x of lines) x.dispose() }
+  }, [act])
   if (!act || !l) return null
   return (
-    <>
+    <group ref={root}>
       <Own kind={l.kind} at={l.mine} />
       <Own kind={l.kind} at={l.his} />
       {l.mid && <Between act={act} at={l.mid} />}
-    </>
+    </group>
   )
 })
 /** every thing the hour puts on the bar, hidden, kept in the shop from the start: their pictures sent up and programs made as it loads, not
