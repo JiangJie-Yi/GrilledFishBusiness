@@ -82,7 +82,9 @@ export function DaySummary({ s, day, hours, goal, goalMade, streak = 0, broke = 
           <h2>{t(`第 ${day} 天・打烊結算`, `${day} 日目・閉店の締め`, `Day ${day} · closing up`)}</h2>
           <button type="button" className="panel-x" onClick={onClose} aria-label={t('關閉', '閉じる', 'Close')}>×</button>
         </header>
-        <div className="day-sum-body">
+        {/* (the day at a glance, kept in sight over the sums: the hours, the profit, the target; only the sums under it scroll (item 734, the
+            owner's 「可以滑動的僅有內容」: it all scrolled away together, item 715)) */}
+        <div className="day-sum-head">
           {/* (when it opened and when it closed (the owner's: the sheet says what time the day's business ended)) */}
           {/* (and how late either was, past 16:30 and 04:30 (the owner's, 2026-11-10); early, how early) */}
           {hours && (
@@ -115,6 +117,8 @@ export function DaySummary({ s, day, hours, goal, goalMade, streak = 0, broke = 
                   `Today's target ${nt(goal)}: ${nt(goal - s.revenue)} short${broke ? ' · the run is broken' : ''}`)}</FitLine>
             </p>
           )}
+        </div>
+        <div className="day-sum-body">
           <dl className="day-sum-books">
             {rows.map(([label, n, plus, sub]) => (
               <div key={label} className={sub ? 'is-sub' : undefined}><dt>{label}</dt><dd className={plus ? 'is-in' : 'is-out'}>{plus || sub ? '' : '−'}{nt(Math.abs(n))}</dd></div>

@@ -131,6 +131,9 @@
   letter-spacing: 0.04em;
   white-space: nowrap;
 }
+/* the sheet's two parts (item 734, the owner's 「可以滑動的僅有內容」): the day at a glance on top, kept in sight (the hours, the profit,
+   the target); the sums under it, the only part that scrolls */
+.day-sum-head,
 .day-sum-body {
   display: grid;
   /* (its one column the sheet's width, never wider: a long line in it (a day opened ten hours late, a dish's long name) widened the
@@ -138,14 +141,21 @@
   grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: 14px;
-  /* (scrolled within the sheet's height (item 715), a slim wooden bar at its side; its wheel kept to it) */
+}
+.day-sum-head {
+  flex: none;
+  padding: 16px 18px 0;
+}
+/* (the sums scrolled within the sheet's height (item 715), a slim wooden bar at their side only; the wheel kept to them; the target's rule
+   over them where they scroll under (its gap the same as it was between them)) */
+.day-sum-body {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: #8a6a44 rgb(90 61 40 / 0.1);
-  padding: 16px 14px 18px 18px;
+  padding: 14px 14px 18px 18px;
 }
 /* (under the sums, apart from them: the done button and the closing's count, in sight however far they're scrolled (item 715)) */
 .day-sum-foot {
