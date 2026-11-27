@@ -456,43 +456,58 @@ def cloth_marks(E):
 
 
 def cloth_picture(W=1024):
-    """its picture at its true size (WC by DC, about a millimetre a pixel): indigo, the dye a little uneven (paler in soft patches, as hand-
-    dyed indigo is), its weave; inside, 七宝 (shippo): rings of 3.6 cm in rows, every other ring a ring's radius over and up, each overlapping
-    its four slant neighbours; the lens two share a paler indigo, so the four lenses round each point where four rings meet make a four-
-    petalled flower, a white dot at its heart, the dark between them four-pointed stars, a pale line round every ring; a pale double line
-    round it a little in from its hems, the hems' band plain. (At the counter's usual distance, 3 mm a pixel, smaller rings ran into a grey
-    lattice; at 3.6 cm the petals and the stars stay apart)"""
+    """its picture at its true size (WC by DC, about a millimetre a pixel). (Item 757, the owner's 「桌墊要有白邊，花紋改成這樣」, a picture of a
+    slate-blue cloth strewn with white chrysanthemums, and the cloth as it was, indigo in 七宝 rings: ) slate blue, the dye a little uneven
+    (paler in soft patches), its weave; strewn with white chrysanthemums cut as 菊割り, each its own size (1.6 to 5 cm across the half), a
+    count of thin petals (16, 20 or 24) from a small heart out to rounded tips, a hair of the blue between each two; none on another; and
+    round it a white border, down its hang and 2.2 cm in onto its top, a fine slate line along its inner edge"""
     HP = int(round(W * DC / WC / 4)) * 4
     col = np.arange(W, dtype=np.float32)[None, :].repeat(HP, 0)
     row = np.arange(HP, dtype=np.float32)[:, None].repeat(W, 1)
     X, Y = (col + 0.5) / W * WC, (row + 0.5) / HP * DC
     seed(622)
-    pic = np.ones((HP, W, 3), np.float32) * np.array((0.15, 0.29, 0.55), np.float32)[None, None, :]
-    # (the noise's square cut to the picture's rows: 15 by 6 of its cells, about 7 cm each way)
-    pic = mix(pic, (0.24, 0.4, 0.66), smooth(0.55, 0.85, fbm(W, 15, 6, 4)[np.arange(HP) * W // HP]) * 0.4)
-    R = 0.036
-    dx, dy = X - WC / 2, Y - DC / 2
-    qa = np.hypot(dx - np.round(dx / (2 * R)) * 2 * R, dy - np.round(dy / (2 * R)) * 2 * R)
-    qb = np.hypot(dx - R - np.round((dx - R) / (2 * R)) * 2 * R, dy - R - np.round((dy - R) / (2 * R)) * 2 * R)
-    lens = smooth(-0.0006, 0.0006, R - qa) * smooth(-0.0006, 0.0006, R - qb)
-    line = 1 - smooth(0.0007, 0.0014, np.minimum(np.abs(qa - R), np.abs(qb - R)))
-    # (the flowers' hearts: the points a ring's radius apart whose two counts add up odd)
-    fx, fy = np.floor(dx / R), np.floor(dy / R)
-    heart = np.full(dx.shape, 9.0, np.float32)
-    for ox in (0, 1):
-        for oy in (0, 1):
-            ax, ay = fx + ox, fy + oy
-            heart = np.where(((ax + ay) % 2) != 0, np.minimum(heart, np.hypot(dx - ax * R, dy - ay * R)), heart)
-    dot = 1 - smooth(0.0022, 0.003, heart)
+    pic = np.ones((HP, W, 3), np.float32) * np.array((0.27, 0.36, 0.45), np.float32)[None, None, :]
+    pic = mix(pic, (0.35, 0.44, 0.53), smooth(0.55, 0.85, fbm(W, 15, 6, 4)[np.arange(HP) * W // HP]) * 0.35)
     edge = np.minimum(np.minimum(X, WC - X), np.minimum(Y, DC - Y))
-    field = smooth(0.032, 0.034, edge)
-    pic = mix(pic, (0.6, 0.72, 0.88), lens * field * 0.42)
-    pic = mix(pic, (0.84, 0.88, 0.92), line * field * 0.7)
-    pic = mix(pic, (0.94, 0.95, 0.93), dot * field * 0.9)
-    weave = 0.92 + 0.08 * (0.5 + 0.5 * np.sin((col + 0.5) * math.pi * 0.5)) * (0.5 + 0.5 * np.sin((row + 0.5) * math.pi * 0.5))
+    BORDER = S + 0.022
+    field = smooth(BORDER, BORDER + 0.0015, edge)
+    # (the flowers: placed one by one, each clear of the others by a little; within the field, a few running under its border)
+    rf = np.random.default_rng(757)
+    flowers = []
+    for _ in range(6000):
+        if len(flowers) >= 30:
+            break
+        r = 0.016 + rf.random() ** 1.7 * 0.034
+        x = BORDER - r * 0.35 + rf.random() * (WC - 2 * BORDER + r * 0.7)
+        y = BORDER - r * 0.35 + rf.random() * (DC - 2 * BORDER + r * 0.7)
+        if any(math.hypot(x - fx, y - fy) < (r + fr) * 1.06 for fx, fy, fr, _, _ in flowers):
+            continue
+        flowers.append((x, y, r, int(rf.choice([16, 20, 24])), rf.random() * 2 * math.pi))
+    white = np.zeros(X.shape, np.float32)
+    px = W / WC
+    for fx, fy, fr, n, rot in flowers:
+        c0, c1 = max(0, int((fx - fr) * px) - 2), min(W, int((fx + fr) * px) + 3)
+        r0, r1 = max(0, int((fy - fr) * px) - 2), min(HP, int((fy + fr) * px) + 3)
+        if c0 >= c1 or r0 >= r1:
+            continue
+        dx, dy = X[r0:r1, c0:c1] - fx, Y[r0:r1, c0:c1] - fy
+        rho = np.hypot(dx, dy)
+        per = 2 * math.pi / n
+        th = np.mod(np.arctan2(dy, dx) - rot, per) - per / 2
+        aw = np.abs(th) / (per / 2)
+        # (a petal: most of its share of the round, the gap between a hair of the blue that widens a little toward the tip; its tip rounded;
+        # from a little way out of the heart)
+        tip = fr * (1 - 0.14 * aw ** 2)
+        gap = 0.8 - 0.1 * np.clip(rho / fr, 0, 1)
+        petal = smooth(gap + 0.06, gap - 0.02, aw) * smooth(tip + 0.0007, tip - 0.0007, rho) * smooth(fr * 0.15, fr * 0.19, rho)
+        heart = 1 - smooth(fr * 0.085, fr * 0.1, rho)
+        white[r0:r1, c0:c1] = np.maximum(white[r0:r1, c0:c1], np.maximum(petal, heart))
+    pic = mix(pic, (0.95, 0.95, 0.93), white * field)
+    weave = 0.93 + 0.07 * (0.5 + 0.5 * np.sin((col + 0.5) * math.pi * 0.5)) * (0.5 + 0.5 * np.sin((row + 0.5) * math.pi * 0.5))
     pic = pic * weave[..., None]
-    for e0 in (0.0189, 0.026):
-        pic = mix(pic, (0.86, 0.88, 0.86), np.exp(-((edge - e0) / 0.00147) ** 2) * 0.85)
+    # (the white border, and its fine slate line)
+    pic = mix(pic, (0.94, 0.94, 0.91), 1 - field)
+    pic = mix(pic, (0.33, 0.41, 0.5), np.exp(-((edge - (BORDER - 0.003)) / 0.0007) ** 2) * 0.8)
     return np.clip(pic, 0, 1).astype(np.float32)
 
 
