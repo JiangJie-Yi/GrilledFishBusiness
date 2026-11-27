@@ -13,7 +13,7 @@ export const AFTER_OWNER: Record<Id, Pool> = {
   shogi: { zh: ['來下一盤？', '棋盤擺好了，坐吧。'], ja: ['一局どうだ？', '盤を出したぞ、座れ。'], en: ['A game?', 'Board is out. Sit down.'] },
   radio: { zh: ['今天有比賽，一起聽吧。', '收音機開了，第七局了。'], ja: ['今日は試合だ、一緒に聴こう。', 'ラジオつけたぞ、七回だ。'], en: ['There is a game on. Listen with me.', 'Radio is on. Seventh inning.'] },
   tea: { zh: ['泡了茶，一起喝吧。', '熱茶，暖暖身子。'], ja: ['お茶淹れたよ、一緒にどう？', '温かいお茶でもどうだ。'], en: ['I made tea. Have some with me.', 'Hot tea. Warm yourself up.'] },
-  latebite: { zh: ['餓了吧？巷口的攤子還開著。', '走，請你吃碗熱湯麵。'], ja: ['腹減ったろ？路地の屋台まだやってるぞ。', '行こう、温かいそばをご馳走する。'], en: ['Hungry? The stall up the lane is still open.', 'Come on, hot noodles on me.'] },
+  latebite: { zh: ['餓了吧？我去巷口的攤子買兩碗熱湯麵回來。', '宵夜我請，熱湯麵馬上來。'], ja: ['腹減ったろ？路地の屋台でそばを二杯買ってくる。', '夜食はおごりだ、温かいそばすぐ来るぞ。'], en: ['Hungry? I’ll fetch two bowls of noodles from the stall up the lane.', 'Late bite’s on me: hot noodles, coming up.'] },
   hometown: { zh: ['說說你家鄉吧。', '你家鄉是什麼樣的地方？'], ja: ['故郷の話を聞かせてくれ。', 'どんなところで育ったんだ？'], en: ['Tell me about home.', 'What is it like, where you grew up?'] },
 }
 export const AFTER_REPLY: Record<Id, Pool> = {

@@ -18,7 +18,7 @@ import { SIGN_FONT, signTexture } from '@/scene/props/signFont'
 import { StaffFigure } from '@/scene/people/StaffFigure'
 import { isFigureHit } from '@/scene/people/FigureHit'
 import { getClock, minutesNow } from '@/ui/kit/clockStore'
-import { DORM_LIFE, NIGHT_WITH } from '@/shops/grill/bar'
+import { DORM_LIFE, NIGHT_WITH, UP_WITH } from '@/shops/grill/bar'
 import { BossModel } from '@/shops/grill/staff/Boss'
 import { slideDoorSound, tvChannelSound, tvMurmur, tvSwitchSound } from '@/shops/grill/sounds/restroomSound'
 import { TV_H, TV_SHOWS, TV_W, drawTv, tvBusy, type TvPicture } from './dormTvShows'
@@ -231,7 +231,8 @@ function upNow(id: string, open: boolean, walk: number, off = false) {
   // (off today: up here all day, resting, or asleep through its small hours; one just up the stair as the shift turned over to the next
   // day's still coming up it)
   // (item 696: his companion down with him by day (GuestBar3D's CompanionAtBar): not up here meanwhile)
-  if (COMPANION.down && COMPANION.id === id) return { here: false, downFor, upFor }
+  // (item 770: and one down at the bar for an hour with him after hours (CompanionAtBar))
+  if ((COMPANION.down && COMPANION.id === id) || (UP_WITH.down && UP_WITH.id === id)) return { here: false, downFor, upFor }
   return { here: off || upstairs(open, SHOP.walking.has(id), downFor, downLength(walk), up !== undefined), downFor, upFor }
 }
 /** (each sleeper's futon down: laid as they come to it, the table folded away with it) */
