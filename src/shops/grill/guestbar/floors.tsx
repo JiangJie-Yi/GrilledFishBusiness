@@ -10,9 +10,11 @@ import { WC_BACK_LINE } from '@/shops/grill/dining/wc'
 import { Movable } from '@/shops/grill/editor/Movable'
 import { drainSpot, outlineOf, plinthPlan, type PlinthPlan, type Rect, type Run } from '@/game/world/groundLayout'
 import { normalFromHeight } from '@/scene/render/normalFromHeight'
+import type { WallFace } from '@/game/world/stoneWall'
 import { seigaiha } from '@/scene/props/edoPatterns'
 import { EARTH_Y, ShopGround } from './ground'
 import { DRAIN_CLEAR, DRAIN_FROM, ShopDrain } from './drain'
+import { plinthWall, type WallAtlas, type WallPiece } from './castleWall'
 
 /**
  * The customers' side of the shop floored in wide old boards: one even rectangle under the whole bar, the row of
@@ -116,94 +118,19 @@ function laid(part: THREE.Object3D, made: [number, number, number], [x0, y0, z0]
     scale: [Math.abs(x1 - x0) / made[0], Math.abs(y1 - y0) / made[1], Math.abs(z1 - z0) / made[2]] as [number, number, number] }
 }
 /** the stone plinth (石台, item 744, the owner's 「約五分之三的部份做成石台」 over the base's lower courses): how far it stands proud of the
- * base's faces; how far it goes down into the earth (none of it in the air over it); how much of its face one repeat of its picture covers
- * along it (up it, its two courses from the earth to its top). Its top the rim board's foot: of the base as it's seen, from the floor's edge
- * (the fill under the boards shows over the rim) down to the earth, 0.279 of 0.462, three fifths */
-const PLINTH_OUT = 0.018, PLINTH_SUNK = 0.015, PLINTH_U = 2
-/**
- * The plinth's granite (御影石), cut and laid in two courses (切石積み) as the steps' stone is: blocks of their own lengths (0.28 to 0.56), their
- * joints staggered course to course, each its own grey (warm or cool, as the steps' are), flecked dark and pale, its top edge catching the
- * light and its foot a shade darker; the joints dark; the lower course's foot stained with the earth splashed up on it, a little moss along
- * it. Its height a picture (each block raised, its edges rounded off, the joints sunk) made into its normal map. Its ends meet (the blocks
- * wrap round); its rows run down its v (the earth at its foot, v 1).
+ * base's faces; how far it goes down into the earth (none of it in the air over it). Its top the rim board's foot: of the base as it's seen,
+ * from the floor's edge (the fill under the boards shows over the rim) down to the earth, 0.279 of 0.462, three fifths. Its stone a
+ * castle's stone wall (item 751, guestbar/castleWall: it was granite cut and laid in two even courses)
  */
-const PLINTH_MAT = (() => {
-  if (typeof document === 'undefined') return null
-  const W = 1024, H = 128, PX = W / PLINTH_U, CH = H / 2, J = 3
-  const c = document.createElement('canvas')
-  c.width = W; c.height = H
-  const g = c.getContext('2d')!
-  const hc = document.createElement('canvas')
-  hc.width = W; hc.height = H
-  const hg = hc.getContext('2d')!
-  let seed = 744
-  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
-  g.fillStyle = '#3a3731'; g.fillRect(0, 0, W, H)
-  hg.fillStyle = '#000'; hg.fillRect(0, 0, W, H)
-  // (a shade darker than the curb's pale granite, nearer the steps' weathered grey: a foundation's stone, not a kerb's)
-  const tones = [[126, 124, 116], [136, 133, 124], [117, 115, 108], [144, 140, 131], [110, 109, 103], [130, 129, 123]]
-  for (let k = 0; k < 2; k++) {
-    // (its blocks: the top course's from its top edge (the plinth's top: no joint there), the lower's down past the picture's foot (in the earth))
-    const y0 = k ? CH + J / 2 : 0, y1 = k ? H + 6 : CH - J / 2
-    const joints: number[] = []
-    let x = rnd() * PX * 0.5 + k * PX * 0.17
-    while (joints.length === 0 || x < joints[0] + W - 0.28 * PX) { joints.push(x); x += (0.28 + rnd() * 0.28) * PX }
-    for (let b = 0; b < joints.length; b++) {
-      const xa = joints[b], xb = b + 1 < joints.length ? joints[b + 1] : joints[0] + W
-      const [r0, g0, b0] = tones[Math.floor(rnd() * tones.length)]
-      const sh = 0.94 + rnd() * 0.1, warm = (rnd() - 0.5) * 8
-      const col = (f: number) => `rgb(${Math.round(r0 * sh * f + warm)},${Math.round(g0 * sh * f)},${Math.round(b0 * sh * f - warm)})`
-      const flecks = Array.from({ length: Math.round((xb - xa) * 1.4) }, () => [rnd(), rnd(), rnd(), rnd()])
-      for (const off of [0, -W]) {
-        const bx = xa + off + J / 2, bw = xb - xa - J, bh = Math.min(y1, H) - y0
-        // (lighter at its top, its own grey through the middle, darker at its foot)
-        const gr = g.createLinearGradient(0, y0, 0, y0 + bh)
-        gr.addColorStop(0, col(1.1)); gr.addColorStop(0.16, col(1.0)); gr.addColorStop(0.85, col(0.94)); gr.addColorStop(1, col(0.84))
-        g.fillStyle = gr; g.fillRect(bx, y0, bw, bh)
-        for (const [fx, fy, fr, fk] of flecks) {
-          g.fillStyle = fk < 0.5 ? 'rgba(40,38,34,0.5)' : fk < 0.8 ? 'rgba(98,94,86,0.45)' : 'rgba(238,234,224,0.6)'
-          g.fillRect(bx + fx * bw, y0 + fy * bh, 1 + fr * 1.6, 1 + fr * 1.2)
-        }
-        g.fillStyle = 'rgba(255,252,240,0.26)'; g.fillRect(bx, y0, bw, 2)
-        if (!k) { g.fillStyle = 'rgba(20,18,14,0.3)'; g.fillRect(bx, y0 + bh - 2, bw, 2) }
-        // (its height: raised, its edges rounded off over 4 px; the top course's top edge left square (the plinth's own corner), the lower's
-        // foot in the earth)
-        for (let i = 0; i < 4; i++) {
-          const v = 80 + i * 44
-          hg.fillStyle = `rgb(${v},${v},${v})`
-          hg.fillRect(bx + i, k ? y0 + i : y0 - 8, bw - 2 * i, k ? y1 - y0 : y1 - y0 + 8 - i)
-        }
-      }
-    }
-  }
-  // (low down: the earth splashed up on the lower course, a little moss along its foot and in its joints)
-  const sp = g.createLinearGradient(0, H - 24, 0, H)
-  sp.addColorStop(0, 'rgba(112,86,58,0)'); sp.addColorStop(1, 'rgba(112,86,58,0.42)')
-  g.fillStyle = sp; g.fillRect(0, H - 24, W, 24)
-  for (let i = 0; i < 320; i++) {
-    const x = rnd() * W, y = H - rnd() * rnd() * 34, r = 0.8 + rnd() * 2.2, a = 0.22 + rnd() * 0.36
-    for (const off of [0, W, -W]) {
-      if (x + off < -r || x + off > W + r) continue
-      g.fillStyle = `rgba(${i % 3 ? '74,100,50' : '96,122,62'},${a})`
-      g.beginPath(); g.arc(x + off, y, r, 0, Math.PI * 2); g.fill()
-    }
-  }
-  const t = new THREE.CanvasTexture(c)
-  t.colorSpace = THREE.SRGBColorSpace
-  const n = new THREE.CanvasTexture(normalFromHeight(hc, 1.6))
-  for (const x of [t, n]) { x.flipY = false; x.wrapS = x.wrapT = THREE.RepeatWrapping; x.anisotropy = 4 }
-  const m = new THREE.MeshToonMaterial({ color: '#ffffff', map: t, normalMap: n })
-  m.name = 'ShopPlinth'
-  return m
-})()
+const PLINTH_OUT = 0.018, PLINTH_SUNK = 0.015
 /**
- * The plinth's mesh from its plan (game/world/groundLayout's plinthPlan): along each run its face, from `foot` (in the earth) to `top`, turned
- * out; over each of its ledge's rects its top; at each end where it stops at the steps a face across it, back to the base's face. Its picture
- * by where each point is: along its face (left to right seen from outside), down from its top to the earth (`earth`) its two courses
+ * The plinth's mesh from its plan (game/world/groundLayout's plinthPlan): along each run its face, from `foot` (in the earth) to `top`,
+ * turned out, in its bits of the stone wall's picture (item 751, guestbar/castleWall: each face its own strip of it, broken where the strip
+ * goes on in the picture's next row); over each of its ledge's rects its top (the picture's patch for it); at each end where it stops at the
+ * steps a face across it, back to the base's face, its end stone's side (its strip's first or last few centimetres)
  */
-function plinthGeometry(plan: PlinthPlan, top: number, foot: number, earth: number, out: number) {
+function plinthGeometry(plan: PlinthPlan, top: number, foot: number, out: number, faces: WallFace[], atlas: WallAtlas) {
   const pos: number[] = [], nor: number[] = [], uv: number[] = []
-  const vOf = (y: number) => (top - y) / (top - earth)
   // (a quad, its four points round it and theirs uvs, the way it faces: its triangles turned to face that way)
   const quad = (p: [number, number, number][], t: [number, number][], n: [number, number, number]) => {
     const [a, b, c] = p
@@ -212,25 +139,29 @@ function plinthGeometry(plan: PlinthPlan, top: number, foot: number, earth: numb
     const order = cr[0] * n[0] + cr[1] * n[1] + cr[2] * n[2] >= 0 ? [0, 1, 2, 0, 2, 3] : [0, 2, 1, 0, 3, 2]
     for (const i of order) { pos.push(...p[i]); uv.push(...t[i]); nor.push(...n) }
   }
-  for (const r of plan.runs) {
-    const [ox, oz] = r.out
-    // (along it, left to right seen from outside)
-    const u = (x: number, z: number) => (oz * x - ox * z) / PLINTH_U
-    const [ax, az] = r.a, [bx, bz] = r.b
-    quad([[ax, foot, az], [bx, foot, bz], [bx, top, bz], [ax, top, az]],
-      [[u(ax, az), vOf(foot)], [u(bx, bz), vOf(foot)], [u(bx, bz), 0], [u(ax, az), 0]], [ox, 0, oz])
-    // (an end at the steps: across it, from the plinth's face back to the base's)
-    for (const [cut, [ex, ez], dir] of [[r.cutA, r.a, -1], [r.cutB, r.b, 1]] as const) {
-      if (!cut) continue
-      const dx = ox === 0 ? dir : 0, dz = ox === 0 ? 0 : dir
-      const ix = ex - ox * out, iz = ez - oz * out
-      quad([[ex, foot, ez], [ix, foot, iz], [ix, top, iz], [ex, top, ez]], [[0, vOf(foot)], [out / PLINTH_U, vOf(foot)], [out / PLINTH_U, 0], [0, 0]], [dx, 0, dz])
+  const H = top - foot
+  const uvOf = (p: WallPiece, s: number, y: number): [number, number] => [(p.x + (s - p.s0) * atlas.K) / atlas.W, (p.y + y * atlas.K) / atlas.H]
+  for (const f of faces) {
+    const r = plan.runs[f.run], [ox, oz] = r.out, [dx, dz] = f.along, [fx, fz] = f.from
+    const ps = atlas.pieces[f.run]
+    for (const p of ps) {
+      const ax = fx + dx * p.s0, az = fz + dz * p.s0, bx = fx + dx * p.s1, bz = fz + dz * p.s1
+      quad([[ax, foot, az], [bx, foot, bz], [bx, top, bz], [ax, top, az]], [uvOf(p, p.s0, H), uvOf(p, p.s1, H), uvOf(p, p.s1, 0), uvOf(p, p.s0, 0)], [ox, 0, oz])
+    }
+    // (an end at the steps: across it, from the plinth's face back to the base's; its picture from its strip's end inward)
+    const aFirst = Math.abs(r.a[0] - fx) < 1e-9 && Math.abs(r.a[1] - fz) < 1e-9
+    for (const [cut, s, dir] of [[aFirst ? r.cutA : r.cutB, 0, -1], [aFirst ? r.cutB : r.cutA, f.len, 1]] as const) {
+      if (!cut || !ps.length) continue
+      const p = dir < 0 ? ps[0] : ps[ps.length - 1]
+      const ex = fx + dx * s, ez = fz + dz * s, ix = ex - ox * out, iz = ez - oz * out
+      const s1 = Math.min(p.s1, Math.max(p.s0, s - dir * out))
+      quad([[ex, foot, ez], [ix, foot, iz], [ix, top, iz], [ex, top, ez]], [uvOf(p, s, H), uvOf(p, s1, H), uvOf(p, s1, 0), uvOf(p, s, 0)], [dx * dir, 0, dz * dir])
     }
   }
-  // (its ledge's top, along the longer way of each of its rects, a little down its top course)
+  // (its ledge's top: the picture's plain patch for it)
+  const [u0, v0, u1, v1] = atlas.ledge
   for (const [x0, z0, x1, z1] of plan.ledge) {
-    const longX = x1 - x0 >= z1 - z0, u = (x: number, z: number) => (longX ? x : z) / PLINTH_U
-    quad([[x0, top, z0], [x1, top, z0], [x1, top, z1], [x0, top, z1]], [[u(x0, z0), 0.1], [u(x1, z0), 0.1], [u(x1, z1), 0.1], [u(x0, z1), 0.1]], [0, 1, 0])
+    quad([[x0, top, z0], [x1, top, z0], [x1, top, z1], [x0, top, z1]], [[u0, v0], [u1, v0], [u1, v1], [u0, v1]], [0, 1, 0])
   }
   const g = new THREE.BufferGeometry()
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
@@ -333,14 +264,17 @@ function ShopBase({ rects, genkan, drop, step, plinth }: { rects: [[number, numb
     const shared = steps.userData.shared as Set<THREE.BufferGeometry>
     steps.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && !shared.has(m.geometry)) m.geometry.dispose() })
   }, [steps])
-  // (the stone plinth: one mesh, one draw; made again only if the room's shape changes)
-  const plinthGeo = useMemo(() => plinthGeometry(plinth, stoneTop, EARTH_Y - PLINTH_SUNK, EARTH_Y, PLINTH_OUT), [plinth, stoneTop])
-  useEffect(() => () => plinthGeo.dispose(), [plinthGeo])
+  // (the stone plinth: its picture (a castle's stone wall, item 751) and its mesh, one draw; made again only if the room's shape changes)
+  const foot = EARTH_Y - PLINTH_SUNK
+  const wall = useMemo(() => plinthWall(plinth, stoneTop - foot, stoneTop - EARTH_Y), [plinth, stoneTop, foot])
+  useEffect(() => () => wall?.dispose(), [wall])
+  const plinthGeo = useMemo(() => (wall ? plinthGeometry(plinth, stoneTop, foot, PLINTH_OUT, wall.faces, wall.atlas) : null), [plinth, stoneTop, foot, wall])
+  useEffect(() => () => plinthGeo?.dispose(), [plinthGeo])
   return (
     <>
       <mesh geometry={rimGeo} material={BASE_TIMBER[0]} />
       <primitive object={steps} />
-      {PLINTH_MAT && <mesh name="shop-plinth" geometry={plinthGeo} material={PLINTH_MAT} />}
+      {wall && plinthGeo && <mesh name="shop-plinth" geometry={plinthGeo} material={wall.material} />}
     </>
   )
 }
