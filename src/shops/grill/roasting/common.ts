@@ -1,5 +1,6 @@
 import { shopPicture } from '@/scene/render/flatGate'
 import * as THREE from 'three'
+import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { reflectStudio } from '@/scene/render/studio'
 import { forPhone } from '@/shops/grill/kitchen/ware'
 import { ALONG, FLOOR_NEAR, GRILL_COUNTERS, LAY, toGrillScene } from '@/shops/grill/bar'
@@ -181,6 +182,9 @@ type P2 = [number, number]
  * cell, a ladder between the curve and the cell's two sides. Wherever a cut meets the outline, the outline is given that point, so the sides
  * meet the faces point for point. `arc`: the straight steps round each curve (ExtrudeGeometry's curveSegments 4 made 8).
  */
+// (the angle under which two of a slab's side facets are drawn as one smooth turn: its round's facets 22.5 degrees apart, its rounded
+// corners' 11.25; its square corners 90)
+const SIDE_CREASE = (40 * Math.PI) / 180
 export function quadSlab(pts: P2[], radii: number[], ex: { depth: number; bevelThickness: number; bevelSize: number; bevelSegments: number }, arc = 8) {
   const n = pts.length
   const near = (p: P2, q: P2) => Math.abs(p[0] - q[0]) < 1e-7 && Math.abs(p[1] - q[1]) < 1e-7
@@ -336,7 +340,7 @@ export function quadSlab(pts: P2[], radii: number[], ex: { depth: number; bevelT
   // ends, the near one facing back (-z), their texture coordinates where they are
   const g = new THREE.ExtrudeGeometry(new THREE.Shape(full.map(([x, y]) => new THREE.Vector2(x, y))), { ...ex, bevelEnabled: true, curveSegments: 1 })
   const cap = g.groups.find((q) => q.materialIndex === 0)!, sides = g.groups.find((q) => q.materialIndex === 1)!
-  const P = g.attributes.position, U = g.attributes.uv, N = g.attributes.normal
+  const P = g.attributes.position, U = g.attributes.uv
   let zn = Infinity, zf = -Infinity
   for (let k = cap.start; k < cap.start + cap.count; k++) { const z = P.getZ(k); if (z < zn) zn = z; if (z > zf) zf = z }
   const pos: number[] = [], uv: number[] = [], nor: number[] = []
@@ -348,7 +352,26 @@ export function quadSlab(pts: P2[], radii: number[], ex: { depth: number; bevelT
     }
   }
   const capCount = pos.length / 3
-  for (let k = sides.start; k < sides.start + sides.count; k++) { pos.push(P.getX(k), P.getY(k), P.getZ(k)); uv.push(U.getX(k), U.getY(k)); nor.push(N.getX(k), N.getY(k), N.getZ(k)) }
+  // (the sides smooth round the edge's round and round the outline's rounded corners, hard where the outline turns square (item 957, the
+  // owner's 「同一個物件有的硬邊、有的軟邊」: as ExtrudeGeometry leaves them each facet is its own, the round drawn as four flat bands and
+  // each rounded corner as eight): the facets that meet at under SIDE_CREASE averaged where they meet; the round's ring on each face's
+  // plane given the face's own normal, the face running on into the round unbroken. Given in mm: toCreasedNormals takes points within a
+  // centimetre of each other for one point)
+  const sp = new Float32Array(sides.count * 3)
+  for (let k = 0; k < sides.count; k++) {
+    sp[k * 3] = P.getX(sides.start + k) * 1000; sp[k * 3 + 1] = P.getY(sides.start + k) * 1000; sp[k * 3 + 2] = P.getZ(sides.start + k) * 1000
+  }
+  const sg = new THREE.BufferGeometry()
+  sg.setAttribute('position', new THREE.BufferAttribute(sp, 3))
+  const SN = toCreasedNormals(sg, SIDE_CREASE).attributes.normal
+  for (let k = sides.start; k < sides.start + sides.count; k++) {
+    const z = P.getZ(k), q = k - sides.start
+    pos.push(P.getX(k), P.getY(k), z); uv.push(U.getX(k), U.getY(k))
+    if (Math.abs(z - zn) < 1e-7) nor.push(0, 0, -1)
+    else if (Math.abs(z - zf) < 1e-7) nor.push(0, 0, 1)
+    else nor.push(SN.getX(q), SN.getY(q), SN.getZ(q))
+  }
+  sg.dispose()
   g.dispose()
   const out = new THREE.BufferGeometry()
   out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
