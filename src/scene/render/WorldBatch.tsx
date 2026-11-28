@@ -75,16 +75,6 @@ function inRoom(o: THREE.Object3D, scene: THREE.Object3D) {
   }
   return false
 }
-/** (item 804) inRoom asked once a frame for each parent (what it answers is its parent's alone), however many merged meshes it holds */
-const ROOM_NOW = new WeakMap<THREE.Object3D, { f: number; v: boolean }>()
-function inRoomNow(o: THREE.Object3D, scene: THREE.Object3D, f: number) {
-  const p = o.parent
-  if (!p) return false
-  let h = ROOM_NOW.get(p)
-  if (!h) ROOM_NOW.set(p, (h = { f: -1, v: false }))
-  if (h.f !== f) { h.f = f; h.v = inRoom(o, scene) }
-  return h.v
-}
 const sameAt = (a: THREE.Matrix4, b: THREE.Matrix4) => { for (let i = 0; i < 16; i++) if (Math.abs(a.elements[i] - b.elements[i]) > 1e-6) return false; return true }
 
 /** an ink line's hull (scene/inkHull's: a shader drawn from inside out, each vertex pushed out along its normal by its width (uWidth) in the
@@ -124,16 +114,6 @@ function flatInk(mat: THREE.Material) {
 /** what's watched of a merged mesh: where it was, its material and look as merged, its shape's version */
 type Watch = { m: THREE.Mesh; at: THREE.Matrix4; mat: THREE.Material; colour: number; glow: number; geo: THREE.BufferGeometry; ver: number; layers: number }
 const hexOf = (m: THREE.Material, k: 'color' | 'emissive') => ((m as THREE.MeshToonMaterial)[k] as THREE.Color | undefined)?.getHex() ?? -1
-/** (item 804) a material's colour and glow as hexOf has them, worked out once a frame however many merged meshes share it (the plain colours'
- * one material is most of the room's): each its own getHex, its colour turned back from linear for each, was a good part of the watch's
- * time a frame */
-const HEX_NOW = new WeakMap<THREE.Material, { f: number; colour: number; glow: number }>()
-function hexNow(m: THREE.Material, f: number) {
-  let h = HEX_NOW.get(m)
-  if (!h) HEX_NOW.set(m, (h = { f: -1, colour: 0, glow: 0 }))
-  if (h.f !== f) { h.f = f; h.colour = hexOf(m, 'color'); h.glow = hexOf(m, 'emissive') }
-  return h
-}
 
 /**
  * The room's meshes merged across it (item 367; scene/worldMerge): every LOOK_MS the room's meshes are looked over, and those in the same
@@ -296,7 +276,7 @@ export const WorldBatch = memo(function WorldBatch() {
         const gone = m.material !== w.mat ? 'material' : m.geometry !== w.geo || (m.geometry.attributes.position as THREE.BufferAttribute).version !== w.ver ? 'shape'
           : !sameAt(m.matrixWorld, w.at) ? 'moved' : m.layers.mask !== w.layers ? 'layers'
             // (and, a few at a time, whether it's still in the room and shown, and its colour and glow as they were)
-            : (i + f) % 6 !== 0 ? '' : !inRoomNow(m, scene, f) || w.mat.visible === false ? 'hidden' : hexNow(w.mat, f).colour !== w.colour ? 'colour' : hexNow(w.mat, f).glow !== w.glow ? 'glow' : ''
+            : (i + f) % 6 !== 0 ? '' : !inRoom(m, scene) || w.mat.visible === false ? 'hidden' : hexOf(w.mat, 'color') !== w.colour ? 'colour' : hexOf(w.mat, 'emissive') !== w.glow ? 'glow' : ''
         if (gone) { takeOut(m, gone); strikes.current.set(m, (strikes.current.get(m) ?? 0) + 1) }
       }
     }
