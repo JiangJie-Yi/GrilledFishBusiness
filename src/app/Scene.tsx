@@ -13,6 +13,7 @@ import { bestOf } from '@/ui/panels/Notebook'
 import { type Entry } from '@/data/recipes'
 import { OpeningSpot } from '@/scene/props/OpeningSpot'
 import { OccluderFade } from '@/scene/render/OccluderFade'
+import { BlobShadows } from '@/scene/effects/BlobShadow'
 import { RenderPrefsApply } from '@/shops/grill/editor/renderPrefs'
 import { SceneTally } from '@/shops/grill/editor/SceneTally'
 import { useLights } from '@/scene/render/lightsStore'
@@ -740,6 +741,8 @@ export function Scene({ omiki, active, orders, theme, sky, reducedMotion, fire, 
 
       {/* (the hangings that come between the camera and what it's looking at fade out of the way) */}
       <OccluderFade target={occluderTarget} />
+      {/* (every round shadow under someone, drawn at once (item 804)) */}
+      <BlobShadows />
       {/* (how each piece is drawn, as set piece by piece in developer mode's Render section) */}
       <RenderPrefsApply />
       <SceneTally />
