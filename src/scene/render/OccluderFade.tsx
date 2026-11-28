@@ -95,12 +95,15 @@ export const OccluderFade = memo(function OccluderFade({ target }: { target: () 
       cur = null
       faders.current.push(f)
     }
-    // (those no longer found let go)
-    const stale = (f: Fader, root: THREE.Object3D) => { if (f.gen !== gen) known.delete(root) }
+    // (those no longer in the room let go; one under something hidden just now kept as it is, faded or not, to go on from there as it's shown)
+    const inRoom = (o: THREE.Object3D) => { for (let q: THREE.Object3D | null = o; q; q = q.parent) if (q === scene) return true; return false }
+    const stale = (f: Fader, root: THREE.Object3D) => { if (f.gen !== gen && !inRoom(root)) known.delete(root) }
     return () => {
       gen++
       faders.current.length = 0
-      scene.traverse(visitRoot)
+      // (item 804: the marked groups looked for in what's shown only: the whole room walked for a handful of them was 3.1 ms, a long frame
+      // each second and a half; one hidden comes between the camera and nothing)
+      scene.traverseVisible(visitRoot)
       known.forEach(stale)
     }
   }, [scene])
