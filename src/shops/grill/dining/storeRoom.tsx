@@ -46,8 +46,9 @@ const storeNoren = (wide: number) => {
     g.fillStyle = '#000000'
     for (let y = 0; y < H; y += 3) g.fillRect(0, y, W, 1)
     g.globalAlpha = 1
-    g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, 0, W, band)
-    g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(0, band, W, 3)
+    // (its top band over the rod a seam only (item 821, the owner's 「這個也拿除」, a red box round the dark bar over the noren and its own darker
+    // top with a light line under it: a band a third darker, a lit line))
+    g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(0, band, W, 1)
     // (the ring and the character in it, as large as they were (drawn for 1024 across 0.648), at a person's eyes: 0.34 under its top)
     const k = W / 1024
     g.translate(W / 2, Math.round(0.34 * PX)); g.scale(k, k)
@@ -553,15 +554,15 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
     // (item 781: bent, not swung stiff as a board: over his shoulder tilted aside, under it hanging down over him)
     g.children.forEach((p, i) => { const m = p.children[0] as THREE.Mesh | undefined; if (m) bendNoren(m.geometry, st.push * (0.62 - i * 0.08)) })
   })
-  // (the small wall over the doorway and the fridges (item 762): its outline across them, the doorway's stretch from over its lintel, the
-  // fridges' from the doorway's height (their lintel gone), up to the head; through the wall's thickness, 4 mm in from either face)
+  // (the small wall over the doorway and the fridges (item 762): across them both from the doorway's height (their lintel gone, and the
+  // doorway's too: item 821, the owner's 「這個也拿除」, red boxes round the dark bar over the noren, from the shop and from above), up to the
+  // head; through the wall's thickness, 4 mm in from either face)
   const smallWall = useMemo(() => {
     if (!frame) return null
-    const za = door[0] - STORE_POST + 0.004, zb = door[1] + STORE_POST, zc = frame.z1 - 0.004
-    const ya = h + STORE_HEAD - 0.001, yb = h - 0.001, yt = frame.headY + 0.001
+    const za = door[0] - STORE_POST + 0.004, zc = frame.z1 - 0.004
+    const yb = h - 0.001, yt = frame.headY + 0.001
     const x0 = Math.max(0.004, -FRIDGE_GAP + 0.002), x1 = WALL_OUT - 0.004
-    const sh = new THREE.Shape([new THREE.Vector2(za, ya), new THREE.Vector2(zb, ya), new THREE.Vector2(zb, yb), new THREE.Vector2(zc, yb),
-      new THREE.Vector2(zc, yt), new THREE.Vector2(za, yt)])
+    const sh = new THREE.Shape([new THREE.Vector2(za, yb), new THREE.Vector2(zc, yb), new THREE.Vector2(zc, yt), new THREE.Vector2(za, yt)])
     // (drawn in its z-y plane, carried through the wall along its x: turned a quarter so the shape's x is the room's z, its depth the room's x)
     const g = new THREE.ExtrudeGeometry(sh, { depth: x1 - x0, bevelEnabled: false })
     g.rotateY(-Math.PI / 2).translate(x1, 0, 0)
@@ -633,8 +634,8 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
             <boxGeometry args={[WALL_OUT + 0.004 - 0.002, frame.headTop - frame.headY, frame.z1 - frame.z0 - 0.004]} /><meshToonMaterial color="#35200f" />
           </mesh>
         )}
-        {/* (its back as deep in the stock room as the head over it and the posts (item 562): it stopped 4 mm short of them) */}
-        <mesh position={[(WALL_OUT + 0.004 - 0.035) / 2, h + STORE_HEAD / 2, (door[0] + door[1]) / 2]}><boxGeometry args={[WALL_OUT + 0.004 + 0.035, STORE_HEAD, outerW - 0.004]} /><meshToonMaterial color="#35200f" /></mesh>
+        {/* (the doorway's lintel taken away (item 821, the owner's 「這個也拿除」: a dark bar 7 cm high over the opening, 3.5 cm proud of the wall
+            into the shop, seen as a strip over the noren and as a ledge from above): the small wall's plaster down to the opening instead) */}
         {/* (and over it, up to the head over the whole stretch (item 562), a small wall (小壁) of the room's plaster, as a framed wall has (on
             over the fridges' lintel too, item 738, to the head's end): the
             shop's wall over the doorway is drawn from the shop's side only, and from the stock room the head and the lintel were two bars
@@ -655,7 +656,8 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
       </EditBlock>
       {/* the noren: its two panels hung from the rod, each its half of the one picture, a slit between; swung aside as the stocker goes
           through (not merged: it moves) */}
-      <group ref={noren} name="look-store" position={[-0.05, h + STORE_HEAD - 0.02, (door[0] + door[1]) / 2]}>
+      {/* (hung at the wall's face (item 821): 5 cm out it hung under the lintel's front; with that gone it stood off the wall from nothing) */}
+      <group ref={noren} name="look-store" position={[-0.012, h + STORE_HEAD - 0.02, (door[0] + door[1]) / 2]}>
         {[-1, 1].map((sd) => <StoreNorenPanel key={sd} sd={sd} wide={norenW} />)}
       </group>
       {/* (its lamp's light kept in it (item 754): unseen slabs where its open back and near end are, casting) */}
@@ -664,7 +666,7 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
       <StoreLamp at={[(WALL_OUT + deep) / 2, top - 0.1, zE - 0.006]} />
       {/* the noren, named when pointed at (item 735): over its cloth only, so the goods seen under it through the doorway are pointed at
           themselves; a click on it stopped there (it went through to them) */}
-      <mesh position={[-0.06, h + STORE_HEAD - 0.02 - STORE_NOREN_L / 2, (door[0] + door[1]) / 2]} rotation-y={-Math.PI / 2} material={STORE_BLOCK_MAT} {...hit} onClick={stopHere}>
+      <mesh position={[-0.02, h + STORE_HEAD - 0.02 - STORE_NOREN_L / 2, (door[0] + door[1]) / 2]} rotation-y={-Math.PI / 2} material={STORE_BLOCK_MAT} {...hit} onClick={stopHere}>
         <planeGeometry args={[outerW, STORE_NOREN_L]} />
       </mesh>
       {/* (the wall's face on the shop's side over the doorway, and on past it to the far end, the fridges' with it: the pointer stopped there,
