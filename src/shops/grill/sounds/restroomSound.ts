@@ -853,16 +853,18 @@ export function tvChannelSound() {
 type TvShow = { f0: number; syl: [number, number]; word: [number, number]; phrase: [number, number]; gap: [number, number]; pause: [number, number]
   voice: number; bed: 'none' | 'crowd' | 'sizzle' | 'sea'; bedGain: number; pad: number[]; padGain: number; gain: number }
 const TV_SOUND: readonly TvShow[] = [
+  // (item 1016: each as loud as it was rendered before (about -32 dBFS): its syllables run together and the room's echo had them 2 to 8
+  // dB louder)
   // (the news: a man's even reading, nothing under it)
-  { f0: 122, syl: [0.1, 0.17], word: [1, 3], phrase: [5, 10], gap: [0.04, 0.09], pause: [0.35, 0.7], voice: 1, bed: 'none', bedGain: 0, pad: [], padGain: 0, gain: 0.615 },
+  { f0: 122, syl: [0.1, 0.17], word: [1, 3], phrase: [5, 10], gap: [0.04, 0.09], pause: [0.35, 0.7], voice: 1, bed: 'none', bedGain: 0, pad: [], padGain: 0, gain: 0.245 },
   // (the weather: a woman's brighter voice over a soft chord)
-  { f0: 205, syl: [0.09, 0.15], word: [1, 3], phrase: [4, 8], gap: [0.04, 0.08], pause: [0.4, 0.8], voice: 1, bed: 'none', bedGain: 0, pad: [262, 330, 392], padGain: 0.05, gain: 0.352 },
+  { f0: 205, syl: [0.09, 0.15], word: [1, 3], phrase: [4, 8], gap: [0.04, 0.08], pause: [0.4, 0.8], voice: 1, bed: 'none', bedGain: 0, pad: [262, 330, 392], padGain: 0.05, gain: 0.194 },
   // (the ball game: the announcer quick and rising over the crowd's swell, a cheer now and then)
-  { f0: 138, syl: [0.08, 0.13], word: [1, 3], phrase: [6, 12], gap: [0.03, 0.07], pause: [0.3, 0.9], voice: 0.8, bed: 'crowd', bedGain: 0.32, pad: [], padGain: 0, gain: 0.334 },
+  { f0: 138, syl: [0.08, 0.13], word: [1, 3], phrase: [6, 12], gap: [0.03, 0.07], pause: [0.3, 0.9], voice: 0.8, bed: 'crowd', bedGain: 0.32, pad: [], padGain: 0, gain: 0.234 },
   // (the cooking: the cook talking over what's sizzling, a spit now and then)
-  { f0: 176, syl: [0.1, 0.16], word: [1, 3], phrase: [4, 9], gap: [0.04, 0.1], pause: [0.5, 1.1], voice: 0.85, bed: 'sizzle', bedGain: 0.14, pad: [], padGain: 0, gain: 0.58 },
+  { f0: 176, syl: [0.1, 0.16], word: [1, 3], phrase: [4, 9], gap: [0.04, 0.1], pause: [0.5, 1.1], voice: 0.85, bed: 'sizzle', bedGain: 0.14, pad: [], padGain: 0, gain: 0.278 },
   // (the sea: the narrator slow and low, long pauses, the waves' wash and a drone under him)
-  { f0: 104, syl: [0.14, 0.24], word: [1, 3], phrase: [3, 7], gap: [0.06, 0.12], pause: [0.8, 1.6], voice: 0.8, bed: 'sea', bedGain: 0.36, pad: [110, 165], padGain: 0.04, gain: 0.355 },
+  { f0: 104, syl: [0.14, 0.24], word: [1, 3], phrase: [3, 7], gap: [0.06, 0.12], pause: [0.8, 1.6], voice: 0.8, bed: 'sea', bedGain: 0.36, pad: [110, 165], padGain: 0.04, gain: 0.276 },
 ]
 /** the vowels' two bands (Hz): a, i, u, e, o */
 const VOWELS: readonly [number, number][] = [[730, 1090], [300, 2200], [330, 900], [530, 1800], [560, 860]]
@@ -896,13 +898,16 @@ export function tvMurmur(at?: BaseAudioContext, seconds = 0) {
       // (the pitch falling through the phrase, a little up or down each syllable)
       const f0 = m.base * rnd(0.95, 1.05)
       m.base *= rnd(0.975, 0.995)
-      m.osc.frequency.setTargetAtTime(f0, t, 0.02)
-      m.f1.frequency.setTargetAtTime(v[0], t, 0.018)
-      m.f2.frequency.setTargetAtTime(v[1], t, 0.018)
-      // (the syllable: up quickly, held, down; a consonant's breath at its start, some of the time)
-      m.env.gain.setTargetAtTime(p.voice * rnd(0.75, 1), t, 0.012)
-      m.env.gain.setTargetAtTime(0, t + dur * 0.72, 0.022)
-      if (Math.random() < 0.55) { m.breath.gain.setTargetAtTime(0.5, t, 0.004); m.breath.gain.setTargetAtTime(0.04, t + 0.035, 0.01) }
+      // (item 1016: the pitch and the vowels glide from one syllable to the next, as a voice's do, not jumped)
+      m.osc.frequency.setTargetAtTime(f0, t, 0.04)
+      m.f1.frequency.setTargetAtTime(v[0], t, 0.03)
+      m.f2.frequency.setTargetAtTime(v[1], t, 0.03)
+      // (the syllable: up, held, and down: to a dip only within a word, its syllables run together (item 1016: each gated to nothing, it
+      // beeped), to silence at its end; a consonant's breath at its start, some of the time)
+      const last = m.wordLeft <= 1
+      m.env.gain.setTargetAtTime(p.voice * rnd(0.75, 1), t, 0.022)
+      m.env.gain.setTargetAtTime(last ? 0 : p.voice * rnd(0.3, 0.5), t + dur * 0.78, last ? 0.045 : 0.03)
+      if (Math.random() < 0.45) { m.breath.gain.setTargetAtTime(0.4, t, 0.006); m.breath.gain.setTargetAtTime(0.05, t + 0.04, 0.012) }
       m.wordLeft -= 1
       let after = dur
       if (m.wordLeft <= 0) { m.phraseLeft -= 1; after += m.phraseLeft <= 0 ? rnd(p.pause[0], p.pause[1]) : rnd(p.gap[0], p.gap[1]) }
@@ -918,18 +923,32 @@ export function tvMurmur(at?: BaseAudioContext, seconds = 0) {
     const hiss = loopBuffer(a, 'tvHiss', 2, (d) => { for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1 })
     // (the voice: a buzz at its pitch and a breath, through the two vowel bands, the syllables' envelope over them)
     const osc = a.createOscillator(); osc.type = 'sawtooth'; osc.frequency.value = 130
-    const buzz = a.createGain(); buzz.gain.value = 0.55
+    // (item 1016: the buzz rolled off over its first harmonics, as a throat's pulses are, not a sawtooth's every harmonic as loud)
+    const glottal = a.createBiquadFilter(); glottal.type = 'lowpass'; glottal.frequency.value = 900; glottal.Q.value = 0.6
+    const buzz = a.createGain(); buzz.gain.value = 0.8
     const air = a.createBufferSource(); air.buffer = hiss; air.loop = true
     const airBand = a.createBiquadFilter(); airBand.type = 'bandpass'; airBand.frequency.value = 2500; airBand.Q.value = 1.1
     const breath = a.createGain(); breath.gain.value = 0.04
-    const f1 = a.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 600; f1.Q.value = 5
-    const f2 = a.createBiquadFilter(); f2.type = 'bandpass'; f2.frequency.value = 1400; f2.Q.value = 7
-    const f2Gain = a.createGain(); f2Gain.gain.value = 0.7
+    // (item 1016: the vowels' bands broad, as a voice's are (sharp, they whistled), the second softer)
+    const f1 = a.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 600; f1.Q.value = 2.4
+    const f2 = a.createBiquadFilter(); f2.type = 'bandpass'; f2.frequency.value = 1400; f2.Q.value = 3
+    const f2Gain = a.createGain(); f2Gain.gain.value = 0.42
     const env = a.createGain(); env.gain.value = 0
-    // (heard across the room: the highs dulled)
-    const room = a.createBiquadFilter(); room.type = 'lowpass'; room.frequency.value = 2600; room.Q.value = 0.5
+    // (heard across the room: the television's small speaker's thin bottom, the highs dulled by the room (item 1016: 2.6 kHz let the buzz
+    // through), and the room's own echo, a short reverb under it)
+    const speaker = a.createBiquadFilter(); speaker.type = 'highpass'; speaker.frequency.value = 95; speaker.Q.value = 0.7
+    const room = a.createBiquadFilter(); room.type = 'lowpass'; room.frequency.value = 1300; room.Q.value = 0.5
+    const echo = a.createConvolver()
+    {
+      // (a small room's: 0.45 s of noise dying away, its highs dying first)
+      const n = Math.floor(a.sampleRate * 0.45), ir = a.createBuffer(1, n, a.sampleRate), d = ir.getChannelData(0)
+      let lp = 0
+      for (let i = 0; i < n; i++) { const k = i / n; lp += (Math.random() * 2 - 1 - lp) * (0.5 - 0.42 * k); d[i] = lp * Math.exp(-6.5 * k) }
+      echo.buffer = ir
+    }
+    const wet = a.createGain(); wet.gain.value = 0.22
     const vol = a.createGain(); vol.gain.value = 0
-    osc.connect(buzz); air.connect(airBand).connect(breath)
+    osc.connect(glottal).connect(buzz); air.connect(airBand).connect(breath)
     buzz.connect(f1); buzz.connect(f2); breath.connect(f1); breath.connect(f2)
     f1.connect(env); f2.connect(f2Gain).connect(env)
     env.connect(room)
@@ -946,17 +965,20 @@ export function tvMurmur(at?: BaseAudioContext, seconds = 0) {
     const padGain = a.createGain(); padGain.gain.value = 0
     const pads = [0, 1, 2].map(() => { const o = a.createOscillator(); o.type = 'triangle'; o.frequency.value = 220; o.connect(padGain); return o })
     padGain.connect(room)
-    room.connect(vol).connect(a.destination)
+    room.connect(speaker)
+    speaker.connect(vol)
+    speaker.connect(echo).connect(wet).connect(vol)
+    vol.connect(a.destination)
     const srcs: AudioScheduledSourceNode[] = [osc, air, bedSrc, swell, ...pads]
     for (const n of srcs) n.start()
     return { a, osc, f1, f2, env, breath, bed, bedGain, swell, pads, padGain, vol, srcs, next: a.currentTime + 0.05, phraseLeft: 0, wordLeft: 0, base: 130, timer: 0,
-      all: [osc, buzz, air, airBand, breath, f1, f2, f2Gain, env, room, vol, bedSrc, bed, bedSwell, swell, swellAmt, bedGain, padGain, ...pads] }
+      all: [osc, glottal, buzz, air, airBand, breath, f1, f2, f2Gain, env, room, speaker, echo, wet, vol, bedSrc, bed, bedSwell, swell, swellAmt, bedGain, padGain, ...pads] }
   }
   /** the show's bed and music set for the channel just tuned to, and its voice begun afresh */
   const dress = (m: Made) => {
     const p = show(), t = m.a.currentTime
     if (p.bed === 'crowd') { m.bed.type = 'bandpass'; m.bed.frequency.setValueAtTime(700, t); m.bed.Q.setValueAtTime(0.6, t); m.swell.frequency.setValueAtTime(0.13, t) }
-    else if (p.bed === 'sizzle') { m.bed.type = 'highpass'; m.bed.frequency.setValueAtTime(3600, t); m.bed.Q.setValueAtTime(0.7, t); m.swell.frequency.setValueAtTime(0.4, t) }
+    else if (p.bed === 'sizzle') { m.bed.type = 'highpass'; m.bed.frequency.setValueAtTime(1500, t); m.bed.Q.setValueAtTime(0.7, t); m.swell.frequency.setValueAtTime(0.4, t) }
     else { m.bed.type = 'lowpass'; m.bed.frequency.setValueAtTime(380, t); m.bed.Q.setValueAtTime(0.6, t); m.swell.frequency.setValueAtTime(0.08, t) }
     m.bedGain.gain.setTargetAtTime(p.bed === 'none' ? 0 : p.bedGain, t, 0.2)
     m.pads.forEach((o, i) => o.frequency.setValueAtTime(p.pad[i] ?? p.pad[0] ?? 220, t))
