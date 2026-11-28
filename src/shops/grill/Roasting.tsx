@@ -56,7 +56,7 @@ import { tipIn } from '@/data/tipText'
 import { bestStage, PAIRING, PAIRING_DEFAULT, stageOf as seasonStage, timingLoss } from '@/game/kitchen/taste'
 import type { Step } from '@/game/types'
 import { CRATE, DECOR, Decor, FRIDGE_KICK, backToCrate, liftFromCrate, takeFromCrate, type Held } from '@/shops/grill/decor/Decor'
-import { BOARD, COAL_BRIDGE, IRONS, SAKE, SAKE_SEATS, SAKE_TASTED, SOUP, SOUP_SEATS, SHRINE_FLOWERS, WC_GRUMBLE, TAKEOUT, RIDERS, TAKEOUT_SPOT, SERVE_COUNTER, barToFire, BENCH, BENCH_SEATS, BENCH_WAIT, PULLED } from './bar'
+import { BOARD, COAL_BRIDGE, IRONS, SAKE, SAKE_AT, SAKE_SEATS, SAKE_TASTED, SOUP, SOUP_SEATS, SHRINE_FLOWERS, WC_GRUMBLE, TAKEOUT, RIDERS, TAKEOUT_SPOT, SERVE_COUNTER, barToFire, BENCH, BENCH_SEATS, BENCH_WAIT, PULLED } from './bar'
 import { fireAmbience } from '@/shops/grill/sounds/fireAmbience'
 import { fireSound } from '@/game/kitchen/fireSound'
 import { flowerBuffs } from '@/game/world/shrineFlowers'
@@ -2046,12 +2046,16 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       const seat = Array.from({ length: BAR_SEATS }, (_, n) => n).find((n) => !used.has(n))
       for (const id of [...BENCH.ids]) {
         // (or past their hour while they waited (data/guests' pastHour, item 377): a child, a high schooler, the old folk gone home, not sat down)
-        if (SHOP.closing || LAST_CALL.on || !onOrder || now - (BENCH.since.get(id) ?? now) > BENCH_WAIT || pastHour(id, getClock().minute)) {
+        const waitedOut = now - (BENCH.since.get(id) ?? now) > BENCH_WAIT, home = pastHour(id, getClock().minute)
+        if (SHOP.closing || LAST_CALL.on || !onOrder || waitedOut || home) {
           BENCH.ids = BENCH.ids.filter((x) => x !== id)
           BENCH.since.delete(id)
           BENCH.gone.add(id)
           onSay?.('guest', L().benchGone(id), id)
-          onVisit?.({ id, taste: null, waited: BENCH_WAIT, walkedOut: true, gripes: ['wait'] })
+          // (item 839, the Tester window's: sent off by the shop's hours (its last call, its closing, no orders taken) and not by their wait,
+          // no visit of theirs to rate: at the 04:00 last call the bench's were put down as having waited the bench's whole 90 minutes and
+          // gone, a star for it, a review a third of the time)
+          if (waitedOut || home) onVisit?.({ id, taste: null, waited: BENCH_WAIT, walkedOut: true, gripes: ['wait'] })
         }
       }
       if (seat !== undefined && BENCH.ids.length && onOrder && !SHOP.closing && !LAST_CALL.on) {
@@ -2323,7 +2327,7 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
      * at it (SAKE.station false: a bar on its own), set at their place after SAKE_WAIT_S as it was */
     const sakePoured = (id: number, now: number) => {
       const asked = sakeAsked.current.get(id)
-      if (asked === undefined) { sakeAsked.current.set(id, now); SAKE.want.push(id); return false }
+      if (asked === undefined) { sakeAsked.current.set(id, now); SAKE.want.push(id); SAKE_AT.set(id, performance.now()); return false }
       const done = SAKE.ready.delete(id)
       const queued = SAKE.want.indexOf(id)
       if (!done && !(queued >= 0 && !SAKE.station && now - asked > SAKE_WAIT_S)) return false
@@ -2403,7 +2407,7 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       if (space === 'open' && bar && !g.takeout && (owed.includes('MisoSoup') || owed.includes(RICE_SIDE.id))) {
         if (!BOWLS.asked.has(g.id)) {
           BOWLS.asked.add(g.id)
-          BOWLS.want.push({ guest: g.id, rice: owed.includes(RICE_SIDE.id), soup: owed.includes('MisoSoup') })
+          BOWLS.want.push({ guest: g.id, rice: owed.includes(RICE_SIDE.id), soup: owed.includes('MisoSoup'), at: performance.now() })
         }
         const got = owed.includes(RICE_SIDE.id) && BOWLS.got.has(`rice:${g.id}`) ? RICE_SIDE.id : owed.includes('MisoSoup') && BOWLS.got.has(`soup:${g.id}`) ? 'MisoSoup' : null
         if (got) {

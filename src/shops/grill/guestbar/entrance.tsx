@@ -18,6 +18,7 @@ import { ShoeVases, CAT_STAND_Z, SHOE_CAB_Z, SHOE_CAB_X, ShoeCupboard, CAT_TOP, 
 import { KASA_AT, KasaStand, RainGearWarm } from './seats'
 import { DoorBambooHit, DoorBambooModel } from '@/shops/grill/decor/BarFurnish'
 import { BlobShadow } from '@/scene/effects/BlobShadow'
+import { DoorRain } from './doorRain'
 /** where the door's bamboo stands (the doorway's frame: x along the front, + toward the north wall; z out to the street): its box's foot
  * on the street's ground right of the way in, under the eave, up against the building's side (item 707, the owner's 「幫我貼齊，然後有點陰影」:
  * its rim 2 mm off the facade's dark side panel); out to the street 0.30 so its culms stand in front of the door's frame, not hidden behind
@@ -185,6 +186,8 @@ function EntranceImpl({ at, mark }: { at: THREE.Vector3; mark: string }) {
       </Movable>
       {/* the sliding door in the doorway (item 410) */}
       <Movable id="genkandoor" label="玄關拉門"><GenkanDoor /></Movable>
+      {/* (the rain out in front of the eave when it rains, the eave's drips and their splashes on the gravel: item 834) */}
+      <DoorRain />
       {/* (in edit mode the cats' stand, the shoe cupboard and the like can each be moved: each its own batch inside its own Movable) */}
       <Movable id="doorcats" label="門口招財貓台"><StaticBatch plain>
       {/* just inside, against the wall: a two-tier stand of dark wood, the beckoning cats on it facing those coming in */}

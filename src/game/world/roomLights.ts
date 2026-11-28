@@ -66,10 +66,18 @@ export const studioLight = (on: boolean, night: boolean) => (on ? (night ? 0.6 :
 // owner's, 2026-11-26: 「門口有陰影我可以接受，但是內能否白天不要有硬陰影，這樣很怪」: inside, by day, cut that hard they read wrong, as no
 // room under a roof's are: still thrown across the floor from the window's side, the sun's light and shade on each thing as it was, but
 // lighter (0.6, 0.68 with the lamps off) and soft-edged (shadowSoft))
-export const shadowDepth = (on: boolean, night: boolean) => (night ? (on ? 0.28 : 0.75) : on ? 0.6 : 0.68)
+// (item 834, the owner's 「下雨時，門口會有表現，也會有陰影變化」: `rain` 0..1 how hard it's raining (eased, guestbar/shopFront's RAIN_NOW):
+// under the rain's cloud the sun's (or the moon's) light thins and its shadows go faint and soft, as an overcast day's do; back as it stops)
+export const shadowDepth = (on: boolean, night: boolean, rain = 0) => (night ? (on ? 0.28 : 0.75) : on ? 0.6 : 0.68) * (1 - RAIN_SHADOW * rainOf(rain))
 /** how far the shadows' edges blur (in the shadow map's texels, about 1.4 cm each across the shop): by day wide (12, item 706: a soft
- * shade, not a hard line, inside the shop), by night a little (the moon's and the lamps' under them) */
-export const shadowSoft = (night: boolean) => (night ? 5 : 12)
+ * shade, not a hard line, inside the shop), by night a little (the moon's and the lamps' under them); wider under rain (item 834) */
+export const shadowSoft = (night: boolean, rain = 0) => (night ? 5 : 12) + RAIN_SOFT * rainOf(rain)
+/** (item 834) at the hardest rain: how much of the shadows' depth goes, how many texels more their edges blur, how much of the key light's
+ * own light goes */
+export const RAIN_SHADOW = 0.6, RAIN_SOFT = 10, RAIN_SUN = 0.4
+const rainOf = (r: number) => Math.min(1, Math.max(0, r))
+/** (item 834) the key light's strength under rain, of its own */
+export const keyUnderRain = (rain: number) => 1 - RAIN_SUN * rainOf(rain)
 /**
  * Where the key light shines from (a unit vector toward it). By day the sun high (about 55 degrees) out past the round window (item 378: it
  * was straight overhead, every shadow right under what cast it, and the day read as flat): its shadows thrown a little across the floor,

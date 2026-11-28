@@ -17,10 +17,12 @@ export const inHours = (minute: number) => {
  * thrown out the morning after, and ordered again at once, every day.
  */
 export const BUY_AHEAD = 90
-/** whether goods are bought in at this minute: in the hours, or in the hour and a half before they begin (from 15:00) */
+/** whether goods are bought in at this minute: in the hours, or in the hour and a half before they begin (from 15:00); not from the last
+ * call on (item 840, the Tester window's: at 04:21 the chilled was ordered in, for nobody that night, twelve hours in the fridge before the
+ * next opening) */
 export const buyingNow = (minute: number) => {
   const m = ((Math.floor(minute) % 1440) + 1440) % 1440
-  return inHours(m) || (m >= OPEN_AT - BUY_AHEAD && m < OPEN_AT)
+  return (inHours(m) && !lastCall(m)) || (m >= OPEN_AT - BUY_AHEAD && m < OPEN_AT)
 }
 /** the hours just begun between the minute before and now (the clock moved on from `was` to `now`) */
 export const hoursBegin = (was: number, now: number) => !inHours(was) && inHours(now)

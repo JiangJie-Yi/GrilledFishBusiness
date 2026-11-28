@@ -16,7 +16,7 @@ import { setTip } from '@/scene/interact/hoverTip'
 import { ColdMist } from '@/scene/effects/ColdMist'
 import { CUBBY_KICK, CUBBY_OPEN, askPantry, shutPantry, tipOver, ALONG, handOver, KITCHEN_FOLK, GRILL_OFFSET, KITCHEN_DROP, LAY, CUBBY, CUBBY2, CUBBY_FLOOR_Y, CUBBY_SHELF_Y, COOK_NOTCH, SOUS_NOTCH } from '@/shops/grill/bar'
 import { SIZZLE_AT } from './tuning'
-import { COOK_TABLE_WOOD, COOK_PANEL_WOOD, KICK_H, TABLE_T, TABLE_ROUND, TABLE_OUT, COOK_MARBLE, panelBox, KITCHEN_FLOOR, roundedShape, barBrassOf } from './common'
+import { COOK_TABLE_WOOD, COOK_PANEL_WOOD, KICK_H, TABLE_T, TABLE_ROUND, TABLE_OUT, COOK_MARBLE, panelBox, KITCHEN_FLOOR, quadSlab, barBrassOf } from './common'
 import { COOK_TABLE, COOK_TABLE_PARTS, KITCHEN_FLOOR_Y } from './kitchen'
 import { HearthGuard } from './hearthGuard'
 
@@ -254,9 +254,9 @@ function tableTopGeometry(grow: number, thick: number) {
   const pts: [number, number][] = [[a0 + i, l0 + i], [a1 - i, l0 + i], [a1 - i, m0 - i], [s0 - i, m0 - i], [s0 - i, m1 + i], [a1 - i, m1 + i],
     [a1 - i, l1 - i], [n1 + i, l1 - i], [n1 + i, nl + i], [n0 - i, nl + i], [n0 - i, l1 - i], [a0 + i, l1 - i]]
   // (its corners rounded off, as a planed top would be; the outline, grown out, keeps to the same curves)
-  const sh = roundedShape(pts, [0.16, 0.16, 0.04, 0.1, 0.1, 0.04, 0.16, 0.04, 0.1, 0.1, 0.04, 0.16].map((r) => r + grow))
-  const g = new THREE.ExtrudeGeometry(sh, { depth: TABLE_T - 2 * thick, bevelEnabled: true, bevelThickness: thick, bevelSize: TABLE_OUT + grow * 0.6,
-    bevelSegments: 4, curveSegments: 4 })
+  // (its top and underside cut into even quads, not earcut's slivers fanning across them from a corner (item 954): quadSlab)
+  const g = quadSlab(pts, [0.16, 0.16, 0.04, 0.1, 0.1, 0.04, 0.16, 0.04, 0.1, 0.1, 0.04, 0.16].map((r) => r + grow),
+    { depth: TABLE_T - 2 * thick, bevelThickness: thick, bevelSize: TABLE_OUT + grow * 0.6, bevelSegments: 4 })
   g.rotateX(Math.PI / 2)
   g.translate(0, -thick, 0)
   return g

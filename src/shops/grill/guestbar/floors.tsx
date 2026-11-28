@@ -1,4 +1,5 @@
-import { memo, useEffect, useMemo } from 'react'
+import { memo, useEffect, useMemo, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
@@ -12,7 +13,7 @@ import { drainSpot, outlineOf, plinthPlan, type PlinthPlan, type Rect, type Run 
 import { normalFromHeight } from '@/scene/render/normalFromHeight'
 import type { WallFace } from '@/game/world/stoneWall'
 import { seigaiha } from '@/scene/props/edoPatterns'
-import { EARTH_Y, ShopGround } from './ground'
+import { EARTH_Y, GROUND_WET, ShopGround } from './ground'
 import { DRAIN_CLEAR, DRAIN_FROM, ShopDrain } from './drain'
 import { plinthWall, type WallAtlas, type WallPiece } from './castleWall'
 
@@ -276,6 +277,16 @@ function ShopBase({ rects, genkan, drop, step, plinth }: { rects: [[number, numb
   useEffect(() => () => wall?.dispose(), [wall])
   const plinthGeo = useMemo(() => (wall ? plinthGeometry(plinth, stoneTop, foot, PLINTH_OUT, wall.faces, wall.atlas) : null), [plinth, stoneTop, foot, wall])
   useEffect(() => () => plinthGeo?.dispose(), [plinthGeo])
+  // (item 834, the owner's 「下雨時，門口會有表現」: wet, the way in's stone steps and the plinth darker, as the earth and the gravel are
+  // (ground.tsx's GROUND_WET: drying slowly after the rain); set only as it changes)
+  const wetShown = useRef(-1)
+  useFrame(() => {
+    const k = GROUND_WET.k
+    if (Math.abs(k - wetShown.current) < 0.004) return
+    wetShown.current = k
+    for (const t of PAVING.values()) t.color.setScalar(1 - 0.26 * k)
+    wall?.material.color.setScalar(1 - 0.24 * k)
+  })
   return (
     <>
       <mesh geometry={rimGeo} material={BASE_TIMBER[0]} />

@@ -23,7 +23,7 @@ import { seeded } from './pendant'
  * it's low behind the paper, the bamboo's shadows thrown long and warm-dark; at dawn a pale rose under lavender, the bamboo's shadows faint.
  * Drawn again (the one canvas) whenever the part of the day turns (data-sky on the page).
  */
-function drawRoundPaper(g: CanvasRenderingContext2D, sky: Sky) {
+function drawRoundPaper(g: CanvasRenderingContext2D, sky: Sky, shadows = true) {
   const night = sky === 'night'
   g.clearRect(0, 0, 512, 512)
   if (sky === 'dusk' || sky === 'dawn') {
@@ -63,6 +63,7 @@ function drawRoundPaper(g: CanvasRenderingContext2D, sky: Sky) {
     g.lineWidth = k % 9 ? 0.8 : 1.6
     g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + Math.cos(a) * 18 + 6, y + Math.sin(a) * 18 - 4, x + Math.cos(a) * 34, y + Math.sin(a) * 34); g.stroke()
   }
+  if (!shadows) return
   if (night) bambooGrove(g, 'shadow')
   else if (sky === 'dusk') bambooGrove(g, 'shadow', '90,58,26')
   else if (sky === 'dawn') { g.globalAlpha = 0.45; bambooGrove(g, 'shadow', '70,58,104'); g.globalAlpha = 1 }
@@ -207,6 +208,22 @@ const ROUND_PAPER = (() => {
   onSky(draw)
   return t
 })()
+/** the paper as it is shut (item 950): the light through it, no bamboo's shadows on it (they're gone the moment it shuts: RoundShoji) */
+const ROUND_PAPER_PLAIN = (() => {
+  if (typeof document === 'undefined') return null
+  const c = document.createElement('canvas')
+  c.width = c.height = 512
+  const g = c.getContext('2d')!
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace
+  const draw = () => { drawRoundPaper(g, skyNow(), false); t.needsUpdate = true }
+  draw()
+  onSky(draw)
+  return t
+})()
+/** how long the bamboo's shadows take to blur a little and go once the shoji's shut (item 950), and how blurred they are as they go (the
+ * picture's own steps down, its mipmaps) */
+const SHADE_GO_S = 0.7, SHADE_BLUR = 3.5
 /**
  * A round window (丸窓) let into the plaster: a reveal of wood round it, a frame of keyaki turned to a moulded profile, four bent segments
  * with the grain running round, and inside, a lattice of sugi over washi lit from outside (day or night: ROUND_PAPER; blender/roundwindow.py
@@ -916,29 +933,42 @@ export function RoundShoji() {
   const halves = useRef<(THREE.Group | null)[]>([])
   const view = useRef<THREE.Mesh>(null)
   const sill = useRef<THREE.Mesh>(null)
-  const st = useRef({ open: false, k: 0 })
+  const st = useRef({ open: false, k: 0, shade: 0, gone: 0 })
+  /** (item 950) the bamboo's shadows on the paper: how much (1 all, 0 none) and how blurred */
+  const shade = useMemo(() => ({ k: { value: 0 }, blur: { value: 0 } }), [])
   // (dev: the shoji slid open or shut as a click would, for the probes (item 623's rain through the window))
   useEffect(() => { if (import.meta.env?.DEV) Object.assign(window, { __roundShoji: (open: boolean) => { st.current.open = open } }) }, [])
   /** the window's frame, inverted, for cutting what's drawn to its round */
   const inv = useMemo(() => ({ value: new THREE.Matrix4() }), [])
   const round = useMemo(() => {
-    const cut = <T extends THREE.Material>(m: T, lowerOnly = false) => {
+    const cut = <T extends THREE.Material>(m: T, lowerOnly = false, shadows = false) => {
       m.onBeforeCompile = (sh) => {
         sh.uniforms.uWinInv = inv
         sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform mat4 uWinInv;\nvarying vec3 vWin;')
           .replace('#include <project_vertex>', '#include <project_vertex>\nvWin = (uWinInv * modelMatrix * vec4(transformed, 1.0)).xyz;')
         sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWin;')
           .replace('void main() {', `void main() {\n  if (vWin.y * vWin.y + vWin.z * vWin.z > ${(R * R).toFixed(5)}${lowerOnly ? ' || vWin.y > 0.0' : ''}) discard;`)
+        // (item 950: the light through the paper looked up where the point is in the window, not on the paper (the moon's and the lantern's
+        // light, the bamboo's shadows, fall where they fall as it slides across them); the shadows (their own picture) as much as `uShade`,
+        // blurred `uBlur` steps down its mipmaps)
+        if (shadows && ROUND_PAPER) {
+          sh.uniforms.uShadeMap = { value: ROUND_PAPER }
+          sh.uniforms.uShade = shade.k
+          sh.uniforms.uBlur = shade.blur
+          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D uShadeMap;\nuniform float uShade, uBlur;')
+            .replace('#include <map_fragment>', `vec2 winUv = vec2(vWin.z, vWin.y) / ${(2 * R).toFixed(5)} + 0.5;
+  diffuseColor *= mix(texture2D(map, winUv), texture2D(uShadeMap, winUv, uBlur), uShade);`)
+        }
       }
-      m.customProgramCacheKey = () => (lowerOnly ? 'round-cut-low' : 'round-cut')
+      m.customProgramCacheKey = () => (lowerOnly ? (shadows ? 'round-cut-low-shade' : 'round-cut-low') : 'round-cut')
       return m
     }
     return {
       // (the washi on its lower half only (the owner's: the lower half screened, the upper open on the view, as a koshi-shoji is))
-      paper: cut(new THREE.MeshBasicMaterial({ map: ROUND_PAPER, toneMapped: false }), true),
+      paper: cut(new THREE.MeshBasicMaterial({ map: ROUND_PAPER_PLAIN ?? ROUND_PAPER, toneMapped: false }), true, true),
       wood: cut(new THREE.MeshToonMaterial({ color: '#6a4428' })),
     }
-  }, [inv, R])
+  }, [inv, R, shade])
   useEffect(() => () => { round.paper.dispose(); round.wood.dispose() }, [round])
   // (each half's lattice, one mesh: its outer upright, the three bars across from the middle out to the round, an upright at its inner edge)
   const bars = useMemo(() => [-1, 1].map((sd) => {
@@ -985,6 +1015,14 @@ export function RoundShoji() {
     const e = s.k * s.k * (3 - 2 * s.k)
     halves.current.forEach((h, i) => { if (h) h.position.z = (i ? 1 : -1) * e * (R + 0.02) })
     ROUND_AIR.k = e
+    // (the bamboo's shadows (item 950, the owner's 「關門的瞬間讓他稍微模糊消失，比較合理。」): on the paper as it comes shut, where they
+    // fall; the moment it's shut, a little blurred and gone (SHADE_GO_S); opening, the plain paper slides away; shut from the start, plain)
+    if (s.open) { s.shade = 0; s.gone = 0 } else if (s.k > 0) { s.shade = 1; s.gone = 0 } else if (s.shade > 0) {
+      s.gone = Math.min(1, s.gone + Math.min(dt, 0.1) / SHADE_GO_S)
+      s.shade = 1 - s.gone * s.gone * (3 - 2 * s.gone)
+    }
+    shade.k.value = s.shade
+    shade.blur.value = s.gone * SHADE_BLUR
   })
   const says = () => (st.current.open ? '點一下關上' : '點一下打開（左右拉開）')
   return (
