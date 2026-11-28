@@ -3,34 +3,41 @@ import { useFrame, type ThreeElements } from '@react-three/fiber'
 import * as THREE from 'three'
 import { snoise } from '@/scene/shaders/noise'
 import { FIRE_FLARE } from '@/shops/grill/bar'
+import { crossedSheets } from '@/scene/effects/sheets'
 
+// (item 804: the flames' sheets in one geometry, drawn at once (scene/effects/sheets): each vertex with its sheet's seed (aSeed) and turn about
+// the upright (aTurn, its cos and sin), already turned by it; the lick, in the sheet's own frame as each sheet was drawn by itself, turned
+// with it)
 const flameVertex = /* glsl */ `
 uniform float uTime;
-uniform float uSeed;
+attribute float aSeed;
+attribute vec2 aTurn;
 varying vec2 vUv;
+varying float vSeed;
 ${snoise}
 void main() {
   vUv = uv;
+  vSeed = aSeed;
   vec3 p = position;
   float h = uv.y;
   // tips lick sideways, the base stays put
-  p.x += snoise(vec2(h * 1.5 - uTime * 0.9, uSeed)) * 0.09 * h;
-  p.z += snoise(vec2(h * 1.5 - uTime * 0.9, uSeed + 5.0)) * 0.09 * h;
+  vec2 lick = vec2(snoise(vec2(h * 1.5 - uTime * 0.9, aSeed)), snoise(vec2(h * 1.5 - uTime * 0.9, aSeed + 5.0))) * 0.09 * h;
+  p.xz += mat2(aTurn.x, -aTurn.y, aTurn.y, aTurn.x) * lick;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
 }
 `
 
 const flameFragment = /* glsl */ `
 uniform float uTime;
-uniform float uSeed;
 uniform float uIntensity;
 uniform float uAlpha;
 varying vec2 vUv;
+varying float vSeed;
 ${snoise}
 void main() {
   float h = vUv.y;
-  float n = (snoise(vec2(vUv.x * 3.0 + uSeed, h * 2.0 - uTime * 1.6)) * 0.5 + 0.5)
-          + (snoise(vec2(vUv.x * 7.0 - uSeed, h * 4.5 - uTime * 2.6)) * 0.5 + 0.5) * 0.5;
+  float n = (snoise(vec2(vUv.x * 3.0 + vSeed, h * 2.0 - uTime * 1.6)) * 0.5 + 0.5)
+          + (snoise(vec2(vUv.x * 7.0 - vSeed, h * 4.5 - uTime * 2.6)) * 0.5 + 0.5) * 0.5;
   n /= 1.5;
 
   // teardrop silhouette that narrows toward the top, broken up by noise
@@ -97,25 +104,24 @@ export const Fire = memo(function Fire({ layers = 4, width = 0.9, height = 0.75,
     // line and the strip between two rows a flat parallelogram, the same with one step across as with sixteen: 1,536 triangles a sheet to 96)
     const g = new THREE.PlaneGeometry(width, height, 1, 48)
     g.translate(0, height / 2, 0)
-    return g
-  }, [width, height])
+    // (its `layers` sheets crossed about the upright, in one geometry: one draw, not one a sheet (item 804))
+    const sheets = crossedSheets(g, layers, (i) => (i * Math.PI) / layers, (i) => i * 4.17)
+    g.dispose()
+    return sheets
+  }, [width, height, layers])
 
-  const flameMaterials = useMemo(
+  const flameMaterial = useMemo(
     () =>
-      Array.from(
-        { length: layers },
-        (_, i) =>
-          new THREE.ShaderMaterial({
-            vertexShader: flameVertex,
-            fragmentShader: flameFragment,
-            uniforms: { uTime: { value: 0 }, uSeed: { value: i * 4.17 }, uIntensity: { value: 1.0 }, uAlpha: { value: 0.6 } },
-            transparent: true,
-            depthWrite: false,
-            side: THREE.DoubleSide,
-            toneMapped: false,
-          }),
-      ),
-    [layers],
+      new THREE.ShaderMaterial({
+        vertexShader: flameVertex,
+        fragmentShader: flameFragment,
+        uniforms: { uTime: { value: 0 }, uIntensity: { value: 1.0 }, uAlpha: { value: 0.6 } },
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        toneMapped: false,
+      }),
+    [],
   )
 
   // embers: simulated on the CPU, few enough that this is cheap
@@ -160,7 +166,7 @@ export const Fire = memo(function Fire({ layers = 4, width = 0.9, height = 0.75,
     const dt = Math.min(delta, 0.05)
     time.current += dt
     const t = time.current
-    for (const m of flameMaterials) m.uniforms.uTime.value = t
+    flameMaterial.uniforms.uTime.value = t
 
     // fire strength: low embers barely flicker, a fierce fire stands tall and bright
     const lv = level ? level.current : 1
@@ -177,7 +183,7 @@ export const Fire = memo(function Fire({ layers = 4, width = 0.9, height = 0.75,
       const w = (0.55 + 0.35 * lv) * (1 + 0.25 * flare) * alive
       flames.current.scale.set(w, (0.1 + 0.26 * lv) * (1 + 2.6 * F.fat + 3.6 * F.catch) * alive, w)
     }
-    for (const m of flameMaterials) m.uniforms.uAlpha.value = 0.55 + 0.4 * Math.min(1, flare)
+    flameMaterial.uniforms.uAlpha.value = 0.55 + 0.4 * Math.min(1, flare)
     emberMaterial.uniforms.uLevel.value = alive
 
     // flicker: a few incommensurate sines read as random
@@ -236,9 +242,7 @@ export const Fire = memo(function Fire({ layers = 4, width = 0.9, height = 0.75,
   return (
     <group {...props}>
       <group ref={flames}>
-        {flameMaterials.map((m, i) => (
-          <mesh key={i} geometry={flameGeometry} material={m} rotation-y={(i * Math.PI) / layers} renderOrder={2} />
-        ))}
+        <mesh geometry={flameGeometry} material={flameMaterial} renderOrder={2} />
       </group>
       <points geometry={emberState.geometry} material={emberMaterial} renderOrder={3} frustumCulled={false} />
       {/* no shadows: from inside the ring it threw a giant star of stone shadows across the floor */}
