@@ -99,7 +99,7 @@ culm_img = image("bench_culm", np.zeros((AH, NSTRIP * SW, 3), np.float32))
 M = {
     "culm": pbr("BenchCulm", (1, 1, 1), tex=culm_img, rough=0.55),
     "mat": pbr("BenchMat", (1, 1, 1), tex=image("bench_mat", np.clip(mat_rgb, 0, 1).astype(np.float32)), rough=0.6),
-    "rattan": pbr("BenchRattan", lin("#5a3a1e"), rough=0.7),
+    "rattan": pbr("BenchRattan", lin("#9a6a3c"), rough=0.6),
 }
 parts = []
 
@@ -216,6 +216,49 @@ for k, (lx, lz, top) in enumerate(legs_at):
     # (bound where the second rail crosses it, and once round both the low stretchers)
     culm_part(f"BenchLeg{k}", (lx, 0.0, lz), (lx, top, lz), LR, turn=0.7 * k + 0.3, bands=[around(YA, 0.016), (SY - 0.025 - 0.016, SY + 0.016)])
     # (its head's ring of rattan under the frame gone with the frame's bindings (item 788))
+# ---- (item 789, the owner's 「下面綁的要有交叉的感覺」 and then 「還是有點怪怪」: painted on the culms the X was a dark smudge, and on the
+# stretchers' thin ends a zigzag) each joint below the seat lashed with strips of rattan crossed over it: on the leg's two faces square to
+# the culm that meets it, two strips across the joint, one from above it on the one side to below it on the other and one the other way,
+# hugging the leg's round (2.5 mm off it, the second over the first where they cross), past the culm's top and its foot; the painted
+# turns straight round under them. One mesh, its own material, a lighter rattan than the turns; drawn without the ink line (too thin for
+# one: WaitingBench leaves it out)
+LASH_W, LASH_SEGS, LASH_SPAN = 0.0055, 6, math.radians(52)
+lash = bmesh.new()
+
+
+def lash_x(lx, lz, yc, cx, cz, cr, sides=(1, -1)):
+    """the X over a joint: the leg at (lx, lz), the culm meeting it at height yc running along (cx, cz) (a unit vector in the floor's
+    plane), cr its radius; on the leg's faces square to it (`sides`: 1 the one whose normal is (-cz, cx)), its arms 5 mm past the culm,
+    inside the painted turns round the leg"""
+    hy = cr + 0.005
+    for side in sides:
+        nx, nz = -cz * side, cx * side
+        for k, sgn in enumerate((1, -1)):
+            r = LR + 0.0025 + 0.0012 * k
+            pts = []
+            for i in range(LASH_SEGS + 1):
+                t = i / LASH_SEGS
+                ph = -LASH_SPAN + 2 * LASH_SPAN * t
+                y = yc + sgn * (-hy + 2 * hy * t)
+                ux, uz = nx * math.cos(ph) + cx * math.sin(ph), nz * math.cos(ph) + cz * math.sin(ph)
+                pts.append((Vector((lx + r * ux, y, lz + r * uz)), Vector((ux, 0.0, uz))))
+            rows = []
+            for i, (pt, rad) in enumerate(pts):
+                d = (pts[min(i + 1, LASH_SEGS)][0] - pts[max(i - 1, 0)][0]).normalized()
+                w = d.cross(rad).normalized() * (LASH_W / 2)
+                rows.append([lash.verts.new(P(*(pt + w))), lash.verts.new(P(*(pt - w)))])
+            for i in range(LASH_SEGS):
+                f = lash.faces.new((rows[i][0], rows[i + 1][0], rows[i + 1][1], rows[i][1]))
+                # (turned out, away from the leg)
+                mid = (pts[i][0] + pts[i + 1][0]) / 2
+                f.normal_update()
+                out_ = P(*(mid + (pts[i][1] + pts[i + 1][1]) / 2)) - P(*mid)
+                if f.normal.dot(out_) < 0:
+                    f.normal_flip()
+                # (smooth: in flat facets each piece of it took its own shade, a strip round a culm read as a zigzag)
+                f.smooth = True
+
+
 # ---- a second rail under the frame, along the front and the back from end leg to end leg through the middle one (bound over each leg)
 for k, lz in enumerate((ZBL, ZFL)):
     culm_part(f"BenchApron{k}", (-LX - LR, YA, lz), (LX + LR, YA, lz), SR, segs=6, turn=5.0 + k, bands=[around(x + LX + LR, 0.034) for x in JX])
@@ -226,6 +269,19 @@ for k, lz in enumerate((ZBL, ZFL)):
 CROSS_L = (ZFL - LR - 0.001) - (ZBL + LR + 0.001)
 for k, lx in enumerate(JX):
     culm_part(f"BenchStretch{k}", (lx, SY - 0.025, ZBL + LR + 0.001), (lx, SY - 0.025, ZFL - LR - 0.001), SR, segs=6, turn=3.1 + k, bands=ends(CROSS_L, 0.022))
+# (item 789: the crossed strips over each leg's joints: the second rail's and the long stretcher's on the leg's face to the room (along
+# them: the faces to the wall and in under the seat not seen), the cross stretcher's on its two sides (across))
+for lx, lz, top in legs_at:
+    lash_x(lx, lz, YA, 1.0, 0.0, SR, sides=(1,))
+    lash_x(lx, lz, SY, 1.0, 0.0, SR, sides=(1,))
+    lash_x(lx, lz, SY - 0.025, 0.0, 1.0, SR)
+lash_me = bpy.data.meshes.new("BenchLash")
+lash.to_mesh(lash_me)
+lash.free()
+lash_o = bpy.data.objects.new("BenchLash", lash_me)
+bpy.context.collection.objects.link(lash_o)
+lash_o.data.materials.append(M["rattan"])
+parts.append(lash_o)
 
 
 def paint_atlas():
@@ -240,35 +296,6 @@ def paint_atlas():
     fr = phase - np.floor(phase)
     turn_ = (0.78 + 0.22 * np.sin(np.pi * fr)) * (0.4 + 0.6 * smooth(0.0, 0.14, fr) * smooth(0.0, 0.14, 1 - fr))
 
-    def crossed(s0, s1, wrap, var):
-        """(item 789, the owner's 「下面綁的要有交叉的感覺」: item 791's binding a band of turns straight round) a joint's lashing as a
-        joiner ties one: a few turns straight round at its two edges, and between them the rattan crossed over the joint, an X on each side
-        (at a quarter and three quarters round), each arm a pair of strips, the one arm over the other where they cross, the turns under them
-        dark in their shadow"""
-        L = s1 - s0
-        e = min(0.007, L * 0.22)
-        core = smooth(s0 + e - 0.0008, s0 + e + 0.0008, s_px) * (1 - smooth(s1 - e - 0.0008, s1 - e + 0.0008, s_px))
-        yy = (s_px - (s0 + s1) / 2) / max(1e-4, L / 2 - e)
-        over = np.zeros((AH, SW), np.float32)
-        under = np.zeros((AH, SW), np.float32)
-        for ac in (0.25, 0.75):
-            xx = (((a_px - ac + 0.5) % 1.0) - 0.5) / 0.2
-            for sgn in (1, -1):
-                d = xx - sgn * yy
-                arm = np.zeros((AH, SW), np.float32)
-                for k in (-0.24, 0.24):
-                    q = np.abs(d - k)
-                    arm = np.maximum(arm, smooth(0.21, 0.09, q) * (0.8 + 0.2 * np.cos(np.clip(q / 0.21, 0, 1) * np.pi / 2)))
-                arm = arm * (np.abs(yy) <= 1.04) * (np.abs(xx) <= 1.3)
-                if sgn > 0:
-                    over = np.maximum(over, arm)
-                else:
-                    under = np.maximum(under, arm)
-        under = under * (1 - smooth(0.05, 0.35, over))
-        strands = np.maximum(over, under * 0.85)
-        lit = wrap_tone[None, None, :] * (var * (0.62 + 0.38 * strands))[..., None]
-        x_col = mix(wrap * 0.55, lit, strands)
-        return mix(wrap, x_col, np.broadcast_to(core, (AH, SW)))
     for (i, length, bands, off) in strips:
         rows = (((s_px[:, 0] / CULM_TILE + off) * N).astype(int)) % N
         strip = culm_small[rows].copy()
@@ -281,7 +308,7 @@ def paint_atlas():
             # (darker at its two edges, where it goes in under the next turn)
             edge = 0.7 + 0.3 * smooth(0.0, 0.0035, s_px - s0) * smooth(0.0, 0.0035, s1 - s_px)
             wrap = wrap_tone[None, None, :] * (turn_ * var * edge)[..., None]
-            strip = mix(strip, crossed(s0, s1, wrap, var), np.broadcast_to(inb, (AH, SW)))
+            strip = mix(strip, wrap, np.broadcast_to(inb, (AH, SW)))
         out[:, i * SW:(i + 1) * SW] = strip
     rgba = np.concatenate([np.clip(out, 0, 1), np.ones((AH, NSTRIP * SW, 1), np.float32)], -1).astype(np.float32)
     culm_img.pixels.foreach_set(rgba.ravel())

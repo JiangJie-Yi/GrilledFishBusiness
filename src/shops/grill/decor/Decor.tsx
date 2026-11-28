@@ -1323,6 +1323,39 @@ function Warmer() {
     mergeByMaterial(r, (o) => isDoor(o) || o.name === 'WarmerStores')
     const kept = r.getObjectByName('WarmerStores') ?? null
     if (kept) kept.visible = false
+    // (item 953, the owner's 「下面系統櫃門打開會亮燈」 again: item 263's lamp lit up behind the face frame's top rail, where no one sees it, and
+    // lit nothing, the cupboard as dark inside as the room. As its lamp comes on, what it shines on lights up: the plywood inside and what's
+    // kept there take as much more light as the lamp gives, each glowing its own picture or colour, warm (emissive, the same programs as before:
+    // the emissive and its map are in them already; no light of its own, a light more being every material's cost))
+    const glows: { mat: THREE.MeshToonMaterial | THREE.MeshStandardMaterial; base: THREE.Color; k: number }[] = []
+    const inside = [...made.values()].find((m) => m.name === 'WarmerInside') as THREE.MeshToonMaterial | undefined
+    if (inside?.map) { inside.emissiveMap = inside.map; glows.push({ mat: inside, base: new THREE.Color(1, 1, 1), k: CAB_GLOW.inside }) }
+    if (PANTRY_LABEL.map) { PANTRY_LABEL.emissiveMap = PANTRY_LABEL.map; glows.push({ mat: PANTRY_LABEL, base: new THREE.Color(1, 1, 1), k: CAB_GLOW.kept }) }
+    if (kept) {
+      // (what's kept: materials of their own, so the counter outside them doesn't glow with them; a plain colour (put on its points by
+      // plainColours) its own colour's material, so it glows its own colour)
+      const own = new Map<string, THREE.MeshToonMaterial | THREE.MeshStandardMaterial>()
+      kept.traverse((o) => {
+        const m = o as THREE.Mesh
+        if (!m.isMesh || Array.isArray(m.material)) return
+        const src = m.material as THREE.MeshToonMaterial | THREE.MeshStandardMaterial
+        // (their ink lines left as they are)
+        if (!(src as THREE.MeshToonMaterial).isMeshToonMaterial && !(src as THREE.MeshStandardMaterial).isMeshStandardMaterial) return
+        const dots = m.geometry.attributes.color as THREE.BufferAttribute | undefined
+        const col = src.vertexColors && dots ? new THREE.Color().fromBufferAttribute(dots, 0) : src.color.clone()
+        const key = src.vertexColors ? `c${col.getHexString()}` : src.uuid
+        let t = own.get(key)
+        if (!t) {
+          t = src.vertexColors ? new THREE.MeshToonMaterial({ color: col }) : src.clone()
+          if (t.map) t.emissiveMap = t.map
+          const metal = (t as THREE.MeshStandardMaterial).isMeshStandardMaterial
+          if (metal) reflectStudio(t as THREE.MeshStandardMaterial)
+          own.set(key, t)
+          glows.push({ mat: t, base: t.map ? new THREE.Color(1, 1, 1) : col, k: metal ? CAB_GLOW.metal : CAB_GLOW.kept })
+        }
+        m.material = t
+      })
+    }
     const doors: THREE.Object3D[] = []
     r.traverse((o) => { if (isDoor(o)) doors.push(o) })
     doors.sort((a, b) => a.name.localeCompare(b.name))
@@ -1349,7 +1382,9 @@ function Warmer() {
       veil.name = `WarmerVeil${j}`
       const stripMat = new THREE.MeshBasicMaterial({ color: CAB_STRIP_OFF.clone(), toneMapped: false })
       const strip = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.05, w - 0.12), 0.012, 0.02), stripMat)
-      strip.position.set(veil.position.x, box.max.y + 0.11, veil.position.z - 0.05)
+      // (just under the face frame's top rail and 6 mm behind it, seen along the top of the opening as the doors open (item 953: it was 11 cm
+      // up behind the rail, where no one could see it))
+      strip.position.set(veil.position.x, box.max.y - 0.009, veil.position.z - 0.012)
       strip.name = `WarmerLampStrip${j}`
       for (const m of [veil, strip]) { m.visible = false; m.raycast = () => {}; r.add(m) }
       warmLater(veil)
@@ -1385,7 +1420,8 @@ function Warmer() {
     // (its program made at load, as the veils' are: shown only once a door's opened)
     warmLater(new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.01, 0.01), PANTRY_LABEL))
     const pantry = { cups, stores, at: -1, lang: '' }
-    return { root: r, doors, shut, cells, glow: mats.find((m) => m.name === 'WarmerGlow'), lamp: mats.find((m) => m.name === 'WarmerLamp'), pantry, kept }
+    return { root: r, doors, shut, cells, glow: mats.find((m) => m.name === 'WarmerGlow'), lamp: mats.find((m) => m.name === 'WarmerLamp'), pantry, kept,
+      glows, glowAt: { k: 0 } }
   }, [gltf, pantryGltf])
   /** each door: whether it's to be open, and how far it is (0 shut .. 1 open) */
   const open = useRef<boolean[]>([])
@@ -1426,6 +1462,14 @@ function Warmer() {
       c.veilMat.opacity = CAB_DARK + (CAB_LIT - CAB_DARK) * c.on
       c.stripMat.color.copy(CAB_STRIP_OFF).lerp(CAB_STRIP_ON, c.on)
     })
+    // (what the lamps light (item 953): as bright as the brightest lit cupboard's lamp, its flicker too; a shut one's inside glowing with it
+    // is behind its doors and its veil, unseen)
+    let lit = 0
+    for (const c of model.cells) if (c && c.on > lit) lit = c.on
+    if (lit !== model.glowAt.k) {
+      model.glowAt.k = lit
+      for (const g of model.glows) g.mat.emissive.copy(g.base).multiply(CAB_WARM).multiplyScalar(g.k * lit)
+    }
     // (the dry goods: each cupboard's drawn only while a door of it's open; how many of each there are, as the stock has it, every half second;
     // their print in the page's language)
     const P = model.pantry
@@ -1495,6 +1539,10 @@ const DOOR_OPEN = 1.45
  * strip off and on */
 const CAB_DARK = 0.9, CAB_LIT = 0.06, CAB_LAMP_AT = 0.18
 const CAB_STRIP_OFF = new THREE.Color('#2a2622'), CAB_STRIP_ON = new THREE.Color('#fff1d0')
+/** how much more light a lit cupboard's lamp gives what it shines on (item 953): the plywood inside, what's kept there (their own pictures
+ * and colours), its steel (a little: the studio's in it already); and the lamp's warm white */
+const CAB_GLOW = { inside: 0.85, kept: 0.6, metal: 0.25 }
+const CAB_WARM = new THREE.Color('#fff0d6')
 /** the warming well's glow and its pilot lamp at each heat (off, low, high) */
 const GLOW_AT = [new THREE.Color('#2e2a28'), new THREE.Color('#6a2814'), new THREE.Color('#b8461e')]
 const LAMP_AT = [new THREE.Color('#3a1a14'), new THREE.Color('#ff7a3a'), new THREE.Color('#ffb060')]

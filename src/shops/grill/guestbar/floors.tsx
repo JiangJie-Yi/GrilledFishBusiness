@@ -65,8 +65,10 @@ const RISER = '#3a2416'
  * footing's band over them, the footing's sides and the genkan's side by the wall, each a part of blender/stonesteps.py's
  * made to its measure (STONE_MADE), scaled to it as it stands
  */
-/** how far out each of the doorway's stone steps reaches (the bar's units: a tread a third of a metre deep, the dining room's metres) */
-const STEP_GO = 0.17
+/** how far out each of the doorway's stone steps reaches (the bar's units: a tread a third of a metre deep, the dining room's metres); 0.17
+ * until item 823's redo (the owner's 「石階往外推」, the stone plinth 6 cm proud beside them now): each 4 cm deeper, as far past the plinth's
+ * face as before, the lower one 8 cm further out (blender/stonesteps.py's GO, 2 mm less) */
+const STEP_GO = 0.21
 /** the steps themselves (item 352, the owner's 「石階梯太假了吧」: they were boxes in the base's masonry picture, bricks stacked); now each
  * (and the band over them) stones of their own on each face that shows, as the genkan's floor is made, in a recessed pebble-wash, moss in
  * their shaded corners (item 424, the owner's 「這石階跟裡面比，不夠精緻，其次是可以加點青苔感。」: they were slabs with a picture of stones on
@@ -75,8 +77,8 @@ const STEPS_URL = import.meta.env.BASE_URL + 'models/stonesteps.glb'
 useGLTF.preload(STEPS_URL)
 /** each part's size as made (blender/stonesteps.py's SLABS): the footing's band over the upper step (item 404: a riser of its own, laid on the
  * footing's face), the upper step, the lower; the footing (the genkan's side's low curb over it, StoneSide, taken away: item 539) */
-const STONE_MADE: Record<string, [number, number, number]> = { StoneStep0: [1.2369, 0.1123, 0.012], StoneStep1: [1.2329, 0.2247, 0.168],
-  StoneStep2: [1.2289, 0.1123, 0.168], StoneFoot: [1.2369, 0.337, 1.3155] }
+const STONE_MADE: Record<string, [number, number, number]> = { StoneStep0: [1.2369, 0.1123, 0.012], StoneStep1: [1.2329, 0.2247, 0.208],
+  StoneStep2: [1.2289, 0.1123, 0.208], StoneFoot: [1.2369, 0.337, 1.3155] }
 /** the way in's stone in the room's toon light, made once for each of the model's materials and shared by all its parts (the stones' tints
  * in their points' colour, item 424; the light from all round they can't have baked into it, item 774) */
 const PAVING = new Map<THREE.Material, THREE.MeshToonMaterial>()
@@ -124,7 +126,9 @@ function laid(part: THREE.Object3D, made: [number, number, number], [x0, y0, z0]
  * from the floor's edge (the fill under the boards shows over the rim) down to the earth, 0.279 of 0.462, three fifths. Its stone a
  * castle's stone wall (item 751, guestbar/castleWall: it was granite cut and laid in two even courses)
  */
-const PLINTH_OUT = 0.018, PLINTH_SUNK = 0.015
+// (item 823, the owner's 「要有厚度」 and then, over the coping stone laid along its top for it, 「多了這一條不大對，是下面的厚度要加深，石階往外推、
+// 然後要有點深度」: it stood 1.8 cm proud, its top a strip like a sheet of paper; 6 cm now, its top a ledge, the doorway's steps out with it)
+const PLINTH_OUT = 0.06, PLINTH_SUNK = 0.015
 /**
  * The plinth's mesh from its plan (game/world/groundLayout's plinthPlan): along each run its face, from `foot` (in the earth) to `top`,
  * turned out, in its bits of the stone wall's picture (item 751, guestbar/castleWall: each face its own strip of it, broken where the strip

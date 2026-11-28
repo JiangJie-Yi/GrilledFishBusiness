@@ -4,7 +4,7 @@ tread's front edge worn rounder, faced in the genkan floor's crazy paving (item 
 another at the way in, 「應該是由裡面第一種為主」): the floor's granite in stones each of its own outline and tint, in the floor's pebble-wash
 joints, each stone's edge rounded off (crazy_paving: a picture and its normal map, the faces as they were; the footing's face under the
 genkan's edge is laid in the same picture at the same scale, GuestBar3D's ShopBase). In the bar's own units (GuestBar3D's ShopBase: x across the doorway, y up, z out to the street), each slab's middle at its
-origin, as the game measures them: StoneStep1 (the upper) 1.2329 x 0.2247 x 0.168, StoneStep2 1.2289 x 0.1123 x 0.168; the game scales each
+origin, as the game measures them: StoneStep1 (the upper) 1.2329 x 0.2247 x GO, StoneStep2 1.2289 x 0.1123 x GO; the game scales each
 to the doorway as it stands (within a percent).
 The two steps and the band over them (StoneStep1, StoneStep2, StoneStep0) are stones of their own now (item 424, the owner's, 2026-11-21:
 「這石階跟裡面比，不夠精緻，其次是可以加點青苔感。」), made as the genkan's floor is: each face that shows its own crazy paving of domed stones
@@ -47,7 +47,10 @@ PX = 1200           # the atlas's pixels a unit (the bar's): a stone's grains an
 AW, AH = 2048, 2048
 # (the slabs, in the bar's units, as the game measures and scales them: the footing's band over the upper step (StoneStep0, item 404: the
 # genkan's edge between the upper step and the floor, a riser of its own now, a thin slab laid on the footing's face), the upper step, the lower)
-SLABS = {"StoneStep0": (1.2369, 0.1123, 0.012), "StoneStep1": (1.2329, 0.2247, 0.168), "StoneStep2": (1.2289, 0.1123, 0.168),
+# (each step's tread how deep: 0.168 (the game's STEP_GO 0.17 less 2 mm) until item 823's redo, the owner's 「是下面的厚度要加深，石階往外推、
+# 然後要有點深度」: the stone plinth stood 6 cm proud of the base now, not 1.8, and the steps pushed out with it, each tread 4 cm deeper)
+GO = 0.208
+SLABS = {"StoneStep0": (1.2369, 0.1123, 0.012), "StoneStep1": (1.2329, 0.2247, GO), "StoneStep2": (1.2289, 0.1123, GO),
          # (and the rest of the way in's stone, each face its own course (item 404: they were boxes the paving's one picture was laid over at
          # one scale): the footing itself (its sides; its front's behind the band and the steps); the door's curb that stood up over the
          # genkan's stone taken away (item 407), and the genkan's side's low curb by the wall (StoneSide, item 539, the owner's 「這塊拿掉」))
@@ -58,17 +61,18 @@ def _r(x, y, W, H):
     return (x, y, max(1, round(W * PX)), max(1, round(H * PX)))
 FACES = {
     "StoneStep0": {"front": (_r(0, 0, 1.2369, 0.1123), 1.2369, 0.1123, 1)},
-    "StoneStep1": {"front": (_r(0, 141, 1.2329, 0.2247), 1.2329, 0.2247, 2), "top": (_r(0, 417, 1.2329, 0.168), 1.2329, 0.168, 1),
-                   "left": (_r(1500, 0, 0.168, 0.2247), 0.168, 0.2247, 1), "right": (_r(1712, 0, 0.168, 0.2247), 0.168, 0.2247, 1)},
-    "StoneStep2": {"front": (_r(0, 625, 1.2289, 0.1123), 1.2289, 0.1123, 1), "top": (_r(0, 766, 1.2289, 0.168), 1.2289, 0.168, 1),
-                   "left": (_r(1500, 280, 0.168, 0.1123), 0.168, 0.1123, 1), "right": (_r(1712, 280, 0.168, 0.1123), 0.168, 0.1123, 1)},
+    # (item 823's redo: the treads GO deep, the places after them on down; the steps' ends side by side at 1500 and 1756)
+    "StoneStep1": {"front": (_r(0, 141, 1.2329, 0.2247), 1.2329, 0.2247, 2), "top": (_r(0, 417, 1.2329, GO), 1.2329, GO, 1),
+                   "left": (_r(1500, 0, GO, 0.2247), GO, 0.2247, 1), "right": (_r(1756, 0, GO, 0.2247), GO, 0.2247, 1)},
+    "StoneStep2": {"front": (_r(0, 673, 1.2289, 0.1123), 1.2289, 0.1123, 1), "top": (_r(0, 814, 1.2289, GO), 1.2289, GO, 1),
+                   "left": (_r(1500, 280, GO, 0.1123), GO, 0.1123, 1), "right": (_r(1756, 280, GO, 0.1123), GO, 0.1123, 1)},
     # (a part's two long faces never seen at once: one place for both)
     "StoneSide": {"left": (_r(0, 1254, 1.3155, 0.112), 1.3155, 0.112, 1), "right": (_r(0, 1254, 1.3155, 0.112), 1.3155, 0.112, 1)},
     # (the footing's sides in three courses, a course a step's rise: their joints level with the steps' treads)
     "StoneFoot": {"left": (_r(0, 1394, 1.3155, 0.337), 1.3155, 0.337, 3), "right": (_r(0, 1394, 1.3155, 0.337), 1.3155, 0.337, 3)},
 }
 # (what's never seen, and the band's edges a hair wide: the joints' pebble-wash only)
-JOINT_ONLY = (1924, 0, 120, 120)
+JOINT_ONLY = (1500, 425, 120, 120)
 
 
 def course(W, H, rows, rng_):
@@ -844,7 +848,10 @@ sf = build_foot()
 # in the game (each part at its place there in StoneStep1's frame, tests/e2e/_stepsplace774.mjs) or the street's paving under them, what's
 # met near counting for more than what's met far
 AO_REACH, AO_RAYS, AO_FLOOR = 0.06, 96, 0.6
-AO_PLACE = {"StoneStep0": (0, 0.1688, -0.0785), "StoneStep1": (0, 0, 0), "StoneStep2": (0, -0.0562, 0.17), "StoneFoot": (0, 0.0562, -0.7438)}
+# (each part's middle from the upper step's as the game lays them (floors.tsx's steps): the band 1.5 to 13.5 mm out from the footing's face,
+# the upper step 2 mm to GO + 2 mm, the lower one GO + 2 mm further, the footing behind the face)
+AO_PLACE = {"StoneStep0": (0, 0.1688, 0.0075 - (0.002 + GO / 2)), "StoneStep1": (0, 0, 0), "StoneStep2": (0, -0.0562, GO + 0.002),
+            "StoneFoot": (0, 0.0562, -1.3155 / 2 - (0.002 + GO / 2))}
 AO_GROUND = -0.1204          # the street's paving under the lower step, in StoneStep1's frame (its foot 8 mm over it, as measured)
 
 

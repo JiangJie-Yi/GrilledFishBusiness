@@ -9,7 +9,7 @@ import { nameOver } from '@/shops/grill/bar'
 
 /**
  * The cat wall clock (item 477, the owner's, 2026-11-21: 「這邊增加一個喵咪掛鐘」; a black cat since item 483: 「貓咪時鐘要黑貓」;
- * blender/catclock.py): our own, a black cat sitting up,
+ * rounded all over since item 827: 「整體很像幾何形去拼湊出」; blender/catclock.py): our own, a black cat sitting up,
  * its round belly the clock's case and the dial on it, its face over it, a red collar and a gold bell at its neck, its paws at its foot,
  * its tail hanging under it for the pendulum. Its hands on the shop's own clock (eased round, the clock moving on by the second), its tail
  * swung; the head's front and the dial painted here in one picture (the face on its left half, the dial on its right), as the drinks
@@ -18,67 +18,113 @@ import { nameOver } from '@/shops/grill/bar'
 const URL = import.meta.env.BASE_URL + 'models/catclock.glb'
 useGLTF.preload(URL)
 
-/** the eyes' middles and their size on the face's square (px): big (item 512, the owner's 「大大的貓咪眼」: at 37 across 74 of the face's 256
- * they were a cat's own eyes, not the picture's that fill the upper face), each two fifths of the face across, their rims all but meeting */
-const EYES = [[75, 98], [181, 98]] as const, EYE_R = 50
+/** the eyes' middles and their size on the face's square (px; the square PRINT_HEAD 0.2 m across the head, blender/catclock.py): big (item
+ * 512, the owner's 「大大的貓咪眼」), each a third of the face across, 6.6 cm, as they were; set in the face well in from its edge (item 827:
+ * they ran to the head's outline) */
+const EYES = [[73, 113], [183, 113]] as const, EYE_R = 42
+const TAU = Math.PI * 2
 /**
- * The face (a black cat's since item 483, the owner's 「貓咪時鐘要黑貓」; its eyes after the owner's picture since item 484: 「貓咪的眼睛掛鐘
- * 可以參考這個」): its fur; two big round eyes, set in raised rims (a dark grey ring, lit along its top, shaded under), warm cream-yellow,
- * their pupils tall dark ovals turned a little in, a glint on each; `lid` 0 open → 1 shut, the fur drawn down over them to a lid's edge; a
- * pink nose, a little ω of a mouth in pale pink, cheeks a soft rose, three cream whiskers a side. On the picture's left half only.
+ * An eye (item 827, the owner's 「眼睛不OK，整體很像幾何形去拼湊出」: they were two flat cream discs in grey rings, each a sticker laid on the
+ * face): set into the fur, a soft dark round it where it sinks in; gold, lighter round its pupil and deepening to amber at its edge, fine
+ * streaks out from the pupil, a dark ring at its edge; its pupil a tall slit, a touch toward the nose; the lid's shadow across its top; a
+ * window's glint over the pupil and a small one under; the lower lid's wet rim catching the light. The upper lid a curve slanting down to
+ * the nose (a cat's eye, not a circle), lined dark and flicked out at its outer corner; `lid` 0 open → 1 shut, the lid drawn down over it,
+ * shut a curve across its middle. `t` +1 when the nose is to its right
+ */
+function paintEye(g: CanvasRenderingContext2D, x: number, y: number, R: number, t: number, lid: number) {
+  // (set in: a soft dark round it)
+  const sock = g.createRadialGradient(x, y, R * 0.92, x, y, R * 1.32)
+  sock.addColorStop(0, 'rgba(8,5,5,0.6)'); sock.addColorStop(1, 'rgba(8,5,5,0)')
+  g.fillStyle = sock
+  g.beginPath(); g.arc(x, y, R * 1.32, 0, TAU); g.fill()
+  // (the lid's edge: from its outer corner, high, to its inner, lower, bowed up over the eye; shutting, all three down to a curve under
+  // the middle)
+  const o = (a: number, b: number) => a + (b - a) * lid
+  const ox = x - t * R * 1.04, ix = x + t * R * 1.04
+  const oy = o(y - R * 0.7, y + R * 0.06), iy = o(y - R * 0.46, y + R * 0.12), cy = o(y - R * 1.02, y + R * 0.42)
+  g.save()
+  g.beginPath(); g.arc(x, y, R, 0, TAU); g.clip()
+  if (lid < 0.98) {
+    const px = x + t * R * 0.06, py = y + R * 0.05
+    const iris = g.createRadialGradient(px, py + R * 0.08, R * 0.12, x, y, R)
+    iris.addColorStop(0, '#fff4b8'); iris.addColorStop(0.42, '#f9d750'); iris.addColorStop(0.8, '#e5a22a'); iris.addColorStop(1, '#a65f18')
+    g.fillStyle = iris
+    g.fillRect(x - R, y - R, 2 * R, 2 * R)
+    g.lineWidth = 1.3
+    for (let k = 0; k < 40; k++) {
+      const a = (k / 40) * TAU + (k % 3) * 0.04, r0 = R * 0.36, r1 = R * (0.84 + (k % 4) * 0.035)
+      g.strokeStyle = k % 2 ? 'rgba(255,250,215,0.22)' : 'rgba(140,72,10,0.2)'
+      g.beginPath(); g.moveTo(px + Math.cos(a) * r0, py + Math.sin(a) * r0); g.lineTo(px + Math.cos(a) * r1, py + Math.sin(a) * r1); g.stroke()
+    }
+    g.strokeStyle = 'rgba(90,46,8,0.85)'; g.lineWidth = 3
+    g.beginPath(); g.arc(x, y, R - 1.2, 0, TAU); g.stroke()
+    const pupil = g.createRadialGradient(px, py, 1, px, py, R * 0.74)
+    pupil.addColorStop(0, '#050303'); pupil.addColorStop(1, '#1d120c')
+    g.fillStyle = pupil
+    g.beginPath(); g.ellipse(px, py, R * 0.26, R * 0.74, 0, 0, TAU); g.fill()
+    const shade = g.createLinearGradient(0, cy, 0, y + R * 0.05)
+    shade.addColorStop(0, 'rgba(48,22,4,0.7)'); shade.addColorStop(1, 'rgba(48,22,4,0)')
+    g.fillStyle = shade
+    g.fillRect(x - R, y - R, 2 * R, 2 * R)
+    g.fillStyle = 'rgba(255,255,255,0.95)'
+    g.beginPath(); g.ellipse(px - R * 0.22, py - R * 0.34, R * 0.18, R * 0.13, -0.5, 0, TAU); g.fill()
+    g.fillStyle = 'rgba(255,255,255,0.75)'
+    g.beginPath(); g.arc(px + R * 0.22, py + R * 0.4, R * 0.075, 0, TAU); g.fill()
+    g.strokeStyle = 'rgba(255,238,190,0.5)'; g.lineWidth = 2
+    g.beginPath(); g.arc(x, y, R - 3, Math.PI * 0.22, Math.PI * 0.78); g.stroke()
+  }
+  // (the lid: the fur down to its edge; shut, all of it)
+  g.fillStyle = '#2b2727'
+  g.beginPath(); g.moveTo(ox, y - R * 1.2); g.lineTo(ix, y - R * 1.2); g.lineTo(ix, iy); g.quadraticCurveTo(x, cy, ox, oy); g.closePath(); g.fill()
+  if (lid >= 0.98) g.fillRect(x - R, y - R, 2 * R, 2 * R)
+  g.restore()
+  // (its line: dark along the lid's edge, out past the eye at its outer corner in a flick; and a fine dark rim round its foot)
+  g.strokeStyle = '#0b0707'
+  g.lineCap = 'round'
+  g.save()
+  g.beginPath(); g.arc(x, y, R + 2.5, 0, TAU); g.clip()
+  g.lineWidth = 4.5
+  g.beginPath(); g.moveTo(ix, iy); g.quadraticCurveTo(x, cy, ox, oy); g.stroke()
+  g.restore()
+  g.lineWidth = 3.5
+  g.beginPath(); g.moveTo(ox + t * 3, oy + 1); g.lineTo(ox - t * 7, oy - 6); g.stroke()
+  if (lid < 0.98) { g.lineWidth = 2.2; g.beginPath(); g.arc(x, y, R + 0.5, Math.PI * 0.12, Math.PI * 0.88); g.stroke() }
+}
+/**
+ * The face (a black cat's since item 483, the owner's 「貓咪時鐘要黑貓」; its eyes after the owner's picture since item 484, big since 512,
+ * set in since 827): its fur, a little lighter over the brow and the muzzle (the head's round shades the rest); the eyes (paintEye); a pink
+ * nose with a light on it, a little ω of a mouth, cheeks a soft rose, three cream whiskers a side out to the head's edge. On the picture's
+ * left half only
  */
 function paintFace(g: CanvasRenderingContext2D, lid: number) {
   g.save()
   g.lineCap = 'round'
   g.lineJoin = 'round'
   g.fillStyle = '#2b2727'; g.fillRect(0, 0, 256, 256)
-  g.fillStyle = '#6e3e46'
-  for (const x of [50, 206]) { g.beginPath(); g.ellipse(x, 176, 15, 9, 0, 0, Math.PI * 2); g.fill() }
-  EYES.forEach(([x, y], i) => {
-    // (the rim: raised, its top caught by the light, its foot in shade)
-    g.fillStyle = '#463d3d'
-    g.beginPath(); g.arc(x, y, EYE_R + 8, 0, Math.PI * 2); g.fill()
-    g.lineWidth = 3.5
-    g.strokeStyle = '#6f6464'
-    g.beginPath(); g.arc(x, y, EYE_R + 6, Math.PI * 1.05, Math.PI * 1.85); g.stroke()
-    g.strokeStyle = '#141010'
-    g.beginPath(); g.arc(x, y, EYE_R + 6, Math.PI * 0.1, Math.PI * 0.9); g.stroke()
-    // (the eye: cream-yellow, lighter toward its top left)
-    const shade = g.createRadialGradient(x - 15, y - 18, 4, x, y, EYE_R)
-    shade.addColorStop(0, '#fff7d2'); shade.addColorStop(0.65, '#f2db86'); shade.addColorStop(1, '#d9b554')
-    g.fillStyle = shade
-    g.beginPath(); g.arc(x, y, EYE_R, 0, Math.PI * 2); g.fill()
-    // (its pupil, tall, turned in toward the nose a little, and its glints)
-    const px = x + (i === 0 ? 5 : -5)
-    g.fillStyle = '#1d1512'
-    g.beginPath(); g.ellipse(px, y + 3, 17, 35, 0, 0, Math.PI * 2); g.fill()
-    g.fillStyle = '#ffffff'
-    g.beginPath(); g.arc(px - 7, y - 15, 7.5, 0, Math.PI * 2); g.fill()
-    g.beginPath(); g.arc(px + 7, y + 17, 3.3, 0, Math.PI * 2); g.fill()
-    // (the lid: the fur drawn down over it to a curved edge, its edge a dark line)
-    if (lid > 0.02) {
-      const edge = y - EYE_R + lid * EYE_R * 2
-      g.save()
-      g.beginPath(); g.arc(x, y, EYE_R + 1, 0, Math.PI * 2); g.clip()
-      g.fillStyle = '#2b2727'
-      g.beginPath(); g.moveTo(x - EYE_R - 2, y - EYE_R - 2); g.lineTo(x + EYE_R + 2, y - EYE_R - 2); g.lineTo(x + EYE_R + 2, edge)
-      g.quadraticCurveTo(x, edge + 12 * (1 - lid * 0.6), x - EYE_R - 2, edge); g.closePath(); g.fill()
-      g.restore()
-      g.strokeStyle = '#151010'; g.lineWidth = 3
-      const half = Math.sqrt(Math.max(0, EYE_R * EYE_R - (edge - y) ** 2))
-      if (lid < 0.95) { g.beginPath(); g.moveTo(x - half, edge); g.quadraticCurveTo(x, edge + 12 * (1 - lid * 0.6), x + half, edge); g.stroke() }
-      // (shut: the lid's line across the eye's middle, a soft curve down, so it reads as an eye shut, not an empty ring)
-      else { g.lineWidth = 3.5; g.beginPath(); g.moveTo(x - EYE_R * 0.78, y + 2); g.quadraticCurveTo(x, y + EYE_R * 0.5, x + EYE_R * 0.78, y + 2); g.stroke() }
-    }
-  })
-  g.fillStyle = '#ec8c94'
-  g.beginPath(); g.moveTo(118, 156); g.lineTo(138, 156); g.quadraticCurveTo(128, 172, 128, 170); g.closePath(); g.fill()
-  g.strokeStyle = '#e9b3ac'; g.lineWidth = 4
-  g.beginPath(); g.moveTo(128, 168); g.quadraticCurveTo(122, 184, 113, 178); g.moveTo(128, 168); g.quadraticCurveTo(134, 184, 143, 178); g.stroke()
-  // (the whiskers out from under the big eyes, lower and further out)
-  g.strokeStyle = '#efe6d6'; g.lineWidth = 3
-  for (const [y0, y1] of [[166, 158], [175, 175], [184, 192]]) {
-    g.beginPath(); g.moveTo(44, y0); g.lineTo(4, y1); g.moveTo(212, y0); g.lineTo(252, y1); g.stroke()
+  for (const [cx, cy, r, a] of [[128, 62, 70, 0.22], [128, 176, 46, 0.3]] as const) {
+    const lit = g.createRadialGradient(cx, cy, 2, cx, cy, r)
+    lit.addColorStop(0, 'rgba(82,72,72,' + a + ')'); lit.addColorStop(1, 'rgba(82,72,72,0)')
+    g.fillStyle = lit
+    g.fillRect(cx - r, cy - r, 2 * r, 2 * r)
+  }
+  for (const x of [44, 212]) {
+    const blush = g.createRadialGradient(x, 182, 2, x, 182, 20)
+    blush.addColorStop(0, 'rgba(176,86,98,0.55)'); blush.addColorStop(1, 'rgba(176,86,98,0)')
+    g.fillStyle = blush
+    g.beginPath(); g.ellipse(x, 182, 22, 13, 0, 0, TAU); g.fill()
+  }
+  EYES.forEach(([x, y], i) => paintEye(g, x, y, EYE_R, i === 0 ? 1 : -1, lid))
+  g.fillStyle = '#e8899a'
+  g.beginPath(); g.moveTo(117, 158); g.quadraticCurveTo(128, 151, 139, 158); g.quadraticCurveTo(136, 165, 128, 171); g.quadraticCurveTo(120, 165, 117, 158); g.fill()
+  g.fillStyle = 'rgba(255,225,232,0.75)'
+  g.beginPath(); g.ellipse(124, 158, 4, 2, -0.2, 0, TAU); g.fill()
+  g.strokeStyle = '#d99aa0'; g.lineWidth = 3
+  g.beginPath(); g.moveTo(128, 171); g.lineTo(128, 175); g.quadraticCurveTo(124, 183, 116, 180); g.moveTo(128, 175); g.quadraticCurveTo(132, 183, 140, 180); g.stroke()
+  // (the whiskers out from the muzzle, a little bowed, out to the head's edge)
+  g.strokeStyle = '#efe6d6'; g.lineWidth = 2.6
+  for (const [y0, y1, bow] of [[167, 156, -3], [175, 175, -2], [183, 194, 2]] as const) {
+    g.beginPath(); g.moveTo(58, y0); g.quadraticCurveTo(30, (y0 + y1) / 2 + bow, 6, y1)
+    g.moveTo(198, y0); g.quadraticCurveTo(226, (y0 + y1) / 2 + bow, 250, y1); g.stroke()
   }
   g.restore()
 }
@@ -155,10 +201,11 @@ export const CatClock = memo(function CatClock() {
     // not)
     const moving = new THREE.Group()
     const hour = r.getObjectByName('CatClockHour')!, minute = r.getObjectByName('CatClockMinute')!, tail = r.getObjectByName('CatClockTail')!
+    const tip = tail.getObjectByName('CatClockTailTip') ?? null
     moving.add(hour, minute, tail)
     inkModel(r, () => false, { width: 0.0012, weld: true })
     inkModel(moving, () => false, { width: 0.0012, weld: true })
-    return { r, moving, hour, minute, tail }
+    return { r, moving, hour, minute, tail, tip }
   }, [gltf])
   const at = useRef({ h: NaN, m: NaN })
   // (a blink now and then (item 484): every three to seven seconds, a fifth of them twice over; the lids down and up in a sixth of a second)
@@ -192,8 +239,11 @@ export const CatClock = memo(function CatClock() {
     a.m += turnBy(a.m, mTo) * k
     parts.hour.rotation.z = -a.h
     parts.minute.rotation.z = -a.m
-    // (the tail swung as a pendulum: a second and a half each way and back)
-    parts.tail.rotation.z = Math.sin((clock.elapsedTime * Math.PI * 2) / 1.5) * 0.17
+    // (the tail swung as a pendulum: a second and a half each way and back; its tip after it (item 827), a fifth of a swing behind, so it
+    // trails and flicks over at each end rather than swinging stiff as one stick)
+    const ph = (clock.elapsedTime * Math.PI * 2) / 1.5
+    parts.tail.rotation.z = Math.sin(ph) * 0.17
+    if (parts.tip) parts.tip.rotation.z = Math.sin(ph - 1.15) * 0.16
   })
   return (
     <group>
