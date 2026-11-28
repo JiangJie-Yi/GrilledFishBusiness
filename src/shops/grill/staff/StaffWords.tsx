@@ -61,6 +61,31 @@ function spreadBubbles() {
   }
 }
 
+/** (item 845) every figure the scene has for one of the staff: the second cook has two while he's out for the floor (his own at the board,
+ * Roasting's, and the one GuestBar3D walks), the third cook as the plater too; into `into` */
+function figuresOf(scene: THREE.Object3D, id: string, into: THREE.Object3D[]) {
+  into.length = 0
+  scene.traverse((q) => { if (q.userData.staffId === id) into.push(q) })
+  return into
+}
+/** shown, it and all it's in, and not faded out of a doorway */
+const chainShown = (o: THREE.Object3D) => {
+  for (let q: THREE.Object3D | null = o; q; q = q.parent) if (!q.visible || (q.userData.fade ?? 1) < 0.5) return false
+  return true
+}
+/** of them the one shown just now (the stand-in out walking, item 845: the first found was the one at the board, hidden, and what he said out
+ * on the floor never showed), else the first still in the scene */
+function shownOf(list: THREE.Object3D[]) {
+  for (const q of list) if (q.parent && chainShown(q)) return q
+  for (const q of list) if (q.parent) return q
+  return null
+}
+/** one of them gone from the scene (let go of at once, looked for again) */
+const anyGone = (list: THREE.Object3D[]) => {
+  for (const q of list) if (!q.parent) return true
+  return false
+}
+
 export const StaffWords = memo(function StaffWords() {
   useEffect(() => { const t = window.setInterval(spreadBubbles, 150); return () => window.clearInterval(t) }, [])
   const [words, setWords] = useState<StaffWord[]>([])
@@ -86,7 +111,8 @@ const Word = memo(function Word({ word }: { word: StaffWord }) {
   const g = useRef<THREE.Group>(null)
   const el = useRef<HTMLDivElement>(null)
   const scene = useThree((s) => s.scene)
-  const who = useRef<THREE.Object3D | null>(null)
+  /** (item 845) every figure of theirs (a stand-in walking for them as well, out on the floor), the one shown followed */
+  const all = useRef<THREE.Object3D[]>([])
   /** (item 804) when the one it's over was last looked for through the scene: not found (gone home, not on tonight), looked for again no more
    * than twice a second, not every frame through all fourteen thousand of the shop's objects */
   const sought = useRef(-1e9)
@@ -94,20 +120,21 @@ const Word = memo(function Word({ word }: { word: StaffWord }) {
     const o = g.current
     if (!o || !o.parent) return
     // (one gone from the scene let go of at once: not followed where it was)
-    if (who.current && !who.current.parent) who.current = null
-    if (!who.current && performance.now() - sought.current > 500) {
+    if (anyGone(all.current)) all.current.length = 0
+    if (!all.current.length && performance.now() - sought.current > 500) {
       sought.current = performance.now()
-      if (word.id === 'owner') who.current = scene.getObjectByName('BossFollow') ?? null
+      if (word.id === 'owner') { const b = scene.getObjectByName('BossFollow'); if (b) all.current.push(b) }
       // (whoever's at the till: the cashier, the owner where there's none)
       else if (word.id === 'role:cashier') {
-        scene.traverse((q) => { if (!who.current && q.userData.staffRole === 'cashier') who.current = q.parent })
-        who.current ??= scene.getObjectByName('BossFollow') ?? null
-      } else scene.traverse((q) => { if (!who.current && q.userData.staffId === word.id) who.current = q })
+        let at: THREE.Object3D | null = null
+        scene.traverse((q) => { if (!at && q.userData.staffRole === 'cashier') at = q.parent })
+        at ??= scene.getObjectByName('BossFollow') ?? null
+        if (at) all.current.push(at)
+      } else figuresOf(scene, word.id, all.current)
     }
-    const t = who.current
+    const t = shownOf(all.current)
     // (shown only while they are: not while a stand-in walks for them, nor once they've faded out of a doorway)
-    let shown = !!t
-    for (let q: THREE.Object3D | null = t; q && shown; q = q.parent) if (!q.visible || (q.userData.fade ?? 1) < 0.5) shown = false
+    let shown = !!t && chainShown(t)
     // (the owner's own words not while the view is his eyes (item 769): they hung in front of the camera)
     if (t && t.name === 'BossFollow' && VIEW_NOW.id === 'boss') shown = false
     o.visible = shown
@@ -162,7 +189,8 @@ function TiredBadge({ id, marks }: { id: string; marks: Marks }) {
   const g = useRef<THREE.Group>(null)
   const el = useRef<HTMLSpanElement>(null)
   const scene = useThree((s) => s.scene)
-  const who = useRef<THREE.Object3D | null>(null)
+  /** (item 845) every figure of theirs (a stand-in walking for them as well, out on the floor), the one shown followed */
+  const all = useRef<THREE.Object3D[]>([])
   /** (item 804) when the one it's over was last looked for through the scene: not found (gone home, not on tonight), looked for again no more
    * than twice a second, not every frame through all fourteen thousand of the shop's objects */
   const sought = useRef(-1e9)
@@ -170,16 +198,15 @@ function TiredBadge({ id, marks }: { id: string; marks: Marks }) {
     const o = g.current
     if (!o || !o.parent) return
     // (one gone from the scene let go of at once: not followed where it was)
-    if (who.current && !who.current.parent) who.current = null
-    if (!who.current && performance.now() - sought.current > 500) {
+    if (anyGone(all.current)) all.current.length = 0
+    if (!all.current.length && performance.now() - sought.current > 500) {
       sought.current = performance.now()
-      scene.traverse((q) => { if (!who.current && q.userData.staffId === id) who.current = q })
+      figuresOf(scene, id, all.current)
     }
-    const t = who.current
+    const t = shownOf(all.current)
     // (with them: not while they're out of sight (off at the door, or stood in for by the one out on a round))
     // (nor as they fade out of a doorway going home: it went on hanging there, solid, after they'd gone)
-    let shown = !!t
-    for (let q: THREE.Object3D | null = t; q && shown; q = q.parent) if (!q.visible || (q.userData.fade ?? 1) < 0.5) shown = false
+    const shown = !!t && chainShown(t)
     o.visible = shown
     showEl(el.current, shown)
     if (!t || !shown) return

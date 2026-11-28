@@ -76,9 +76,9 @@ import { murmur } from '@/game/kitchen/fireSound'
 import { crowdAmbience } from '@/shops/grill/sounds/fireAmbience'
 import { LINES } from '@/data/lines'
 import { looksOf, openRoom, penaltyOf, visitRoom } from '@/game/guests/restroom'
-import { platerFree } from '@/game/kitchen/kitchenCrew'
+import { HELP_AFTER, helperJobs, platerFree } from '@/game/kitchen/kitchenCrew'
 import { WARE, SEAT_LEFT, CHOPS_USED, CHOPS_OFF, CHOPS_LOOSE, SEATS_UNCLEARED, FLOOR_CHECK, type PathCross, BOSS_BED } from './bar'
-import { DRAIN_KINDS, PLATE_FACES, SEATS_SAT, DRAWER_KICK, seatTurn, GRATING, ONIGIRI_TRAY, HAND_WASH, FIGURES, CARRIED, SOY_DISH_AT, FETCHER, FIRE_TEND, SKEWERS, SEAT_MOVE, SEAT_PULL, STOOL_TUCK, SHOE_CELLS, aisleCornerOf, aisleOf, SHOP_PURSE, STOCKER_WC, SUPPLIES, CHOPS_UP, FED, ON_ITS_WAY, BENCH, BENCH_SEATS, BENCH_EACH, BENCH_PLACE, BENCH2_ALONG, TAKEOUT_STAND, STAND_AT, cashierIn, gripe, setTissues, tissuesAt, meterWater, OWNER_OUT, OWNER_SPOT, OWNER_YAW, FIRE_SHIFT, KITCHEN_ROUTE, PATH_MAP, type PathRoute, SERVE_COUNTER, PLACE, SICK, SHRINE_FLOWERS, PLATING, READY_SLOTS, PLATE_STACK_ALONG, PLATE_STACK_ACROSS, readyAlong, PLATES_OUT, PLATER_OUT, DRYER, DRAIN, PLATE_COUNT, SINK_BIN, SEAT_STICKS, SEAT_BONES, RICE, SOUP, SOUP_SEATS, SAKE, SAKE_SEATS, SAKE_AT, LOW_RACK, takeDrink, KITCHEN_DROP, kitchenOf, FLOOR_FAR, FLOOR_NEAR, PLATES_SET, SINK, PILE, KITCHEN_FOLK, GENKAN, inGenkan, sauceSide, SEATS_TAKEN, SERVICE, BAR_GATES, TILL, TILL_CASH, anyInStock, batchOf, payIn, TILL_STATE, PLATE_RACK, GUEST_BILLS, DRINKS, yen, payOf, TAKEOUT, takeoutOf, tipOver, TOILETS, WC_GRUMBLE, DRINK_BACK, FRIDGE, FRIDGE_AT, FRIDGE_STATE, isCan, drinkFor, farOf, fridgesOf, storeOf, fridgeUnitOf, gateOf, toiletsOf, type DrinkId, platingOf, alongPath, doorOf, wayInOf, doorAt, doorOutOf, DOOR_LANE, pathLength, pathTo, seatsOf, singleCounter, type Counter, SPILLS, IRONS, type Spill, genkanY, soapPlate, scrubDose, SAY_SEATED, BOWLS, RICE_SEATS, sakeLeft, ownerAway, ownerFree, ownerBack, DRINK_COMING, KITCHEN, DRINK_FRIDGE_TEMP } from './bar'
+import { DRAIN_KINDS, PLATE_FACES, SEATS_SAT, DRAWER_KICK, seatTurn, GRATING, ONIGIRI_TRAY, HAND_WASH, FIGURES, CARRIED, SOY_DISH_AT, FETCHER, FIRE_TEND, SKEWERS, SEAT_MOVE, SEAT_PULL, STOOL_TUCK, SHOE_CELLS, aisleCornerOf, aisleOf, SHOP_PURSE, STOCKER_WC, SUPPLIES, CHOPS_UP, FED, ON_ITS_WAY, BENCH, BENCH_SEATS, BENCH_EACH, BENCH_PLACE, BENCH2_ALONG, TAKEOUT_STAND, STAND_AT, cashierIn, gripe, setTissues, tissuesAt, meterWater, OWNER_OUT, OWNER_SPOT, OWNER_YAW, FIRE_SHIFT, KITCHEN_ROUTE, PATH_MAP, type PathRoute, SERVE_COUNTER, PLACE, SICK, SHRINE_FLOWERS, PLATING, READY_SLOTS, PLATE_STACK_ALONG, PLATE_STACK_ACROSS, readyAlong, PLATES_OUT, PLATER_OUT, DRYER, DRAIN, PLATE_COUNT, SINK_BIN, SEAT_STICKS, SEAT_BONES, RICE, SOUP, SOUP_SEATS, SAKE, SAKE_SEATS, SAKE_AT, SAKE_MIN, HELPER_OUT, LOW_RACK, takeDrink, KITCHEN_DROP, kitchenOf, FLOOR_FAR, FLOOR_NEAR, PLATES_SET, SINK, PILE, KITCHEN_FOLK, GENKAN, inGenkan, sauceSide, SEATS_TAKEN, SERVICE, BAR_GATES, TILL, TILL_CASH, anyInStock, batchOf, payIn, TILL_STATE, PLATE_RACK, GUEST_BILLS, DRINKS, yen, payOf, TAKEOUT, takeoutOf, tipOver, TOILETS, WC_GRUMBLE, DRINK_BACK, FRIDGE, FRIDGE_AT, FRIDGE_STATE, isCan, drinkFor, farOf, fridgesOf, storeOf, fridgeUnitOf, gateOf, toiletsOf, type DrinkId, platingOf, alongPath, doorOf, wayInOf, doorAt, doorOutOf, DOOR_LANE, pathLength, pathTo, seatsOf, singleCounter, type Counter, SPILLS, IRONS, type Spill, genkanY, soapPlate, scrubDose, SAY_SEATED, BOWLS, RICE_SEATS, sakeLeft, ownerAway, ownerFree, ownerBack, DRINK_COMING, KITCHEN, DRINK_FRIDGE_TEMP } from './bar'
 import { servedWarm } from '@/game/stock/fridgeTemp'
 import { arrivals, buyCase, caseCost } from '@/game/stock/drinkStock'
 import { GAME_SPEED, tick } from '@/scene/kit/speed'
@@ -202,7 +202,7 @@ function Counter({ length }: { length: number }) {
 }
 
 function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, top = 0.465, people = true, mark = '食堂', counters: given, scale = 1, offset,
-  servers = [], plater = null, stocker = null, omiki, onDrink, onSay, open = true }:
+  servers = [], plater = null, stocker = null, helper = null, omiki, onDrink, onSay, open = true }:
   { guests: GuestView[]; at: THREE.Vector3; length?: number; drawCounter?: boolean; lang: Lang
     /** where the customers sit (the first counter's middle is at, and its door past its far end); one of four if not given */
     counters?: Counter[]
@@ -226,6 +226,9 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     plater?: { id: string; role: 'chef' | 'sous'; look: StaffLook } | null
     /** the stocker, once one's hired (none: no one by the crates, and the fridges aren't filled from the back) */
     stocker?: { id: string; look: StaffLook } | null
+    /** (item 845) the second cook, with a third cook at the plating: out from his board to lend the floor a hand when what's plated, or a
+     * customer's bowls or tokkuri, have waited with both servers busy (none: no third cook, so he plates himself; or no servers) */
+    helper?: { id: string; look: StaffLook } | null
     /** drawn this much bigger, all of it */
     scale?: number
     /** and moved by this (after scaling) */
@@ -354,6 +357,52 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
   /** no server hired: the owner serves (nothing flies); his place along the aisle in front of the cook table (in the bar's frame), his way
    * out across the kitchen to the first counter's gate and through it, found once a day */
   const ownerServes = !!given && servers.length === 0 && homes.length > 0
+  /** (item 845, the Tester window's 872) the second cook, one more on the servers' list after them while there's a third cook at the plating:
+   * he only carries out (what's plated, the bowls, a tokkuri) what's waited with both servers busy (late at night, tired, at half their pace,
+   * the food stood at the plating place as long as an hour), and only between his own rounds of the orders, none waiting for him */
+  // (kept as he was while the shop's open: the crew's list a moment without him (the rota's day turning as the opening's counted, as it was
+  // at 18:00 in tests/e2e/_helper845.mjs) took him off the servers' list and made it afresh, every server sent back to their place mid-run
+  // with what they carried; whether he may go out is the crew's as it is now, `helper`)
+  const helperKept = useRef<typeof helper>(null)
+  if (!open) helperKept.current = null
+  else if (helper && helper.id !== helperKept.current?.id) helperKept.current = helper
+  const aide = helperKept.current
+  const H = !ownerServes && !!given && !!aide ? Math.min(homes.length, servers.length) : -1
+  /** (item 845) where he goes out by for a seat: the inner side of its counter's gate (the server's own place beside it is theirs), and the way
+   * out through it from there */
+  const helperDoors = useMemo(() => homes.map((h) => (h.way.length > 1
+    ? { at: h.way[1].clone(), yaw: h.yaw, counter: h.counter, way: h.way.slice(1).map((v) => v.clone()) }
+    : { ...h, way: h.way.map((v) => v.clone()) })), [homes])
+  /** (item 845) the gate he's out by this time (the seat's counter's), so the way back is the way he went */
+  const helperGate = useRef(0)
+  const gateFor = (n: number) => Math.max(0, Math.min(homes.length - 1, seats[n]?.counter ?? 0))
+  /** (item 845) his place at the board, in the servers' frame (CrewWalk keeps it, the world's, in HELPER_OUT): his "home", the way out from it
+   * across the kitchen to the gate he's out by and through it, found once a day for each gate */
+  const helperHomes = useRef(new Map<number, (typeof homes)[number]>())
+  const boardOf = (out: THREE.Vector3) => {
+    const f = waiterObjs.current[H]?.parent
+    if (!f || !HELPER_OUT.homeSet) return null
+    return f.worldToLocal(out.copy(HELPER_OUT.home)).setY(0)
+  }
+  const boardYaw = () => {
+    const f = waiterObjs.current[H]?.parent
+    if (!f) return 0
+    const d = HELPER_DIR.copy(HELPER_OUT.face).transformDirection(HELPER_INV.copy(f.matrixWorld).invert())
+    return Math.atan2(d.x, d.z)
+  }
+  const helperHome = () => {
+    const gi = helperGate.current, kept = helperHomes.current.get(gi)
+    if (kept) return kept
+    const door = helperDoors[gi] ?? helperDoors[0]
+    const board = boardOf(new THREE.Vector3())
+    if (!board || !door) return door ?? homes[0]
+    const across = kitchenRoute(board, door.at)
+    const made = { at: board, yaw: boardYaw(), counter: door.counter, way: [board.clone(), ...across.slice(1), ...door.way.slice(1).map((v) => v.clone())] }
+    helperHomes.current.set(gi, made)
+    return made
+  }
+  /** who's walking as the server `wi` (the helper after the servers) */
+  const crewAt = (wi: number) => (wi === H ? aide : servers[wi])
   const ownerHome = useRef<(typeof homes)[number] | null>(null)
   const ownerAt = () => OWNER_SPOT.clone().add(FIRE_SHIFT).sub(offset ?? new THREE.Vector3()).divideScalar(scale).setY(0)
   // (a server's place stood clear of what's on the kitchen's floor, as it is today (the miso pot by the rice tub was on one, the owner saw her
@@ -392,6 +441,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
   }
   // (his way out found only once he first goes, the kitchen's floor and what's on it in the scene by then)
   const homeOf = (wi: number) => {
+    if (wi === H) return helperHome()
     if (!ownerServes) return clearHome(wi)
     if (!ownerHome.current) {
       const at = ownerAt()
@@ -514,14 +564,21 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
   /** from the chef to a seat, the plate in their hands: back across the kitchen to their place, out through their gate, along the aisle
    * (round the corner, for the other counter) and in beside the customer */
   const routeTo = (n: number, wi: number) => {
-    const h = homeOf(wi)
-    const out = h.way.length < 2 ? [aisleBeside(n), besideSeat(n)] : backPath(wi, n).slice(1)
-    const path = [...kitchenRoute(pickupSpot, h.at), ...out]
+    const path = outWay(wi, pickupSpot, n)
     return { path, len: pathLength(path) }
   }
+  /** from where they are in the kitchen out to a seat: across it to their place, out through their gate, along the aisle and in beside it; the
+   * second cook (item 845) across to the gate straight from wherever he is, not round by his board, and back the same way (helperGate) */
+  const outWay = (wi: number, from: THREE.Vector3, n: number) => {
+    if (wi === H) helperGate.current = gateFor(n)
+    const h = wi === H ? helperDoors[helperGate.current] ?? homeOf(wi) : homeOf(wi)
+    const out = h.way.length < 2 ? [aisleBeside(n), besideSeat(n)] : backPathOf(h, n).slice(1)
+    return [...kitchenRoute(from, h.at), ...out]
+  }
   /** from a server's place to a seat the shortest way (out through their gate): walked backwards, it's their way back */
-  const backPath = (wi: number, n: number) => {
-    const h = homeOf(wi), st = seats[n]
+  const backPath = (wi: number, n: number) => backPathOf(homeOf(wi), n)
+  const backPathOf = (h: (typeof homes)[number], n: number) => {
+    const st = seats[n]
     if (h.way.length < 2) return [h.at.clone(), aisleBeside(n), besideSeat(n)]
     const turn = st.counter === h.counter ? [] : [aisleCorner(counters[st.counter === 0 ? h.counter : st.counter])]
     return [...h.way.map((v) => v.clone()), ...turn, aisleBeside(n), besideSeat(n)]
@@ -596,7 +653,10 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
      * something, every way out from it begun back at their place inside their gate); how long they've stood at that place with nothing */
     waitAt?: THREE.Vector3; still?: number
     /** their walk home once the shop's shut, and in as it opens (commuteWalk); whether they're in yet */
-    out?: Trip; in?: Trip; arrived?: boolean }[]>([])
+    out?: Trip; in?: Trip; arrived?: boolean
+    /** (item 845) the second cook just handed back to his own figure at the board: this one shown a frame or two more, till that one's up
+     * (Roasting's CrewWalk shows it in its own frame step, maybe the next: between them, neither was drawn) */
+    handBack?: number }[]>([])
   const waiterObjs = useRef<(THREE.Group | null)[]>([])
   /** the takeaway boxes in servers' hands, one for each server */
   const waiterBoxes = useRef<(THREE.Group | null)[]>([])
@@ -1284,9 +1344,13 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     // (no server: the owner, from his place)
     waiters.current = ownerServes
       ? [{ phase: 'idle', t: 0, seat: -1, keys: [], run: null, path: [], len: 0, pos: ownerAt(), yaw: OWNER_YAW }]
-      : servers.slice(0, homes.length).map((_, i) => ({ phase: 'idle', t: 0, seat: -1, keys: [], run: null, path: [], len: 0,
-        pos: homes[i].at.clone(), yaw: homes[i].yaw }))
+      : [...servers.slice(0, homes.length).map((_, i) => ({ phase: 'idle' as WaiterPhase, t: 0, seat: -1, keys: [], run: null, path: [], len: 0,
+        pos: homes[i].at.clone(), yaw: homes[i].yaw })),
+        // (item 845: the second cook, in and home again by his own figure at the board, Roasting's)
+        ...(H >= 0 ? [{ phase: 'idle' as WaiterPhase, t: 0, seat: -1, keys: [], run: null, path: [], len: 0, pos: homes[0].at.clone(), yaw: homes[0].yaw, arrived: true }] : [])]
     SERVICE.servers = ownerServes ? 1 : Math.min(homes.length, servers.length)
+    helperHomes.current.clear()
+    HELPER_OUT.id = null
     return () => {
       SERVICE.servers = 0
       SAKE.station = false
@@ -1296,6 +1360,18 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [servers.length, homes, ownerServes])
+  // (item 845) the second cook onto the servers' list after them or off it, their own entries left as they are (only as the shop opens or
+  // shuts, now he's kept while it's open: off it, the day's put away with everything else)
+  useEffect(() => {
+    if (ownerServes) return
+    const ws = waiters.current, n = Math.min(homes.length, servers.length)
+    if (H >= 0 && ws.length === n) ws.push({ phase: 'idle', t: 0, seat: -1, keys: [], run: null, path: [], len: 0, pos: homes[0].at.clone(), yaw: homes[0].yaw, arrived: true })
+    else if (H < 0 && ws.length > n) ws.length = n
+    helperHomes.current.clear()
+    if (H < 0) HELPER_OUT.id = null
+    return () => { HELPER_OUT.id = null }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [H])
   /** a point in the bar's frame, in the shop's (where Roasting has the food) */
   const toShop = (v: THREE.Vector3) => v.clone().multiplyScalar(scale).add(offset ?? new THREE.Vector3())
   // where the plates are kept (the dish racks, game/plates) and washed (the sink): found in the room and taken into the bar's own frame each
@@ -1820,8 +1896,6 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
    * the dirty stack, so the basin's are washed first */
   const onCounter = useRef(0)
   const counterSpot = useRef<{ at: THREE.Vector3; t: number } | null>(null)
-  /** (item 842) how long a customer's bowls or tokkuri wait on the busy third cook before a free server lends a hand (ms of the wall's clock: ten of the game's minutes at x1) */
-  const HELP_AFTER_MS = 10000
   /** each sink plate's group, the bottom one first (its smear faded as it soaks) */
   const sinkPlates = useRef<(THREE.Group | null)[]>([])
   /** when the sink's plates were last put where the sink is (item 113) */
@@ -2733,10 +2807,13 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     CHOPS_LOOSE.ver++
     platerRun.current = { phase: 'idle', t: 0, path: [], len: 0, pos: new THREE.Vector3(), yaw: 0, n: 0 }
     PLATER_OUT.id = null
+    HELPER_OUT.id = null
+    helperHomes.current.clear()
     ownerHome.current = null
     ownerBack()
-    waiters.current = waiters.current.map((w, i) => ({ phase: 'idle', t: 0, seat: -1, keys: [], run: null, path: [], len: 0,
-      pos: (ownerServes ? ownerAt() : homes[i]?.at)?.clone() ?? w.pos, yaw: ownerServes ? OWNER_YAW : homes[i]?.yaw ?? w.yaw }))
+    waiters.current = waiters.current.map((w, i) => (i === H ? { phase: 'idle', t: 0, seat: -1, keys: [], run: null, path: [], len: 0, pos: w.pos, yaw: w.yaw, arrived: true }
+      : { phase: 'idle', t: 0, seat: -1, keys: [], run: null, path: [], len: 0,
+        pos: (ownerServes ? ownerAt() : homes[i]?.at)?.clone() ?? w.pos, yaw: ownerServes ? OWNER_YAW : homes[i]?.yaw ?? w.yaw }))
     SERVICE.waiting.clear()
     SERVICE.carried.clear()
     SEATS_TAKEN.clear()
@@ -3544,7 +3621,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         // (those sitting don't move aside, but nobody walks through them either: the ones going by step round them)
         if (gp) add(gp, x.phase !== 'sit', x.id, x)
       }
-      waiters.current.forEach((w, wi) => add(waiterObjs.current[wi]?.position ?? w.pos, false, -1 - wi))
+      waiters.current.forEach((w, wi) => { if (wi !== H || HELPER_OUT.id === aide?.id) add(waiterObjs.current[wi]?.position ?? w.pos, false, -1 - wi) })
       if (STOCKER_FIG.o?.visible) add(STOCKER_FIG.o.position, false, STOCKER_KEY)
       // (item 659: and the owner on his way home from where he was put down: they step round him, he keeps to his way)
       if (BOSS_BED.passing && frame.current) {
@@ -4671,7 +4748,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     // the servers, each by their duty (game/plates: one on the floor, one at the dishes; a lone one does both): what's plated at the plating place to
     // its customer; the plates done with, cleared to the sink, their sticks into the bin beside it; washed there into the dish dryer; dried,
     // back to the racks
-    const nServers = waiters.current.length
+    // (the servers only, not the second cook after them (item 845): his entry's put on after the drawing, so for a frame it may not be there yet)
+    const nServers = H >= 0 ? Math.min(waiters.current.length, H) : waiters.current.length
     /** a server's walk in or out a step on: their place and facing, how much of them shows, their stretch and nod */
     const walkCommute = (o: THREE.Group, tr: Trip, w: { pos: THREE.Vector3; yaw: number }) => {
       const pose = tripStep(tr, tick(dt), 1.1, (v) => (o.parent ? o.parent.localToWorld(v.clone()) : v.clone()))
@@ -4994,7 +5072,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       const home = homeOf(wi)
       // (coming in as the shop opens: in at the front door, along the aisle and through their gate to their place, each at their own
       // moment, unseen before it; no work till they're there)
-      if (!ownerServes && !w.arrived) {
+      if (!ownerServes && !w.arrived && wi !== H) {
         const o = waiterObjs.current[wi], id = servers[wi]?.id ?? `server${wi}`
         if (!w.in) {
           if (o && performance.now() - SHOP.openedAt < 4000) {
@@ -5013,7 +5091,9 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         }
       }
       // (nothing to do just now, or at something: for how they tire (game/shopState's STAFF_IDLE, data/staff's activityOf))
-      if (!ownerServes) idleTick(servers[wi]?.id, (w.phase === 'idle' || w.phase === 'toWait') && w.run === null && !SHOP.leaving, dt)
+      if (!ownerServes && wi !== H) idleTick(servers[wi]?.id, (w.phase === 'idle' || w.phase === 'toWait') && w.run === null && !SHOP.leaving, dt)
+      // (item 845: the second cook busy while he's out; at the board his own figure's (CrewWalk) is the one that tells)
+      else if (wi === H && aide && HELPER_OUT.id === aide.id) idleTick(aide.id, false, dt)
       const duty = ownerServes ? 'all' : dutyOf(wi, nServers)
       // (the tray at their hands wherever they are: its height is as it's held standing up on the kitchen's dais, so down on the customers'
       // floor it comes down the dais's step with them (it stayed up, a plate riding 14 cm over their hands out on the floor))
@@ -5074,7 +5154,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         if (d >= w.len) { w.t = 0; then() }
       }
       const face = (at: THREE.Vector3) => { w.yaw = Math.atan2(at.x - w.pos.x, at.z - w.pos.z) }
-      const adv = step * paceOfStaff(servers[wi]?.id)
+      const adv = step * paceOfStaff(crewAt(wi)?.id)
       w.t += adv
       // (the customer gone meanwhile: what was being carried to them put down, and the server goes back)
       if ((w.phase === 'fetch' || w.phase === 'pickup' || w.phase === 'go' || w.phase === 'set' || w.phase === 'toBowlWith' || w.phase === 'bowlWith') && !sitting(w.seat)) {
@@ -5117,20 +5197,23 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
        * tokkuri never poured; he stood idle 21 s of the evening) whether a free server lends him a hand with a customer's bowls or their
        * tokkuri, filled or poured by the server and taken straight out, as with no third cook (the paths for that already there): only while
        * he's at a job of his own and the oldest of these has waited HELP_AFTER_MS since it was asked for */
-      const platerSwamped = (kind: 'bowls' | 'sake') => {
+      const platerSwamped = (kind: 'bowls' | 'sake', second = false) => {
         if (!plater || !open || SHOP.leaving) return false
         const busy = platerRun.current.phase !== 'idle' || !!kitchenJob.current || !!sakeJob.current || !!bowlJob.current
         if (!busy) return false
         // (only a server with nothing of their own to do (the Tester window's 872: from 18:00 they were idle 0 to 10% of each hour, so a
         // bowl filled by them was food left longer at the plating place and dirty plates longer at their seats): nothing ready to carry out,
-        // no dirty plate waiting to be cleared that no one's on)
-        if (readySlot() >= 0) return false
-        const onIt = new Set(waiters.current.flatMap((x) => x.carry ?? []))
-        if (runs.current.some((r) => r.phase === 'dirty' && !onIt.has(r.key) && !stillAt(r))) return false
-        const tq = performance.now()
-        const oldest = kind === 'bowls' ? BOWLS.want.reduce((m, x) => Math.max(m, guestSeat(x.guest) >= 0 ? tq - (x.at ?? tq) : -1), -1)
-          : SAKE.want.reduce((m, g) => Math.max(m, guestSeat(g) >= 0 ? tq - (SAKE_AT.get(g) ?? tq) : -1), -1)
-        return oldest > HELP_AFTER_MS
+        // no dirty plate waiting to be cleared that no one's on. The second cook (item 845) clears nothing, and goes for the food first)
+        if (!second) {
+          if (readySlot() >= 0) return false
+          const onIt = new Set(waiters.current.flatMap((x) => x.carry ?? []))
+          if (runs.current.some((r) => r.phase === 'dirty' && !onIt.has(r.key) && !stillAt(r))) return false
+        }
+        // (by the game's clock (the Tester window's: of the wall's, it was twenty of the game's minutes at x2, ten at x1))
+        const now = minutesNow()
+        const oldest = kind === 'bowls' ? BOWLS.want.reduce((m, x) => Math.max(m, guestSeat(x.guest) >= 0 ? now - (x.min ?? now) : -1), -1)
+          : SAKE.want.reduce((m, g) => Math.max(m, guestSeat(g) >= 0 ? now - (SAKE_MIN.get(g) ?? now) : -1), -1)
+        return oldest >= HELP_AFTER
       }
       const takeBowls = () => {
         const waiting = passQ.current.filter((b) => b.server === undefined && guestSits(b.guest, b.seat)).sort((a, b) => b.wait - a.wait)
@@ -5143,7 +5226,73 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         go(path, 'toBowlPass')
         return true
       }
-      if (w.phase === 'idle') {
+      if (w.phase === 'idle' && wi === H && aide) {
+        // (item 845) back at his board from a trip for the floor: turned to it, and handed back to his own figure there (Roasting's)
+        const board = boardOf(HELPER_V)
+        if (HELPER_OUT.id === aide.id) {
+          if (board && Math.hypot(w.pos.x - board.x, w.pos.z - board.z) > 0.05) { go(kitchenRoute(homeOf(wi).at, w.pos), 'back'); return }
+          w.yaw = boardYaw()
+          if (Math.abs(Math.atan2(Math.sin(w.yaw - (w.look ?? w.yaw)), Math.cos(w.yaw - (w.look ?? w.yaw)))) < 0.12) { HELPER_OUT.id = null; w.handBack = 2 }
+        } else if (w.t >= 0.25) {
+          w.t = 0
+          if (board) { w.pos.copy(board); w.yaw = w.look = boardYaw() }
+          // (only from his board, no round of his own on and none waiting for him, the shop open and him on duty)
+          const free = open && !SHOP.leaving && !!board && helper?.id === aide.id && HELPER_OUT.atBoard && !FETCHER.busy && HELPER_OUT.queued === 0
+            && ON_DUTY.in.has(aide.id) && !ON_DUTY.out.has(aide.id)
+          const serversBusy = waiters.current.every((x, i) => i === H || (x.phase !== 'idle' && x.phase !== 'toWait'))
+          if (free) {
+            const out = (path: THREE.Vector3[], phase: WaiterPhase) => { HELPER_OUT.id = aide.id; go(path, phase) }
+            const ready = readySlot()
+            const bowlsWait = !STATION_OBJ.group ? -1
+              : passQ.current.reduce((m, b) => (b.server === undefined && guestSits(b.guest, b.seat) ? Math.max(m, b.wait) : m), -1)
+            const sj = sakeJob.current
+            const poured = sj && sj.server === undefined && sj.t >= POUR_TOTAL && guestSits(sj.guest, sj.seat)
+            const jobs = helperJobs({ free, serversBusy, foodWait: ready >= 0 ? readyFor.current[ready] : -1, bowlsWait,
+              swampedBowls: !!STATION_OBJ.group && !bowlJob.current && BOWLS.want.length > 0 && platerSwamped('bowls', true),
+              swampedSake: !!STATION_OBJ.group && !sj && SAKE.want.length > 0 && platerSwamped('sake', true),
+              pouredWait: poured ? minutesNow() - (SAKE_MIN.get(sj.guest) ?? minutesNow()) : -1 })
+            for (const job of jobs) {
+              // (what's plated and has waited, both servers busy: over to the plating place for it, and out with it)
+              if (job === 'food') {
+                w.slot = ready
+                w.seat = PLATING.slots[ready]!.seat
+                out(kitchenRoute(w.pos, pickupSpot), 'fetch')
+                return
+              }
+              // (a customer's bowls filled and waiting at the counter as long)
+              if (job === 'bowls' && takeBowls()) { HELPER_OUT.id = aide.id; return }
+              // (the third cook swamped: a customer's rice and soup filled by him, at the cooker and the pot, and taken straight out)
+              if (job === 'fill') {
+                const b = nextBowls()
+                if (b) {
+                  bowlJob.current = { ...b, by: wi, server: wi, stage: b.rice ? 'rice' : 'soup', t: 0, riceFill: 0, soupFill: 0, W: null }
+                  takeBowlsFor(b)
+                  const to = b.rice ? riceStand() : soupFillAt().stand, path = kitchenRoute(w.pos, to)
+                  if (!path.length || path[path.length - 1].distanceTo(to) > 0.02) path.push(to.clone())
+                  out(path, b.rice ? 'toRiceFill' : 'toSoupFill')
+                  return
+                }
+              }
+              // (and a tokkuri: poured by him at the station and taken out; or one poured there and waiting as long, the servers busy)
+              if (job === 'pour' || job === 'tokkuri') {
+                let j = sakeJob.current
+                if (!j && job === 'pour') {
+                  const guest = SAKE.want.shift()!, seat = guestSeat(guest)
+                  if (seat < 0) { if (guestHere(guest)) SAKE.want.push(guest) }
+                  else { j = sakeJob.current = { guest, seat, pourer: wi, t: -1, server: wi }; sakeSpots.current.delete(seat); sakeSpotOf(seat) }
+                }
+                if (j && ((j.pourer === wi && j.t < 0) || (job === 'tokkuri' && j.server === undefined && j.t >= POUR_TOTAL && guestSits(j.guest, j.seat)))) {
+                  j.server = wi
+                  const to = stationSpot(), path = kitchenRoute(w.pos, to)
+                  if (!path.length || path[path.length - 1].distanceTo(to) > 0.02) path.push(to.clone())
+                  out(path, 'toSakePass')
+                  return
+                }
+              }
+            }
+          }
+        }
+      } else if (w.phase === 'idle') {
         // (looked about every quarter of a second, not every frame; the owner serving with no server hired: not while he's off washing up
         // (item 216))
         if (w.t >= 0.25 && !(ownerServes && !ownerFree('serve'))) {
@@ -5296,6 +5445,12 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
             }
           }
         }
+      } else if (w.phase === 'fetch' && wi === H && HELPER_OUT.queued > 0) {
+        // (item 845: an order come in for the second cook on his way over for a plate, his hands still empty: back to his board for it, the
+        // plate left for the servers (his own orders waited on him for nearly half his time out, tests/e2e/_helper845.mjs))
+        w.slot = undefined
+        w.seat = -1
+        go(kitchenRoute(homeOf(wi).at, w.pos), 'back')
       } else if (w.phase === 'fetch') walk(() => { w.phase = 'pickup'; face(plating.at) })
       // ---- ringing up at the till with no cashier (item 203): behind it facing the customer, the register theirs till the customer's paid
       else if (w.phase === 'tillGo') walk(() => {
@@ -5321,7 +5476,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       else if (w.phase === 'skSinkGo') walk(() => {
         w.phase = 'skWash'
         face(inBar('SinkBasinFloor', endOf(1)))
-        const id = ownerServes ? 'owner' : servers[wi]?.id
+        const id = ownerServes ? 'owner' : crewAt(wi)?.id
         if (id) STAFF_TALK.push({ key: performance.now() + 0.7 + wi, id, text: LINES[lang].skewerWash, until: performance.now() + 2400 })
       })
       else if (w.phase === 'skWash' && w.t > SKEWER_WASH_S) { soapPlate(); meterWater('dish'); go(kitchenRoute(w.pos, skewerSpot('skewer-holder', w.pos)), 'skHolderGo') }
@@ -5334,7 +5489,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         w.phase = 'sweep'
         const sp = SPILLS.list.find((x) => x.key === w.spill)
         if (sp && frame.current) face(frame.current.worldToLocal(new THREE.Vector3(sp.at[0], sp.at[1], sp.at[2])))
-        const id = ownerServes ? 'owner' : servers[wi]?.id
+        const id = ownerServes ? 'owner' : crewAt(wi)?.id
         if (id) STAFF_TALK.push({ key: performance.now() + wi, id, text: LINES[lang].sweepSay(wi + (w.spill ?? 0)), until: performance.now() + 2800 })
       })
       else if (w.phase === 'sweep') {
@@ -5405,7 +5560,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         w.phase = 'hand'
         const v = visitors.current.get(w.box ?? -1)
         if (v) face(v.pos)
-        const id = ownerServes ? 'owner' : servers[wi]?.id
+        const id = ownerServes ? 'owner' : crewAt(wi)?.id
         if (id) STAFF_TALK.push({ key: performance.now() + wi, id, text: LINES[lang].takeoutHand(!!v?.rider), until: performance.now() + 3000 })
       })
       else if (w.phase === 'hand' && w.t > 0.6) {
@@ -5437,9 +5592,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           j.up = Math.min(1, w.t / SAKE_UP_S)
           if (w.t >= SAKE_UP_S) {
             // (on the tray: back across the kitchen to their place, out through their gate, along the aisle and in beside the customer)
-            const h = homeOf(wi)
-            const out = h.way.length < 2 ? [aisleBeside(j.seat), besideSeat(j.seat)] : backPath(wi, j.seat).slice(1)
-            go([...kitchenRoute(w.pos, h.at), ...out], 'sakeGo')
+            go(outWay(wi, w.pos, j.seat), 'sakeGo')
           }
         }
       }
@@ -5448,7 +5601,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         if (!j) { go(kitchenRoute(homeOf(wi).at, w.pos), 'back'); return }
         w.phase = 'sakeSet'
         face(sakeSpotOf(j.seat).at)
-        const id = ownerServes ? 'owner' : servers[wi]?.id
+        const id = ownerServes ? 'owner' : crewAt(wi)?.id
         if (id) STAFF_TALK.push({ key: performance.now() + wi, id, text: LINES[lang].sakeServe(j.guest), until: performance.now() + 2600 })
       })
       else if (w.phase === 'sakeSet') {
@@ -5508,9 +5661,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           for (const b of mine) b.up = Math.min(1, w.t / BOWL_UP_S)
           if (w.t >= BOWL_UP_S) {
             // (on the tray: back across the kitchen to their place, out through their gate, along the aisle and in beside the first customer)
-            const h = homeOf(wi), seat = mine[0].seat
-            const out = h.way.length < 2 ? [aisleBeside(seat), besideSeat(seat)] : backPath(wi, seat).slice(1)
-            go([...kitchenRoute(w.pos, h.at), ...out], 'bowlGo')
+            go(outWay(wi, w.pos, mine[0].seat), 'bowlGo')
           }
         }
       }
@@ -5519,7 +5670,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         if (!b) { go(kitchenRoute(homeOf(wi).at, w.pos), 'back'); return }
         w.phase = 'bowlSet'
         faceBar(w, b.seat)
-        const id = ownerServes ? 'owner' : servers[wi]?.id
+        const id = ownerServes ? 'owner' : crewAt(wi)?.id
         if (id) STAFF_TALK.push({ key: performance.now() + wi, id, text: LINES[lang].sideServe(b.guest, b.rice, b.soup), until: performance.now() + 2600 })
       })
       else if (w.phase === 'bowlSet') {
@@ -5580,13 +5731,11 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         if (b) b.up = Math.min(1, w.t / BOWL_UP_S)
         if (!b || w.t >= BOWL_UP_S) {
           // (on the tray with the food: out through their gate, along the aisle, in beside the customer)
-          const h = homeOf(wi)
-          const out = h.way.length < 2 ? [aisleBeside(w.seat), besideSeat(w.seat)] : backPath(wi, w.seat).slice(1)
-          go([...kitchenRoute(w.pos, h.at), ...out], 'go')
+          go(outWay(wi, w.pos, w.seat), 'go')
         }
       } else if (w.phase === 'go') walk(() => {
         w.phase = 'set'; faceBar(w, w.seat)
-        const id = servers[wi]?.id
+        const id = crewAt(wi)?.id
         if (id) STAFF_TALK.push({ key: performance.now() + wi, id, text: LINES[lang].serveSay(Math.floor(Math.random() * 3)), until: performance.now() + 2600 })
       })
       else if (w.phase === 'set' && w.t > 0.4) {
@@ -5609,7 +5758,9 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         // evening nearly three of the eight seats stood with a dirty plate on them at any time, not to be sat at till it's cleared))
         const spoken = new Set(waiters.current.flatMap((x) => x.carry ?? []))
         const hereN = w.seat, here = seats[hereN]
-        const by = SHOP.leaving ? [] : onTheWay(here.counter, runs.current.filter((x) => x.phase === 'dirty' && !spoken.has(x.key) && !stillAt(x))
+        // (not the second cook (item 845): back to his board and his own orders, which wait for him while he's out (a quarter of his time
+        // out was the dirty plates to the sink))
+        const by = SHOP.leaving || wi === H ? [] : onTheWay(here.counter, runs.current.filter((x) => x.phase === 'dirty' && !spoken.has(x.key) && !stillAt(x))
           .map((x) => ({ run: x, counter: seats[x.seat].counter, far: seats[x.seat].mid.distanceTo(here.mid) })))
         if (by.length) {
           w.carry = by.map((x) => x.run.key)
@@ -5886,6 +6037,9 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       // (their tray down for an errand, and on the way back from one; up again for what's carried on it and at their place)
       if (TRAY_ERRANDS.has(w.phase)) w.trayDown = true
       else if (w.phase !== 'back') w.trayDown = false
+      // (item 845: the second cook's from the plating place, the counter or the station on, with what he takes out; none walking over for it)
+      if (wi === H && (w.phase === 'idle' || w.phase === 'fetch' || w.phase === 'toBowlPass' || w.phase === 'toRiceFill' || w.phase === 'toSoupFill'
+        || w.phase === 'toSakePass')) w.trayDown = true
       // (and put by from the first moment of tipping what's cleared into the sink (item 591): held before them as they came up, it was in the
       // sink's cabinet below its top, 13 cm, for the frames their hands took to reach in (StaffFigure puts it by once they're half way); stood
       // back no further, the step stool under them)
@@ -5995,7 +6149,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       }
       // (going home only once what's in hand is put down: a plate carried to the sink, a stack to the racks; the owner saw the plates of a
       // server who'd set off for the door float on without them along the way they'd have walked, in mid-air)
-      if (o && SHOP.leaving && !ownerServes && (w.out || w.phase === 'idle')) {
+      if (o && SHOP.leaving && !ownerServes && wi !== H && (w.out || w.phase === 'idle')) {
         // (the shop's shut and empty: finishing up a moment where they are, then out through their gate, along the aisle (round the corner
         // from the side counter's) to the front door, a nod back in, and through it fading, as the customers go (commuteWalk))
         const id = servers[wi]?.id ?? `server${wi}`
@@ -6014,10 +6168,11 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       } else if (o) {
         w.out = undefined
         // (still finishing as the others go: the shop waits for them too)
-        if (SHOP.leaving && !ownerServes) SHOP.walking.add(servers[wi]?.id ?? `server${wi}`)
+        if (SHOP.leaving && !ownerServes && wi !== H) SHOP.walking.add(servers[wi]?.id ?? `server${wi}`)
         // (the owner's figure here only while he's out serving: at his place, Roasting draws him; out washing up, his washing figure (item 216:
         // this one was shown whenever he was out for anything, a second owner standing by the pass while he washed at the sink))
-        o.visible = !ownerServes || OWNER_OUT.by === 'serve'
+        o.visible = wi === H ? !!aide && (HELPER_OUT.id === aide.id || (w.handBack ?? 0) > 0) : !ownerServes || OWNER_OUT.by === 'serve'
+        if (wi === H && w.handBack) w.handBack--
         o.position.copy(w.pos)
         o.position.y += genkanY(counters, w.pos) + (stoolLifts.current.get(o) ?? stoolLift(o, w.pos, tick(dt)))
         // (the facing shown eased to the way they're going, never more than a little a frame (turnSmooth, item 183))
@@ -7096,6 +7251,18 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           <StaffFigure id={w.id} role="server" look={w.look} />
         </group>
       ))}
+      {/* (item 845) the second cook out carrying for the floor (his own figure at the board, Roasting's, hidden meanwhile) */}
+      {H >= 0 && aide && (
+        <group key={`helper-${aide.id}`} ref={(o) => {
+          const was = waiterObjs.current[H]
+          if (was && was !== o) { KITCHEN_FOLK.delete(was); FIGURES.delete(was) }
+          waiterObjs.current[H] = o
+          if (o) { KITCHEN_FOLK.add(o); FIGURES.set(o, 'other') }
+        }} scale={STAFF_SCALE} visible={false} userData={{ staffId: aide.id }}>
+          <BlobShadow r={0.17} />
+          <StaffFigure id={aide.id} role="chef" look={aide.look} tray />
+        </group>
+      )}
       {people && shown.map((s) => {
         const g = guests.find((x) => x.id === s.id)
         const walking = s.phase !== 'sit'
@@ -7172,7 +7339,7 @@ function sameBar(a: BarProps, b: BarProps) {
       if (p.length === q.length && p.every((w, i) => sameWorker(w, q[i]))) continue
       return false
     }
-    if (k === 'plater' || k === 'stocker') { if (sameWorker(x as BarWorker, y as BarWorker)) continue; return false }
+    if (k === 'plater' || k === 'stocker' || k === 'helper') { if (sameWorker(x as BarWorker, y as BarWorker)) continue; return false }
     if (x instanceof THREE.Vector3 && y instanceof THREE.Vector3 && x.equals(y)) continue
     // (no one in yet, either time: a new empty list)
     if (Array.isArray(x) && Array.isArray(y) && !x.length && !y.length) continue
@@ -7181,3 +7348,5 @@ function sameBar(a: BarProps, b: BarProps) {
   return true
 }
 export const GuestBar3D = memo(GuestBar3DImpl, sameBar)
+/** (item 845) the second cook's facing at his board, from the world's into the servers' frame; his place there */
+const HELPER_DIR = new THREE.Vector3(), HELPER_INV = new THREE.Matrix4(), HELPER_V = new THREE.Vector3()

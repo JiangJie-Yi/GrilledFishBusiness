@@ -127,6 +127,10 @@ function StockerImpl({ counters, fridges, who }: { counters: Counter[]; fridges:
   useFrame((_, dt0) => {
     // (worn out, at half pace (the owner's))
     const dt = Math.min(dt0, 0.1) * paceOfStaff(who.id)
+    // (his walk in and home at his own pace, as everyone else's is (commuteWalk's paceOf): the shift's done, not worn into it. Item 838, the
+    // Tester window's 873: tired at half, the stock room to the front door, 14.9 long, took him 40 of the game's minutes, and the shop shut
+    // as he got out of it, the last of them)
+    const dtWalk = Math.min(dt0, 0.1)
     const s = st.current
     const o = g.current
     if (o) {
@@ -139,9 +143,9 @@ function StockerImpl({ counters, fridges, who }: { counters: Counter[]; fridges:
         return [from.clone(), ...(from.distanceTo(home) < 0.05 ? outOfStore() : []), homeAisle.clone(), aisleCornerOf(counters, c1), doorOf(counters), ...doorOutOf(counters)]
       }
       const apply = (tr: Trip) => {
-        const pose = tripStep(tr, dt, 1.0, (v) => (o.parent ? o.parent.localToWorld(v.clone()) : v.clone()))
+        const pose = tripStep(tr, dtWalk, 1.0, (v) => (o.parent ? o.parent.localToWorld(v.clone()) : v.clone()))
         s.pos.copy(pose.p)
-        if (pose.yaw !== null) s.yaw = turnToward(s.yaw, pose.yaw, dt)
+        if (pose.yaw !== null) s.yaw = turnToward(s.yaw, pose.yaw, dtWalk)
         o.position.copy(s.pos)
         // (down on the genkan's stone as he crosses it, as the customers are (item 203: a step's height over it))
         o.position.y += genkanY(counters, s.pos)
@@ -210,7 +214,9 @@ function StockerImpl({ counters, fridges, who }: { counters: Counter[]; fridges:
           DRINK_BACK.ver++
         }
         const busy = (w: 'm' | 'f') => TOILETS[w].passing > 0 || TOILETS[w].inside > 0
-        const next = stockerChore({
+        // (none taken on once the shop's closing (item 838, the Tester window's 873: at 05:12 he went to fill a fridge, at 05:13 to empty the
+        // bin, 36 of the game's minutes there at his half pace, and the staff waited on him to shut): what's left is done as the shop opens)
+        const next = SHOP.closing || SHOP.leaving ? null : stockerChore({
           rolls: { m: TOILETS.m.room.paper, f: TOILETS.f.room.paper }, wcBusy: { m: busy('m'), f: busy('f') },
           fridgeShort: fridges.map((f) => emptyFillable(placesOf(f.n), FRIDGE_UNITS[f.n].shelves.map((sh) => sh.ids), DRINK_BACK.back)),
           // (and the drinks gone from each one's shelves: that fridge first (item 541))

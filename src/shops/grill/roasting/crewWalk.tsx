@@ -13,7 +13,7 @@ import type { Role } from '@/data/staff'
 import { FRIDGE_KICK } from '@/shops/grill/decor/Decor'
 import { TAKEOUT_STAND } from '@/shops/grill/bar'
 import { SHOP, clockIn, idleTick, paceOfStaff } from '@/game/world/shopState'
-import { aisleCornerOf, aisleOf, FIGURES, STAFF_DOOR_HOLD, CUBBY_KICK, KITCHEN_ROUTE, PLATER_OUT, FETCHER, RICE, genkanY, ONIGIRI_TRAY, staffWayOut, doorOutOf, alongPath, pathLength, KITCHEN_FOLK, BAR_GATES, gateOf, GRILL_COUNTERS, GRILL_SCALE } from '@/shops/grill/bar'
+import { aisleCornerOf, aisleOf, FIGURES, STAFF_DOOR_HOLD, CUBBY_KICK, KITCHEN_ROUTE, PLATER_OUT, HELPER_OUT, FETCHER, RICE, genkanY, ONIGIRI_TRAY, staffWayOut, doorOutOf, alongPath, pathLength, KITCHEN_FOLK, BAR_GATES, gateOf, GRILL_COUNTERS, GRILL_SCALE } from '@/shops/grill/bar'
 import { CHEF_SCALE, fromBar, toBar, floorAt } from './kitchen'
 import { CHEF_TRIP, prepOf, takeOf, storeSpot, SACK_MOUTH, SACK_ACROSS, SACK_HAND_GAP, SACK_LEAN, SACK_HANDS, SACK_LIFT_AT, SACK_CLEAR_WALK, ARRIVE_TURN, sackLift, chefWay, SIT_S, SIT_HOP } from './crew'
 
@@ -48,7 +48,7 @@ export function CrewWalk({ id, role, at, yaw, way, seat, round, fetcher, childre
     FETCHER.id = id
     FETCHER.busy = T.phase !== 'idle'
     // (at the board with nothing to fetch or prepare, and not out plating either: for how he tires (data/staff's activityOf))
-    idleTick(id, T.phase === 'idle' && PLATER_OUT.id !== id && !SHOP.leaving, dt)
+    idleTick(id, T.phase === 'idle' && PLATER_OUT.id !== id && HELPER_OUT.id !== id && !SHOP.leaving, dt)
     o.userData.fetcher = true
     o.userData.lean = 0
     o.userData.handsAt = undefined
@@ -205,8 +205,9 @@ export function CrewWalk({ id, role, at, yaw, way, seat, round, fetcher, childre
     if (!SHOP.leaving) {
       gone.current = 0
       path.current = null
-      // (off fetching plates for the plating place: GuestBar3D walks them meanwhile)
-      o.visible = PLATER_OUT.id !== id
+      // (off fetching plates for the plating place: GuestBar3D walks them meanwhile; or out carrying for the floor, item 845)
+      o.visible = PLATER_OUT.id !== id && HELPER_OUT.id !== id
+      if (fetcher) HELPER_OUT.atBoard = false
       // (coming in as the shop opens: in at the front door, or down the stair through the staff door, each at their own moment; unseen
       // before it)
       if (!arrived.current) {
@@ -253,11 +254,19 @@ export function CrewWalk({ id, role, at, yaw, way, seat, round, fetcher, childre
       o.position.copy(placeOf())
       // (turned back to their work a frame at a time: home from the stores, they snapped round to it)
       o.rotation.y = turnToward(o.rotation.y, yaw, tick(dt))
+      // (item 845: the second cook's place at the board and the way he faces it, in the world, for GuestBar3D to walk him out from and back
+      // to when he lends the floor a hand; and whether he's stood there now with no round on)
+      if (fetcher && o.parent) {
+        o.parent.localToWorld(HELPER_OUT.home.copy(placeOf()))
+        HELPER_OUT.face.set(Math.sin(yaw), 0, Math.cos(yaw)).transformDirection(o.parent.matrixWorld)
+        HELPER_OUT.homeSet = true
+        HELPER_OUT.atBoard = o.visible && CHEF_TRIP.phase === 'idle'
+      }
       return
     }
     // (still out with plates, the coal or the rice (GuestBar3D walks them): home first, what's in hand put down, and only then out; set off
     // from their place meanwhile, what they carried floated on alone along their way (the owner's ghost plates))
-    if (PLATER_OUT.id === id && !commute.current) { o.visible = false; SHOP.walking.add(id); return }
+    if ((PLATER_OUT.id === id || HELPER_OUT.id === id) && !commute.current) { o.visible = false; SHOP.walking.add(id); return }
     // (sat (the cashier): up off the seat and down onto the floor by their place first, over a moment, as they sat down: they dropped from
     // the seat to the floor in a frame and set off)
     if (seat && sat.current > 0 && seatAt.current && !commute.current) {

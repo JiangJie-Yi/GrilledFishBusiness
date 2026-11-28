@@ -12,3 +12,34 @@ export function platerOf<T extends Cook>(crew: T[], house: T): T {
 
 /** whether the plater may go off now (for plates, charcoal, the rice): not the second cook while he's on a round with an order */
 export const platerFree = (isFetcher: boolean, fetching: boolean) => !(isFetcher && fetching)
+
+/**
+ * (item 845, the Tester window's 872) who lends the floor a hand: the second cook (hired, or `house`, the shop's own), only while there's a
+ * third cook at the plating (with none, the second plates himself); none else
+ */
+export function helperOf<T extends Cook>(crew: T[], house: T): T | null {
+  if (!crew.some((w) => w.role === 'sous')) return null
+  return crew.find((w) => w.role === 'chef') ?? house
+}
+
+/** (item 842) how long a customer's bowls or tokkuri wait on the busy third cook before a free hand fills or pours them (the game's minutes) */
+export const HELP_AFTER = 10
+/** (item 845) how long what's plated, or the bowls filled at the counter, wait with both servers busy before the second cook carries them out
+ * (the game's minutes: late at night, the servers tired at half their pace, they waited as long as an hour) */
+export const HELPER_AFTER = 4
+
+/** what the second cook may go out for just now, the first that can be had first: nothing unless he's free (at his board, no round of his own
+ * on and none of the orders waiting for him, the shop open, him on duty); what's plated, then the bowls at the counter, once they've waited
+ * HELPER_AFTER with the servers all busy; the bowls filled himself, or a tokkuri poured, with the third cook swamped (HELP_AFTER) */
+export function helperJobs(s: { free: boolean; serversBusy: boolean; foodWait: number; bowlsWait: number; swampedBowls: boolean; swampedSake: boolean
+  /** how long the oldest tokkuri poured and waiting at the station has been asked for (-1: none) */
+  pouredWait: number }) {
+  const jobs: ('food' | 'bowls' | 'fill' | 'pour' | 'tokkuri')[] = []
+  if (!s.free) return jobs
+  if (s.serversBusy && s.foodWait >= HELPER_AFTER) jobs.push('food')
+  if (s.serversBusy && s.bowlsWait >= HELPER_AFTER) jobs.push('bowls')
+  if (s.swampedBowls) jobs.push('fill')
+  if (s.swampedSake) jobs.push('pour')
+  if (s.serversBusy && s.pouredWait >= HELP_AFTER) jobs.push('tokkuri')
+  return jobs
+}
