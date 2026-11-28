@@ -2046,12 +2046,16 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       const seat = Array.from({ length: BAR_SEATS }, (_, n) => n).find((n) => !used.has(n))
       for (const id of [...BENCH.ids]) {
         // (or past their hour while they waited (data/guests' pastHour, item 377): a child, a high schooler, the old folk gone home, not sat down)
-        if (SHOP.closing || LAST_CALL.on || !onOrder || now - (BENCH.since.get(id) ?? now) > BENCH_WAIT || pastHour(id, getClock().minute)) {
+        const waitedOut = now - (BENCH.since.get(id) ?? now) > BENCH_WAIT, home = pastHour(id, getClock().minute)
+        if (SHOP.closing || LAST_CALL.on || !onOrder || waitedOut || home) {
           BENCH.ids = BENCH.ids.filter((x) => x !== id)
           BENCH.since.delete(id)
           BENCH.gone.add(id)
           onSay?.('guest', L().benchGone(id), id)
-          onVisit?.({ id, taste: null, waited: BENCH_WAIT, walkedOut: true, gripes: ['wait'] })
+          // (item 839, the Tester window's: sent off by the shop's hours (its last call, its closing, no orders taken) and not by their wait,
+          // no visit of theirs to rate: at the 04:00 last call the bench's were put down as having waited the bench's whole 90 minutes and
+          // gone, a star for it, a review a third of the time)
+          if (waitedOut || home) onVisit?.({ id, taste: null, waited: BENCH_WAIT, walkedOut: true, gripes: ['wait'] })
         }
       }
       if (seat !== undefined && BENCH.ids.length && onOrder && !SHOP.closing && !LAST_CALL.on) {
