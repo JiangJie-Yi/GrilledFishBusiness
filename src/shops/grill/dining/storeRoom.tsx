@@ -697,7 +697,26 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
         <planeGeometry args={[deep - 0.008, z1 - z0]} />
         <meshToonMaterial color="#ffffff" map={STORE_FLOOR} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-2} />
       </mesh>
+      <StoreSill door={door} />
     </group>
+  )
+}
+/** how high the doorway's sill stands over the shop's boards (item 803: low enough for the stocker to walk over, his feet on the floor) */
+const SILL_H = 0.013
+/**
+ * The stock room doorway's sill (敷居, item 803, the owner's 「倉庫與門須要有個橫條木做為坎。」): a beam of the frame's dark wood across the
+ * doorway's foot where the shop's boards meet the stock room's hinoki, through the wall's thickness, 4 mm proud of its line on the shop's
+ * side and 6 mm past the post's face on the room's; between the post at the wall's start and the doorway's far side, a millimetre clear of
+ * each; its foot a millimetre into the shop's boards (not in one plane with them). Its own piece, not in the frame's batch (the room's
+ * merge takes it). Item 709 took the sill there was away with the posts the owner had out; he's asked for one again.
+ */
+function StoreSill({ door }: { door: [number, number] }) {
+  const x0 = -0.004, x1 = WALL_OUT + 0.012, z0 = door[0] + 0.001, z1 = door[1] - 0.001
+  return (
+    <mesh name="store-sill" position={[(x0 + x1) / 2, 0.003 + SILL_H / 2, (z0 + z1) / 2]} receiveShadow>
+      <boxGeometry args={[x1 - x0, SILL_H, z1 - z0]} />
+      <meshToonMaterial color="#35200f" />
+    </mesh>
   )
 }
 /** (item 781) how far under the rod the stocker's shoulder meets the noren as he goes through (over it the cloth tilted aside, under it
