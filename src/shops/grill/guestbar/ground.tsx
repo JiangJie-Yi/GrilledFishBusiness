@@ -53,6 +53,8 @@ const PLANTER = { x: [0.022, 0.352], z: [-0.002, 0.328] }
  * ragged with blobs before), straight along each side and square at each corner; soft (item 779, the owner's 「泥土地要有點柔邊」: crisp
  * to a pixel, a darker tamped line round it, since item 765): faded out over EARTH_SOFT each side of its outline */
 const EARTH_REACH = 0.42, EARTH_BAND = 0.36, EARTH_FADE = 0.04, EARTH_PX = 96, EARTH_SOFT = 0.022
+/** (item 1011) how far past the gravel's curb along the front the earth goes (the band before the door's further, for its last stepping stone) */
+const EARTH_PAST = 0.14
 /** (item 828, the owner's 「然後到最外圍就稍微淡些」) its outermost band fainter: how wide, and how much of it shows at its edge (all of it
  * EARTH_THIN in) */
 const EARTH_THIN = 0.13, EARTH_EDGE = 0.5
@@ -305,7 +307,13 @@ export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut
   const made = useMemo(() => {
     if (typeof document === 'undefined') return null
     const rnd = seeded(726)
-    const apron: Rect = [door[0] - APRON_SIDE, front, door[1] + APRON_SIDE, front + APRON_OUT]
+    // (item 1011, the owner's 「門口碎石地板往橫的延伸，泥土地內縮」, a red frame along the front from the door's bed to the building's corner:
+    // the bed run on along the front, as deep, to the corner on the door's far side from the bamboo's planter, its end flush with the plinth
+    // round the corner; the band of earth before the door, with its last stepping stone, as it was)
+    const doorApron: Rect = [door[0] - APRON_SIDE, front, door[1] + APRON_SIDE, front + APRON_OUT]
+    const atFront = building.filter((r) => Math.abs(r[3] - front) < 0.05)
+    const corner = Math.min(...(atFront.length ? atFront : building).map((r) => r[0])) - plinthOut
+    const apron: Rect = [Math.min(doorApron[0], corner), front, doorApron[2], front + APRON_OUT]
     // (the bed before the door only (item 741): none round the building; its edge round the plinth (its ledge) and the bamboo's planter,
     // the planter's place taken from the plinth's face (so the bed meets the two with no slot of earth between, nor a curb in it))
     const planter: Rect = [door[1] + plinthOut, front + PLANTER.z[0], door[1] + PLANTER.x[1], front + PLANTER.z[1]]
@@ -389,9 +397,9 @@ export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut
     // (out over the earth: tried at random over its square, taken the more often the nearer the building's plinth (clear of it by a hand))
     {
       const xs = building.flatMap((b) => [b[0], b[2]]), zs = building.flatMap((b) => [b[1], b[3]])
-      // (item 1002: out before the front as far as the earth goes now, the band before the door's depth all along it)
+      // (item 1002: out before the front as far as the earth goes now; item 1011: to just past the bed's curb along it)
       const ex0 = Math.min(...xs) - EARTH_REACH, ex1 = Math.max(...xs) + EARTH_REACH, ez0 = Math.min(...zs) - EARTH_REACH
-      const ez1 = Math.max(Math.max(...zs) + EARTH_REACH, apron[3] + CURB_W + EARTH_BAND + 0.12)
+      const ez1 = Math.max(Math.max(...zs) + EARTH_REACH, apron[3] + CURB_W + EARTH_PAST)
       const awayOf = (x: number, z: number) => Math.min(...building.map(([a0, b0, a1, b1]) => Math.max(a0 - x, x - a1, b0 - z, z - b1, -1e9)))
       const tries = Math.round((ex1 - ex0) * (ez1 - ez0) * 6)
       for (let i = 0; i < tries; i++) {
@@ -411,10 +419,12 @@ export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut
     const bx = building.flatMap((r) => [r[0], r[2]]), bz = building.flatMap((r) => [r[1], r[3]])
     // (the band before the door, its sides flush with the square's where they come within a forearm of them: a step of a hand or two
     // between them was the third jog the owner ringed, at the front corner)
-    const tab: Rect = [apron[0] - CURB_W - EARTH_BAND, apron[1], apron[2] + CURB_W + EARTH_BAND, apron[3] + CURB_W + EARTH_BAND + 0.12]
+    const tab: Rect = [doorApron[0] - CURB_W - EARTH_BAND, doorApron[1], doorApron[2] + CURB_W + EARTH_BAND, doorApron[3] + CURB_W + EARTH_BAND + 0.12]
     // (item 1002, the owner's 「前面泥土地需多出這一區塊」, the strip before the building's whole front framed: bare past EARTH_REACH, and the
     // band before the door out further. The square's front out as far as that band's, the whole length of the front)
-    const sq: Rect = [Math.min(...bx) - reach, Math.min(...bz) - reach, Math.max(...bx) + reach, Math.max(Math.max(...bz) + reach, tab[3])]
+    // (item 1011, the owner's 「泥土地內縮」: the gravel along the front now, the earth's front drawn in to just past its curb (EARTH_PAST),
+    // the band before the door alone out further, for its last stepping stone)
+    const sq: Rect = [Math.min(...bx) - reach, Math.min(...bz) - reach, Math.max(...bx) + reach, Math.max(Math.max(...bz) + reach, apron[3] + CURB_W + EARTH_PAST)]
     const shapes: Rect[] = [sq, [tab[0] - sq[0] < 0.5 ? sq[0] : tab[0], tab[1], sq[2] - tab[2] < 0.5 ? sq[2] : tab[2], tab[3]]]
     const X0 = Math.min(...shapes.map((r) => r[0])) - EARTH_FADE, X1 = Math.max(...shapes.map((r) => r[2])) + EARTH_FADE
     const Z0 = Math.min(...shapes.map((r) => r[1])) - EARTH_FADE, Z1 = Math.max(...shapes.map((r) => r[3])) + EARTH_FADE
