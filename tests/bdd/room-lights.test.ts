@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
-import { comesIn, exitSignLit, LIGHTS_DEFAULT, lampGlow, lanternsLit, lightOn, patienceIn, readLights, roomDim, roomMood, keyLightFrom, shadowDepth, shadowSoft, studioLight, switchLights, unlitShade, writeLights } from '@/game/world/roomLights'
+import { comesIn, exitSignLit, LIGHTS_DEFAULT, lampGlow, lanternsLit, lightOn, patienceIn, readLights, roomDim, roomMood, keyLightFrom, shadowDepth, shadowSoft, keyUnderRain, studioLight, switchLights, unlitShade, writeLights } from '@/game/world/roomLights'
 
 feature('牆上的電燈開關', () => {
   scenario('一開店燈是開著的', ({ given, then }) => {
@@ -196,5 +196,13 @@ feature('牆上的電燈開關', () => {
   })
 })
 
+feature('下雨時影子變淡變柔（第 834 項）', () => {
+  scenario('雨越大，太陽的影子越淡、邊越柔，光也弱一點；雨停回到原樣', ({ then, and }) => {
+    then('白天開燈：沒下雨跟原本一樣', () => { expect(shadowDepth(true, false, 0)).toBe(shadowDepth(true, false)); expect(shadowSoft(false, 0)).toBe(shadowSoft(false)) })
+    and('大雨時影子淡到一半以下、邊更柔', () => { expect(shadowDepth(true, false, 1)).toBeLessThan(shadowDepth(true, false) * 0.5); expect(shadowSoft(false, 1)).toBeGreaterThan(shadowSoft(false)) })
+    and('雨越大越淡（一路變，不跳）', () => { expect(shadowDepth(false, false, 0.5)).toBeLessThan(shadowDepth(false, false, 0.2)); expect(shadowDepth(false, false, 0.5)).toBeGreaterThan(shadowDepth(false, false, 0.9)) })
+    and('太陽光雨中弱一點，但不會全暗', () => { expect(keyUnderRain(0)).toBe(1); expect(keyUnderRain(1)).toBeGreaterThan(0.5); expect(keyUnderRain(1)).toBeLessThan(1) })
+  })
+})
 /** a colour's red, green and blue, 0 to 1 */
 const rgbOf = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)

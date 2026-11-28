@@ -16,7 +16,8 @@ import { OccluderFade } from '@/scene/render/OccluderFade'
 import { RenderPrefsApply } from '@/shops/grill/editor/renderPrefs'
 import { SceneTally } from '@/shops/grill/editor/SceneTally'
 import { useLights } from '@/scene/render/lightsStore'
-import { keyLightFrom, lampGlow, roomDim, shadowDepth, shadowSoft, studioLight } from '@/game/world/roomLights'
+import { keyLightFrom, keyUnderRain, lampGlow, roomDim, shadowDepth, shadowSoft, studioLight } from '@/game/world/roomLights'
+import { RAIN_NOW } from '@/shops/grill/guestbar/shopFront'
 import { setStudioLight } from '@/scene/render/studio'
 import { FIRE_SHIFT, GRILL_COUNTERS, GRILL_OFFSET, GRILL_SCALE, type DrinkId } from '@/shops/grill/bar'
 import { deselectAll, offsetOf, rotationOf, setViewCams, useEditSel } from '@/shops/grill/edit'
@@ -187,8 +188,9 @@ export function Scene({ omiki, active, orders, theme, sky, reducedMotion, fire, 
     if (!k) return
     // (how dark its shadows fall and how soft: light and soft by day, faint by night with the lamps on, plain under the moon with them off)
     const { on, night, sky: now } = keyNow.current
-    k.shadow.intensity = shadowDepth(on, night)
-    k.shadow.radius = shadowSoft(night)
+    // (item 834: under rain fainter and softer, as an overcast day's; RAIN_NOW eased as the rain comes and goes)
+    k.shadow.intensity = shadowDepth(on, night, RAIN_NOW.k)
+    k.shadow.radius = shadowSoft(night, RAIN_NOW.k)
     // (by day the sun high out past the round window (item 378); by night the moon, high out past it too (the window's room is toward its
     // -x); at dusk the evening sun low in through it, at dawn the early sun from the room's other side)
     const w = scene3.getObjectByName('RoundWindow')
@@ -209,8 +211,13 @@ export function Scene({ omiki, active, orders, theme, sky, reducedMotion, fire, 
     if (keyLight.current) keyLight.current.shadow.needsUpdate = true
     glKey.shadowMap.needsUpdate = true
   }, [lights.on, theme, sky, glKey])
-  // (and every half second, the round window's moon following the window, should it be moved)
+  // (and every half second, the round window's moon following the window, should it be moved; and its shadows as the rain is)
+  // (item 834: its own light thinned under rain every frame, from what it's set to as the lights and the time of day are (keyBase))
+  const keyBase = useRef(0)
+  keyBase.current = look.sunIntensity * (theme === 'dark' ? dim : 1)
   useFrame((st) => {
+    const k = keyLight.current
+    if (k) k.intensity = keyBase.current * keyUnderRain(RAIN_NOW.k)
     if (st.clock.elapsedTime - moonAt.current < 0.5) return
     moonAt.current = st.clock.elapsedTime
     placeKey()

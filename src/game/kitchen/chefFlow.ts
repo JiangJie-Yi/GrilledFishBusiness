@@ -2,6 +2,7 @@
 // food is kept, takes it out, back to the big board with it in hand, preps it there (salted, scored, its skewer pushed through), and only
 // then onto the fire; while it grills the chef fans the salted ones, and fetches the next order meanwhile. Pure rules; Roasting walks it.
 import { storageOf } from '@/data/storage'
+import { PULL_LEAST } from '@/data/menu'
 
 /** where the chef goes for a food: the freezer for fish and seafood, the fridge under the cook table for what's chilled, the rice tub on
  * the table for the rice balls' rice, the sacks on the kitchen floor for what keeps at room temperature (the potatoes) */
@@ -46,3 +47,11 @@ export const TEND_AT = 0.5
 const GLAZES = new Set(['soy', 'miso', 'milk'])
 /** how the chef tends a piece half way through: a glaze brushed on (when it's to have one), else the coals under it fanned */
 export const tendOf = (plan: readonly string[]): 'brush' | 'fan' => (plan.some((k) => GLAZES.has(k)) ? 'brush' : 'fan')
+
+/**
+ * (item 841) where a cook takes a piece off the fire, of its roasting time, by how able they are now (`e`: their skill, gifts, the day's
+ * tiredness, their bond and the shop's air: 1 a good hand, more with a gift): the better the hand, the nearer done to the moment (an unsure
+ * one leaves it on to be sure, up to 1.25), but never short of done (PULL_LEAST): a skilled chef with a gift came to more than 1 and took it
+ * off half cooked (0.94), set before a customer who wouldn't eat it
+ */
+export const pullAtOf = (e: number) => Math.max(PULL_LEAST, 1.25 - e * 0.25)

@@ -11,6 +11,8 @@ import '@/scene/render/ktx2'
 // (the pictures the game paints, kept off the graphics card: they survive its resets)
 import '@/scene/render/canvasKeep'
 import '@/scene/render/triProfiler'
+// (what's hidden not placed afresh every frame: three's matrix update going into every hidden group's insides, item 804)
+import '@/scene/render/hiddenMatrices'
 // (every sound effect through one switch: muted together from the clock, top right)
 import '@/scene/interact/sfx'
 // (every button's press sinks at once and springs back as it's let go, as an iPhone's: item 179)

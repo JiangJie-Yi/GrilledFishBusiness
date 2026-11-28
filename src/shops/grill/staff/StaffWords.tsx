@@ -87,11 +87,16 @@ const Word = memo(function Word({ word }: { word: StaffWord }) {
   const el = useRef<HTMLDivElement>(null)
   const scene = useThree((s) => s.scene)
   const who = useRef<THREE.Object3D | null>(null)
+  /** (item 804) when the one it's over was last looked for through the scene: not found (gone home, not on tonight), looked for again no more
+   * than twice a second, not every frame through all fourteen thousand of the shop's objects */
+  const sought = useRef(-1e9)
   useFrame(() => {
     const o = g.current
     if (!o || !o.parent) return
-    if (!who.current?.parent) {
-      who.current = null
+    // (one gone from the scene let go of at once: not followed where it was)
+    if (who.current && !who.current.parent) who.current = null
+    if (!who.current && performance.now() - sought.current > 500) {
+      sought.current = performance.now()
       if (word.id === 'owner') who.current = scene.getObjectByName('BossFollow') ?? null
       // (whoever's at the till: the cashier, the owner where there's none)
       else if (word.id === 'role:cashier') {
@@ -158,11 +163,16 @@ function TiredBadge({ id, marks }: { id: string; marks: Marks }) {
   const el = useRef<HTMLSpanElement>(null)
   const scene = useThree((s) => s.scene)
   const who = useRef<THREE.Object3D | null>(null)
+  /** (item 804) when the one it's over was last looked for through the scene: not found (gone home, not on tonight), looked for again no more
+   * than twice a second, not every frame through all fourteen thousand of the shop's objects */
+  const sought = useRef(-1e9)
   useFrame(() => {
     const o = g.current
     if (!o || !o.parent) return
-    if (!who.current?.parent) {
-      who.current = null
+    // (one gone from the scene let go of at once: not followed where it was)
+    if (who.current && !who.current.parent) who.current = null
+    if (!who.current && performance.now() - sought.current > 500) {
+      sought.current = performance.now()
       scene.traverse((q) => { if (!who.current && q.userData.staffId === id) who.current = q })
     }
     const t = who.current

@@ -118,6 +118,23 @@ function shadowDepth(m: Any) {
   holdAlphaTest(m)
 }
 
+/** (item 804) whether a material drawn would leave nothing in the picture: see-through at nought, blended plainly or added (its colour weighed
+ * by its opacity either way), writing no depth; or writing neither colour, depth nor stencil. Not a hand-written shader's (it may not read
+ * its opacity), nor one blended any other way (multiplied, it darkens whatever its opacity) */
+function drawsNothing(m: THREE.Material) {
+  if (DRAW_ALL) return false
+  if (!m.colorWrite && !m.depthWrite && !m.stencilWrite) return true
+  return m.transparent && m.opacity <= 0 && !m.depthWrite && !m.stencilWrite && (m.blending === THREE.NormalBlending || m.blending === THREE.AdditiveBlending)
+    && !(m as THREE.ShaderMaterial).isShaderMaterial
+}
+/** the materials drawsNothing has let be drawn once (the first time each is met) */
+const MET = new WeakSet<THREE.Material>()
+/** `?nothing=0` in the address: everything drawn, as before (to set the two side by side) */
+const DRAW_ALL = typeof location !== 'undefined' && new URLSearchParams(location.search).get('nothing') === '0'
+/** (in development: how many draws drawsNothing has spared, all told: `__nothingDrawn.n`) */
+const NOTHING = { n: 0 }
+if (import.meta.env.DEV && typeof window !== 'undefined') Object.assign(window, { __nothingDrawn: NOTHING })
+
 /** every material the renderer draws or compiles, normalised the first time it's met */
 export function normalizeRenderer(r: THREE.WebGLRenderer) {
   const draw = r.renderBufferDirect.bind(r)
@@ -135,6 +152,16 @@ export function normalizeRenderer(r: THREE.WebGLRenderer) {
     material.side = THREE.DoubleSide
   }
   r.renderBufferDirect = (camera, scene, geometry, material, object, group) => {
+    // (item 804) one that would leave nothing in the picture not drawn at all, before its program's set and its uniforms sent: see-through
+    // at nought (an effect between its showings, a glow, a ripple, a spark; a pointer's unseen box) with plain or additive blending and no
+    // depth written, or one writing neither colour, depth nor stencil. Every frame they were drawn as the rest, some tens of a busy frame's
+    // draws for nothing (tests/e2e/_loose.mjs)
+    // (each drawn once all the same, the first time it's met: its program set up and its pictures sent to the GPU as the page loads, as before,
+    // not the moment the effect first shows, mid-business)
+    if (scene && drawsNothing(material)) {
+      if (MET.has(material)) { if (import.meta.env.DEV) NOTHING.n++; return }
+      MET.add(material)
+    }
     // (a figure bent by bones, or a mesh drawn as instances, casting its shadow: from the next shadow on, with a depth material of its own,
     // one for each kind; drawn with three's own shared one, that switched program between them and everything else it drew (item 374: some
     // 77 draws a second worked out afresh))
