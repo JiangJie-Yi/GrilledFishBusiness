@@ -120,12 +120,27 @@ export function DoorBambooModel() {
   }, [gltf])
   return <primitive object={obj} />
 }
-/** an unseen box over the door's bamboo, the size of its box and culms (not its leaves' spread): what's said when it's pointed at */
+/** unseen boxes over the door's bamboo, its planter and over it its culms' own reach (their lean to the building's side, their arch out to
+ * the street), not its leaves' spread: what's said when it's pointed at. (Item 849: the whole clump's box at 0.6 a side, as it was, reached
+ * 11 cm into the fish lantern's box beside it once the culms arched out, so pointing at the fish lit the bamboo; the culms' own box keeps
+ * 2 cm off it) */
 export function DoorBambooHit(props: { onPointerOver: (e: { stopPropagation: () => void }) => void; onPointerOut: () => void }) {
   const gltf = useGLTF(DOOR_BAMBOO_URL) as unknown as { scene: THREE.Group }
-  const box = useMemo(() => new THREE.Box3().setFromObject(gltf.scene), [gltf])
-  const size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3())
-  return <mesh visible={false} position={mid} {...props}><boxGeometry args={[size.x * 0.6, size.y, size.z * 0.6]} /></mesh>
+  const boxes = useMemo(() => {
+    gltf.scene.updateMatrixWorld(true)
+    return [/^Planter/, /^BambooCulm/].map((re) => {
+      const b = new THREE.Box3()
+      gltf.scene.traverse((o) => { if ((o as THREE.Mesh).isMesh && re.test(o.name)) b.expandByObject(o) })
+      return b
+    }).filter((b) => !b.isEmpty()).map((b) => ({ mid: b.getCenter(new THREE.Vector3()), size: b.getSize(new THREE.Vector3()) }))
+  }, [gltf])
+  return (
+    <>
+      {boxes.map((b, i) => (
+        <mesh key={i} visible={false} position={b.mid} {...props}><boxGeometry args={[b.size.x, b.size.y, b.size.z]} /></mesh>
+      ))}
+    </>
+  )
 }
 // (the toilet and the hand-wash counter (blender/wc.py) are drawn by rooms/Restroom from these same files, in its toon light (toonOf):
 // their download started here)
