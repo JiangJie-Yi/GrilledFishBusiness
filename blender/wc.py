@@ -130,10 +130,14 @@ def toilet():
          "water": pbr("WcWater", lin("#8fc4d6"), rough=0.04)}
     parts = []
     BX, SX = -0.03, 1.32
+    # (round as the low-poly rule has it (item 901): the tank's basin 24 (32 before); the bowl, the seat on it and the lid 32 (40 before): they're
+    # the big oval outline seen from above, its outline to keep (at 24 the lid's edge showed its corners close to); the seat's rings and the
+    # bowl's rim the same 32, so they meet face to face)
+    RS, RB = 32, 24
     # (one glazed piece from the floor to the rim: a skirt hiding the trap, swelling to an oval bowl, over the rim and down into its well)
     body = lathe_oval("WcBowl", [(0.128, 0.0), (0.136, 0.006), (0.137, 0.03), (0.131, 0.12), (0.134, 0.2), (0.152, 0.285), (0.174, 0.35),
                                  (0.186, 0.38), (0.188, 0.391), (0.18, 0.397), (0.164, 0.395), (0.146, 0.372), (0.112, 0.33), (0.07, 0.298),
-                                 (0.03, 0.288), (0.0, 0.286)], SX, 1.0, 40, BX, 0)
+                                 (0.03, 0.288), (0.0, 0.286)], SX, 1.0, RS, BX, 0)
     fin(body, "WcBowl", M["china"], parts)
     # (its back running on into the cistern's foot, all one glaze: a turned oval skirt behind the bowl, waisted a little and drawn in at its
     # top under the washlet, as a TOTO's is (the owner's, 2026-11-10: it was a rounded block, and with the tank's another over it the toilet
@@ -160,35 +164,37 @@ def toilet():
     fin(rbox("WcArmFace", (0.25, 0.006, 0.058), (0.05, 0.481, 0.235), 0.004, 2), "WcArmFace", M["panel"], parts)
     fin(rbox("WcArmScreen", (0.05, 0.003, 0.03), (0.14, 0.485, 0.235), 0.002, 1), "WcArmScreen", M["lamp"], parts)
     for k, mat in enumerate(("stop", "blue", "pink", "grey", "grey")):
-        bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.016 if k == 0 else 0.011, depth=0.008, location=P(0.07 - k * 0.04, 0.487, 0.235))
+        bpy.ops.mesh.primitive_cylinder_add(vertices=12, radius=0.016 if k == 0 else 0.011, depth=0.008, location=P(0.07 - k * 0.04, 0.487, 0.235))
         fin(active(), f"WcArmButton{k}", M[mat], parts)
     # (the wand, tucked in under the washlet's lip: its own node, slid out over the bowl while it washes)
     bpy.ops.mesh.primitive_cylinder_add(vertices=12, radius=0.007, depth=0.12, location=P(0.16, 0.402, 0), rotation=(0, math.pi / 2, 0))
     fin(active(), "WcWand", M["nozzle"], parts)
     # (the seat: a soft ring on the rim)
-    seat = lathe_oval("WcSeat", [(0.112, 0.399), (0.184, 0.399), (0.192, 0.41), (0.184, 0.422), (0.118, 0.422), (0.108, 0.41), (0.112, 0.399)], SX * 0.985, 1.0, 40, BX, 0, cap=False)
+    seat = lathe_oval("WcSeat", [(0.112, 0.399), (0.184, 0.399), (0.192, 0.41), (0.184, 0.422), (0.118, 0.422), (0.108, 0.41), (0.112, 0.399)], SX * 0.985, 1.0, RS, BX, 0, cap=False)
     fin(seat, "WcSeat", M["ivory"], parts)
     # (the lid: a gently domed oval, made closed and hinged on the washlet's front edge, its node's origin on the hinge, so the game lifts it)
     HX, HY = 0.16, 0.432
-    lid = lathe_oval("WcLid", [(0.0, -0.008), (0.19, -0.008), (0.197, 0.002), (0.188, 0.016), (0.12, 0.026), (0.0, 0.03)], SX * 0.98, 1.0, 40, BX - HX, 0)
+    lid = lathe_oval("WcLid", [(0.0, -0.008), (0.19, -0.008), (0.197, 0.002), (0.188, 0.016), (0.12, 0.026), (0.0, 0.03)], SX * 0.98, 1.0, RS, BX - HX, 0)
     lid.location = P(HX, HY, 0)
     fin(lid, "WcLid", M["ivory"], parts)
     # (the cistern behind: a rounded tank, the hand-wash basin on its lid (手洗い付き), its spout curving over, the lever on its left side)
     fin(rbox("WcTank", (0.17, 0.34, 0.44), (0.305, 0.58, 0), 0.04, 3), "WcTank", M["china"], parts)
-    basin = lathe_oval("WcTankBasin", [(0.0, 0.748), (0.15, 0.748), (0.205, 0.765), (0.212, 0.782), (0.196, 0.788), (0.15, 0.772), (0.0, 0.766)], 0.42, 1.0, 32, 0.3, 0)
+    basin = lathe_oval("WcTankBasin", [(0.0, 0.748), (0.15, 0.748), (0.205, 0.765), (0.212, 0.782), (0.196, 0.788), (0.15, 0.772), (0.0, 0.766)], 0.42, 1.0, RB, 0.3, 0)
     fin(basin, "WcTankBasin", M["china"], parts)
     # (the spout: a round foot on the basin's back, a gooseneck rising and curving over in one smooth bend (its ends closed: an open pipe
     # end showed as a ring), a nozzle at its tip, its dark outlet underneath, over the basin's middle; the game's water runs from SPOUT_TIP)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=0.017, depth=0.012, location=P(0.372, 0.778, 0))
+    # (the spout's tube 8 round and 3 steps to each of its five bends (12 round and 5 before: 412 triangles for a pipe 2 cm thick); its
+    # foot and tip 16 round (24, 20))
+    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.017, depth=0.012, location=P(0.372, 0.778, 0))
     fin(active(), "WcSpoutFoot", M["chrome"], parts)
     fin(tube("WcSpout", [(0.372, 0.78, 0.0), (0.372, 0.832, 0.0), (0.364, 0.868, 0.0), (0.338, 0.888, 0.0), (0.31, 0.882, 0.0),
-                         (0.297, 0.868, 0.0)], 0.0105, caps=True, res=2, ru=5), "WcSpout", M["chrome"], parts)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=20, radius=0.0125, depth=0.016, location=P(0.295, 0.861, 0))
+                         (0.297, 0.868, 0.0)], 0.0105, caps=True, res=1, ru=3), "WcSpout", M["chrome"], parts)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.0125, depth=0.016, location=P(0.295, 0.861, 0))
     fin(active(), "WcSpoutTip", M["chrome"], parts)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.008, depth=0.002, location=P(0.295, 0.8525, 0))
+    bpy.ops.mesh.primitive_cylinder_add(vertices=12, radius=0.008, depth=0.002, location=P(0.295, 0.8525, 0))
     fin(active(), "WcSpoutOutlet", M["panel"], parts)
     fin(rbox("WcLever", (0.07, 0.014, 0.016), (0.25, 0.7, -0.225), 0.005, 2), "WcLever", M["chrome"], parts)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.016, depth=0.012, location=P(0.29, 0.7, -0.222))
+    bpy.ops.mesh.primitive_cylinder_add(vertices=12, radius=0.016, depth=0.012, location=P(0.29, 0.7, -0.222))
     fin(active(), "WcLeverRose", M["chrome"], parts)
     root = bpy.data.objects.new("WcToilet", None)
     bpy.context.collection.objects.link(root)
@@ -548,7 +554,10 @@ def washstand():
     prof = [(0.0, T), (0.06, T), (0.066, T + 0.005), (0.068, T + 0.014), (0.064, T + 0.018), (0.088, T + 0.026),
             (0.124, T + 0.05), (0.151, T + 0.083), (0.165, T + 0.112), (0.17, T + 0.129), (0.168, T + 0.136), (0.162, T + 0.138),
             (0.157, T + 0.133), (0.151, T + 0.115), (0.135, T + 0.084), (0.11, T + 0.058), (0.076, T + 0.042), (0.036, T + 0.035), (0.0, T + 0.033)]
-    bowl, vs = lathe_uv("WashBowl", prof, 32, -0.21, 0)
+    # (32 round: seen from above, its rim is the round to keep (item 901 tried 24, and close to its rim showed corners); the overflow below
+    # is laid on its facets, so the same)
+    BOWL_SEGS = 32
+    bowl, vs = lathe_uv("WashBowl", prof, BOWL_SEGS, -0.21, 0)
     vf, vr = vs[5], vs[10]
     NB = 512
     bu, bv = grid01(NB)
@@ -651,7 +660,7 @@ def washstand():
         fin(rbox(f"WashPull{k}", (0.006, 0.055, 0.009), (x0 - 0.013, (y0 + y1) / 2, pz), 0.002, 1), f"WashPull{k}", M["shadow"], parts)
     # ---- the bowl, on the counter, and its brass drain
     fin(bowl, "WashBowl", M["bowl"], parts)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=0.027, depth=0.004, location=P(-0.21, T + 0.035, 0))
+    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.027, depth=0.004, location=P(-0.21, T + 0.035, 0))
     fin(active(), "WashDrain", M["brass"], parts)
     for k in range(6):
         a = k * math.pi / 3
@@ -659,7 +668,7 @@ def washstand():
         fin(active(), f"WashDrainHole{k}", M["outlet"], parts)
     # ---- the overflow (the owner's, 2026-11-10: high water should run away somewhere): an oblong opening in the bowl's wall under the tap
     # (its far side, toward the wall), its middle 2.5 cm under the rim's inner lip, in a brass frame. Laid on the wall as it's turned (its
-    # 32 flat faces: a point's radius there is its facet's, not the circle's): the frame's face 3.5 mm out from the clay and its foot 1 mm
+    # BOWL_SEGS flat faces: a point's radius there is its facet's, not the circle's): the frame's face 3.5 mm out from the clay and its foot 1 mm
     # into it, the dark opening a face 2 mm out inside it (never on the clay itself: two faces that close shimmer at a distance). The water
     # stands at the opening's lower edge (the game's WATER_TOP, 0.0672 over the drain's top)
     OV_Y = T + 0.108
@@ -669,7 +678,7 @@ def washstand():
     tr, ty = (rb - ra) / sl, (yb - ya) / sl  # (up the wall)
     nr, ny = -ty, tr  # (out of it, into the bowl)
     rc = ra + (rb - ra) * (OV_Y - ya) / (yb - ya)
-    seg = 2 * math.pi / 32
+    seg = 2 * math.pi / BOWL_SEGS
 
     def on_wall(sa, d, lift):
         r = rc + tr * d
@@ -718,17 +727,19 @@ def washstand():
     fin(o, "WashOverflowHole", M["hole"], parts, smooth=False)
     # ---- the tap: its rose on the wall, its body out of it, the bonnet on top, the spout running on and turning down over the drain
     HY = T + 0.33
-    bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=0.026, depth=0.01, location=P(-0.005, HY, 0), rotation=(0, math.pi / 2, 0))
+    # (the tap's round parts 16 round, its spout a tube 8 round and 3 steps to each bend (item 901: 20 to 24 round, the spout 12 round and 6
+    # steps, 396 triangles for a pipe 2.3 cm thick))
+    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.026, depth=0.01, location=P(-0.005, HY, 0), rotation=(0, math.pi / 2, 0))
     fin(active(), "WashTapRose", M["brass"], parts)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=20, radius=0.015, depth=0.08, location=P(-0.045, HY, 0), rotation=(0, math.pi / 2, 0))
+    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.015, depth=0.08, location=P(-0.045, HY, 0), rotation=(0, math.pi / 2, 0))
     fin(active(), "WashTapBody", M["brass"], parts)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=20, radius=0.017, depth=0.03, location=P(-0.045, HY + 0.022, 0))
+    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.017, depth=0.03, location=P(-0.045, HY + 0.022, 0))
     fin(active(), "WashTapBonnet", M["brass"], parts)
     fin(tube("WashTapSpout", [(-0.08, HY, 0.0), (-0.13, HY + 0.002, 0.0), (-0.18, HY - 0.012, 0.0), (-0.204, HY - 0.045, 0.0), (-0.21, HY - 0.07, 0.0)],
-             0.0115, caps=True, res=2, ru=6), "WashTapSpout", M["brass"], parts)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=20, radius=0.0135, depth=0.016, location=P(-0.21, HY - 0.076, 0))
+             0.0115, caps=True, res=1, ru=3), "WashTapSpout", M["brass"], parts)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.0135, depth=0.016, location=P(-0.21, HY - 0.076, 0))
     fin(active(), "WashTapMouth", M["brass"], parts)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.009, depth=0.002, location=P(-0.21, HY - 0.0845, 0))
+    bpy.ops.mesh.primitive_cylinder_add(vertices=12, radius=0.009, depth=0.002, location=P(-0.21, HY - 0.0845, 0))
     fin(active(), "WashTapOutlet", M["outlet"], parts)
     # (the cross handle: four arms with a ball on each end, a cap in the middle, on a short spindle: its own node, turned about the spindle)
     handle = bpy.data.objects.new("WashTapHandle", None)
@@ -746,7 +757,7 @@ def washstand():
         # (an icosphere, 80 triangles: a uv sphere's 12 gathered at each pole shade in a dark spot, the owner's low-poly rule; 168 before)
         bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=2, radius=0.008, location=P(-0.045 + 0.035 * math.cos(a), HY + 0.058, 0.035 * math.sin(a)))
         fin(active(), f"WashHandleBall{k}", M["brass"], hparts)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.011, depth=0.01, location=P(-0.045, HY + 0.064, 0))
+    bpy.ops.mesh.primitive_cylinder_add(vertices=12, radius=0.011, depth=0.01, location=P(-0.045, HY + 0.064, 0))
     fin(active(), "WashHandleCap", M["brass"], hparts)
     bpy.context.view_layer.update()
     for o in hparts:
