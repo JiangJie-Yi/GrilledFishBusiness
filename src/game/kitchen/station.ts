@@ -27,6 +27,20 @@ export function kitchenBatch(id: string) {
 export const batchSeconds = (id: string, n: number, skill = 50) => cookSeconds(id, skill) * (1 + 0.15 * Math.max(0, n - 1))
 
 /**
+ * (item 1006, the Tester window's 874: the third cook stood at a station through every dish, one at a time, half his evening, and the
+ * dishes waited 62 to 88 minutes to be begun) whether a dish is left to cook by itself once it's in, as a real kitchen leaves it: the fryer's
+ * basket let down on its timer, the soup's little pot set on to come to the simmer. The pans' (the tamagoyaki rolled up layer on layer, the
+ * omurice wrapped) and the board's hand rolls are his hands' all through.
+ */
+export const leftToCook = (id: string) => {
+  const w = kitchenDish(id)?.ware
+  return w === 'basket' || w === 'pot'
+}
+/** (item 1006) how long getting it in takes him (the basket let down, the pot set on), and seeing to it at its end (lifted out and drained,
+ * the egg stirred in), the game's seconds: he's away from it between */
+export const LOAD_S = 1.5, FINISH_S = 1.5
+
+/**
  * Whether a customer may order a menu entry of `parts`, given what they've `ordered` already (item 461's evening, the flow's check): a dish
  * from the stove, the fryer or the board isn't sold to take away (the takeaway's box is packed with what's grilled: an order with one was
  * never ready), and one of them a customer at most, a side to what's grilled, as at a grilled-fish shop (half the menu, everyone ordered

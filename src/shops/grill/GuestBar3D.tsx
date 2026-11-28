@@ -1,4 +1,4 @@
-import { batchSeconds, kitchenBatch, stationOf } from '@/game/kitchen/station'
+import { batchSeconds, FINISH_S, kitchenBatch, leftToCook, LOAD_S, stationOf } from '@/game/kitchen/station'
 import type { Station } from '@/data/kitchenDishes'
 import { KitchenDishes } from '@/shops/grill/kitchen/Stove'
 import { memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -76,7 +76,7 @@ import { murmur } from '@/game/kitchen/fireSound'
 import { crowdAmbience } from '@/shops/grill/sounds/fireAmbience'
 import { LINES } from '@/data/lines'
 import { looksOf, openRoom, penaltyOf, visitRoom } from '@/game/guests/restroom'
-import { HELP_AFTER, helperJobs, platerFree } from '@/game/kitchen/kitchenCrew'
+import { HELP_AFTER, helperJobs, platerFree, sakeOverdue } from '@/game/kitchen/kitchenCrew'
 import { WARE, SEAT_LEFT, CHOPS_USED, CHOPS_OFF, CHOPS_LOOSE, SEATS_UNCLEARED, FLOOR_CHECK, type PathCross, BOSS_BED } from './bar'
 import { DRAIN_KINDS, PLATE_FACES, SEATS_SAT, DRAWER_KICK, seatTurn, GRATING, ONIGIRI_TRAY, HAND_WASH, FIGURES, CARRIED, SOY_DISH_AT, FETCHER, FIRE_TEND, SKEWERS, SEAT_MOVE, SEAT_PULL, STOOL_TUCK, SHOE_CELLS, aisleCornerOf, aisleOf, SHOP_PURSE, STOCKER_WC, SUPPLIES, CHOPS_UP, FED, ON_ITS_WAY, BENCH, BENCH_SEATS, BENCH_EACH, BENCH_PLACE, BENCH2_ALONG, TAKEOUT_STAND, STAND_AT, cashierIn, gripe, setTissues, tissuesAt, meterWater, OWNER_OUT, OWNER_SPOT, OWNER_YAW, FIRE_SHIFT, KITCHEN_ROUTE, PATH_MAP, type PathRoute, SERVE_COUNTER, PLACE, SICK, SHRINE_FLOWERS, PLATING, READY_SLOTS, PLATE_STACK_ALONG, PLATE_STACK_ACROSS, readyAlong, PLATES_OUT, PLATER_OUT, DRYER, DRAIN, PLATE_COUNT, SINK_BIN, SEAT_STICKS, SEAT_BONES, RICE, SOUP, SOUP_SEATS, SAKE, SAKE_SEATS, SAKE_AT, SAKE_MIN, HELPER_OUT, LOW_RACK, takeDrink, KITCHEN_DROP, kitchenOf, FLOOR_FAR, FLOOR_NEAR, PLATES_SET, SINK, PILE, KITCHEN_FOLK, GENKAN, inGenkan, sauceSide, SEATS_TAKEN, SERVICE, BAR_GATES, TILL, TILL_CASH, anyInStock, batchOf, payIn, TILL_STATE, PLATE_RACK, GUEST_BILLS, DRINKS, yen, payOf, TAKEOUT, takeoutOf, tipOver, TOILETS, WC_GRUMBLE, DRINK_BACK, FRIDGE, FRIDGE_AT, FRIDGE_STATE, isCan, drinkFor, farOf, fridgesOf, storeOf, fridgeUnitOf, gateOf, toiletsOf, type DrinkId, platingOf, alongPath, doorOf, wayInOf, doorAt, doorOutOf, DOOR_LANE, pathLength, pathTo, seatsOf, singleCounter, type Counter, SPILLS, IRONS, type Spill, genkanY, soapPlate, scrubDose, SAY_SEATED, BOWLS, RICE_SEATS, sakeLeft, ownerAway, ownerFree, ownerBack, DRINK_COMING, KITCHEN, DRINK_FRIDGE_TEMP } from './bar'
 import { servedWarm } from '@/game/stock/fridgeTemp'
@@ -812,7 +812,9 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     wait: number }
   const passQ = useRef<PassBowls[]>([])
   /** the dish the plater's making at a station (items 461, 469): whose, which, where, how long it takes, the counter's row it's to go in */
-  const kitchenJob = useRef<{ guest: number; seat: number; id: string; station: Station; of: number; row: number; more: { guest: number; seat: number }[] } | null>(null)
+  const kitchenJob = useRef<{ guest: number; seat: number; id: string; station: Station; of: number; row: number; more: { guest: number; seat: number }[]
+    /** (item 1006) come back to it, left to cook by itself (KITCHEN.left), how far along it was then */
+    back?: boolean; t0?: number } | null>(null)
   /** the dishes on the move (at the counter, on a tray, being set down), laid out every frame, drawn as the places' are (KitchenDishes) */
   const movingDishes = useRef<{ key: string; id: string; at: THREE.Vector3; yaw: number }[]>([])
   if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __passQ: passQ })
@@ -2731,6 +2733,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     SAKE.want = []
     SAKE.ready.clear()
     sakeJob.current = null
+    // (item 1006: and nothing left cooking at a station from the night before)
+    KITCHEN.left = []
   }, [open])
   /** each shown guest's name tag, faded with them as they go out of the door */
   const labels = useRef(new Map<number, HTMLElement>())
@@ -3927,6 +3931,9 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       const g = shownRef.current.find((x) => x.seat === w.seat && x.phase !== 'leave')
       if (g) ON_ITS_WAY.add(g.id)
     }
+    // (item 1005: and their tokkuri, poured, waiting at the station or on its way out: the Tester window's 874 saw one set down the minute its
+    // customer was sent off at their time)
+    if (sakeJob.current) ON_ITS_WAY.add(sakeJob.current.guest)
     const sitting = (n: number) => shownRef.current.some((x) => x.seat === n && (x.phase === 'sit' || x.phase.startsWith('wc')))
     /** a slot of the plating place ready to go, for a customer sat at their place, that no server's on their way for */
     // (the one that's waited the longest, not the first along: in a rush the plating place's last slot waited behind the others coming
@@ -3974,6 +3981,11 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       }
       // (worn out, at half pace (the owner's))
       pl.t += step * paceOfStaff(plater?.id)
+      // (item 1006: what's left at a station cooking by itself goes on at the game's pace, not his, to where he's to see to it (FINISH_S
+      // short of its end: the fryer's basket lifted on its timer, the fries draining on the rack, the soup kept at the simmer); the shop
+      // shut, it's put by)
+      if (SHOP.leaving && KITCHEN.left.length) KITCHEN.left = []
+      for (const l of KITCHEN.left) l.t = Math.min(l.of - FINISH_S, l.t + step)
       // (the cooker cooking, by the game's clock; cooked, full and keeping warm, said in the kitchen's log (the owner's))
       {
         const r = kamaTick(RICE.kama, step)
@@ -4084,7 +4096,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
        * (game/station's kitchenBatch: the fryer's basket three, the board and the little pot two, a pan one), as many as there are rows
        * free at the serving counter to set them out in */
       const takeKitchen = () => {
-        const k = KITCHEN.want.findIndex((x) => guestSeat(x.guest) >= 0)
+        // (item 1006: not one for a station with something left cooking at it)
+        const k = KITCHEN.want.findIndex((x) => guestSeat(x.guest) >= 0 && !stationBusy(x.id))
         if (k < 0) return
         const w = KITCHEN.want.splice(k, 1)[0]
         const station = stationOf(w.id) ?? 'stove'
@@ -4098,6 +4111,12 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         pl.pos.copy(home())
         setOff(station === 'board' ? prepSpot() : inBar(`${station}-front`, home()).setY(0), 'toStation')
         away(true)
+      }
+      /** (item 1006) whether a dish's station has something left cooking at it by itself (its basket down, its pot on) */
+      function stationBusy(id: string) {
+        const st = stationOf(id) ?? 'stove'
+        for (const l of KITCHEN.left) if (l.station === st) return true
+        return false
       }
       /** (item 835) off to put the rice on: the cooker's empty, to the open sack for the next pot's rice, then to the sink to wash it */
       const riceRun = () => {
@@ -4158,9 +4177,14 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           const ageOf = (g: number, at?: number) => (guestSeat(g) >= 0 ? tq - (at ?? tq) : -1)
           const jobAges = {
             bowls: atBar && !bowlJob.current && freeRow() >= 0 && bowlsNow() ? BOWLS.want.reduce((m, x) => Math.max(m, ageOf(x.guest, x.at)), -1) : -1,
-            kitchen: atBar && !kitchenJob.current ? KITCHEN.want.reduce((m, x) => Math.max(m, ageOf(x.guest, x.at)), -1) : -1,
+            kitchen: atBar && !kitchenJob.current ? KITCHEN.want.reduce((m, x) => (stationBusy(x.id) ? m : Math.max(m, ageOf(x.guest, x.at))), -1) : -1,
             sake: atBar && !sakeJob.current ? SAKE.want.reduce((m, g) => Math.max(m, ageOf(g, SAKE_AT.get(g))), -1) : -1,
           }
+          // (item 1005, the Tester window's 874: a tokkuri asked for SAKE_FIRST of the game's minutes ago poured next, ahead of the rice and
+          // soup runs, the bowls and the dishes: the oldest of the three went first, and a dish off the stove asked for at the door was
+          // always older than the sake asked for at the bar, so with him at the stove 30 to 55 minutes at a time, 6 of 19 were never poured)
+          const mNow = minutesNow()
+          const pourFirst = atBar && !sakeJob.current && sakeOverdue(SAKE.want.map((g) => (guestSeat(g) >= 0 ? mNow - (SAKE_MIN.get(g) ?? mNow) : -1)))
           if (open && !SHOP.leaving && FIRE_TEND.want && !FIRE_TEND.done) {
             // (the fire's asked for: charcoal from the crate, or water from the bucket on the table by his bay, first of all)
             pl.pos.copy(home())
@@ -4178,6 +4202,15 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
               // (called out: the fire wanting coal (item 324))
               if (plater) crewCall(lang, 'coal', plater.id)
             } else { const near = dipFrom(); if (near) stepTo(near, 'toBucket'); else setOff(reachOf(bucketAt()), 'toBucket') }
+          } else if (!kitchenJob.current && KITCHEN.left.some((l) => l.t >= l.of - FINISH_S)) {
+            // (item 1006: a dish left at its station to cook by itself, at its end: back to it to see to it and take it out, before all but
+            // the fire (the fries or the soup kept from going over))
+            const k = KITCHEN.left.findIndex((l) => l.t >= l.of - FINISH_S)
+            const l = KITCHEN.left.splice(k, 1)[0]
+            kitchenJob.current = { guest: l.guest, seat: l.seat, id: l.id, station: l.station, of: l.of, row: l.row, more: l.more, back: true, t0: l.t }
+            pl.pos.copy(home())
+            setOff(l.station === 'board' ? prepSpot() : inBar(`${l.station}-front`, home()).setY(0), 'toStation')
+            away(true)
           } else if (open && !SHOP.leaving && !dayPrep.current.rice && riceGoes(RICE.kama) && anyInStock(['Onigiri'])) {
             // (item 837, the Tester window's: the day's first pot of rice put on first thing, before the plates: the plates went first, then
             // only with no one waiting, and the day's rice was ready 45 to 77 minutes after the doors opened, the soup 57 to 89, the first to
@@ -4191,14 +4224,14 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
             // one (item 207); seen to as it runs low, not once it's bare, and before a late dish or a pour of sake (item 630: bare 45% of a
             // rush, and a third of the time still with it after the sake, the third cook off at a station while the low rack stood full))
             goPlates()
-          } else if (open && !SHOP.leaving && riceGoes(RICE.kama) && anyInStock(['Onigiri']) && BOWLS.want.some((x) => x.rice && guestSeat(x.guest) >= 0)) {
+          } else if (!pourFirst && open && !SHOP.leaving && riceGoes(RICE.kama) && anyInStock(['Onigiri']) && BOWLS.want.some((x) => x.rice && guestSeat(x.guest) >= 0)) {
             // (item 835, the Tester window's: the rice's pot empty with someone sat waiting on a bowl of it: put on next, after the fire and the
             // plates; at the bottom of his list (below the late dishes, the sake, the bowls, the till and the skewers) it stood empty five hours
             // of a rush's evening, its bowls never filled. The longest to come (washed, then cooked), so the first of the two)
             riceRun()
-          } else if (open && !SHOP.leaving && (soupGoes(SOUP.pot) || topUpGoes(SOUP.pot, SOUP.left)) && anyInStock(['MisoSoup']) && BOWLS.want.some((x) => x.soup && guestSeat(x.guest) >= 0)) {
+          } else if (!pourFirst && open && !SHOP.leaving && (soupGoes(SOUP.pot) || topUpGoes(SOUP.pot, SOUP.left)) && anyInStock(['MisoSoup']) && BOWLS.want.some((x) => x.soup && guestSeat(x.guest) >= 0)) {
             soupRun()
-          } else if (jobAges.bowls >= 0 && jobAges.bowls >= jobAges.kitchen && jobAges.bowls >= jobAges.sake) {
+          } else if (!pourFirst && jobAges.bowls >= 0 && jobAges.bowls >= jobAges.kitchen && jobAges.bowls >= jobAges.sake) {
             // (item 835: a customer's bowls, a dish off the stove, the fryer or the board, and a tokkuri: whichever's been waited on longest
             // taken first (from when it was asked for); the late dish (KITCHEN_DUE_MS from its asking, which was at the door) went before all
             // the rest, and in a rush one always was: of 34 who'd asked for rice or soup 20 had none)
@@ -4214,7 +4247,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
               setOff(b.rice ? riceStand() : soupFillAt().stand, b.rice ? 'toRiceBowl' : 'toSoupBowl')
               away(true)
             }
-          } else if (jobAges.kitchen >= 0 && jobAges.kitchen >= jobAges.sake) {
+          } else if (!pourFirst && jobAges.kitchen >= 0 && jobAges.kitchen >= jobAges.sake) {
             // (a dish from the stove, the fryer or the board waited on long enough: made before the sake's poured, the plates fetched and the
             // bowls filled (item 461's evening: below them all, it was never come to while the sake kept coming, and those who'd ordered only
             // a dish off the stove sat with nothing for three hours of the shop's, or went))
@@ -4239,12 +4272,12 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
               setOff(stationSpot(), 'toSake')
               away(true)
             }
-          } else if (open && !SHOP.leaving && !kitchenJob.current && STATION_OBJ.group && KITCHEN.want.some((x) => guestSeat(x.guest) >= 0)
+          } else if (open && !SHOP.leaving && !kitchenJob.current && STATION_OBJ.group && KITCHEN.want.some((x) => guestSeat(x.guest) >= 0 && !stationBusy(x.id))
             && PLATING.stock + PLATING.coming < STACK_CAP && PLATE_RACK.n + LOW_RACK.n > 0) {
             // (a dish at its station is a long while away from the plating place: its stack topped up first (item 630: with it gone, what
             // came off the fire waited for a plate))
             goPlates()
-          } else if (open && !SHOP.leaving && !kitchenJob.current && STATION_OBJ.group && KITCHEN.want.some((x) => guestSeat(x.guest) >= 0)) {
+          } else if (open && !SHOP.leaving && !kitchenJob.current && STATION_OBJ.group && KITCHEN.want.some((x) => guestSeat(x.guest) >= 0 && !stationBusy(x.id))) {
             takeKitchen()
           } else if (tillCall.current.who >= 0 && tillCall.current.staff < 0 && !cashierIn() && given) {
             // (someone waiting at the till with no cashier sat at it, no server free for it: round to the back of it to ring them up (item 203);
@@ -4395,12 +4428,21 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       else if (pl.phase === 'toStation') walk(() => {
         const j = kitchenJob.current
         pl.phase = 'cookStation'
+        // (item 1006: back to one left cooking: on from how far it's got, to see to its end)
+        if (j?.back) pl.t = Math.max(j.t0 ?? 0, j.of - FINISH_S)
         if (j) faceTo(j.station === 'board' ? inBar('prep-board', pl.pos) : inBar(`${j.station}-top`, pl.pos))
       })
       else if (pl.phase === 'cookStation') {
         const j = kitchenJob.current
         if (!j) { KITCHEN.cooking = null; setOff(home(), 'home') }
-        else {
+        else if (!j.back && leftToCook(j.id) && pl.t >= LOAD_S && pl.t < j.of - FINISH_S) {
+          // (item 1006: in, and left to cook by itself (the basket on its timer, the pot coming to the simmer): back to his other work, and
+          // to it again at its end)
+          KITCHEN.left.push({ guest: j.guest, seat: j.seat, id: j.id, station: j.station, of: j.of, t: pl.t, row: j.row, more: j.more })
+          kitchenJob.current = null
+          KITCHEN.cooking = null
+          setOff(home(), 'home')
+        } else {
           KITCHEN.cooking = { id: j.id, station: j.station, t: pl.t, of: j.of }
           if (pl.t >= j.of) { KITCHEN.cooking = null; setOff(passSpot(), 'toDishPass') }
         }
@@ -5247,11 +5289,25 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
               : passQ.current.reduce((m, b) => (b.server === undefined && guestSits(b.guest, b.seat) ? Math.max(m, b.wait) : m), -1)
             const sj = sakeJob.current
             const poured = sj && sj.server === undefined && sj.t >= POUR_TOTAL && guestSits(sj.guest, sj.seat)
+            // (item 1004: a takeaway packed, its customer waiting in the genkan for it, no one on the way with it, from the serving counter's
+            // front, as the servers take it: the oldest)
+            const mNow = minutesNow()
+            const box = takeoutWay && SERVE_COUNTER.out ? TAKEOUT.orders.filter((o) => o.ready && !o.taken && !boxClaimed.current.has(o.id) &&
+              visitors.current.get(o.id)?.phase === 'wait').sort((a, b) => (a.readyMin ?? mNow) - (b.readyMin ?? mNow))[0] : undefined
             const jobs = helperJobs({ free, serversBusy, foodWait: ready >= 0 ? readyFor.current[ready] : -1, bowlsWait,
+              boxWait: box ? mNow - (box.readyMin ?? mNow) : -1,
               swampedBowls: !!STATION_OBJ.group && !bowlJob.current && BOWLS.want.length > 0 && platerSwamped('bowls', true),
               swampedSake: !!STATION_OBJ.group && !sj && SAKE.want.length > 0 && platerSwamped('sake', true),
               pouredWait: poured ? minutesNow() - (SAKE_MIN.get(sj.guest) ?? minutesNow()) : -1 })
             for (const job of jobs) {
+              // (a takeaway: out by the gate nearest the till (the first), as a server takes one, and handed over or set on the stand)
+              if (job === 'box' && box && SERVE_COUNTER.out) {
+                boxClaimed.current.add(box.id)
+                w.box = box.id
+                helperGate.current = 0
+                out(kitchenRoute(homeOf(wi).at, SERVE_COUNTER.out), 'toBox')
+                return
+              }
               // (what's plated and has waited, both servers busy: over to the plating place for it, and out with it)
               if (job === 'food') {
                 w.slot = ready
@@ -5548,7 +5604,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         w.box = undefined
         // (the floor's server, who waits here anyway with nothing to do (item 722): stays, turned out to the room; walked back in to their
         // place, they came straight out again)
-        if (waitsByStand(duty)) { w.phase = 'idle'; w.waitAt = w.pos.clone(); w.yaw = home.yaw; w.t = 0; w.still = 0 }
+        // (not the second cook (item 1004): back to his board)
+        if (wi !== H && waitsByStand(duty)) { w.phase = 'idle'; w.waitAt = w.pos.clone(); w.yaw = home.yaw; w.t = 0; w.still = 0 }
         // (the way they came, from their place to here: walked from its end, here, back to its start (the owner's item 36: given from here,
         // they were back inside their gate the moment they set off, walked out to the stand again, and were at their place again, at a jump
         // each time, every takeaway the cashier handed over)
@@ -7314,7 +7371,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           </group>
         </group>
       ))}
-      {people && homes.map((_, i) => (
+      {/* (and one past the servers' for the second cook, out with a takeaway (item 1004): his place in the list is the one after theirs) */}
+      {people && [...homes, null].map((_, i) => (
         <group key={`box${i}`} ref={(o) => { waiterBoxes.current[i] = o }} visible={false}><KraftBag /></group>
       ))}
       {/* the bag being handed over by the cashier, from the stand over the till */}

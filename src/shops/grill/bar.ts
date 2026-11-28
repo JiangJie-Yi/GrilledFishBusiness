@@ -1307,9 +1307,18 @@ export const KITCHEN = keep(import.meta.hot, 'KITCHEN', {
   asked: new Map<number, string[]>(),
   got: new Map<string, number>(),
   cooking: null as null | { id: string; station: Station; t: number; of: number },
+  /** (item 1006) what's left at its station to cook by itself (the fryer's basket, the soup's pot: game/station's leftToCook), the third
+   * cook back to it at its end: whose, how far along (`t` of `of`), and where it's to go on the serving counter */
+  left: [] as { guest: number; seat: number; id: string; station: Station; of: number; t: number; row: number; more: { guest: number; seat: number }[] }[],
   seats: new Map<number, string[]>(),
   ver: 0,
 })
+/** (item 1006) what's cooking at a station, for its looks: the dish the third cook's at there, or one left there to cook by itself */
+export const cookingAt = (st: Station): { id: string; station: Station; t: number; of: number } | null => {
+  if (KITCHEN.cooking?.station === st) return KITCHEN.cooking
+  for (const l of KITCHEN.left) if (l.station === st) return l
+  return null
+}
 if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __kitchen: KITCHEN })
 /** the places with a bowl of rice set at them (as SOUP_SEATS has the soup's) */
 export const RICE_SEATS = keep(import.meta.hot, 'RICE_SEATS', new Set<number>())
