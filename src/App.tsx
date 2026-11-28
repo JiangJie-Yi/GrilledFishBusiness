@@ -87,7 +87,7 @@ import { CHEFS, type Chef } from '@/data/chefs'
 import { crowdPart, guestLabel, type CrowdPart } from '@/data/guests'
 import { activityOf, effective, isTired, restPerHour, ROLES, tireNow, workFatigue, type Role, type SkillId, type Worker as Hand } from '@/data/staff'
 import { BOSS_BODY, bossRest, bossTire } from '@/game/staff/bossStamina'
-import { CLOSE_AT, OPEN_AT, crewPay, hoursEnd, hoursText, inHours, isLate, lastCall, lateBy } from '@/game/world/hours'
+import { CLOSE_AT, OPEN_AT, buyingNow, crewPay, hoursEnd, hoursText, inHours, isLate, lastCall, lateBy } from '@/game/world/hours'
 import { cardFee, platformCut, rentDue } from '@/game/money/costs'
 import { GUIDE_KEY } from '@/game/play/firstDay'
 import { FirstDayGuide } from '@/ui/screens/FirstDayGuide'
@@ -2022,7 +2022,11 @@ export default function App() {
           const it = ALL_ITEMS.get(k) ?? d.bases.find((b) => b.id === k)
           return `${(it ? nameIn(lang, it) : null) ?? k} ${n}`
         }).join('、')))
-        const { buy, cost, fuel } = restockOrder(d, menuBy[d.id] ?? [], stockRef.current, money, effective(keeper, fatigue, LATE.on) * 100, use)
+        // (item 787: bought only from an hour and a half before the hours (game/hours' buyingNow); the rest of the day what's gone off is thrown
+        // out and nothing bought: from six in the morning on the chilled was bought at once, half gone by the opening and out the morning after)
+        const { buy, cost, fuel } = buyingNow(getClock().minute)
+          ? restockOrder(d, menuBy[d.id] ?? [], stockRef.current, money, effective(keeper, fatigue, LATE.on) * 100, use)
+          : { buy: {} as Record<string, number>, cost: 0, fuel: 0 }
         roundLeft.current[d.id] = { ...stockRef.current }
         for (const [k, n] of Object.entries(buy)) roundLeft.current[d.id][k] = (roundLeft.current[d.id][k] ?? 0) + n
         if (!cost && !fuel) continue
@@ -2548,7 +2552,9 @@ export default function App() {
     // (item 617: twenty to open, white rice and miso soup not counted, each kind its share: as many made as it's short of)
     const mix = menuMix(entriesOf(d.id), MENU_MIN[d.id] ?? 1)
     // (no menu yet: a lean few of each good, for the cooks to make one from)
-    const order = autoOpeningOrder(d, entriesOf(d.id), stock, cash, mix.ok)
+    // (item 787: bought only from an hour and a half before the hours (game/hours' buyingNow): after a night's close it bought at once, ten
+    // hours early, and what goes off was half gone by the opening)
+    const order = buyingNow(getClock().minute) ? autoOpeningOrder(d, entriesOf(d.id), stock, cash, mix.ok) : { buy: {} as Record<string, number>, cost: 0, fuel: 0 }
     if (order.cost + order.fuel > 0) {
       book('bought', order.cost)
       if (order.fuel) book('fuel', order.fuel)

@@ -1,7 +1,8 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
 import { DISHES } from '@/data/menu'
-import { LEAN_PAR, PAR, autoOpeningOrder, inPacks, keeperEvery, type Stock } from '@/game/money/economy'
+import { LEAN_PAR, NEW_SHOP_FROZEN, PAR, autoOpeningOrder, inPacks, keeperEvery, type Stock } from '@/game/money/economy'
+import { BUY_AHEAD, OPEN_AT, buyingNow } from '@/game/world/hours'
 import { storageOf } from '@/data/storage'
 import type { Entry } from '@/data/recipes'
 
@@ -28,7 +29,8 @@ feature('自動營運開店前的補貨：照菜單、會壞的少量', () => {
 feature('自動營運開店前，菜單還沒做好（新開局）', () => {
   scenario('庫存與菜單都是空的：每樣食材少量買一點，讓廚師有得挑來做菜單', ({ when, then, and }) => {
     when('自動營運開店前叫貨', (w) => { w.o = autoOpeningOrder(grill, [], {} as Stock, 1e9, false) })
-    then('冷凍的鯖魚補到標準量', (w) => { expect(w.o.buy.Mackerel).toBe(inPacks('Mackerel', PAR)) })
+    // (item 787: to PAR, ten of every fish the shop sells, those the menu didn't take went off two days on)
+    then(`冷凍的鯖魚也只買 ${NEW_SHOP_FROZEN} 份（湊整包）：菜單做好以後，菜單上的才補到標準量`, (w) => { expect(w.o.buy.Mackerel).toBe(inPacks('Mackerel', NEW_SHOP_FROZEN)) })
     and(`冷藏的雞肉串只買 ${LEAN_PAR.chilled} 份（湊整包）`, (w) => { expect(w.o.buy.Yakitori).toBe(inPacks('Yakitori', LEAN_PAR.chilled)) })
     and(`常溫的馬鈴薯只買 ${LEAN_PAR.ambient} 份（湊整包）`, (w) => { expect(w.o.buy.Potato).toBe(inPacks('Potato', LEAN_PAR.ambient)) })
     and('店裡賣的每樣食材都有買到', (w) => { for (const g of grill.items) expect(w.o.buy[g.id] ?? 0).toBeGreaterThan(0) })
@@ -36,6 +38,17 @@ feature('自動營運開店前，菜單還沒做好（新開局）', () => {
   scenario('已經有一點的不再買', ({ when, then }) => {
     when('雞肉串已經有 5 份', (w) => { w.o = autoOpeningOrder(grill, [], { Yakitori: 5 } as Stock, 1e9, false) })
     then('雞肉串不買', (w) => { expect(w.o.buy.Yakitori).toBeUndefined() })
+  })
+})
+
+// (item 787, the owner's 「幫我測一下自動模式可以撐幾天」: bought from six in the morning on, after a night's close, the chilled was half
+// gone by the opening and thrown out the morning after, and ordered again at once, every day)
+feature('什麼時候進貨：開店前一個半小時起，到收店為止', () => {
+  scenario('營業時間 16:30 到 04:30', ({ then, and }) => {
+    then(`開店前 ${BUY_AHEAD} 分鐘（15:00）起就可以進貨`, () => { expect(buyingNow(OPEN_AT - BUY_AHEAD)).toBe(true); expect(buyingNow(15 * 60)).toBe(true) })
+    and('14:59 以前不進貨', () => { expect(buyingNow(14 * 60 + 59)).toBe(false); expect(buyingNow(11 * 60)).toBe(false) })
+    and('營業中（深夜也是）照樣進貨', () => { expect(buyingNow(20 * 60)).toBe(true); expect(buyingNow(2 * 60)).toBe(true) })
+    and('收店以後（04:30 起）到隔天下午都不進貨', () => { expect(buyingNow(4 * 60 + 30)).toBe(false); expect(buyingNow(6 * 60)).toBe(false) })
   })
 })
 
