@@ -345,7 +345,7 @@ const mouthOf = (r: THREE.Object3D, only?: (o: THREE.Object3D) => boolean) => {
 const ROLL_FROM = 1.35, ROLL_RATE = 4
 export function ProduceSacks() {
   const gltf = useGLTF(PRODUCE_URL) as unknown as { scene: THREE.Group }
-  const { obj, piles, sacks } = useMemo(() => {
+  const { obj, piles, heaps, sacks } = useMemo(() => {
     // (the owner's, 2026-11-12: the sacks over to the right (the stepped stand of baskets they were moved toward is gone, the owner's, 11-15): each part of the model
     // moved as it stands in a copy of it BEFORE partOf draws its ink line (one welded line round all of them: moved after, it stayed where the parts
     // were, black scraps all about the sacks), the sacks (and what's in them) along the row)
@@ -364,20 +364,23 @@ export function ProduceSacks() {
     // leaves, as the basket's vegetables were before item 153)
     const r = partOf(holder, 'ProduceSacks', 0.0022, (o) => piled(o) || ownSack(o))
     r.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = true })
-    // (each sack's pieces one mesh and one ink line cut to as many as there's stock for, the topmost going first (countedBatch, as the
-    // charcoal sack's sticks); the onions' roots taken off them and done the same, in the same order)
+    // (the three sacks' heaps one pile, a mesh for each material and one ink line for all of them (pileBatch, item 804: each sack's heap a mesh
+    // and a line, its onions' roots another, some 22 draws stocked), each heap shown to as many as there's stock for, the topmost going
+    // first; an onion's root with it, taken off it as they were before)
+    const items: THREE.Mesh[][] = []
     const piles = PILES.map(({ id, re }) => {
       const pieces: THREE.Mesh[] = []
       r.traverse((o) => { if (re.test(o.name) && (o as THREE.Mesh).isMesh) pieces.push(o as THREE.Mesh) })
       pieces.sort((a, b) => pileRank(b.name) - pileRank(a.name) || a.name.localeCompare(b.name))
-      const roots = pieces.map((q) => q.children.find((c) => (c as THREE.Mesh).isMesh && /Root$/.test(c.name)) as THREE.Mesh | undefined)
-      const kept = roots.filter((x): x is THREE.Mesh => !!x)
-      for (const x of kept) r.attach(x)
-      // (the roots of the first so many pieces shown: the heap has none, so not one for every piece any more)
-      const rooted = roots.map((x) => !!x)
-      const rootsOf = (n: number) => rooted.slice(0, n).filter(Boolean).length
-      return { id, all: pieces.length, body: countedBatch(r, pieces), roots: kept.length ? countedBatch(r, kept) : null, rootsOf, shown: -1 }
+      const at = pieces.map((q) => {
+        const root = q.children.find((c) => (c as THREE.Mesh).isMesh && /Root$/.test(c.name)) as THREE.Mesh | undefined
+        if (root) r.attach(root)
+        items.push(root ? [q, root] : [q])
+        return items.length - 1
+      })
+      return { id, all: pieces.length, at, shown: -1 }
     })
+    const heaps = pileBatch(r, items)
     // (each open sack gathered into a group of its own, its origin at the middle of its foot, merged by material (its cloth, its floor, its
     // twine); the piles' order is the sacks': potatoes, sweet potatoes, onions)
     r.updateMatrixWorld(true)
@@ -401,7 +404,7 @@ export function ProduceSacks() {
       // (its mouth, where a delivery's put in (item 607))
       return { g, k: 0, e, ek: 0, mouth: r.worldToLocal(box.getCenter(new THREE.Vector3()).setY(box.max.y)) }
     })
-    return { obj: r, piles, sacks }
+    return { obj: r, piles, heaps, sacks }
   }, [gltf])
   // (dev: the piles' counts and the sacks' slumps, for the probes (item 607))
   useEffect(() => { if (import.meta.env?.DEV) Object.assign(window, { __produce: { piles, sacks } }) }, [piles, sacks])
@@ -413,8 +416,8 @@ export function ProduceSacks() {
       const next = sk && sk.k > 0.25 && n > p.shown && p.shown >= 0 ? p.shown : fillToward(p.shown, n, p.all, dt)
       const went = landed(p.shown, next)
       if (p.shown < 0 || Math.floor(next) !== Math.floor(p.shown)) {
-        p.body.show(Math.floor(next))
-        p.roots?.show(p.rootsOf(Math.floor(next)))
+        const m = Math.floor(next)
+        p.at.forEach((item, j) => heaps.show(item, j < m))
       }
       p.shown = next
       if (went && sk) putIn(obj, sk.mouth, went, Math.floor(next) >= n)
