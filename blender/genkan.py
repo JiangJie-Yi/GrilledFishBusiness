@@ -137,6 +137,12 @@ def noren():
         sol = pnl.modifiers.new("t", "SOLIDIFY"); sol.thickness = 0.003
         bpy.context.view_layer.objects.active = pnl
         bpy.ops.object.modifier_apply(modifier="t")
+        # (hard where it folds over 75 degrees, round its 3 mm edges, smooth over its folds (61 degrees at most between two of their faces);
+        # all smooth, its edges were shaded round, the cloth's thickness a blur (item 901, after item 956's list); its tabs, joined after,
+        # stay round)
+        bpy.ops.object.select_all(action="DESELECT")
+        pnl.select_set(True)
+        bpy.ops.object.shade_smooth_by_angle(angle=math.radians(75))
         # (its tabs: three loops of the same cloth over the rod)
         tabs = []
         for t in (-0.38, 0, 0.38):
