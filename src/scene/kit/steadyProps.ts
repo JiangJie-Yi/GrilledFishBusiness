@@ -67,3 +67,10 @@ export function steady<P extends object>(C: ComponentType<P>): ComponentType<P> 
   S.displayName = `Steady(${C.displayName || C.name || 'anon'})`
   return S
 }
+
+/** a value made afresh at each drawing (a new array or object of the same things) kept as it was while what comes is alike to it */
+export function useAlike<T>(v: T): T {
+  const kept = useRef(v)
+  if (!alike(kept.current, v)) kept.current = v
+  return kept.current
+}

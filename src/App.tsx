@@ -2,7 +2,8 @@ import { KITCHEN_IDS, entriesBySection } from '@/data/kitchenDishes'
 import { personName } from '@/data/people'
 import { setTip } from '@/scene/interact/hoverTip'
 import { useLowPower } from '@/scene/render/power'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type UIEvent } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type UIEvent } from 'react'
+import { useAlike, useSteady } from '@/scene/kit/steadyProps'
 import { flushSync } from 'react-dom'
 import { Canvas } from '@react-three/fiber'
 import { FpsMeter } from '@/scene/render/FpsMeter'
@@ -210,6 +211,15 @@ const SAVED: Saved | null = (() => {
   if (drawer) TILL_CASH.drawer = drawer
   return back
 })()
+
+// (item 804: with the shop open the page is drawn again two or three times a second (the ledger, the talk, the customers), and the menu board
+// and the first day's guide were drawn again with it, handed their callbacks made afresh though nothing they show had changed: these drawn again
+// only when what they're handed has (the page's props for them held steady, below). Not the 3D scene: held back from the page's drawing, its
+// models' Suspense boundaries, while the shop loads, were only ever tried again on their own, each try cut short by the page's next drawing and
+// begun again from nothing, its models built anew each time (in development 1.6 million geometries made by the time the veil lifted, against
+// 0.14 million, and the heap held at 1.3 GB))
+const MenuM = memo(Menu)
+const FirstDayGuideM = memo(FirstDayGuide)
 
 export default function App() {
   const [active, setActive] = useState(0)
@@ -1863,7 +1873,7 @@ export default function App() {
   // a phone has no 3D view: a card says the game isn't open on phones yet (PhoneClosed)
   // (by the screen's size: a tablet, touch screen or not, keeps the 3D grill)
   const flatGrill = phone && !!dish.roast
-  const sceneOffFire = (n: number, loose: number) => { setOffFire(n); setLoose(loose) }
+  const sceneOffFire = (n: number, now: number) => { offFire.current = n; loose.current = now }
   const sceneNotice = (what: 'notCooked' | 'burnt' | 'waste' | 'fireFull' | 'offTable' | 'heapFull' | 'needSkewer' | 'binBurnt') => say(what === 'fireFull' ? UI[lang].fireFull(FIRE_CAPACITY) : UI[lang][what])
   const sceneOrder = (id: string, guest?: number, reuse = false) => {
     const ok = changeQty(id, 1, reuse)
@@ -2607,9 +2617,11 @@ export default function App() {
   }
   const MAX_PORTIONS = 99
   // the fire only holds so many skewers; past that, take something off before ordering more
-  const [offFire, setOffFire] = useState(0)
+  // (item 804: kept, not drawn: only an order asks them, as it's placed; as state each change drew the page again, a third of its drawing with
+  // the shop open)
+  const offFire = useRef(0)
   // potatoes and sweet potatoes still around (in the ash or the basket, not yet eaten)
-  const [loose, setLoose] = useState(0)
+  const loose = useRef(0)
   const [notice, setNotice] = useState<string | null>(null)
   const noticeTimer = useRef(0)
   /** the game started over: every save cleared, the page loaded fresh (the shop menu's 重新開始 after it asks; the closing-down sheet's
@@ -2668,7 +2680,7 @@ export default function App() {
     if (!dish.roast) return 0
     const served = servings(dish, orders[dish.id])
     const total = Object.entries(served).reduce((n, [id, q]) => n + (isSkewer(id) ? q : 0), 0)
-    return total - offFire
+    return total - offFire.current
   }
 
   /** `reuse`: the portion's one already put out and eaten, made again (the open shop's kitchen reuses them): paid for and taken from stock
@@ -2721,7 +2733,7 @@ export default function App() {
     // the bamboo basket only holds so many potatoes and sweet potatoes
     const basket = dish.roast?.basket
     const addsLoose = Object.entries(adds).reduce((n, [k, q]) => n + (dish.roast?.basketItems?.includes(k) ? q : 0), 0)
-    if (delta > 0 && basket && addsLoose && loose + addsLoose > basket.capacity) {
+    if (delta > 0 && basket && addsLoose && loose.current + addsLoose > basket.capacity) {
       say(UI[lang].basketFull(basket.capacity))
       return false
     }
@@ -2842,6 +2854,29 @@ export default function App() {
     const e = Object.values(menuByRef.current).flat().find((x) => x.key === key)
     return !!e && orderEntryRef.current(e, guest, reuse, atTill, warm)
   }, [])
+  // (item 804: what the menu board, the first day's guide and the staff's pop-up are handed, held steady from one drawing of the page to the
+  // next: the callbacks (called on events) each one function calling the latest one (useSteady); what's made afresh each time kept while it's
+  // alike)
+  const menuEv = useSteady({ onBuy: (id: string, n: number) => buyIn(dish, id, n), onRestock: (how: Restock) => restock(dish, how), onClose: () => setFridgeOpen(false),
+    onAdd: (id: string) => changeQty(id, 1), onRemove: (id: string) => changeQty(id, -1), onClear: putAllBack })
+  // (the board's foods: worked out from the shop and its menu (entriesOf), nothing else)
+  const menuBoard = useMemo(() => (hand ? researchDish(dish) : menuDish(dish)), [hand, dish, menuBy])
+  const menuLayout = useMemo(() => (hand ? undefined : { tags: researchDish(dish).bases.length + researchDish(dish).items.length, bases: researchDish(dish).bases.length }),
+    [hand, dish])
+  const menuCost = useCallback((id: string) => costOf(ALL_ITEMS.get(id) ?? dish.bases.find((b) => b.id === id) ?? { price: 0 }), [dish])
+  // (the guide's count of the steps done: worked out only while it's up)
+  const guideShop = useAlike(guide ? { kinds: dish.items.filter((it) => (stock[it.id] ?? 0) > 0).length, cooks: cooksNow(dish).length,
+    // (the menu's step done when the menu can open (item 617): twenty counted and each kind its share)
+    menu: ((m) => (m.ok ? m.min : Math.min(m.n, m.min - 1)))(menuMix(entriesOf(dish.id), MENU_MIN[dish.id] ?? 1)),
+    menuMin: MENU_MIN[dish.id] ?? 1, open: ai, inHours: guideHours, sold: ledger.revenue > 0 } : null)
+  const guideEv = useSteady({ onSkipTime: () => setClock({ ...getClock(), minute: OPEN_AT }) })
+  // (the one clicked in the room (staffPop), as the pop-up's buttons are pressed)
+  const popWho = () => (staffPop ? staffOf(dish.id).find((x) => x.id === staffPop.id) : undefined)
+  const popEv = useSteady({
+    onPraise: () => { const w = popWho(); if (w) praise(dish.id, w); setStaffPop(null) },
+    onUrge: () => { const w = popWho(); if (w) urge(dish.id, w); setStaffPop(null) },
+    onAfter: (id: string) => { const w = popWho(); if (w) afterWith(dish.id, w, id as AfterId); setStaffPop(null) },
+  })
   // (a phone: its card alone (PhoneClosed), the game going on unseen as it did; the shop's panels, buttons and boards laid out under the card
   // asked for every subset of the shop's lettering in both its weights, 2.3 MB of fonts, item 516)
   if (flatGrill) return <PhoneClosed lang={lang} />
@@ -3189,15 +3224,16 @@ export default function App() {
       {/* (the right-hand board only once the shop's open: its menu; the stock is the stock panel's, below) */}
       {ai && (<>
       <div className="menu-backing" aria-hidden="true" />
-      <Menu key={dish.id + (hand ? '' : '-menu')} dish={hand ? researchDish(dish) : menuDish(dish)} research={hand} open={ai}
-        layoutLike={!hand ? { tags: researchDish(dish).bases.length + researchDish(dish).items.length, bases: researchDish(dish).bases.length } : undefined}
-        cash={cash} unitCost={(id) => costOf(ALL_ITEMS.get(id) ?? dish.bases.find((b) => b.id === id) ?? { price: 0 })} days={days}
-        onBuy={!hand ? undefined : (id, n) => buyIn(dish, id, n)} onRestock={!hand ? undefined : (how) => restock(dish, how)} onClose={hand ? () => setFridgeOpen(false) : undefined}
-        restockCost={restockCostNow}
+      {/* (the cash and the restocks' costs only for buying in, researching: the open board doesn't show them, nor drawn again as they change) */}
+      <MenuM key={dish.id + (hand ? '' : '-menu')} dish={menuBoard} research={hand} open={ai}
+        layoutLike={menuLayout}
+        cash={hand ? cash : undefined} unitCost={menuCost} days={days}
+        onBuy={!hand ? undefined : menuEv.onBuy} onRestock={!hand ? undefined : menuEv.onRestock} onClose={hand ? menuEv.onClose : undefined}
+        restockCost={hand ? restockCostNow : undefined}
          lang={lang} quantities={hand ? orders[dish.id] : entryCount}
         feed={feed} locked={!hand} stock={hand ? stock : entryStockNow} fresh={fresh}
-        onAdd={(id) => changeQty(id, 1)} onRemove={(id) => changeQty(id, -1)}
-        onClear={putAllBack} />
+        onAdd={menuEv.onAdd} onRemove={menuEv.onRemove}
+        onClear={menuEv.onClear} />
       </>)}
       {/* (developer mode's character viewer, on the right: every figure on a turntable (the owner's: it comes with G)) */}
       {editOn && !phone && <CharacterViewer lang={lang} />}
@@ -3324,13 +3360,8 @@ export default function App() {
       {daySum && <DaySummary s={daySum.s} day={daySum.day} hours={[daySum.from, daySum.to]} goal={daySum.goal} goalMade={daySum.made} streak={daySum.streak} broke={daySum.broke} lang={lang} onClose={dayDone}
         nameOf={(key) => { const e = Object.values(menuByRef.current).flat().find((x) => x.key === key); return e ? nameIn(lang, e) : key }} />}
       <HoverTip hidden={editOn} />
-      {guide && !editOn && !flatGrill && (
-        <FirstDayGuide lang={lang} takings={ledger.revenue}
-          // (the menu's step done when the menu can open (item 617): twenty counted and each kind its share)
-          shop={{ kinds: dish.items.filter((it) => (stock[it.id] ?? 0) > 0).length, cooks: cooksNow(dish).length,
-            menu: ((m) => (m.ok ? m.min : Math.min(m.n, m.min - 1)))(menuMix(entriesOf(dish.id), MENU_MIN[dish.id] ?? 1)),
-            menuMin: MENU_MIN[dish.id] ?? 1, open: ai, inHours: guideHours, sold: ledger.revenue > 0 }}
-          onSkipTime={() => setClock({ ...getClock(), minute: OPEN_AT })} onDone={guideDone} />
+      {guide && guideShop && !editOn && !flatGrill && (
+        <FirstDayGuideM lang={lang} takings={ledger.revenue} shop={guideShop} onSkipTime={guideEv.onSkipTime} onDone={guideDone} />
       )}
       {/* (something to try today, from the second day, while the shop's shut (ui/DayTip, item 175)) */}
       {(() => {
@@ -3362,8 +3393,7 @@ export default function App() {
                 : tl(lang, `上班滿 ${PRAISE_AFTER_H} 小時後才能稱讚`, `${PRAISE_AFTER_H} 時間働いてから褒められる`, `Praise after ${PRAISE_AFTER_H} hours on`)}
             urgeWait={w ? urgeWait(URGED.get(w.id), performance.now()) : 0}
             after={after}
-            onPraise={() => { if (w) praise(dish.id, w); setStaffPop(null) }} onUrge={() => { if (w) urge(dish.id, w); setStaffPop(null) }}
-            onAfter={(id) => { if (w) afterWith(dish.id, w, id as AfterId); setStaffPop(null) }} onClose={closeStaffPop} />
+            onPraise={popEv.onPraise} onUrge={popEv.onUrge} onAfter={popEv.onAfter} onClose={closeStaffPop} />
         )
       })()}
       <TillPanel lang={lang} open={tillOpen} cash={cash} read={tillDrawer} locked={tillLocked} onTake={tillTake} onTakings={tillTakings} onAll={tillAll}
