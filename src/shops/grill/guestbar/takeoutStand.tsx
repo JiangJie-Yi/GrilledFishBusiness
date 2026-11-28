@@ -31,7 +31,9 @@ export const WaitingBench = memo(function WaitingBench() {
       m.castShadow = true
       m.receiveShadow = true
     })
-    inkModel(r, () => false, { width: 0.0016, weld: true })
+    // (its crossed rattan strips (item 789, blender/bench.py's lash_x) left out of its ink shell: thin open ribbons a few millimetres off the
+    // legs, their shell's points swelled into black spikes, as the serve counter's cloth's corners did (item 820))
+    inkModel(r, (m) => /BenchRattan/.test((m.material as THREE.Material).name), { width: 0.0016, weld: true })
     return mergeByMaterial(r)
   }, [gltf])
   // (item 778, the owner's 「等候椅改的很怪，改回來」: the runner item 763 laid on its seat taken off again, its woven seat bare as it was)
