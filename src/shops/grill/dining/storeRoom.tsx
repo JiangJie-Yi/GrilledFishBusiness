@@ -528,7 +528,7 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
       posts.push(next ? [(ops[i][1] + next[0]) / 2 - Math.max(STORE_POST, next[0] - ops[i][1]) / 2, (ops[i][1] + next[0]) / 2 + Math.max(STORE_POST, next[0] - ops[i][1]) / 2]
         : [ops[i][1], ops[i][1] + STORE_POST])
     }
-    return { posts, fillers, headY, headTop, z0: Math.min(ops[0][0], door[0] - STORE_POST), z1: ops[ops.length - 1][1] + STORE_POST }
+    return { posts, fillers, headY, headTop, z0: Math.min(ops[0][0], door[0] - STORE_POST), z1: ops[ops.length - 1][1] + STORE_POST, ops }
   }, [fridges, door])
   const [z0, z1] = room
   // (its far end the men's toilet's room's end wall (its outside, 4 mm on), as deep as that room; past it a short wall of its own on to the
@@ -650,6 +650,22 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
         {frame?.fillers.map(([a, b]) => (
           <mesh key={`ff${a}`} position={[-FRIDGE_GAP + 0.003 - 0.024, FRIDGE.H / 2, (a + b) / 2]}><boxGeometry args={[0.048, FRIDGE.H, b - a]} /><meshToonMaterial color="#1d1e21" /></mesh>
         ))}
+        {/* (the foot of the fridges' openings filled (item 952, the owner's 「這邊需填滿」, a red box along their foot from over the stock
+            room): their backs stand 6 mm in from the wall's face on the shop's side (item 746), the wall 21 cm thick, so a slot as deep ran
+            along their foot from the stock room, its floor seen down it from above. A plinth of the frame's dark wood in each, from 2.5 mm
+            into the floor to 7 mm under the restock doors' foot (0.193), from 2 mm off the fridge's back (and off the strip between two
+            side by side, 3 mm proud of it, the plinth between them meeting theirs end to end) to 4 mm proud of the wall's inner face: the doors slide over it as they did, the stocker's reach
+            from the lowest shelf up as it was) */}
+        {frame?.ops.map(([a, b]) => (
+          <mesh key={`fp${a}`} position={[(-FRIDGE_GAP + 0.002 + WALL_OUT + 0.004) / 2, (0.004 + FRIDGE_FOOT) / 2, (a + b) / 2]}>
+            <boxGeometry args={[WALL_OUT + 0.004 - (-FRIDGE_GAP + 0.002), FRIDGE_FOOT - 0.004, b - a - 0.004]} /><meshToonMaterial color="#35200f" />
+          </mesh>
+        ))}
+        {frame?.fillers.map(([a, b]) => (
+          <mesh key={`fq${a}`} position={[(-FRIDGE_GAP + 0.005 + WALL_OUT + 0.004) / 2, (0.004 + FRIDGE_FOOT) / 2, (a + b) / 2]}>
+            <boxGeometry args={[WALL_OUT + 0.004 - (-FRIDGE_GAP + 0.005), FRIDGE_FOOT - 0.004, b - a]} /><meshToonMaterial color="#35200f" />
+          </mesh>
+        ))}
         {/* (the noren's rod on its two brackets taken away (item 709, the owner's red box): the noren hangs where it did, from the rod in its
             top band's sleeve, out of sight) */}
       </StaticBatch>
@@ -701,6 +717,8 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
     </group>
   )
 }
+/** the plinth's top in the fridges' openings' foot (item 952): 7 mm under their restock doors' foot (blender/drinkfridge.py's HY0 + HG) */
+const FRIDGE_FOOT = 0.193 - 0.007
 /** how high the doorway's sill stands over the shop's boards (item 803: low enough for the stocker to walk over, his feet on the floor) */
 const SILL_H = 0.013
 /**
