@@ -74,7 +74,10 @@ def near(x0, x1, y0, y1, z0, z1, m):
 # planter now (the facade's panel and the wall over it, x under 0.525 back from z 0.49), 2 cm clear; the way in before the door (x under
 # its post's 0.47, out to the street), 2 cm clear: its leaves hung over the door's half, in the customers' way; the eave's rafters'
 # underside at 2.35 over all of it, 2 cm clear)
-KEEP_OUT = [near(0.73, 0.99, 0.94, 2.19, 0.21, 0.81, 0.045), near(-1.0, 0.525, -0.46, 2.4, -1.0, 0.49, 0.02),
+# (item 824, the owner's 「竹子不要碰到燈籠魚」: 4.5 cm clear of the lantern's box its leaves were, its culms 5 cm, and from in front, the
+# street's side, the clump and the fish read as one, the culms and the leaves through it: 10 cm clear now, the culms in at the box's side
+# by the building)
+KEEP_OUT = [near(0.73, 0.99, 0.94, 2.19, 0.21, 0.81, 0.10), near(-1.0, 0.525, -0.46, 2.4, -1.0, 0.49, 0.02),
             near(-1.5, 0.47, -0.46, 2.4, 0.45, 1.6, 0.02)]
 CEILING = 2.33 - AT[1]
 
@@ -238,8 +241,10 @@ def door_bamboo():
     # from y 0.94, 4.5 cm clear): standing all but straight across, leaning out to the street (+z); their branches find their own way out)
     # (item 737: in toward the box's middle, the feet 2.5 cm to the building's side of it on average (7.5 cm before), leaning the door's way
     # a little as they rise, to pass the fish lantern's box (from 1.36 up over the box's other half) and out to the street)
-    culms = [((-0.03, -0.04), 2.35, (-0.07, 0.12), 0.022), ((0.0, 0.035), 2.15, (-0.12, 0.22), 0.02),
-             ((-0.05, 0.075), 1.95, (-0.05, 0.28), 0.018), ((-0.02, -0.085), 1.55, (-0.03, -0.04), 0.016)]
+    # (item 824: their feet 7 cm further to the building's side, against the box's inner wall there, so they rise 10 cm clear of the
+    # fish lantern's box (they were 5 cm))
+    culms = [((-0.1, -0.04), 2.35, (-0.07, 0.12), 0.022), ((-0.07, 0.035), 2.15, (-0.1, 0.22), 0.02),
+             ((-0.115, 0.075), 1.95, (-0.04, 0.28), 0.018), ((-0.09, -0.085), 1.55, (-0.03, -0.04), 0.016)]
     # (which way is out (item 737): away from the door and the building's side, to the street)
     OUT = math.atan2(1.0, 0.6)
     # (each culm's middle kept clear of the lantern's box and the building's side, its girth with it: said, not made, if not)
