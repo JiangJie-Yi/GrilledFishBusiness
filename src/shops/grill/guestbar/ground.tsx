@@ -30,6 +30,9 @@ import { skyNow } from '@/shops/grill/dining/ambient'
  * foot (-0.453: they stand in it, as the building's base and the door's bamboo do); the curb's top, 3.5 cm over the gravel; the stepping
  * stones' top, 1.2 cm over it */
 export const EARTH_Y = -0.462
+/** (item 834) how wet the ground out front is now (0 dry .. 1 soaked, game/world/puddles' groundWet, eased): the way in's stone steps and
+ * the stone plinth darken with it as the earth and the gravel do (floors.tsx) */
+export const GROUND_WET = { k: 0 }
 export const GRAVEL_Y = -0.4535
 const CURB_TOP = GRAVEL_Y + 0.035, STEP_TOP = GRAVEL_Y + 0.012
 /** the curb's width, its stones' length (each up to CURB_SPREAD of it longer or shorter), their joint */
@@ -630,6 +633,7 @@ export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut
     const k = Math.min(1, dt * 2.5)
     const fill = w.fill < 0 ? w.want.puddles : w.fill + (w.want.puddles - w.fill) * k
     const damp = w.damp < 0 ? w.want.damp : w.damp + (w.want.damp - w.damp) * k
+    GROUND_WET.k = damp
     if (Math.abs(damp - w.damp) > 1e-3) {
       // (wet earth darker, the gravel and the curb a little darker with it)
       made.earthMat.color.setRGB(1 - 0.4 * damp, 1 - 0.42 * damp, 1 - 0.44 * damp)
