@@ -2190,6 +2190,8 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       const mine = pieces.current.filter((p) => p.guest === o.id && p.container === 'takeout' && !p.eaten)
       o.packed = mine.filter((p) => p.flight >= 1 && !p.carried).length
       o.ready = o.packed >= o.items
+      // (item 1004: when it was all packed, by the game's clock: how long it's waited for someone to take it out)
+      if (o.ready && o.readyMin === undefined) o.readyMin = minutesNow()
       if (o.taken && g.state === 'waiting') {
         for (const p of mine) { p.eaten = true; p.slot = null }
         g.state = 'done'
@@ -2360,11 +2362,14 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       // (or hurried out half an hour past closing (SHOP.hurry), nothing before them: up to pay for what they've had, the rest refunded)
       // (or sat their time out (game/stay, item 207): up to pay for what they've had, the rest given back)
       // (item 838: nor hurried out with their food done and on its way to them (ON_ITS_WAY): they eat it, quickly, and go)
-      if ((g.state === 'eating' && !FED.has(g.id) && gaveUpOnNext(g.lastAte ?? now, now)) || (SHOP.hurry && !FED.has(g.id) && !ON_ITS_WAY.has(g.id))
-        || (g.ate.length > 0 && !FED.has(g.id) && overstayed(g.since, now))) {
+      // (item 1005: nor sent off at their time, nor giving up on the rest, with a dish, their bowls or their tokkuri on its way: the Tester
+      // window's 874 saw a tokkuri set down the very minute its customer was sent off)
+      const coming = ON_ITS_WAY.has(g.id)
+      if ((g.state === 'eating' && !FED.has(g.id) && !coming && gaveUpOnNext(g.lastAte ?? now, now)) || (SHOP.hurry && !FED.has(g.id) && !coming)
+        || (g.ate.length > 0 && !FED.has(g.id) && !coming && overstayed(g.since, now))) {
         const owed = [...g.orders]
         for (const a of g.ate) owed.splice(owed.indexOf(a), 1)
-        const why = SHOP.hurry && !FED.has(g.id) && !ON_ITS_WAY.has(g.id) ? 'hurry' : g.state === 'eating' && gaveUpOnNext(g.lastAte ?? now, now) ? 'next' : 'stay'
+        const why = SHOP.hurry && !FED.has(g.id) && !coming ? 'hurry' : g.state === 'eating' && gaveUpOnNext(g.lastAte ?? now, now) ? 'next' : 'stay'
         g.state = 'done'
         if (!SHOP.hurry || g.ate.length === 0) gripe(g.id, 'wait')
         onWalkOut?.(owed, g.id, why)

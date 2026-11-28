@@ -404,6 +404,7 @@ def bits():
     add("WcTowelBox", so, "TowelSlot", M["towelgap"], False)
     # ---- the Otohime (音姫): a little white box, a sakura flower on its face, a speaker grille, a round sensor with a blue ring that lights
     node("WcOtohime")
+    # (its rounded edges four steps: at three (item 901) an outline showed along its top edge)
     add("WcOtohime", rbox("OtoBody", (0.095, 0.13, 0.035), (0, 0, 0.0175), 0.012, 4), "OtoBody", M["oto"])
     # (the sensor and its ring 20 round, the ring's tube four (item 731): 32 round by six it was 384 triangles for a ring 4.6 cm across, the
     # low-poly rule's 24 over; at 20 the circle is 0.3 mm off at most, the ring lit flat in the game)
@@ -443,7 +444,8 @@ def bits():
     pot = lathe_oval("BrushPot", [(0.0, 0.0), (0.05, 0.0), (0.056, 0.01), (0.05, 0.16), (0.054, 0.17), (0.046, 0.17), (0.04, 0.03), (0.0, 0.03)], 1, 1, 20, 0, 0)
     add("WcBrushPot", pot, "BrushPot", M["pot"])
     node("WcBrush")
-    add("WcBrush", tube("BrushHandle", [(0.0, 0.05, 0.0), (0.0, 0.2, 0.0), (0.004, 0.33, 0.0)], 0.007), "BrushHandle", M["pot"])
+    # (two steps a span (item 901): straight but for a lean at its top, it was twenty steps along, 400 triangles)
+    add("WcBrush", tube("BrushHandle", [(0.0, 0.05, 0.0), (0.0, 0.2, 0.0), (0.004, 0.33, 0.0)], 0.007, ru=2), "BrushHandle", M["pot"])
     # (an icosphere: a uv sphere's poles were fans of 16)
     bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=2, radius=0.034, location=P(0.0, 0.06, 0.0))
     o = active()
@@ -465,6 +467,7 @@ def bits():
     add("WcPads", lathe_oval("PadBasket", [(0.0, 0.0), (0.05, 0.0), (0.054, 0.004), (0.057, 0.048), (0.053, 0.05), (0.05, 0.01), (0.0, 0.01)],
                              1.45, 0.8, 20, 0, 0.05), "PadBasket", M["rattan"])
     for k, (c, lean) in enumerate((("padPink", -0.12), ("padWhite", -0.05), ("padLilac", 0.02), ("padPink", 0.06), ("padWhite", 0.1), ("padLilac", 0.16))):
+        # (their wrappers' edges two bevel steps: at one (item 901) their tops' corners showed cut, not round)
         o = rbox(f"Pad{k}", (0.013, 0.064, 0.05), (-0.052 + k * 0.021, 0.042, 0.05), 0.005, 2)
         o.rotation_euler = (0, lean, 0)
         add("WcPads", o, f"Pad{k}", M[c])

@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { feature, scenario } from './bdd'
 import { KITCHEN_DISHES, SECTIONS, bySection, sectionOf } from '@/data/kitchenDishes'
-import { batchSeconds, canCook, cookSeconds, extrasOf, kitchenBatch, sideAllowed, stationOf, stepOf } from '@/game/kitchen/station'
+import { batchSeconds, canCook, cookSeconds, extrasOf, FINISH_S, kitchenBatch, leftToCook, LOAD_S, sideAllowed, stationOf, stepOf } from '@/game/kitchen/station'
 import { costOf } from '@/game/money/economy'
 import { EGG, FRYOIL, GARNISH_GOODS, GARNISH_PAR, NORI, startingSupplies } from '@/game/stock/supplies'
 import { dishOf, oneOfEach, partEn, partName } from '@/data/recipes'
@@ -148,5 +148,21 @@ feature('爐子、油炸台與手卷的菜', () => {
       expect(partName({ name: '秋刀魚', en: 'Saury' }, '秋刀魚', 'Saury', [], 'zh', 'grill')).toBe('烤秋刀魚')
       expect(partEn('Saury', [], 'grill', 'Saury')).toBe('Grilled Saury')
     })
+  })
+})
+feature('炸鍋與湯鍋下鍋後不用一直顧著（第 1006 項，Tester 第 874 列：三廚一半的時間站在站上，一次一份，廚房菜排 62～88 分才開始做）', () => {
+  scenario('炸鍋的籃子放下、湯鍋放上去以後，三廚可以去做別的', ({ then, and }) => {
+    then('薯條、天婦羅、蛋花湯放著自己煮', () => {
+      for (const id of ['Fries', 'Tempura', 'EggDropSoup']) expect(leftToCook(id)).toBe(true)
+    })
+    and('玉子燒、蛋包飯、手卷要一直動手', () => {
+      for (const id of ['Tamagoyaki', 'Omurice', 'HandRoll']) expect(leftToCook(id)).toBe(false)
+    })
+  })
+  scenario('放著煮的菜，下鍋與起鍋各要他站一下，中間他不在', ({ then, and }) => {
+    then('下鍋與起鍋加起來比整道菜短得多', () => {
+      for (const id of ['Fries', 'Tempura', 'EggDropSoup']) expect(LOAD_S + FINISH_S).toBeLessThan(cookSeconds(id) / 3)
+    })
+    and('不是廚房菜的東西不算', () => { expect(leftToCook('Saury')).toBe(false) })
   })
 })

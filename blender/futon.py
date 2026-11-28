@@ -181,16 +181,18 @@ make("FutonKake", "kake", lambda bm, uvl: grid_slab(bm, uvl, KW, KL, kake_top, S
 
 # ---------------------------------------------------------------- the pillow: a soft roll, its ends rounded
 def pillow(bm, uvl):
-    segs, rings = 10, 6
+    # (its rings along it: its ends a small cap each (a ladder, a quarter of its girth), a ring a little further in to keep them round;
+    # they went to a point once, ten triangles fanned into it, a dark blotch (the iron rule: close the ring beside the axis, not a point))
+    segs = 10
+    ts = (0.005, 0.05, 0.2, 0.35, 0.5, 0.65, 0.8, 0.95, 0.995)
     vs = []
-    for j in range(rings + 1):
-        t = j / rings
+    for t in ts:
         x = -MW / 2 + MW * t
         end = math.sin(math.pi * t) ** 0.35
         vs.append([bm.verts.new(P(x, MH / 2 + (MH / 2) * end * math.sin(2 * math.pi * s / segs) * 0.95,
                                   (MD / 2) * end * math.cos(2 * math.pi * s / segs))) for s in range(segs)])
     faces = []
-    for j in range(rings):
+    for j in range(len(ts) - 1):
         for s in range(segs):
             t = (s + 1) % segs
             faces.append(bm.faces.new((vs[j][s], vs[j][t], vs[j + 1][t], vs[j + 1][s])))

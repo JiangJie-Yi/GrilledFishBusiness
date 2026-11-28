@@ -26,6 +26,8 @@ import { DoorRain } from './doorRain'
 // (its foot 6 mm down into the earth (item 741): it stood in the gravel there, the earth 2 mm under its foot once the gravel was gone)
 const DOOR_BAMBOO_AT: [number, number, number] = [0.692, -0.466, 0.622]
 const DOOR_BAMBOO_SAYS = nameOver('【門口植栽】青竹', '燒杉木箱裡的一叢青竹，迎客，也替門口擋一點街上的目光')
+/** (item 1007: pointed at, the fish lantern said nothing of its own, and the pointer went through it to the shrine's lamp inside the shop) */
+const FISH_LANTERN_SAYS = nameOver('【門口】魚燈', '圓燈籠下吊著一條紙魚，跟門口兩盞長提灯一起亮，告訴街上的人這裡是烤魚店')
 
 /**
  * The way in: a noren hanging just past the end of the bar, three panels that sway a little.
@@ -258,7 +260,7 @@ function EntranceImpl({ at, mark }: { at: THREE.Vector3; mark: string }) {
           doorway, and the leaves had to stop short of it, the way left open narrower than a customer) */}
       {/* (and beyond it the fish lantern, a round one with a fish hung under it (the owner's, after their photograph of one)) */}
       {/* (turned a quarter round, its fish's side to the street, and a little bigger: 1.15 times (the owner's: 1.3, then a little smaller)) */}
-      <Movable id="fishlantern" label="魚燈" baseTurn={[0, -90, 0]} baseScale={1.15}><group position={[(W / 2 * NOREN_WIDE + 0.12) + FISH_LANTERN_OUT, H - 0.08, 0.47]} scale={0.85}><FishLantern /></group></Movable>
+      <Movable id="fishlantern" label="魚燈" baseTurn={[0, -90, 0]} baseScale={1.15}><group position={[(W / 2 * NOREN_WIDE + 0.12) + FISH_LANTERN_OUT, H - 0.08, 0.47]} scale={0.85} {...FISH_LANTERN_SAYS}><FishLantern /></group></Movable>
       {/* the noren: three panels side by side, hung from a bamboo rod under the lintel, the rod by a cord at each end from the beam above */}
       <Movable id="noren" label="門簾" blocks>
         {/* (fades when it stands between the camera and what's looked at, as the other hangings do: see OccluderFade) */}

@@ -6,7 +6,7 @@ import { inkModel } from '@/scene/render/inkHull'
 import { mergeByMaterial, plainColours } from '@/scene/render/StaticBatch'
 import { Steam } from '@/scene/effects/Steam'
 import { stepOf } from '@/game/kitchen/station'
-import { ALONG, KITCHEN, LAY, nameOver } from '@/shops/grill/bar'
+import { ALONG, cookingAt, LAY, nameOver } from '@/shops/grill/bar'
 import { sizzleSound } from '@/shops/grill/sounds/chewSound'
 
 /**
@@ -163,7 +163,7 @@ export const GasStove = memo(function GasStove() {
   const heard = useRef({ was: false, at: 0 })
   useFrame(({ clock }) => {
     const t = clock.elapsedTime
-    const ck = KITCHEN.cooking?.station === 'stove' ? KITCHEN.cooking : null
+    const ck = cookingAt('stove')
     STOVE.on = !!ck
     const step = ck ? stepOf(ck.t, ck.of) : 'done'
     const tama = ck?.id === 'Tamagoyaki', soup = ck?.id === 'EggDropSoup'
@@ -263,7 +263,7 @@ export const Fryer = memo(function Fryer() {
   const heard = useRef({ was: false, at: 0 })
   useFrame(({ clock }) => {
     const t = clock.elapsedTime
-    const ck = KITCHEN.cooking?.station === 'fryer' ? KITCHEN.cooking : null
+    const ck = cookingAt('fryer')
     const step = ck ? stepOf(ck.t, ck.of) : 'done'
     FRYER.on = !!ck && step === 'cook'
     // (the basket eased down into the oil while frying, up out of it after; the oil's face trembling as it bubbles)
