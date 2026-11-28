@@ -53,17 +53,25 @@ def half_width(y):
     return hw
 
 
-def pouch(nx=8, ny=14):
+# (the pouch's grid: its columns across (of the half width there) and its rows up (metres), close where the outline turns (the foot's
+# rounded corners, the shoulders) and where the cushion falls to its seam, wide over its flat middle: 6 x 8 a face, where 8 x 14 evenly
+# was 448 triangles; the same outline, its rows on the shoulders' corners and the foot's corners two steps round, not one)
+COLS = (-1.0, -0.78, -0.45, 0.0, 0.45, 0.78, 1.0)
+ROWS = (0.0, 0.0015, 0.005, 0.013, 0.028, 0.046, H - SHOULDER, H - SHOULDER / 2, H)
+
+
+def pouch(cols=COLS, rows=ROWS):
     """the pouch: a grid on each face, every row as wide as the outline is there (so its edge is the outline exactly), puffed like a
     cushion, fullest in the middle and rounding down to its edge, where the two faces share their vertices (the seam). Front UVs on the
     picture's left half, back on its right"""
     bm = bmesh.new()
     uvl = bm.loops.layers.uv.new()
     edge = {}
+    nx, ny = len(cols) - 1, len(rows) - 1
 
     def vert(i, j, side):
-        u, v = -1 + 2 * i / nx, j / ny
-        y = v * H
+        u, y = cols[i], rows[j]
+        v = y / H
         x = u * half_width(y)
         on_edge = i in (0, nx) or j in (0, ny)
         if on_edge:
@@ -129,7 +137,8 @@ def cord(name, pts, r=0.0016, cyclic=False, steps=3):
 
 
 def loop(name, cx, cy, rx, ry, tilt, n=8):
-    """a closed loop of the cord: an ellipse round (cx, cy), stood a little off the pouch's face"""
+    """a closed loop of the cord: an ellipse round (cx, cy), stood a little off the pouch's face (sixteen sides round: twelve, tried for
+    item 901, showed their corners close to)"""
     pts = []
     for k in range(n):
         a = 2 * math.pi * k / n
@@ -142,6 +151,7 @@ pouch()
 # (the flower knot on top: a round knot in the middle, a petal loop either side and one above, the hanging loop over it all; the cord's
 # two ends down into the pouch's mouth)
 kx, ky = 0.0, H + 0.006
+# (a UV sphere: a ball of 24 quads, tried for item 901, showed its facets in the light close to)
 bpy.ops.mesh.primitive_uv_sphere_add(segments=10, ring_count=6, radius=0.0042, location=P(kx, ky, 0))
 knot = bpy.context.view_layer.objects.active
 knot.name = "OmamoriKnot"
@@ -154,8 +164,9 @@ loop("OmamoriPetalL", kx - 0.0085, ky + 0.001, 0.0065, 0.0042, 0.3)
 loop("OmamoriPetalR", kx + 0.0085, ky + 0.001, 0.0065, 0.0042, 1.2)
 loop("OmamoriPetalT", kx, ky + 0.0075, 0.0042, 0.0055, 2.0)
 cord("OmamoriHang", [(kx - 0.002, ky + 0.012, 0), (kx - 0.009, ky + 0.024, 0.001), (kx, ky + 0.031, 0.0015), (kx + 0.009, ky + 0.024, 0.001), (kx + 0.002, ky + 0.012, 0)])
-cord("OmamoriTails", [(kx - 0.003, ky - 0.002, 0.001), (kx - 0.0035, H - 0.004, 0.0012)])
-cord("OmamoriTails2", [(kx + 0.003, ky - 0.002, 0.001), (kx + 0.0035, H - 0.004, 0.0012)])
+# (the two ends straight down: one step each, as straight as three were)
+cord("OmamoriTails", [(kx - 0.003, ky - 0.002, 0.001), (kx - 0.0035, H - 0.004, 0.0012)], steps=1)
+cord("OmamoriTails2", [(kx + 0.003, ky - 0.002, 0.001), (kx + 0.0035, H - 0.004, 0.0012)], steps=1)
 
 root = bpy.data.objects.new("Omamori", None)
 bpy.context.collection.objects.link(root)
