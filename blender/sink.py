@@ -766,22 +766,41 @@ for zi, z_ in enumerate((LANE_Z - 0.082, LANE_Z + 0.082)):
     # (filled as a ladder: a strip from each point along the top straight down to the foot, every face a quad (one many-sided face, the
     # notches came out filled in by its triangulation: a plain board). 5 points a pitch, no foot (it lies on the basket's floor, out of
     # sight): 1,956 triangles a comb before, 8 points a pitch and a foot)
+    # (item 843, the owner's 「我看有些模型的佈線很誇張」: each column straight from its top down to the foot, the notch floor's a 4 cm drop
+    # beside a tooth's shoulder 2.6 mm off, made a face so narrow its far corner lay all but on the long side: either way it was split, one
+    # half had an angle of 168 to 176 degrees, 120 of the 916 a comb (scripts/topo-audit.mjs's caps). Each column now cut at the notches'
+    # floor too: a band of plain quads under it the comb's length, the teeth over it, each a ladder of quads and right triangles)
     cols = []
     for x_, y_ in top:
-        cols.append([(bm.verts.new(P(x_, yy, z_ + sd * 0.0035)), (x_, yy)) for sd in (-1, 1) for yy in (RAIL_LO, y_)])
-    # (each column: front foot, front top, back foot, back top)
-    def quad(a, b, c, d):
-        f = bm.faces.new((a[0], b[0], c[0], d[0]))
-        for l, q in zip(f.loops, (a, b, c, d)):
+        col = {}
+        for sd, side in ((-1, 'f'), (1, 'b')):
+            zz = z_ + sd * 0.0035
+            col[side + 'lo'] = (bm.verts.new(P(x_, RAIL_LO, zz)), (x_, RAIL_LO))
+            col[side + 'mid'] = (bm.verts.new(P(x_, NOTCH, zz)), (x_, NOTCH)) if y_ > NOTCH + 1e-6 else None
+            col[side + 'top'] = (bm.verts.new(P(x_, y_, zz)), (x_, y_))
+        cols.append(col)
+    def poly(*vs):
+        vs = [v for v in vs if v is not None]
+        if len(vs) < 3:
+            return
+        f = bm.faces.new([v[0] for v in vs])
+        for l, q in zip(f.loops, vs):
             l[uvl].uv = uv_(*q[1])
+    # (where the band meets the tooth over it: its cut at the notches' floor, or its top where that's the floor)
+    low = lambda c, sd: c[sd + 'mid'] or c[sd + 'top']
+    high = lambda c, sd: c[sd + 'top'] if c[sd + 'mid'] else None
     for k in range(len(cols) - 1):
-        (af, at_, ab, abt), (bf, bt, bb, bbt) = cols[k], cols[k + 1]
-        quad(af, bf, bt, at_)          # (front)
-        quad(bb, ab, abt, bbt)         # (back)
-        quad(at_, bt, bbt, abt)        # (top)
+        a, b = cols[k], cols[k + 1]
+        poly(a['flo'], b['flo'], low(b, 'f'), low(a, 'f'))              # (front: the band)
+        poly(low(a, 'f'), low(b, 'f'), high(b, 'f'), high(a, 'f'))      # (front: the tooth over it)
+        poly(b['blo'], a['blo'], low(a, 'b'), low(b, 'b'))              # (back: the band)
+        poly(low(b, 'b'), low(a, 'b'), high(a, 'b'), high(b, 'b'))      # (back: the tooth)
+        poly(a['ftop'], b['ftop'], b['btop'], a['btop'])                # (top)
+    # (its ends: up the end column, in two where it's cut)
     for c_, fl in ((cols[0], True), (cols[-1], False)):
-        f_, t_, b_, bt_ = c_
-        quad(*((f_, b_, bt_, t_) if fl else (b_, f_, t_, bt_)))
+        f0, b0 = ('f', 'b') if fl else ('b', 'f')
+        poly(c_[f0 + 'lo'], c_[b0 + 'lo'], low(c_, b0), low(c_, f0))
+        poly(low(c_, f0), low(c_, b0), high(c_, b0), high(c_, f0))
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     me = bpy.data.meshes.new(f"SinkBasketRail{zi}")
     bm.to_mesh(me)

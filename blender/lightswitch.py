@@ -81,8 +81,14 @@ def slab(name, w, h, d, z0, r, mat, bow=0.0, bevel=True):
         bpy.context.view_layer.objects.active = o
         o.select_set(True)
         bpy.ops.object.modifier_apply(modifier="b")
+    # (item 843: its flat face and back shaded flat, the rest smooth: shaded smooth, their corners' normals took the bevel's slant, and the
+    # slivers either end of each (a many-sided face cut on export) drew a streak of light across it (scripts/topo-audit.mjs's soft caps,
+    # 16 on a plate); flat, each is one even tone however it's cut (the Art window's way with the washstand, 80 to none). A bowed face
+    # (the rocker's) stays smooth: flat, its bow would show in facets)
     for f in o.data.polygons:
-        f.use_smooth = True
+        # (its face out from the wall and its back to it: the game's z, Blender's -y (P))
+        flat = abs(f.normal.y) > 0.999 and (bow == 0.0 or f.normal.y > 0)
+        f.use_smooth = not flat
     return o
 
 

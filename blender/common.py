@@ -461,11 +461,14 @@ def ladder_fill(bm, ring):
 
 def ladder_ngons(obj):
     """every convex face of more than four sides (a cylinder's cap, a lathe's end) cut into a ladder (ladder_fill), its material, shading
-    and UVs kept; a face that isn't convex (a letter's outline) is left as it is"""
+    and UVs kept; a face that isn't convex (a letter's outline) is left as it is. And first, what has no size let go of (item 843: a
+    bevel clamped against itself, a frame's corners met in one point, left faces of no area, 16 to a rounded panel, 73 in the till desk:
+    scripts/topo-audit.mjs's dead)"""
     if obj.type != "MESH":
         return 0
     bm = bmesh.new()
     bm.from_mesh(obj.data)
+    bmesh.ops.dissolve_degenerate(bm, dist=1e-7, edges=bm.edges[:])
     uv = bm.loops.layers.uv.active
     done = 0
     for f in [f for f in bm.faces if len(f.verts) > 4]:
