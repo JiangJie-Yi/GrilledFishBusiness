@@ -1577,9 +1577,14 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
   useEffect(() => {
     if (space === 'open') return
     const left = pieces.current.filter((p) => p.keepWarm && !p.eaten && (p.container?.startsWith('bowl') || p.container?.startsWith('basket')))
-    if (!left.length) return
+    // (item 784: and what's still at the fire or on the grill net as the shop shuts, its customer gone with the rest: the staff's too, not
+    // left on the net through the night (a miso eggplant lay there till morning, the whole-night ×2 check's last shot from above); its place
+    // given up)
+    const atFire = pieces.current.filter((p) => !p.eaten && !p.collected && !p.staged && p.trash < 0 && (p.ringSlot !== undefined || p.netSpot !== null))
+    for (const p of atFire) { p.eaten = true; p.ringSlot = undefined; p.netSpot = null; p.keepWarm = false; p.slot = null }
+    if (!left.length && !atFire.length) return
     for (const p of left) { p.eaten = true; p.keepWarm = false; p.slot = null }
-    onSay?.('chef', L().staffMeal(left.length))
+    onSay?.('chef', L().staffMeal(left.length + atFire.length))
   }, [space])
 
   /** the best seasoning for a food by the PAIRING table (null if nothing suits it) */

@@ -210,6 +210,10 @@ export const REORDER_AT = 3
  * off) as before
  */
 export const LEAN_PAR: Record<'chilled' | 'ambient', number> = { chilled: 3, ambient: 2 }
+/** (item 787) a new shop's frozen goods, before there's a menu: a few of each for the cooks to make one from (they were topped up to PAR, ten
+ * of every fish the shop sells; those the menu didn't take went off two days on, nine kinds at once, about NT$9,000); the menu's own topped
+ * up to PAR once it's made */
+export const NEW_SHOP_FROZEN = 3
 export const LEAN_LOW = 1
 const KEEPS_LONG = new Set(['charcoal', 'Sake'])
 /** whether a good's ordered lean (it goes off soon): not frozen, not the sides' rice or soup, nor what keeps */
@@ -324,13 +328,14 @@ export function topUpOrder(d: Dish, stock: Stock, par = PAR) {
 export function autoOpeningOrder(d: Dish, menu: Entry[], stock: Stock, cash: number, menuReady = true) {
   if (menuReady) return restockOrder(d, menu, stock, cash, 60)
   // (no menu yet, a new shop's: what its cooks can make one from (App's makeMenu puts up only what's in stock), each good it sells a lean few,
-  // the chilled three portions, the ambient two (item 343's), the frozen and what keeps to PAR; the menu's own ordered once it's made. With
-  // the menu's alone, there was nothing to make one from, and the manager never opened)
+  // the chilled three portions, the ambient two (item 343's), the frozen three (item 787: to PAR, what the menu didn't take went off), what
+  // keeps (the rice, the soup) to PAR; the menu's own ordered once it's made. With the menu's alone, there was nothing to make one from, and
+  // the manager never opened)
   const buy: Stock = {}
   let cost = 0
   for (const g of goodsOf(d)) {
     const have = stock[g.id] ?? 0
-    const want = orderedLean(g.id) ? LEAN_PAR[storageOf(g.id) === 'ambient' ? 'ambient' : 'chilled'] : parOf(g.id)
+    const want = orderedLean(g.id) ? LEAN_PAR[storageOf(g.id) === 'ambient' ? 'ambient' : 'chilled'] : storageOf(g.id) === 'frozen' && !(g.id in SIDE_PAR) ? NEW_SHOP_FROZEN : parOf(g.id)
     if (have >= want) continue
     const n = Math.min(inPacks(g.id, want - have), roomFor(g.id, have))
     if (n <= 0) continue

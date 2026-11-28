@@ -10,6 +10,18 @@ export const inHours = (minute: number) => {
   const m = ((Math.floor(minute) % 1440) + 1440) % 1440
   return m >= OPEN_AT || m < CLOSE_AT
 }
+/**
+ * (item 787, the owner's 「幫我測一下自動模式可以撐幾天」: run on its own it lasted about ten days, a tenth of a day's spending what went off)
+ * How long before the hours begin goods are bought in (the stock keeper's rounds, the auto-run's order to open with): what goes off soon is
+ * bought for the night it's for. Bought from six in the morning on, after a night's close, the chilled was half gone by the next opening and
+ * thrown out the morning after, and ordered again at once, every day.
+ */
+export const BUY_AHEAD = 90
+/** whether goods are bought in at this minute: in the hours, or in the hour and a half before they begin (from 15:00) */
+export const buyingNow = (minute: number) => {
+  const m = ((Math.floor(minute) % 1440) + 1440) % 1440
+  return inHours(m) || (m >= OPEN_AT - BUY_AHEAD && m < OPEN_AT)
+}
 /** the hours just begun between the minute before and now (the clock moved on from `was` to `now`) */
 export const hoursBegin = (was: number, now: number) => !inHours(was) && inHours(now)
 /** the hours just over between the minute before and now */
