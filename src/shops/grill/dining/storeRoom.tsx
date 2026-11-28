@@ -406,80 +406,79 @@ function StoreLamp({ at }: { at: [number, number, number] }) {
 }
 /**
  * The stock room's floor (item 739, the owner's 「儲藏室的地板要稍微鋪個材質，你覺得甚麼好?」: a mortar floor, cement; item 785, the owner's
- * 「倉庫地板如果不用水泥地，還有什麼更合適？」): tamped earth, 三和土 (tataki), the floor of a doma and a storehouse, of the shop's old kind as
- * its stone steps and its wood are: earth, slaked lime and bittern beaten flat, a warm grey with a little ochre in it; in broad soft patches
- * where the lime's richer (paler) or the earth (darker); its fine gravel showing, specks of lime, a few hairline cracks where it dried; darker
- * along the walls' feet where it keeps the damp and where the crates stand by the back wall; and a lane trodden smoother and a shade darker
- * near the wall on the shop's side, from the doorway along to the fridges' backs, where the stock keeper walks. One piece, no joints (cement's
- * were). Laid on the shop's boards that run on into it (item 710: no step up), from the wall's line on the shop's side to the back wall, so
- * the shop's wood stops at the doorway. Across its width (u) from the wall to the back wall, along its length (v) from the far end to the
- * wall's start.
+ * 「倉庫地板如果不用水泥地，還有什麼更合適？」: tamped earth, 三和土; item 786, the owner's 「倉庫地板改用檜木呢？」): hinoki boards. Pale honey,
+ * the fine straight grain of edge-sawn cypress, a small knot here and there, each board a shade of its own; 10.5 cm boards (三寸五分) laid
+ * along the room's length, 1.82 m long (six feet) with their ends' joints staggered; and a store's wear on them: darker where the crates
+ * stand by the back wall, fine scratches where they're dragged along the lane near the wall on the shop's side (the doorway to the fridges'
+ * backs) and its sheen, darker along the walls' feet. Laid on the shop's boards that run on into it (item 710: no step up), from the wall's
+ * line on the shop's side to the back wall, so the shop's own darker wood stops at the doorway. Across its width (u) from the wall to the
+ * back wall (1.142, 512 px: 448 a unit), along its length (v) from the far end to the wall's start (2.513, 1,024 px: 407 a unit).
  */
-const STORE_FLOOR = canvasTex(256, 1024, (g) => {
+const STORE_FLOOR = canvasTex(512, 1024, (g) => {
   let s = 7331
   const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647
-  g.fillStyle = '#9a8f7c'; g.fillRect(0, 0, 256, 1024)
-  // (broad soft patches: the lime richer and paler here, the earth darker and warmer there, as it was mixed and beaten by hand)
-  for (let i = 0; i < 110; i++) {
-    const x = rnd() * 256, y = rnd() * 1024, r = 26 + rnd() * 80, dark = rnd() < 0.5
-    const gr = g.createRadialGradient(x, y, 0, x, y, r)
-    gr.addColorStop(0, dark ? 'rgba(104,88,66,0.16)' : 'rgba(198,190,172,0.15)'); gr.addColorStop(1, 'rgba(0,0,0,0)')
-    g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r)
+  const W = 512, H = 1024, PU = W / 1.142, PV = H / 2.513
+  const BOARD = 0.105 * PU, PIECE = 1.82 * PV
+  // (each board a shade of its own: honey, a few years' warmth on the new wood's cream (fresh it read white in the dim room), a little pinker
+  // or yellower or paler)
+  const shades = ['#d2b88e', '#d6ba94', '#ceb685', '#d9c39d', '#cfb289', '#d5bd95']
+  const n = Math.ceil(W / BOARD)
+  for (let k = 0; k < n; k++) {
+    const x0 = Math.round(k * BOARD), x1 = Math.round((k + 1) * BOARD)
+    // (its pieces along the room, the ends' joints staggered board to board)
+    const start = -rnd() * PIECE
+    for (let y = start; y < H; y += PIECE) {
+      const ya = Math.max(0, Math.round(y)), yb = Math.min(H, Math.round(y + PIECE))
+      g.fillStyle = shades[Math.floor(rnd() * shades.length)]; g.fillRect(x0, ya, x1 - x0, yb - ya)
+      // (its grain: fine straight lines along it, a little wavy, darker and lighter)
+      for (let i = 0; i < 9 + rnd() * 6; i++) {
+        const gx = x0 + 2 + rnd() * (x1 - x0 - 4), wob = 0.6 + rnd() * 1.4, f = 0.004 + rnd() * 0.01, ph = rnd() * 6
+        g.strokeStyle = rnd() < 0.7 ? `rgba(150,112,64,${0.10 + 0.12 * rnd()})` : `rgba(246,232,204,${0.12 + 0.1 * rnd()})`
+        g.lineWidth = 0.8 + rnd() * 0.9
+        g.beginPath(); g.moveTo(gx + Math.sin(ph + ya * f) * wob, ya)
+        for (let yy = ya; yy <= yb; yy += 16) g.lineTo(gx + Math.sin(ph + yy * f) * wob, yy)
+        g.stroke()
+      }
+      // (now and then a small knot)
+      if (rnd() < 0.16) {
+        const kx = x0 + (x1 - x0) * (0.3 + 0.4 * rnd()), ky = ya + (yb - ya) * (0.15 + 0.7 * rnd()), r = 2 + rnd() * 3
+        g.fillStyle = 'rgba(122,82,44,0.55)'; g.beginPath(); g.ellipse(kx, ky, r, r * 1.5, 0, 0, Math.PI * 2); g.fill()
+        g.strokeStyle = 'rgba(150,108,62,0.35)'; g.lineWidth = 1; g.beginPath(); g.ellipse(kx, ky, r + 2, r * 1.5 + 4, 0, 0, Math.PI * 2); g.stroke()
+      }
+      // (the end's joint: a dark line across, a lit lip)
+      if (ya > 0) { g.fillStyle = 'rgba(96,70,42,0.6)'; g.fillRect(x0, ya, x1 - x0, 1); g.fillStyle = 'rgba(246,232,206,0.35)'; g.fillRect(x0, ya + 1, x1 - x0, 1) }
+    }
+    // (the long joint to the next board)
+    g.fillStyle = 'rgba(92,66,40,0.62)'; g.fillRect(x1 - 1, 0, 1, H)
+    g.fillStyle = 'rgba(246,232,206,0.3)'; g.fillRect(x1, 0, 1, H)
   }
-  // (finer mottling over it)
-  for (let i = 0; i < 700; i++) {
-    const x = rnd() * 256, y = rnd() * 1024, r = 3 + rnd() * 9
-    g.fillStyle = rnd() < 0.5 ? `rgba(92,80,62,${0.05 + 0.06 * rnd()})` : `rgba(206,198,182,${0.05 + 0.06 * rnd()})`
-    g.beginPath(); g.ellipse(x, y, r, r * (0.6 + 0.4 * rnd()), rnd() * Math.PI, 0, Math.PI * 2); g.fill()
-  }
-  // (its fine gravel: small stones a pixel or two across, grey, buff and rust, each with a lit side; and the earth's grit)
-  for (let i = 0; i < 1400; i++) {
-    const x = rnd() * 256, y = rnd() * 1024, r = 0.6 + rnd() * rnd() * 1.8, k = rnd()
-    g.fillStyle = k < 0.45 ? 'rgba(96,92,86,0.75)' : k < 0.8 ? 'rgba(172,160,138,0.8)' : 'rgba(132,92,62,0.7)'
-    g.beginPath(); g.ellipse(x, y, r, r * 0.8, rnd() * Math.PI, 0, Math.PI * 2); g.fill()
-    g.fillStyle = 'rgba(232,226,212,0.35)'; g.fillRect(x - r * 0.5, y - r * 0.6, Math.max(1, r * 0.6), 1)
-  }
-  for (let i = 0; i < 5000; i++) {
-    const x = rnd() * 256, y = rnd() * 1024
-    g.fillStyle = rnd() < 0.5 ? `rgba(70,62,50,${0.14 + 0.2 * rnd()})` : `rgba(214,206,190,${0.12 + 0.18 * rnd()})`
-    g.fillRect(x, y, 1, 1)
-  }
-  // (specks of lime, white, here and there)
-  for (let i = 0; i < 260; i++) {
-    const x = rnd() * 256, y = rnd() * 1024
-    g.fillStyle = `rgba(242,238,228,${0.45 + 0.4 * rnd()})`
-    g.fillRect(x, y, rnd() < 0.3 ? 2 : 1, 1)
-  }
-  // (hairline cracks where it dried: a few short meandering lines, dark, a lit lip beside)
-  g.lineCap = 'round'
-  for (let i = 0; i < 9; i++) {
-    let x = 20 + rnd() * 216, y = rnd() * 1024, a = rnd() * Math.PI * 2
-    const n = 6 + Math.floor(rnd() * 8)
-    g.beginPath(); g.moveTo(x, y)
-    for (let k = 0; k < n; k++) { a += (rnd() - 0.5) * 1.1; x += Math.cos(a) * (5 + rnd() * 7); y += Math.sin(a) * (5 + rnd() * 7); g.lineTo(x, y) }
-    g.lineWidth = 1; g.strokeStyle = 'rgba(62,54,42,0.42)'; g.stroke()
-  }
-  // (the stock keeper's lane, near the wall on the shop's side from the doorway to the fridges' backs: trodden smoother (fewer specks seen),
-  // a shade darker and a little sheen)
+  // (the lane: the crates dragged along it, fine scratches along the boards, light and dark; a little sheen, a shade darker with the wear)
+  // (inside the room: the wall's inner face is 0.212 in (bar.ts's WALL_OUT); the lane from the doorway along to the fridges' backs beside it)
+  const IN = 0.212 * PU, L0 = 0.24 * PU, L1 = 0.58 * PU
   {
-    const gr = g.createLinearGradient(36, 0, 120, 0)
-    gr.addColorStop(0, 'rgba(84,74,58,0)'); gr.addColorStop(0.3, 'rgba(84,74,58,0.13)'); gr.addColorStop(0.7, 'rgba(84,74,58,0.13)'); gr.addColorStop(1, 'rgba(84,74,58,0)')
-    g.fillStyle = gr; g.fillRect(36, 0, 84, 1024)
-    const sh = g.createLinearGradient(52, 0, 104, 0)
-    sh.addColorStop(0, 'rgba(226,218,200,0)'); sh.addColorStop(0.5, 'rgba(226,218,200,0.07)'); sh.addColorStop(1, 'rgba(226,218,200,0)')
-    g.fillStyle = sh; g.fillRect(52, 0, 52, 1024)
+    const gr = g.createLinearGradient(L0, 0, L1, 0)
+    gr.addColorStop(0, 'rgba(110,80,46,0)'); gr.addColorStop(0.3, 'rgba(110,80,46,0.12)'); gr.addColorStop(0.7, 'rgba(110,80,46,0.12)'); gr.addColorStop(1, 'rgba(110,80,46,0)')
+    g.fillStyle = gr; g.fillRect(L0, 0, L1 - L0, H)
   }
-  // (damp where the crates stand, along the back wall toward the far end: darker, soft edged)
-  for (const [x, y, r] of [[212, 760, 70], [200, 905, 58], [222, 600, 44], [190, 470, 36]]) {
-    const gr = g.createRadialGradient(x, y, r * 0.2, x, y, r)
-    gr.addColorStop(0, 'rgba(70,58,42,0.26)'); gr.addColorStop(0.7, 'rgba(70,58,42,0.12)'); gr.addColorStop(1, 'rgba(70,58,42,0)')
-    g.fillStyle = gr; g.fillRect(x - r, y - r * 1.4, 2 * r, 2.8 * r)
+  for (let i = 0; i < 140; i++) {
+    const x = L0 + rnd() * (L1 - L0), y = rnd() * H, len = 14 + rnd() * 60
+    g.strokeStyle = rnd() < 0.5 ? `rgba(248,238,214,${0.18 + 0.2 * rnd()})` : `rgba(104,74,44,${0.14 + 0.16 * rnd()})`
+    g.lineWidth = 0.7
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + (rnd() - 0.5) * 3, y + len); g.stroke()
   }
-  // (damp and darker along the walls' feet, both long sides)
-  for (const [x0, x1] of [[0, 26], [256, 230]]) {
+  // (darker where the crates stand, along the back wall toward the far end: soft edged, a ring or two where a wet crate stood)
+  for (const [vx, vy, r] of [[0.93, 0.74, 0.16], [0.88, 0.88, 0.13], [0.96, 0.59, 0.1], [0.85, 0.46, 0.08]]) {
+    const x = vx * W, y = vy * H, rr = r * W
+    const gr = g.createRadialGradient(x, y, rr * 0.2, x, y, rr)
+    gr.addColorStop(0, 'rgba(92,66,40,0.24)'); gr.addColorStop(0.7, 'rgba(92,66,40,0.11)'); gr.addColorStop(1, 'rgba(92,66,40,0)')
+    g.fillStyle = gr; g.fillRect(x - rr, y - rr * 1.2, 2 * rr, 2.4 * rr)
+    if (rnd() < 0.7) { g.strokeStyle = 'rgba(98,70,42,0.22)'; g.lineWidth = 2; g.beginPath(); g.ellipse(x + (rnd() - 0.5) * rr, y + (rnd() - 0.5) * rr, rr * 0.35, rr * 0.35 * PV / PU, 0, 0, Math.PI * 2); g.stroke() }
+  }
+  // (darker along the walls' feet, both long sides (the near one at the wall's inner face))
+  for (const [x0, x1] of [[IN, IN + 40], [W, W - 40]]) {
     const gr = g.createLinearGradient(x0, 0, x1, 0)
-    gr.addColorStop(0, 'rgba(62,52,38,0.34)'); gr.addColorStop(1, 'rgba(62,52,38,0)')
-    g.fillStyle = gr; g.fillRect(Math.min(x0, x1), 0, 26, 1024)
+    gr.addColorStop(0, 'rgba(90,62,36,0.3)'); gr.addColorStop(1, 'rgba(90,62,36,0)')
+    g.fillStyle = gr; g.fillRect(Math.min(x0, x1), 0, 40, H)
   }
 })
 /** an unseen sheet over the wall's face on the shop's side that takes the pointer and stops it there (item 735: the goods behind the wall,
