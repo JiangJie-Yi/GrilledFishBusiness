@@ -130,6 +130,11 @@ function laid(part: THREE.Object3D, made: [number, number, number], [x0, y0, z0]
 // (item 823, the owner's 「要有厚度」 and then, over the coping stone laid along its top for it, 「多了這一條不大對，是下面的厚度要加深，石階往外推、
 // 然後要有點深度」: it stood 1.8 cm proud, its top a strip like a sheet of paper; 6 cm now, its top a ledge, the doorway's steps out with it)
 const PLINTH_OUT = 0.06, PLINTH_SUNK = 0.015
+// (item 1001, the owner's 「石階上面也需要有貼材質，且石階應該是要斜的。」 with the face circled: its face battered back as a castle's stone wall's
+// is (its picture's), its foot where it was (what stands on the ground by it laid out from there: the bamboo's planter, the toilets' drain
+// and its basin, the gravel), its top PLINTH_LEAN in, some 6 degrees; its top a ledge of the face's own stones over the edge (it was the
+// picture's plain patch, a bare strip), falling PLINTH_FALL outward from the base's face as a stone's top is cut to shed the rain)
+const PLINTH_LEAN = 0.03, PLINTH_FALL = 0.006
 /**
  * The plinth's mesh from its plan (game/world/groundLayout's plinthPlan): along each run its face, from `foot` (in the earth) to `top`,
  * turned out, in its bits of the stone wall's picture (item 751, guestbar/castleWall: each face its own strip of it, broken where the strip
@@ -138,37 +143,71 @@ const PLINTH_OUT = 0.06, PLINTH_SUNK = 0.015
  */
 function plinthGeometry(plan: PlinthPlan, top: number, foot: number, out: number, faces: WallFace[], atlas: WallAtlas) {
   const pos: number[] = [], nor: number[] = [], uv: number[] = []
-  // (a quad, its four points round it and theirs uvs, the way it faces: its triangles turned to face that way)
+  // (a quad, its four points round it and theirs uvs, the way it faces: its triangles turned to face that way; its normal its own plane's)
   const quad = (p: [number, number, number][], t: [number, number][], n: [number, number, number]) => {
     const [a, b, c] = p
     const cr = [(b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]), (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]),
       (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])]
-    const order = cr[0] * n[0] + cr[1] * n[1] + cr[2] * n[2] >= 0 ? [0, 1, 2, 0, 2, 3] : [0, 2, 1, 0, 3, 2]
-    for (const i of order) { pos.push(...p[i]); uv.push(...t[i]); nor.push(...n) }
+    const flip = cr[0] * n[0] + cr[1] * n[1] + cr[2] * n[2] < 0
+    const order = flip ? [0, 2, 1, 0, 3, 2] : [0, 1, 2, 0, 2, 3]
+    const k = Math.hypot(cr[0], cr[1], cr[2]) || 1
+    const nn = flip ? [-cr[0] / k, -cr[1] / k, -cr[2] / k] : [cr[0] / k, cr[1] / k, cr[2] / k]
+    for (const i of order) { pos.push(...p[i]); uv.push(...t[i]); nor.push(...nn) }
   }
   const H = top - foot
   const uvOf = (p: WallPiece, s: number, y: number): [number, number] => [(p.x + (s - p.s0) * atlas.K) / atlas.W, (p.y + y * atlas.K) / atlas.H]
-  for (const f of faces) {
-    const r = plan.runs[f.run], [ox, oz] = r.out, [dx, dz] = f.along, [fx, fz] = f.from
-    const ps = atlas.pieces[f.run]
-    for (const p of ps) {
-      const ax = fx + dx * p.s0, az = fz + dz * p.s0, bx = fx + dx * p.s1, bz = fz + dz * p.s1
-      quad([[ax, foot, az], [bx, foot, bz], [bx, top, bz], [ax, top, az]], [uvOf(p, p.s0, H), uvOf(p, p.s1, H), uvOf(p, p.s1, 0), uvOf(p, p.s0, 0)], [ox, 0, oz])
-    }
-    // (an end at the steps: across it, from the plinth's face back to the base's; its picture from its strip's end inward)
-    const aFirst = Math.abs(r.a[0] - fx) < 1e-9 && Math.abs(r.a[1] - fz) < 1e-9
-    for (const [cut, s, dir] of [[aFirst ? r.cutA : r.cutB, 0, -1], [aFirst ? r.cutB : r.cutA, f.len, 1]] as const) {
-      if (!cut || !ps.length) continue
-      const p = dir < 0 ? ps[0] : ps[ps.length - 1]
-      const ex = fx + dx * s, ez = fz + dz * s, ix = ex - ox * out, iz = ez - oz * out
-      const s1 = Math.min(p.s1, Math.max(p.s0, s - dir * out))
-      quad([[ex, foot, ez], [ix, foot, iz], [ix, top, iz], [ex, top, ez]], [uvOf(p, s, H), uvOf(p, s1, H), uvOf(p, s1, 0), uvOf(p, s, 0)], [dx * dir, 0, dz * dir])
-    }
+  // (item 1001: its face's top edge in by `lean` from its foot's line, its top's outer edge there `fall` lower than at the base's face)
+  const lean = Math.min(PLINTH_LEAN, out - 0.005), topOut = out - lean, low = top - PLINTH_FALL
+  // (each run's ends: the other run met there (its outward normal), or none where it stops at the steps; a line `o` out from the base's face
+  // meets the next one's at the base's corner plus o each way, as the two lines out cross, round a corner in or out)
+  const near = (a: [number, number], b: [number, number]) => Math.abs(a[0] - b[0]) < 1e-6 && Math.abs(a[1] - b[1]) < 1e-6
+  const metOf = (ri: number, end: [number, number]) => {
+    for (let k = 0; k < plan.runs.length; k++) if (k !== ri && (near(plan.runs[k].a, end) || near(plan.runs[k].b, end))) return plan.runs[k].out
+    return null
   }
-  // (its ledge's top: the picture's plain patch for it)
-  const [u0, v0, u1, v1] = atlas.ledge
-  for (const [x0, z0, x1, z1] of plan.ledge) {
-    quad([[x0, top, z0], [x1, top, z0], [x1, top, z1], [x0, top, z1]], [[u0, v0], [u1, v0], [u1, v1], [u0, v1]], [0, 1, 0])
+  /** where the line `o` out from the base's face ends at a run's end (`at` on its foot's line, `out` out), turned the next one's way */
+  const endAt = (ri: number, at: [number, number], o: number): [number, number] => {
+    const [nx, nz] = plan.runs[ri].out, m = metOf(ri, at)
+    const cx = at[0] - nx * out - (m ? m[0] * out : 0), cz = at[1] - nz * out - (m ? m[1] * out : 0)
+    return [cx + nx * o + (m ? m[0] * o : 0), cz + nz * o + (m ? m[1] * o : 0)]
+  }
+  for (const f of faces) {
+    const ri = f.run, r = plan.runs[ri], [ox, oz] = r.out, [dx, dz] = f.along, [fx, fz] = f.from
+    const ps = atlas.pieces[ri]
+    if (!ps.length) continue
+    // (the face's ends on its foot's line: which of the run's two it starts at)
+    const aFirst = near(r.a, [fx, fz])
+    const startAt: [number, number] = [fx, fz], endAtF: [number, number] = [fx + dx * f.len, fz + dz * f.len]
+    // (along the face, where its top edge and the base's face end at each end: past or short of the foot's by the turn there)
+    const sOf = (pt: [number, number]) => (pt[0] - fx) * dx + (pt[1] - fz) * dz
+    const t0 = sOf(endAt(ri, startAt, topOut)), t1 = sOf(endAt(ri, endAtF, topOut))
+    const i0 = sOf(endAt(ri, startAt, 0)), i1 = sOf(endAt(ri, endAtF, 0))
+    const ptAt = (sv: number, o: number, y: number): [number, number, number] => [fx + dx * sv - ox * (out - o), y, fz + dz * sv - oz * (out - o)]
+    for (let k = 0; k < ps.length; k++) {
+      const p = ps[k], first = k === 0, last = k === ps.length - 1
+      // (the face: its foot along the foot's line, its top in by the lean, at the run's ends turned to meet the next one's)
+      const s0 = p.s0, s1 = p.s1
+      const ts0 = first ? t0 : s0, ts1 = last ? t1 : s1
+      quad([ptAt(s0, out, foot), ptAt(s1, out, foot), ptAt(ts1, topOut, low), ptAt(ts0, topOut, low)],
+        [uvOf(p, s0, H), uvOf(p, s1, H), uvOf(p, Math.min(s1, Math.max(s0, ts1)), PLINTH_FALL), uvOf(p, Math.min(s1, Math.max(s0, ts0)), PLINTH_FALL)], [ox, 0, oz])
+      // (its top: from its edge in to the base's face, the face's own stones over the edge (their picture's top strip, as deep as the
+      // ledge, folded over), falling outward; at the run's ends cut on the line to the base's corner)
+      const is0 = first ? i0 : s0, is1 = last ? i1 : s1
+      const clampS = (sv: number) => Math.min(s1, Math.max(s0, sv))
+      quad([ptAt(ts0, topOut, low), ptAt(ts1, topOut, low), ptAt(is1, 0, top), ptAt(is0, 0, top)],
+        [uvOf(p, clampS(ts0), PLINTH_FALL), uvOf(p, clampS(ts1), PLINTH_FALL), uvOf(p, clampS(is1), PLINTH_FALL + topOut), uvOf(p, clampS(is0), PLINTH_FALL + topOut)],
+        [0, 1, 0])
+    }
+    // (an end at the steps: across it, from the plinth's face back to the base's; its picture from its strip's end inward; its outer edge
+    // battered as the face is, its top falling as the ledge does)
+    for (const [cut, sv, dir] of [[aFirst ? r.cutA : r.cutB, 0, -1], [aFirst ? r.cutB : r.cutA, f.len, 1]] as const) {
+      if (!cut) continue
+      const p = dir < 0 ? ps[0] : ps[ps.length - 1]
+      const s1 = Math.min(p.s1, Math.max(p.s0, sv - dir * out))
+      const sT = Math.min(p.s1, Math.max(p.s0, sv - dir * lean))
+      quad([ptAt(sv, out, foot), ptAt(sv, 0, foot), ptAt(sv, 0, top), ptAt(sv, topOut, low)],
+        [uvOf(p, sv, H), uvOf(p, s1, H), uvOf(p, s1, 0), uvOf(p, sT, PLINTH_FALL)], [dx * dir, 0, dz * dir])
+    }
   }
   const g = new THREE.BufferGeometry()
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
