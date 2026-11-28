@@ -17,7 +17,7 @@ import { getClock } from '@/ui/kit/clockStore'
 import { DrinkBottle } from '@/shops/grill/dining/bottles'
 import { gulpSound } from '@/shops/grill/sounds/chewSound'
 import { BAR_GATES, BOSS_BED, FIGURES, FRIDGE_STOCK, FUTON, GRILL_COUNTERS, KITCHEN_FOLK, KITCHEN_ROUTE, NIGHT_WITH, OWNER_GRILL, OWNER_OUT, STAFF_DOOR_HOLD, UP_WITH, aisleOf, gateOf,
-  type DrinkId } from '@/shops/grill/bar'
+  kitchenOf, type DrinkId } from '@/shops/grill/bar'
 import { dormDoing } from '@/game/staff/dormLife'
 import { businessDay } from '@/game/world/weather'
 import { BOSS_BODY, bossWorn, layBeat, riseBeat, sleepsDown, wakesUp, shaken, shakenAwake, sleepsAgain, relieBeat, RISE_S } from '@/game/staff/bossStamina'
@@ -47,12 +47,17 @@ const STIR_MS = 2600, CARRY_UP = 0.16
 /** (item 748) walked by the keys: how long he stands where he's been walked to once they're let go, before he goes back to his place; how
  * near his round's line counts as on it (he may walk it, in the cook table's notch, where the shop's walk map has no room for him) */
 const DRIVE_STAY = 14, DRIVE_ROUND = 0.12
+/** (item 802) let go of the keys, he stands as he was left, facing as he was turned: on his round's line this long (s) before he's on with
+ * his round from there; with the shop open (he's wanted at his fire), this long before he's off back to it */
+const DRIVE_GRACE = 2.5, DRIVE_WANTED = 4
 const DRIVE_V = new THREE.Vector3()
 /** (item 802) a gate's way through, walked by the keys: in from this far inside its doorway's middle (the bar's units, as the crew go in),
  * out to the aisle's middle before it; and how far from that line he may stray, a share of the doorway's width (the rest his body's) */
 const DRIVE_GATE_IN = 0.45, DRIVE_GATE_HALF = 0.36
-/** (item 802) how far either side of the kitchen's route to a gate he may go (the bar's units), where its floor's clear */
-const DRIVE_KITCHEN_BAND = 0.22
+/** (item 802) how far in from the kitchen's edges he may walk its floor (the bar's units): off the bars' bases and the walls as far as the
+ * crew are kept off what stands on it (guestbar/service's PASS_ROOM) */
+const DRIVE_KITCHEN_EDGE = 0.13
+const DRIVE_K = new THREE.Vector3()
 /** (item 802) where he is while he's walked by the keys (the world's), for the bar's gates to swing open for him (roasting/barGate) */
 const DRIVEN_AT = new THREE.Vector3()
 /** the boards' thickness over the floor roasting/kitchen's floorAt gives (Roasting's frame): the kitchen's boards' top over its floor */
@@ -796,12 +801,15 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     return Math.hypot(x0 + dx * k - x, z0 + dz * k - z) < DRIVE_ROUND
   })
   // (item 802, the owner's 「當我控制老闆時，過不了閘門」: walked by the keys he could go along his round's line in the kitchen, or on the room's
-  // floor map, which starts out in the aisle before each of the bar's gates: the doorways between were neither, and he could neither get
-  // out of the kitchen nor back in. Each gate's way, as the crew go: from his place across the kitchen (its route round what stands there)
-  // to just inside the doorway, through it, out to the aisle's middle; walkable too, the doorway's part as wide as the doorway allows. His
-  // frame's; worked out the first time it's asked for once the kitchen's route is ready, again if he's in another frame)
-  const gateWays = useRef<{ at: THREE.Object3D; segs: [number, number, number, number, number, number][] } | null>(null)
-  const onGate = (m: THREE.Object3D, x: number, z: number) => {
+  // floor map, which starts out in the aisle before each of the bar's gates (the kitchen's raised floor is all taken on it): the doorways
+  // between were neither, and he could neither get out of the kitchen nor back in. Now: each gate's doorway, from just inside it to the
+  // aisle's middle before it, as wide as the doorway allows; the kitchen's floor wherever the crew may stand on it (below); and each gate's
+  // route from his place, its line only, for where it squeezes past something. His frame's; worked out the first time it's asked for once
+  // the kitchen's route is ready, again if he's in another frame)
+  const gateWays = useRef<{ at: THREE.Object3D; segs: [number, number, number, number, number][]; kit: ReturnType<typeof kitchenOf> } | null>(null)
+  // (`here`: how far he's into what stands on the kitchen's floor where he is now (kitchenDeep): a step that takes him further out of it is
+  // walkable too)
+  const onGate = (m: THREE.Object3D, x: number, z: number, here: number) => {
     const f = BOSS_BED.frame, p = m.parent, route = KITCHEN_ROUTE.route
     if (!f || !p || !route) return false
     let gw = gateWays.current
@@ -809,7 +817,7 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
       // (a place in the bar's frame, in his)
       const his = (v: THREE.Vector3) => p.worldToLocal(f.localToWorld(fromBar(v)))
       const home = toBar(f.worldToLocal(p.localToWorld(new THREE.Vector3(0, 0, 0))))
-      const segs: [number, number, number, number, number, number][] = []
+      const segs: [number, number, number, number, number][] = []
       for (let k = 0; k < Math.min(GRILL_COUNTERS.length, BAR_GATES.length); k++) {
         const c = GRILL_COUNTERS[k], gate = BAR_GATES[k], mid = gateOf(c, gate).mid.setY(0)
         const inside = mid.clone().addScaledVector(c.lay, DRIVE_GATE_IN), out = mid.clone().addScaledVector(c.lay, -aisleOf(c))
@@ -817,31 +825,41 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
         const unit = his(mid.clone().addScaledVector(c.along, 1)).distanceTo(his(mid.clone()))
         // (the doorway's part: as far either side of its middle line as the doorway's width allows)
         const a = his(inside), b = his(out)
-        segs.push([a.x, a.z, b.x, b.z, DRIVE_GATE_HALF * gate.w * unit, 0])
-        // (and the kitchen's part, from his place to inside the doorway along its route: a body's width either side of it, where the
-        // kitchen's floor is clear (below). As narrow as his round's line, the first try, the keys' turning took him off it and he stuck)
+        segs.push([a.x, a.z, b.x, b.z, DRIVE_GATE_HALF * gate.w * unit])
+        // (the route's line, as near it as his round's: where it's squeezed past something, or set off from his notch in the cook table)
         const way = route(home.clone(), inside.clone()) ?? [home, inside]
         for (let i = 1; i < way.length; i++) {
           const q0 = his(way[i - 1].clone().setY(0)), q1 = his(way[i].clone().setY(0))
-          segs.push([q0.x, q0.z, q1.x, q1.z, DRIVE_KITCHEN_BAND * unit, 1])
+          segs.push([q0.x, q0.z, q1.x, q1.z, DRIVE_ROUND])
         }
       }
-      gw = gateWays.current = { at: p, segs }
+      gw = gateWays.current = { at: p, segs, kit: kitchenOf(GRILL_COUNTERS) }
     }
-    let bar: THREE.Vector3 | null = null
-    return gw.segs.some(([x0, z0, x1, z1, half, kitchen]) => {
+    if (gw.segs.some(([x0, z0, x1, z1, half]) => {
       const dx = x1 - x0, dz = z1 - z0, l2 = dx * dx + dz * dz || 1
       const k = Math.max(0, Math.min(1, ((x - x0) * dx + (z - z0) * dz) / l2))
-      const d = Math.hypot(x0 + dx * k - x, z0 + dz * k - z)
-      if (d >= half) return false
-      // (the kitchen's part: on its route's own line, as narrow as his round's, always; further off it only where nothing stands on its floor
-      // (the kitchen's own test, the crew's))
-      if (!kitchen || d < DRIVE_ROUND) return true
-      bar ??= toBar(f.worldToLocal(p.localToWorld(DRIVE_V.set(x, 0, z))))
-      const clear = KITCHEN_ROUTE.clear?.(bar)
-      return !!clear && Math.hypot(clear.x - bar.x, clear.z - bar.z) < 1e-4
-    })
+      return Math.hypot(x0 + dx * k - x, z0 + dz * k - z) < half
+    })) return true
+    // (the kitchen's floor where nothing stands, and, in the room round a piece (his round's line runs through the serving counter's), a step
+    // further out of it: the third try had the first only, and at his round's end, in the serving counter's room, every step was into it)
+    const deep = kitchenDeep(m, x, z)
+    return deep === 0 || deep < here - 1e-4
   }
+  /** how far (x, z) of his frame is into what stands on the kitchen's floor (KITCHEN_ROUTE.inside, the crew's own test: as far as they're kept
+   * off it), 0 clear; Infinity off the kitchen's floor or a body's half from its edges (the bars' bases, the walls). The second try had a band
+   * along each gate's route, 0.22 either side, clear where `clear` gave the place back as it was: it never did (0.4% off, the counters' axes
+   * not quite a unit long), so only the route's line was walkable, the keys' turning took him off it on the way to the far gate, and he stuck
+   * 3.8 short of its doorway */
+  const kitchenDeep = (m: THREE.Object3D, x: number, z: number) => {
+    const f = BOSS_BED.frame, p = m.parent, kit = gateWays.current?.kit, inside = KITCHEN_ROUTE.inside
+    if (!f || !p || !kit || !inside) return Infinity
+    const bar = toBar(f.worldToLocal(p.localToWorld(DRIVE_V.set(x, 0, z)))), c0 = GRILL_COUNTERS[0], e = DRIVE_KITCHEN_EDGE
+    const d = DRIVE_K.copy(bar).sub(c0.at), al = d.dot(c0.along), la = d.dot(c0.lay)
+    if (al < kit.along[0] + e || al > kit.along[1] - e || la < kit.lay[0] + e || la > kit.lay[1] - e) return Infinity
+    return inside(bar)
+  }
+  // (in development: the walk's tests, to ask where he may step (tests/e2e))
+  if (import.meta.env.DEV) Object.assign(window, { __drive: { onRound, onGate, kitchenDeep, segs: () => gateWays.current?.segs ?? null } })
   /** the floor under (x, z) of his frame, in his frame: the kitchen's raised floor or the customers' (roasting/kitchen's floorAt, in
    * Roasting's frame), the boards on it as at his place */
   const groundAt = (m: THREE.Object3D, x: number, z: number) => {
@@ -860,7 +878,8 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
   const carry = useRef<{ on: boolean; px: number; py: number; from: [number, number]; to: [number, number]; until: number } | null>(null)
   /** (item 652) put down off his round's line by the player: since when (performance.now()), how long he stays there before going back of
    * his own accord (sooner if he's wanted: the shop open, a taste or a drink for him, bed) */
-  const away = useRef<{ since: number; stay: number } | null>(null)
+  // (`keys`: left there by the keys (item 802), not put down; `round`: let go on his round's line, on with his round from there once it's up)
+  const away = useRef<{ since: number; stay: number; keys?: boolean; round?: boolean } | null>(null)
   /** (item 652) each let-go's number: where he's to stand is worked out a moment after, and taken up again meanwhile, that one's dropped */
   const dropToken = useRef(0)
   /** (item 652) calls off the working out of where he's to stand, under way since he was let go */
@@ -1039,8 +1058,12 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     // his way back from his futon is; till then he stands where he was put, at what he can do anywhere)
     if (away.current && bd.phase === 'off' && !edit && !carry.current && m.parent && BOSS_BED.frame) {
       const wanted = open || !!(BOSS_TASTE.at ?? BOSS_DRINK.at) || TO_BED.now || (shutting && sleepsDown(BOSS_BODY.fatigue))
-      // (wanted, he's off after a moment's look round (he's come down where he was put first); else once he's stood there a while)
-      if (performance.now() - away.current.since > (wanted ? 1500 : away.current.stay * 1000)) {
+      // (wanted, he's off after a moment's look round (he's come down where he was put first); else once he's stood there a while. Left by
+      // the keys, a little longer (item 802: with the shop open, let go a moment between two keys, he'd set off home in 1.5 s); let go on his
+      // round's line, on with his round from there once his moment's up)
+      const aw = away.current
+      if (aw.round && !wanted && performance.now() - aw.since > aw.stay * 1000 && onRound(s.x, s.z)) away.current = null
+      else if (performance.now() - aw.since > (wanted ? (aw.keys ? DRIVE_WANTED * 1000 : 1500) : aw.stay * 1000)) {
         const frame = BOSS_BED.frame
         const here = frame.worldToLocal(m.getWorldPosition(new THREE.Vector3()))
         const place = frame.worldToLocal(m.parent.localToWorld(new THREE.Vector3(0, 0, 0)))
@@ -1238,8 +1261,10 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     const kk = keys.current
     if (VIEW_NOW.id !== 'boss' || edit) { kk.w = kk.a = kk.s = kk.d = kk.jump = false }
     const driving = !noKeys(kk) && !bedOn && !carry.current && !ask && !!m.parent
-    // (let go on his round's line: on with his round from there, not stood there and walked home)
-    if (kk.was && !driving && onRound(s.x, s.z)) away.current = null
+    // (let go on his round's line: on with his round from there, not stood there and walked home; but only after a moment, stood as he was
+    // left (item 802: let go between two keys, A to turn him and W to walk, he'd gone back to his round at once and turned back to the fire,
+    // and the next key walked him the wrong way)
+    if (kk.was && !driving && onRound(s.x, s.z)) away.current = { since: performance.now(), stay: DRIVE_GRACE, keys: true, round: true }
     kk.was = driving
     // (no longer walked by the keys: the gates no longer swing for him (item 802))
     if (!driving) BOSS_BED.drivenAt = null
@@ -1276,7 +1301,8 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
       const r = driveStep(kk, s.yaw, dt)
       s.yaw = r.yaw
       const par = m.parent!
-      const [nx, nz] = slide(s.x, s.z, r.dx, r.dz, (x, z) => onRound(x, z) || onGate(m, x, z) || !!BOSS_BED.clear?.(par.localToWorld(DRIVE_V.set(x, 0, z))))
+      const here = kitchenDeep(m, s.x, s.z)
+      const [nx, nz] = slide(s.x, s.z, r.dx, r.dz, (x, z) => onRound(x, z) || onGate(m, x, z, here) || !!BOSS_BED.clear?.(par.localToWorld(DRIVE_V.set(x, 0, z))))
       // (where he is, for the gates to swing open for him as he comes up to one, as they do for the crew)
       BOSS_BED.drivenAt = par.localToWorld(DRIVEN_AT.set(nx, 0, nz))
       const moved = Math.hypot(nx - s.x, nz - s.z)
@@ -1285,7 +1311,7 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
       speed = moved / Math.max(dt, 1e-4)
       act = 'idle'
       s.t = 0
-      away.current = { since: performance.now(), stay: DRIVE_STAY }
+      away.current = { since: performance.now(), stay: DRIVE_STAY, keys: true }
     } else if (ask) {
       // (the nearest he can come to it: on the aisle, by way of the notch's mouth; with no aisle given, along his walk's line, not behind it)
       let goal: [number, number]
@@ -1378,8 +1404,10 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
       // (at a stop he turns back to face the fire; on his phone (item 475), round the other way, his back to the work, facing the room (and
       // the player's views: from behind him the phone was hidden by him), a little slower, as one taking a break; and a moment into it,
       // something on it read out, with a face to it)
-      const onPhone = act === 'phone'
-      turnTo(s, onPhone ? Math.PI : 0, dt, onPhone ? 3.5 : 5)
+      // (left by the keys: facing as he was turned, no phone out (item 802: he turned back to the fire the moment they were let go))
+      const kept = !!away.current?.keys
+      const onPhone = act === 'phone' && !kept
+      if (!kept) turnTo(s, onPhone ? Math.PI : 0, dt, onPhone ? 3.5 : 5)
       if (onPhone && s.t > 3.2 && s.t - dt <= 3.2) {
         const l = phoneLine(Math.random())
         setSay({ text: lineIn(l, lang), key: Date.now() })

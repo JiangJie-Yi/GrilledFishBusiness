@@ -1778,7 +1778,16 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       const [a, l] = standClear(flat(at), blocks), c0 = counters[0]
       return c0.at.clone().addScaledVector(c0.along, a).addScaledVector(c0.lay, l).setY(at.y)
     }
-    return () => { KITCHEN_ROUTE.route = null; KITCHEN_ROUTE.clear = null }
+    // (and how far a place is into it, asked in the kitchen's own frame (item 802: the owner walked by the keys). Not by `clear` giving the
+    // place back: turned back into the bar's frame it missed the place itself by 0.4% of its way from the first counter's middle (up to
+    // 0.02), the counters' axes not quite a unit long (0.81, 0.59), and no place was ever clear)
+    KITCHEN_ROUTE.inside = (at) => {
+      const [a, l] = flat(at)
+      let deep = 0
+      for (const r of kitchenBlocks()) if (a > r.x0 && a < r.x1 && l > r.z0 && l < r.z1) deep = Math.max(deep, Math.min(a - r.x0, r.x1 - a, l - r.z0, r.z1 - l))
+      return deep
+    }
+    return () => { KITCHEN_ROUTE.route = null; KITCHEN_ROUTE.clear = null; KITCHEN_ROUTE.inside = null }
   })
 
   // the plates: those out at the seats (or on their way), and the two stacks
