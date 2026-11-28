@@ -45,8 +45,9 @@ const PLANTER = { x: [0.022, 0.352], z: [-0.002, 0.328] }
 /** the earth round the building, out from its plinth's face (item 752, the owner's 「泥土地往內縮，除了玄關」: 0.77 before, as far as the
  * gravel, the curb and the earth past them reached, items 725-726), a margin round its picture; the band past the bed's curb (the genkan's
  * front, kept as it was); its picture's pixels to a unit. Its edge square (item 765, the owner's 「泥土地必須要方的」: rounded, blurred and
- * ragged with blobs before), straight along each side and square at each corner */
-const EARTH_REACH = 0.42, EARTH_BAND = 0.36, EARTH_FADE = 0.04, EARTH_PX = 96
+ * ragged with blobs before), straight along each side and square at each corner; soft (item 779, the owner's 「泥土地要有點柔邊」: crisp
+ * to a pixel, a darker tamped line round it, since item 765): faded out over EARTH_SOFT each side of its outline */
+const EARTH_REACH = 0.42, EARTH_BAND = 0.36, EARTH_FADE = 0.04, EARTH_PX = 96, EARTH_SOFT = 0.022
 /** how much ground one repeat of the gravel's picture covers */
 const GRAVEL_TILE = 0.5
 /** the stepping stones: their half sizes across and along the way out, the gaps between them */
@@ -465,46 +466,52 @@ export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut
         }
       }
     }
-    // (drier and paler toward its edge, as earth nobody waters is: it fades out to dust, not to a dark smudge. A pale coat over it all,
-    // cut away again within 0.12 of its outline (each shape drawn shrunk, so only the true outline keeps the rim, not where two meet))
-    const dust = document.createElement('canvas')
-    dust.width = cw; dust.height = ch
-    const dg = dust.getContext('2d')!
-    dg.fillStyle = 'rgba(200,182,152,0.62)'
-    dg.fillRect(0, 0, cw, ch)
-    dg.globalCompositeOperation = 'destination-out'
-    dg.filter = `blur(${Math.round(0.05 * sx)}px)`
-    dg.fillStyle = '#000'
-    for (const [a0, b0, a1, b1] of shapes) dg.fillRect(px(a0 + 0.1), pz(b0 + 0.1), (a1 - a0 - 0.2) * sx, (b1 - b0 - 0.2) * sz)
-    g.drawImage(dust, 0, 0)
     // (and damper, darker, close in under the building: in the shade of its eaves the earth keeps the wet longest; fading out from the
-    // plinth's foot over a few hand's breadths (item 752's 「泥土地要有漸層」))
+    // plinth's foot over a few hand's breadths (item 752's 「泥土地要有漸層」). Its rectangles filled as one, then blurred and laid over at half
+    // (item 780: each drawn blurred at half on its own, it was darker where two met))
     const damp = document.createElement('canvas')
     damp.width = cw; damp.height = ch
     const kg = damp.getContext('2d')!
-    kg.filter = `blur(${Math.round(0.14 * sx)}px)`
-    kg.fillStyle = 'rgba(58,40,24,0.5)'
+    kg.fillStyle = 'rgb(58,40,24)'
     for (const [a0, b0, a1, b1] of building) kg.fillRect(px(a0 - 0.05), pz(b0 - 0.05), (a1 - a0 + 0.1) * sx, (b1 - b0 + 0.1) * sz)
+    g.save()
+    g.filter = `blur(${Math.round(0.14 * sx)}px)`
+    g.globalAlpha = 0.5
     g.drawImage(damp, 0, 0)
-    // (its edge a line of earth tamped harder, a shade darker, so it ends square and on purpose)
-    g.strokeStyle = 'rgba(86,64,44,0.45)'
-    g.lineWidth = Math.max(1.5, 0.012 * sx)
-    for (const [a0, b0, a1, b1] of shapes) g.strokeRect(px(a0) + 1, pz(b0) + 1, (a1 - a0) * sx - 2, (b1 - b0) * sz - 2)
-    // (its edge: the band's outline, square (item 765): straight along each side, square at each corner, crisp (a pixel's softening only))
-    const m = document.createElement('canvas')
-    m.width = cw; m.height = ch
-    const mg = m.getContext('2d')!
-    mg.fillStyle = '#fff'
-    for (const [a0, b0, a1, b1] of shapes) mg.fillRect(px(a0), pz(b0), (a1 - a0) * sx, (b1 - b0) * sz)
+    g.restore()
+    // (how far in from its whole outline each pixel is, in units, outside less than 0: the most, over its shapes, of a shape's least way to
+    // its sides (measured as a square is, so its corners stay square). Its rim's dust and its fade from it, not from each shape on its own
+    // (item 780, the owner's 「而且不要有這種接口」: each shape's outline was stroked darker, and where one ran on inside another, the bed's
+    // band's side across the narrow band before the shop's front, it was a dark seam out from the shop's corner))
+    const deep = new Float32Array(cw * ch)
+    for (let y = 0; y < ch; y++) {
+      const z = Z0 + (y + 0.5) / sz
+      for (let x = 0; x < cw; x++) {
+        const wx = X0 + (x + 0.5) / sx
+        let d = -1e9
+        for (const r of shapes) {
+          const v = Math.min(wx - r[0], r[2] - wx, z - r[1], r[3] - z)
+          if (v > d) d = v
+        }
+        deep[y * cw + x] = d
+      }
+    }
     // (its colour and its fade put together by hand, not cut out on the canvas: a canvas keeps nothing of a colour where it's wholly clear
     // (black there), and the picture's smaller copies averaged that black into its edge, a dark ring round it as it faded. Each pixel the
-    // earth's own colour, clear or not; rows turned over as the plane lays them (the canvas's top at Z0))
-    const col = g.getImageData(0, 0, cw, ch).data, msk = mg.getImageData(0, 0, cw, ch).data
+    // earth's own colour, clear or not; drier and paler toward its edge, as earth nobody waters is (it fades out to dust, not to a dark
+    // smudge): a pale coat within 0.05 of its outline, gone 0.15 in; its edge faded out over EARTH_SOFT each side of the outline (item 779).
+    // Rows turned over as the plane lays them (the canvas's top at Z0))
+    const col = g.getImageData(0, 0, cw, ch).data
     const data = new Uint8Array(cw * ch * 4)
+    const ease = THREE.MathUtils.smoothstep
     for (let y = 0; y < ch; y++) {
       const from = y * cw * 4, to = (ch - 1 - y) * cw * 4
-      for (let i = 0; i < cw * 4; i += 4) {
-        data[to + i] = col[from + i]; data[to + i + 1] = col[from + i + 1]; data[to + i + 2] = col[from + i + 2]; data[to + i + 3] = msk[from + i + 3]
+      for (let x = 0; x < cw; x++) {
+        const i = x * 4, d = deep[y * cw + x], du = 0.62 * (1 - ease(d, 0.05, 0.15))
+        data[to + i] = col[from + i] + (200 - col[from + i]) * du
+        data[to + i + 1] = col[from + i + 1] + (182 - col[from + i + 1]) * du
+        data[to + i + 2] = col[from + i + 2] + (152 - col[from + i + 2]) * du
+        data[to + i + 3] = 255 * ease(d, -EARTH_SOFT, EARTH_SOFT)
       }
     }
     const tex = new THREE.DataTexture(data, cw, ch, THREE.RGBAFormat)

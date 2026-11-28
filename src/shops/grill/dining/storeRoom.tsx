@@ -18,43 +18,49 @@ import { QUALITY } from '@/scene/render/quality'
 import { tick } from '@/scene/kit/speed'
 import { lightSwitchSound } from '@/shops/grill/sounds/restroomSound'
 import { EARTH_Y } from '@/shops/grill/guestbar/ground'
+import { pointsEach } from './shrine'
 import { GLOW } from './shrine'
 
 /** the stock room's doorway's frame (items 430): its posts' width in the wall's line, its head's height over the opening */
 export const STORE_POST = STORE.post, STORE_HEAD = 0.07
-/** the stock room's noren (a half-noren, to the stocker's shoulders): as wide as the frame's posts' outer sides (the doorway's as laid out,
- * item 467), and how long */
-const STORE_NOREN_L = 0.6
+/** the stock room's noren: as wide as the frame's posts' outer sides (the doorway's as laid out, item 467), and how long (item 781, the
+ * owner's 「簾子長一些，最少要一半以上」: 0.6, a half-noren to the stocker's shoulders, a third of the doorway; 1.15 a mid-length one, its hem
+ * 0.76 over the floor, six tenths of the opening behind it, the crates in there still seen under it) */
+const STORE_NOREN_L = 1.15
 /**
  * The stock room's noren (item 430, the owner's 「這邊挖空並加上掛簾，後面是小儲藏室，倉儲員工專用」): indigo cotton, the shop's back rooms'
  * plain kind: its top band darker where it's sewn over the rod; across its middle, where its two panels part, a white ring round 倉 (the
  * store), and under it in small spaced capitals STAFF ONLY; a white line along its hem; the cotton's weave. One picture over both panels.
  */
 const storeNoren = (wide: number) => {
-  const PX = 1024 / wide, H = Math.round(STORE_NOREN_L * PX)
-  return canvasTex(1024, H, (g) => {
+  // (as many pixels a metre as keep both its width and its length within 1024: a picture past that is halved as it's uploaded)
+  const PX = Math.min(1024 / wide, 1024 / STORE_NOREN_L), W = Math.round(wide * PX), H = Math.round(STORE_NOREN_L * PX)
+  return canvasTex(W, H, (g) => {
     const cloth = '#1f2f52'
-    const band = Math.round(0.034 * PX), cy = Math.round(band + (H - band) * 0.43)
+    const band = Math.round(0.034 * PX)
     g.save()
-    g.fillStyle = cloth; g.fillRect(0, 0, 1024, H)
+    g.fillStyle = cloth; g.fillRect(0, 0, W, H)
     g.globalAlpha = 0.06
     g.fillStyle = '#ffffff'
-    for (let x = 0; x < 1024; x += 3) g.fillRect(x, 0, 1, H)
+    for (let x = 0; x < W; x += 3) g.fillRect(x, 0, 1, H)
     g.fillStyle = '#000000'
-    for (let y = 0; y < H; y += 3) g.fillRect(0, y, 1024, 1)
+    for (let y = 0; y < H; y += 3) g.fillRect(0, y, W, 1)
     g.globalAlpha = 1
-    g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, 0, 1024, band)
-    g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(0, band, 1024, 3)
-    // (the ring and the character in it)
+    g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, 0, W, band)
+    g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(0, band, W, 3)
+    // (the ring and the character in it, as large as they were (drawn for 1024 across 0.648), at a person's eyes: 0.34 under its top)
+    const k = W / 1024
+    g.translate(W / 2, Math.round(0.34 * PX)); g.scale(k, k)
     g.strokeStyle = '#efe9dc'; g.lineWidth = 16
-    g.beginPath(); g.arc(512, cy, 150, 0, Math.PI * 2); g.stroke()
+    g.beginPath(); g.arc(0, 0, 150, 0, Math.PI * 2); g.stroke()
     g.fillStyle = '#efe9dc'; g.textAlign = 'center'; g.textBaseline = 'middle'
     g.font = `700 200px ${SIGN_FONT}`
-    g.fillText('倉', 512, cy + 8)
+    g.fillText('倉', 0, 8)
     g.font = '700 46px "Arial Black", sans-serif'
     ;(g as unknown as { letterSpacing: string }).letterSpacing = '14px'
-    g.fillText('STAFF ONLY', 512, cy + 232)
-    g.fillRect(0, H - Math.round(0.022 * PX), 1024, 5)
+    g.fillText('STAFF ONLY', 0, 232)
+    g.setTransform(1, 0, 0, 1, 0, 0)
+    g.fillRect(0, H - Math.round(0.022 * PX), W, Math.max(3, Math.round(5 * k)))
     g.restore()
   })
 }
@@ -164,12 +170,119 @@ const C_GLASS_OFF = new THREE.Color('#f4f1ea'), C_GLASS_ON = new THREE.Color('#f
 const C_FIL_OFF = new THREE.Color('#2c2420'), C_FIL_HOT = new THREE.Color('#ff7428'), C_FIL_ON = new THREE.Color('#fff2cc')
 /** the bulb's light: its strength (candela) at full, how far it reaches (this frame's units: the floor 1.66 under it, the cone's far edge on
  * the floor 2.74 off), its cone's half angle (the shade's mouth: 0.104 out, 0.082 down) */
-const BULB_CD = 30, BULB_REACH = 2.8, BULB_CONE = 0.92
-/** how much of its cone's edge fades out (item 761, the owner's 「可以的話，再揉一些」: 0.18, a hard rim to its pool) */
-const BULB_SOFT = 0.6
+const BULB_CD = 13, BULB_REACH = 2.8, BULB_CONE = 0.92
+/** how much of its cone's edge fades out (item 761, the owner's 「可以的話，再揉一些」: 0.18, a hard rim to its pool; 0.6 then) (item 775, the
+ * owner's 「這邊不太真」 at that: with 0.6 of the cone fading in, the wall under the shade lay dark and the pool brightest far down it, white
+ * and flat at 30 cd: as a bulb's glass (3 cm round, 10 cm in from the shade's rim) blurs the rim's cut, 0.28, and 13 cd: the wall brightest
+ * just inside the pool's soft top, darker down it, as near a wall a lamp lights it) */
+const BULB_SOFT = 0.28
 /** the pull: how far down it's drawn and how long that takes, how long it's held there, how long it springs back; the bead's swing after */
 const PULL_D = 0.028, PULL_DOWN = 0.09, PULL_HOLD = 0.04, PULL_BACK = 0.34, SWING = 0.24, SWING_T = 0.85, SWING_DIE = 2.2
 const easeOutBack = (t: number) => { const c = 1.9; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2 }
+/**
+ * (item 776, the owner's 「然後燈打開可以看到一些塵埃在燈那邊飄」) dust in the bulb's light: specks drifting slow in the air under it, seen only
+ * where its light falls on them (its cone, brightest near the bulb, gone past its edge), each catching it now and then as it turns (a
+ * twinkle); the warm air over the bulb lifting those near it a little, the rest settling slower than they drift. Gone with the light. One draw,
+ * the shrine's motes' kind of points (its program: shrine's pointsEach, a size and a see-through of each speck's own), a soft speck for the
+ * star; made with the room, never new while the shop's open
+ */
+const DUSTS = 84
+/** how deep under the bulb they drift (this frame's units), and how far out from its axis (inside its cone, at most) */
+const DUST_DEEP = [0.05, 0.78] as const, DUST_OUT = 0.34
+/** each speck's size on the screen (CSS pixels, most of them the small end): a point of light whatever how far it is (as a speck in a beam
+ * is to the eye, far smaller than it shows), up close no smaller than its own size (`Speck.size`) would draw it; and how far off (world)
+ * they've faded to half, gone from the whole shop's view */
+const DUST_PX = [3.4, 7] as const, DUST_FAR = 3.2
+const DUST_DOT = (() => {
+  if (typeof document === 'undefined') return null
+  const N = 32, c = document.createElement('canvas')
+  c.width = c.height = N
+  const g = c.getContext('2d')!
+  const img = g.createImageData(N, N)
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const r = Math.hypot(x - 15.5, y - 15.5) / 16
+    // (a round core half the dot across, a faint glow round it: drawn a few pixels wide, its middle still lit)
+    const a = Math.min(1, Math.exp(-((r / 0.42) ** 2)) + Math.exp(-((r / 0.8) ** 2)) * 0.2) * Math.max(0, 1 - r ** 8)
+    const i = (y * N + x) * 4
+    img.data[i] = 255; img.data[i + 1] = 246; img.data[i + 2] = 226; img.data[i + 3] = Math.round(a * 255)
+  }
+  g.putImageData(img, 0, 0)
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace
+  // (drawn a few pixels wide: a mip-map's the dot averaged with the dark round it, faint; read straight it keeps its lit core)
+  t.generateMipmaps = false
+  t.minFilter = THREE.LinearFilter
+  return t
+})()
+type Speck = { x: number; y: number; z: number; age: number; seed: number; size: number; px: number; tw: number }
+const DUST_V = new THREE.Vector3()
+const dustRnd = (() => { let s = 7761; return () => ((s = (s * 16807) % 2147483647) / 2147483647) })()
+/** a speck put somewhere in the light (more of them nearer the bulb), fresh */
+function speckAt(p: Speck) {
+  const h = DUST_DEEP[0] + (DUST_DEEP[1] - DUST_DEEP[0]) * dustRnd() ** 1.5
+  const out = Math.min(DUST_OUT, Math.tan(BULB_CONE) * h * 0.92) * Math.sqrt(dustRnd()), a = dustRnd() * Math.PI * 2
+  p.x = Math.cos(a) * out; p.y = BULB_AT - h; p.z = Math.sin(a) * out; p.age = 0
+  return p
+}
+function StoreDust({ k }: { k: React.MutableRefObject<number> }) {
+  const pts = useRef<THREE.Points>(null)
+  const specks = useMemo(() => Array.from({ length: DUSTS }, (_, i) => {
+    const p = speckAt({ x: 0, y: 0, z: 0, age: 0, seed: i * 1.37 + dustRnd() * 6, size: 0, px: 0, tw: 1.2 + dustRnd() * 3.5 })
+    p.age = 2 + dustRnd() * 3
+    p.size = 0.006 + dustRnd() ** 2 * 0.01
+    p.px = DUST_PX[0] + (DUST_PX[1] - DUST_PX[0]) * dustRnd() ** 2.5
+    return p
+  }), [])
+  const geo = useMemo(() => {
+    const g = new THREE.BufferGeometry()
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(DUSTS * 3), 3))
+    g.setAttribute('size', new THREE.BufferAttribute(new Float32Array(DUSTS), 1))
+    g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(DUSTS * 3).fill(1), 3))
+    g.setAttribute('alpha', new THREE.BufferAttribute(new Float32Array(DUSTS), 1))
+    // (where they can be, fixed: culled with it while the stock room's out of the view, never measured again as they move)
+    g.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, BULB_AT - (DUST_DEEP[0] + DUST_DEEP[1]) / 2, 0), Math.hypot(DUST_OUT * 1.1, (DUST_DEEP[1] - DUST_DEEP[0]) / 2 + 0.03))
+    return g
+  }, [])
+  useEffect(() => () => geo.dispose(), [geo])
+  const tanCone = Math.tan(BULB_CONE)
+  useFrame(({ clock, camera, size, viewport }, dt0) => {
+    const o = pts.current
+    if (!o) return
+    const lit = k.current
+    o.visible = lit > 0.01
+    if (!o.visible) return
+    const dt = Math.min(0.05, tick(dt0)), t = clock.elapsedTime
+    const pos = geo.attributes.position as THREE.BufferAttribute, al = geo.attributes.alpha as THREE.BufferAttribute, sz = geo.attributes.size as THREE.BufferAttribute
+    // (a speck's size is the world's, drawn size * (half the view's CSS height) / depth device pixels: a pixel size back to the world's)
+    const perPx = (viewport.dpr * 2) / Math.max(1, size.height)
+    for (let i = 0; i < DUSTS; i++) {
+      const p = specks[i], h = BULB_AT - p.y
+      // (drifting each its own slow way, a few millimetres a second; lifted over the bulb, settling elsewhere)
+      const lift = h < 0.2 ? 0.006 * (1 - h / 0.2) : -0.0025
+      p.x += (Math.sin(t * 0.37 + p.seed) * 0.011 + Math.sin(t * 0.91 + p.seed * 2.3) * 0.004) * dt
+      p.z += (Math.cos(t * 0.43 + p.seed * 1.7) * 0.011 + Math.cos(t * 0.77 + p.seed * 0.6) * 0.004) * dt
+      p.y += (lift + Math.sin(t * 0.29 + p.seed * 3.1) * 0.005) * dt
+      p.age += dt
+      const r = Math.hypot(p.x, p.z), edge = Math.min(DUST_OUT, tanCone * Math.max(0, h))
+      if (h < DUST_DEEP[0] * 0.6 || h > DUST_DEEP[1] || r > edge * 1.08) speckAt(p)
+      // (seen as the light falls on it: inside the cone, fading at its edge; the nearer the bulb the brighter; a glint as it turns; in
+      // over a second when it's put somewhere new)
+      const inCone = 1 - Math.min(1, Math.max(0, (r / Math.max(1e-3, edge) - 0.72) / 0.36))
+      const near = 1 / (1 + (Math.max(0, h) / 0.6) ** 2)
+      const glint = 0.42 + 0.58 * (0.5 + 0.5 * Math.sin(t * p.tw + p.seed * 5)) ** 3
+      const depth = Math.max(0.05, -DUST_V.set(p.x, p.y, p.z).applyMatrix4(o.matrixWorld).applyMatrix4(camera.matrixWorldInverse).z)
+      al.setX(i, lit * inCone * near * glint * Math.min(1, p.age / 1.2) / (1 + (depth / DUST_FAR) ** 2))
+      pos.setXYZ(i, p.x, p.y, p.z)
+      sz.setX(i, Math.max(p.size, p.px * perPx * depth))
+    }
+    pos.needsUpdate = true; al.needsUpdate = true; sz.needsUpdate = true
+  })
+  return (
+    <points ref={pts} geometry={geo} renderOrder={4} raycast={NO_RAY}>
+      <pointsMaterial map={DUST_DOT} vertexColors color="#ffe7c2" size={1} transparent depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} onBeforeCompile={pointsEach} />
+    </points>
+  )
+}
 const storeSays = () => ({ title: '儲藏室電燈', hint: lightOn(getLights(), 'store') ? '點一下拉線關燈' : '點一下拉線開燈' })
 function StoreLamp({ at }: { at: [number, number, number] }) {
   const shadeY = -LAMP_CORD - 0.034
@@ -281,6 +394,8 @@ function StoreLamp({ at }: { at: [number, number, number] }) {
             onPointerOver={(e: ThreeEvent<PointerEvent>) => { e.stopPropagation(); if (getEdit().on) return; hover.current = true; handOver.onPointerOver(e as never); setTip(storeSays()) }}
             onPointerOut={(e: ThreeEvent<PointerEvent>) => { hover.current = false; handOver.onPointerOut(e as never); setTip(null) }} />
         </group>
+        {/* (item 776) the dust drifting in its light */}
+        <StoreDust k={k} />
         {/* its light: down through the shade's mouth from the filament, its shadows hard (a tungsten filament's as good as a point) */}
         <spotLight ref={light} position-y={BULB_AT + 0.004} angle={BULB_CONE} penumbra={BULB_SOFT} decay={2} color="#ffc98e" intensity={lightOn(getLights(), 'store') ? BULB_CD : 0}
           castShadow={QUALITY.shadows} shadow-mapSize-width={1024} shadow-mapSize-height={1024} shadow-radius={1} shadow-bias={0.0003} shadow-normalBias={0.05} />
@@ -408,7 +523,8 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
     st.push += st.v * dt
     const g = noren.current
     if (!g) return
-    g.children.forEach((p, i) => { p.rotation.z = st.push * (0.62 - i * 0.08) })
+    // (item 781: bent, not swung stiff as a board: over his shoulder tilted aside, under it hanging down over him)
+    g.children.forEach((p, i) => { const m = p.children[0] as THREE.Mesh | undefined; if (m) bendNoren(m.geometry, st.push * (0.62 - i * 0.08)) })
   })
   // (the small wall over the doorway and the fridges (item 762): its outline across them, the doorway's stretch from over its lintel, the
   // fridges' from the doorway's height (their lintel gone), up to the head; through the wall's thickness, 4 mm in from either face)
@@ -534,12 +650,13 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
         onPointerOver={stopHere} onPointerMove={stopHere} onClick={stopHere}>
         <planeGeometry args={[zE - door[1] - STORE_POST, WALL_H]} />
       </mesh>
-      {/* (a mat before its doorway on the shop's floor (item 756, the owner's 「倉庫玄關口要有地墊。」, a red box on the boards before the
-          doorway's noren; item 763: the owner's navy 青海波 with blossoms, the dirt of the back's coming and going not seen on it): the
-          doorway's width less 3 cm each side, 42 cm out into the shop from 3 cm off the wall; 4 mm thick, half a millimetre over the boards
-          (their top 4 mm up), a dark rubber border; the stock keeper walks over it) */}
-      <Movable id="storemat" label="倉庫門口地墊" ground={0.0045}>
-        <group position={[-0.03 - STORE_MAT_D / 2, 0.0045, (door[0] + door[1]) / 2]} rotation-y={Math.PI / 2}>
+      {/* (a mat at its doorway (item 756, the owner's 「倉庫玄關口要有地墊。」; item 763: the owner's navy 青海波 with blossoms, the dirt of
+          the back's coming and going not seen on it); inside the room (item 782, the owner's 「腳踏墊放倉庫室內」: it lay on the shop's boards
+          before the doorway): on the mortar floor 2 cm in from the wall's inner face, 42 cm on into the room, as wide as the doorway's frame
+          less 3 cm each side, square to the doorway (nothing stands there: no vertex of anything else in it, `_mat782.mjs`); 4 mm thick, half a
+          millimetre over the mortar (its top 6.5 mm up), a dark rubber border; the stock keeper walks over it, the noren's hem over it) */}
+      <Movable id="storemat" label="倉庫門口地墊" ground={0.007}>
+        <group position={[WALL_OUT + 0.02 + STORE_MAT_D / 2, 0.007, (door[0] + door[1]) / 2]} rotation-y={Math.PI / 2}>
           <PatternMat art="navyWaves" w={outerW - 0.06} d={STORE_MAT_D} t={0.004} edge={0.03} rim="#1b1e26" />
         </group>
       </Movable>
@@ -554,16 +671,49 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
     </group>
   )
 }
+/** (item 781) how far under the rod the stocker's shoulder meets the noren as he goes through (over it the cloth tilted aside, under it
+ * hanging down again, draped over him), how much of the tilt the cloth under it keeps, half the length of the turn between; its rows across
+ * (how finely it bends) */
+const NOREN_PUSH_AT = 0.48, NOREN_HANG = 0.22, NOREN_BEND = 0.12, NOREN_ROWS = 12
+/** one of the noren's panels pushed `a` (radians) aside: from the rod down to where it's pushed tilted a, under that hanging again (a
+ * little of a kept), the turn between eased; each row put along the cloth (its length kept, not moved straight); flat as it hangs at 0. Only
+ * when it's moved */
+function bendNoren(g: THREE.BufferGeometry, a: number) {
+  const ud = g.userData as { rest?: Float32Array; a?: number }
+  const rest = ud.rest
+  if (!rest || Math.abs((ud.a ?? 0) - a) < 1e-4) return
+  ud.a = a
+  const pos = g.attributes.position as THREE.BufferAttribute
+  const lo = NOREN_PUSH_AT - NOREN_BEND, hi = NOREN_PUSH_AT + NOREN_BEND
+  // (down the rows, top first, two to a row (the plane's own order): walked along the cloth in 2 cm steps)
+  let x = 0, y = 0, sAt = 0
+  for (let r = 0; r * 2 < pos.count; r++) {
+    const y0 = rest[r * 6 + 1], s = Math.max(0, -y0)
+    const n = Math.max(1, Math.ceil((s - sAt) / 0.02)), ds = (s - sAt) / n
+    for (let j = 0; j < n; j++) {
+      const t = a * (1 - THREE.MathUtils.smoothstep(sAt + (j + 0.5) * ds, lo, hi) * (1 - NOREN_HANG))
+      x += Math.sin(t) * ds; y += Math.cos(t) * ds
+    }
+    sAt = s
+    // (its own frame's -z is into the stock room, the way it's pushed)
+    for (let c = 0; c < 2; c++) { const i = r * 2 + c; pos.setXYZ(i, rest[i * 3], y0 > 0 ? y0 : -y, -x) }
+  }
+  pos.needsUpdate = true
+  g.computeVertexNormals()
+}
 /** one of the stock room noren's two panels: its half of the picture, hung from the rod (its top), a slit between the two */
 function StoreNorenPanel({ sd, wide }: { sd: number; wide: number }) {
   const geo = useMemo(() => {
     const w = (wide - 0.008) / 2
-    const g = new THREE.PlaneGeometry(w, STORE_NOREN_L)
+    const g = new THREE.PlaneGeometry(w, STORE_NOREN_L, 1, NOREN_ROWS)
     const u0 = sd < 0 ? 0 : 1 - w / wide, u1 = u0 + w / wide
     const uv = g.attributes.uv as THREE.BufferAttribute
     for (let k = 0; k < uv.count; k++) uv.setX(k, u0 + uv.getX(k) * (u1 - u0))
-    // (hung from its top: the cloth below the rod)
+    // (hung from its top: the cloth below the rod; as it hangs kept to bend from, its bounds as wide as it's ever pushed)
     g.translate(0, -STORE_NOREN_L / 2 + 0.012, 0)
+    g.userData.rest = (g.attributes.position.array as Float32Array).slice()
+    g.computeBoundingSphere()
+    g.boundingSphere!.radius += STORE_NOREN_L * 0.4
     return { g, z: sd * (0.008 + w) / 2 }
   }, [sd, wide])
   useEffect(() => () => geo.g.dispose(), [geo])
