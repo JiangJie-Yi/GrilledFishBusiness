@@ -131,13 +131,33 @@ const STORE_PIECE: Record<Exclude<Store, 'cubby'>, string> = { freezer: 'freezer
 // (the warmer's: the two counters are one, its body all the warmer's model (blender/warmer.py), the rice-ball counter's only what's on it)
 const STORE_COUNTER: Partial<Record<Store, string>> = { ricetub: 'warmer' }
 /**
+ * (item 804) a piece found by its edit id, or a group by its name, once, and kept while it's still in the scene: the second cook's every trip
+ * walked the whole room (fourteen thousand objects) for each of them, two to six times a trip, a millisecond or so each, a long frame each
+ * time he set off
+ */
+const FOUND = new Map<string, THREE.Object3D>()
+const inScene = (o: THREE.Object3D, scene: THREE.Object3D) => { for (let q: THREE.Object3D | null = o; q; q = q.parent) if (q === scene) return true; return false }
+function kept(scene: THREE.Object3D, k: string, find: () => THREE.Object3D | undefined) {
+  const was = FOUND.get(k)
+  if (was && inScene(was, scene)) return was
+  const got = find()
+  if (got) FOUND.set(k, got); else FOUND.delete(k)
+  return got
+}
+function byEdit(scene: THREE.Object3D, id: string) {
+  return kept(scene, `e:${id}`, () => { let got: THREE.Object3D | undefined; scene.traverse((o) => { if (!got && o.userData.editId === id) got = o }); return got })
+}
+function byName(scene: THREE.Object3D, name: string) {
+  return kept(scene, `n:${name}`, () => scene.getObjectByName(name))
+}
+/**
  * A spot (in `frame`) put out of the cook table and its hearth where the table's guard (HearthGuard) would put whoever stood there, before
  * anyone sets off for it: walked to as it was, they'd been held at the table's edge every frame of the way in and all the while they stood
  * there, drawn up to 0.75 off where they were, sliding along the edge (item 55: the second cook's spot at the vegetables' stand was in the
  * table, past his own place at the board, the stand's box being long and its middle far off).
  */
 function clearOfTable(spot: THREE.Vector3, frame: THREE.Object3D, scene: THREE.Object3D) {
-  const t = scene.getObjectByName('cook-table-c0')?.parent
+  const t = byName(scene, 'cook-table-c0')?.parent
   if (!t) return spot
   t.updateWorldMatrix(true, false)
   frame.updateWorldMatrix(true, false)
@@ -171,8 +191,7 @@ export function storeSpot(store: Store, scene: THREE.Object3D, frame: THREE.Obje
     const s = sackSpot(scene, frame, home, CHEF_TRIP.ids[0] ?? '')
     if (s) return s
   }
-  let piece: THREE.Object3D | undefined
-  scene.traverse((o) => { if (!piece && o.userData.editId === STORE_PIECE[store]) piece = o })
+  const piece = byEdit(scene, STORE_PIECE[store])
   if (!piece) return null
   // (its box in the chef's frame, from the corners of its box in the world)
   const wb = new THREE.Box3().setFromObject(piece)
@@ -202,8 +221,9 @@ const CUBBY_STANDS: [number, number][] = [[0.95, 0], [0.85, 0], [0.75, 0], [0.68
 function floorPieces(scene: THREE.Object3D, frame: THREE.Object3D) {
   frame.updateWorldMatrix(true, false)
   const inv = frame.matrixWorld.clone().invert(), v = new THREE.Vector3(), out: number[] = []
-  scene.traverse((o) => {
-    if (!FLOOR_PIECES.has(o.userData.editId as string)) return
+  for (const id of FLOOR_PIECES) {
+    const o = byEdit(scene, id)
+    if (!o) continue
     o.updateWorldMatrix(true, true)
     o.traverse((m) => {
       const pos = (m as THREE.Mesh).isMesh && m.visible ? (m as THREE.Mesh).geometry.attributes.position : null
@@ -213,7 +233,7 @@ function floorPieces(scene: THREE.Object3D, frame: THREE.Object3D) {
         out.push(v.x, v.z)
       }
     })
-  })
+  }
   return out
 }
 const FLOOR_PIECES = new Set(['produce', 'vegbasket', 'vegcrate', 'vegcrate2'])
@@ -282,7 +302,7 @@ function sackSpot(scene: THREE.Object3D, frame: THREE.Object3D, home: THREE.Vect
   }
   let best: { c: THREE.Vector3; r: number; top: number; d: number } | null = null
   for (let i = 0; i < 3; i++) {
-    const g = scene.getObjectByName(`produce-sack-${i}`)
+    const g = byName(scene, `produce-sack-${i}`)
     if (!g || !g.visible) continue
     const m = measure(g, g.getWorldPosition(new THREE.Vector3()).applyMatrix4(inv))
     const d = Math.hypot(home.x - m.c.x, home.z - m.c.z)
@@ -300,8 +320,7 @@ function sackSpot(scene: THREE.Object3D, frame: THREE.Object3D, home: THREE.Vect
   // (the basket, for what isn't in a sack: its middle (its box's, the handle over it), its rim under the handle's top)
   let into: { c: THREE.Vector3; r: number; top: number } = best
   if (!IN_SACKS.has(food)) {
-    let basket: THREE.Object3D | undefined
-    scene.traverse((o) => { if (!basket && o.userData.editId === 'vegbasket') basket = o })
+    const basket = byEdit(scene, 'vegbasket')
     if (basket) {
       const wb = new THREE.Box3().setFromObject(basket)
       const c = wb.getCenter(new THREE.Vector3()).applyMatrix4(inv)
@@ -322,8 +341,7 @@ function sackSpot(scene: THREE.Object3D, frame: THREE.Object3D, home: THREE.Vect
 /** the warming counter's front (Decor's Warmer: its own +z the kitchen's side) across from a piece on it, a step out (the chef's frame); null
  * if it's not on it */
 function warmerFront(scene: THREE.Object3D, piece: THREE.Object3D, frame: THREE.Object3D, id: string) {
-  let w: THREE.Object3D | undefined
-  scene.traverse((o) => { if (!w && o.userData.editId === id) w = o })
+  const w = byEdit(scene, id)
   // (the counter's own frame: the turned group in it)
   let f: THREE.Object3D | undefined
   w?.traverse((o) => { if (!f && o !== w && Math.abs(o.rotation.y) > 1e-3) f = o })
