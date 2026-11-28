@@ -2349,13 +2349,15 @@ export default function App() {
     })
     timers.push(window.setTimeout(() => sayStaff.current('owner', CLOSE_DORM, day), (Number.isFinite(first) ? first : 600) + 1800))
     // (shut once everyone's out of the door or up the stair (each walks off at their own moment: game/commute), at the latest after 40 s)
-    const t0 = performance.now()
+    const t0 = performance.now(), setOff = gameMinutes()
     const poll = window.setInterval(() => {
       const gone = performance.now() - t0
-      // (the latest by the wall's clock, 40 s from when they set off, or 45 of the game's minutes past the hour customers are seen out at
-      // (item 339: it was that same hour, so when the last customers were seen out at it the shop shut a moment later, whoever was still
-      // on their way out: those going up the stair gone mid-walk, never reaching it))
-      if ((gone > 1500 && SHOP.walking.size === 0) || gone > 40000 || gameMinutes() - closingAt.current >= CLOSE_HARD + 45) {
+      // (the latest by the wall's clock, 40 s from when they set off, or 45 of the game's minutes after it (item 339: it was the hour
+      // customers are seen out at, so when the last were seen out at it the shop shut a moment later, whoever was still on their way out:
+      // those going up the stair gone mid-walk, never reaching it). Item 838: from when they set off, not from that hour: those still
+      // paying are waited for now (CLOSE_LAST), so they can set off 20 minutes after it, and tired (walking at half) they took 22 of the
+      // 25 left, the shop shutting at 05:40 against a cut-off of 05:45)
+      if ((gone > 1500 && SHOP.walking.size === 0) || gone > 40000 || gameMinutes() - setOff >= 45) {
         window.clearInterval(poll)
         SHOP.walking.clear()
         SHOP.hurry = false

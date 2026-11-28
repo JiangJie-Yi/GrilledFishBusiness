@@ -5121,6 +5121,12 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         if (!plater || !open || SHOP.leaving) return false
         const busy = platerRun.current.phase !== 'idle' || !!kitchenJob.current || !!sakeJob.current || !!bowlJob.current
         if (!busy) return false
+        // (only a server with nothing of their own to do (the Tester window's 872: from 18:00 they were idle 0 to 10% of each hour, so a
+        // bowl filled by them was food left longer at the plating place and dirty plates longer at their seats): nothing ready to carry out,
+        // no dirty plate waiting to be cleared that no one's on)
+        if (readySlot() >= 0) return false
+        const onIt = new Set(waiters.current.flatMap((x) => x.carry ?? []))
+        if (runs.current.some((r) => r.phase === 'dirty' && !onIt.has(r.key) && !stillAt(r))) return false
         const tq = performance.now()
         const oldest = kind === 'bowls' ? BOWLS.want.reduce((m, x) => Math.max(m, guestSeat(x.guest) >= 0 ? tq - (x.at ?? tq) : -1), -1)
           : SAKE.want.reduce((m, g) => Math.max(m, guestSeat(g) >= 0 ? tq - (SAKE_AT.get(g) ?? tq) : -1), -1)
