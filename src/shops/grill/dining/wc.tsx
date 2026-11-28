@@ -1143,6 +1143,40 @@ function LockWindow({ who }: { who: 'm' | 'f' }) {
 const doorAt = new THREE.Vector3()
 /** the warm of a toilet's light through its door's washi, and on the floor before it */
 const WC_PAPER_GLOW = new THREE.Color('#ffe4a0')
+/**
+ * (item 1014, the owner's 「應該是網格狀，然後正常來說是有點距離的」, red rings round the soft glow at each door's foot) the light of the toilet's
+ * lamp through its door's washi, shut, as it falls on the floor: its kumiko's grid (four across, blender/wcdoor.py's three uprights) and the
+ * rows the noren over the door's head leaves showing (the lowest three of five); thrown down and out from the paper's height, so it lies a
+ * way out from the door, not at its foot, each row longer and a little wider than the one before it, fainter as it goes; soft, as through
+ * paper. Canvas: across it along the door, down it out from the door (its top the near side)
+ */
+const WC_GRID_TEX = (() => {
+  if (typeof document === 'undefined') return null
+  const c = document.createElement('canvas')
+  c.width = 256; c.height = 256
+  const g = c.getContext('2d')!
+  g.filter = 'blur(3px)'
+  // (the three rows' near and far edges down the canvas (their depth grows as they're thrown further), each's brightness)
+  const rows: [number, number, number][] = [[14, 70, 1], [80, 150, 0.72], [160, 242, 0.45]]
+  for (const [y0, y1, a] of rows) {
+    for (let k = 0; k < 4; k++) {
+      // (each column a little wider the further out (the light spreading from the lamp), the kumiko between them a dark line)
+      const spread = (y: number) => 1 + 0.16 * (y / 256)
+      const cell = (x: number, y: number) => 128 + (x - 128) * spread(y)
+      const xa = 16 + k * 56 + 4, xb = 16 + (k + 1) * 56 - 4
+      g.fillStyle = `rgba(255,255,255,${a})`
+      g.beginPath()
+      g.moveTo(cell(xa, y0), y0); g.lineTo(cell(xb, y0), y0); g.lineTo(cell(xb, y1), y1); g.lineTo(cell(xa, y1), y1)
+      g.closePath(); g.fill()
+    }
+  }
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace
+  return t
+})()
+/** (item 1014) where the grid of light lies out from the door's face, its near and far edges (the paper from 1.04 m up, a lamp over it
+ * inside): how deep it is */
+const WC_GRID_NEAR = 0.45, WC_GRID_FAR = 1.05
 export function ToiletPanel({ who }: { who: 'm' | 'f' }) {
   const H = WC_H
   const g = useRef<THREE.Group>(null)
@@ -1170,6 +1204,7 @@ export function ToiletPanel({ who }: { who: 'm' | 'f' }) {
   // (latched behind someone once it's shut: its little brass bolt heard)
   const latched = useRef(false)
   const spill = useRef<THREE.MeshBasicMaterial>(null)
+  const grid = useRef<THREE.MeshBasicMaterial>(null)
   useFrame((_, dt) => {
     const d = TOILETS[who]
     // (how dark it is outside, and whether this toilet's light is on: the paper's glow and the faint warm spill on the floor before it)
@@ -1182,7 +1217,10 @@ export function ToiletPanel({ who }: { who: 'm' | 'f' }) {
     // (the light off, no glow at all: plain paper in the room's light (the owner's: it still showed a little))
     paper.emissiveIntensity += ((on ? 0.5 * dark * shut : 0) - paper.emissiveIntensity) * ease
     // (less of it brightening as the door opens than before: the room's own warm light within now shows through it (item 126))
-    if (spill.current) spill.current.opacity += ((on ? 0.32 * dark * (1 + 0.4 * k.current) : 0) - spill.current.opacity) * ease
+    // (item 1014: shut, the light through its washi a grid a way out on the floor (WC_GRID_TEX); open, it pours out of the doorway itself,
+    // the soft fan at its foot, the paper slid aside with the door and its grid gone)
+    if (spill.current) spill.current.opacity += ((on ? 0.45 * dark * k.current : 0) - spill.current.opacity) * ease
+    if (grid.current) grid.current.opacity += ((on ? 0.34 * dark * shut : 0) - grid.current.opacity) * ease
     const want = d.passing > 0 || d.open ? 1 : 0
     // (heard as it starts to move, opening or shutting, as loud as it's near (the owner's))
     if (want !== was.current) {
@@ -1210,10 +1248,16 @@ export function ToiletPanel({ who }: { who: 'm' | 'f' }) {
           <LockWindow who={who} />
         </group>
       </group>
-      {/* (the light through the paper, a faint warm fan on the floor before the door: laid on, no light or shadow of its own) */}
+      {/* (the light out of the open doorway, a faint warm fan on the floor before the door: laid on, no light or shadow of its own) */}
       <mesh position={[-0.42, 0.01, 0]} rotation={[-Math.PI / 2, 0, -Math.PI / 2]} renderOrder={2} raycast={() => {}}>
         <planeGeometry args={[WC_W * 1.3, 0.8]} />
         <meshBasicMaterial ref={spill} map={SILL_TEX} color={WC_PAPER_GLOW} transparent opacity={0} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
+      </mesh>
+      {/* (item 1014: and through its washi, shut, the kumiko's grid a way out on the floor; the same kind of stuff as the fan, so no program
+          of its own) */}
+      <mesh position={[-(WC_GRID_NEAR + WC_GRID_FAR) / 2, 0.011, 0]} rotation={[-Math.PI / 2, 0, -Math.PI / 2]} renderOrder={2} raycast={() => {}}>
+        <planeGeometry args={[WC_W * 1.0, WC_GRID_FAR - WC_GRID_NEAR]} />
+        <meshBasicMaterial ref={grid} map={WC_GRID_TEX} color={WC_PAPER_GLOW} transparent opacity={0} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
       </mesh>
     </>
   )
