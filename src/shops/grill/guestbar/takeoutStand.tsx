@@ -1,5 +1,4 @@
 import { memo, useMemo, useRef, useState } from 'react'
-import { PatternMat } from '@/scene/props/PatternMat'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
@@ -35,14 +34,8 @@ export const WaitingBench = memo(function WaitingBench() {
     inkModel(r, () => false, { width: 0.0016, weld: true })
     return mergeByMaterial(r)
   }, [gltf])
-  // (a runner along its seat (item 763: the owner's cream with gold-edged blossoms, gold lines and gold leaf; a deep red hem, as a bench's
-  // felt is): on the woven seat (its top 0.283) inside the frame's culms (0.29), 2 cm clear of them all round, 3 mm thick)
-  return (
-    <group {...nameOver('候位長凳', '客滿時客人坐在這裡等位子')}>
-      <primitive object={model} />
-      <group position={[0, 0.2835, -0.02]}><PatternMat art="goldSakura" w={0.68} d={0.14} t={0.003} edge={0.012} rim="#7d2a28" stitch="rgba(232,204,140,0.85)" /></group>
-    </group>
-  )
+  // (item 778, the owner's 「等候椅改的很怪，改回來」: the runner item 763 laid on its seat taken off again, its woven seat bare as it was)
+  return <group {...nameOver('候位長凳', '客滿時客人坐在這裡等位子')}><primitive object={model} /></group>
 })
 /** the takeaway stand and the kraft bag (blender/takeout.py): each stood on its foot at its origin, in the room's toon light */
 const TAKEOUT_URL = import.meta.env.BASE_URL + 'models/takeout.glb'
