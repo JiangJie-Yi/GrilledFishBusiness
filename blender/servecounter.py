@@ -28,6 +28,7 @@ import bmesh
 import bpy
 import numpy as np
 from mathutils import Vector
+from mathutils.bvhtree import BVHTree
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from common import *  # noqa: E402,F403
@@ -272,6 +273,11 @@ def lin(hexs):
 
 
 M["kraft"] = pbr("ServeKraft", lin("#b8915e"), rough=0.8)
+# (item 830, the owner's 「手把拉門也不用同色系」: the doors' pulls a short culm of the doors' own bamboo, lost in them; a lacquered pull now,
+# black in a bronze rim. And the crossed rattan at its joints, the waiting bench's (item 789))
+M["pullrim"] = pbr("ServePullRim", lin("#9a7432"), rough=0.35, metal=0.6)
+M["pullin"] = pbr("ServePullIn", lin("#17100c"), rough=0.3)
+M["rattan"] = pbr("ServeRattan", lin("#9a6a3c"), rough=0.6)
 M["kraftlid"] = pbr("ServeKraftLid", lin("#cfae7c"), rough=0.8)
 M["chop"] = pbr("ServeChop", lin("#e6d3a8"), rough=0.6)
 M["band"] = pbr("ServeBand", lin("#b8261c"), rough=0.6)
@@ -363,6 +369,53 @@ for sx in (-1, 1):
     culm(f"ServeRailEnd{sx}", (sx * LX, top_y, -LZ + LR + 0.001), (sx * LX, top_y, LZ - LR - 0.001), RR, segs=8, turn=2.9 + sx)
     culm(f"ServeStretch{sx}", (sx * LX, FLOOR_Y + 0.004, -LZ + LR + 0.001), (sx * LX, FLOOR_Y + 0.004, LZ - LR - 0.001), RR, segs=8, turn=3.7 + sx)
 culm("ServeStretchBack", (-LX + LR + 0.001, FLOOR_Y + 0.004, -LZ), (LX - LR - 0.001, FLOOR_Y + 0.004, -LZ), RR, segs=8, turn=4.4)
+# ---- (item 830, the owner's 「品質有待提升」, red boxes round its foot's rails: they met the legs bare) each joint of a rail or a stretcher
+# with a leg lashed with two strips of rattan crossed over the leg's face square to it, as the waiting bench's are (item 789): the top rails'
+# on the legs' faces to the room, the ends' rails' and stretchers' on the legs' outer sides (the back's to the wall not done)
+LASH_W, LASH_SEGS, LASH_SPAN = 0.0055, 6, math.radians(52)
+
+
+def lash_x(name, lx, lz, yc, cx, cz, cr, side):
+    """the X over a joint: the leg at (lx, lz), the culm meeting it at height yc running along (cx, cz), cr its radius; on the leg's face
+    whose normal is (-cz, cx) * side"""
+    bm = bmesh.new()
+    hy = cr + 0.005
+    nx, nz = -cz * side, cx * side
+    for k, sgn in enumerate((1, -1)):
+        r = LR + 0.0025 + 0.0012 * k
+        pts = []
+        for i in range(LASH_SEGS + 1):
+            t = i / LASH_SEGS
+            ph = -LASH_SPAN + 2 * LASH_SPAN * t
+            y = yc + sgn * (-hy + 2 * hy * t)
+            ux, uz = nx * math.cos(ph) + cx * math.sin(ph), nz * math.cos(ph) + cz * math.sin(ph)
+            pts.append((Vector((lx + r * ux, y, lz + r * uz)), Vector((ux, 0.0, uz))))
+        rows = []
+        for i, (pt, rad) in enumerate(pts):
+            d = (pts[min(i + 1, LASH_SEGS)][0] - pts[max(i - 1, 0)][0]).normalized()
+            w = d.cross(rad).normalized() * (LASH_W / 2)
+            rows.append([bm.verts.new(P(*(pt + w))), bm.verts.new(P(*(pt - w)))])
+        for i in range(LASH_SEGS):
+            f = bm.faces.new((rows[i][0], rows[i + 1][0], rows[i + 1][1], rows[i][1]))
+            f.normal_update()
+            mid = (pts[i][0] + pts[i + 1][0]) / 2
+            if f.normal.dot(P(*(mid + (pts[i][1] + pts[i + 1][1]) / 2)) - P(*mid)) < 0:
+                f.normal_flip()
+            f.smooth = True
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    o = bpy.data.objects.new(name, me)
+    bpy.context.collection.objects.link(o)
+    o.data.materials.append(M["rattan"])
+    parts.append(o)
+
+
+for sx in (-1, 1):
+    lash_x(f"ServeLashTop{sx}", sx * LX, LZ, top_y, 1.0, 0.0, RR, 1)
+    for sz in (-1, 1):
+        lash_x(f"ServeLashEnd{sx}{sz}", sx * LX, sz * LZ, top_y, 0.0, 1.0, RR, -sx)
+        lash_x(f"ServeLashFoot{sx}{sz}", sx * LX, sz * LZ, FLOOR_Y + 0.004, 0.0, 1.0, RR, -sx)
 # ---- the cupboard: its floor split bamboo along it on the stretchers; its back and its ends upright split bamboo, between the legs and the rails
 block_along("ServeFloor", (-ix, FLOOR_Y + RR, zb - 0.008), (ix, FLOOR_Y + RR + FLOOR_T, zf - 0.03), "split", SPLIT_TILE)
 block("ServeBack", (-ix, FLOOR_Y + RR + FLOOR_T + 0.001, zb - 0.01), (ix, top_y - RR - 0.001, zb), "split", SPLIT_TILE)
@@ -383,6 +436,37 @@ for k, cx in enumerate((-0.27, -0.06)):
         block(f"ServeBoxLid{k}{j}", (cx - 0.092, y0 + 0.036, zb + 0.018), (cx + 0.092, y0 + 0.042, zb + 0.152), "kraftlid", 0.3)
 block("ServeChops", (0.12, fy + 0.001, zb + 0.03), (0.33, fy + 0.046, zb + 0.09), "chop", 0.3)
 block("ServeChopsBand", (0.205, fy + 0.0005, zb + 0.0295), (0.245, fy + 0.0465, zb + 0.0905), "band", 0.3)
+def oval(name, cx, cy, z0, z1, rx, ry, n, bevel, mat):
+    """an oval slab on the door's face from z0 to z1, its edge rounded over by `bevel` (a ring of n, its faces laddered front and back),
+    smooth"""
+    bm = bmesh.new()
+    rings = []
+    for k, (d, z) in enumerate(((0.0, z0), (0.0, z1 - bevel), (bevel * 0.3, z1 - bevel * 0.3), (bevel, z1))):
+        rings.append([bm.verts.new(P(cx + (rx - d) * math.sin(2 * math.pi * i / n), cy - (ry - d) * math.cos(2 * math.pi * i / n), z)) for i in range(n)])
+    for a, b in zip(rings, rings[1:]):
+        for i in range(n):
+            bm.faces.new((a[i], a[(i + 1) % n], b[(i + 1) % n], b[i]))
+    ladder_fill(bm, rings[-1])
+    ladder_fill(bm, rings[0])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    o = bpy.data.objects.new(name, me)
+    bpy.context.collection.objects.link(o)
+    o.data.materials.append(M[mat])
+    for p_ in o.data.polygons:
+        p_.use_smooth = True
+    parts.append(o)
+    return o
+
+
+def pull(name, cx, cy, zz):
+    """a door's pull (引手, item 830): an oval bronze rim on the split bamboo's crowns, its middle black lacquer a hair proud of it"""
+    oval(name + "Rim", cx, cy, zz + 0.002, zz + 0.0072, 0.0115, 0.026, 14, 0.0016, "pullrim")
+    oval(name + "In", cx, cy, zz + 0.0062, zz + 0.0076, 0.0078, 0.0205, 12, 0.0006, "pullin")
+
+
 # ---- the two doors: each a little over half the opening, one in the outer track, one in the inner, overlapping in the middle; each a frame
 # of thin culms round its split bamboo panel, a short upright culm for its pull by its outer edge; each its own node, its origin its middle
 DW = ix + 0.02
@@ -402,7 +486,7 @@ for d_, (x0, x1, zz) in enumerate(((-ix, -ix + DW, zf - 0.012), (ix - DW, ix, zf
                  v0=0.13 + 0.41 * d_)
     px = x0 + 2 * FR + 0.012 if d_ == 0 else x1 - 2 * FR - 0.012
     my = (door_lo + door_hi) / 2
-    culm(nm + "Pull", (px, my - 0.03, zz + 0.008), (px, my + 0.03, zz + 0.008), 0.005, segs=6, turn=0.6 * (d_ + 1))
+    pull(nm + "Pull", px, my, zz)
     mine = parts[first:]
     del parts[first:]
     bpy.ops.object.select_all(action="DESELECT")
@@ -609,6 +693,59 @@ bpy.context.collection.objects.link(root)
 counter.parent = root
 for d_o in doors:
     d_o.parent = root
+# ---- (item 830, the owner's 「且沒甚麼軟陰影」「我有發現裡面沒甚麼AO」; docs/BAKING.md stage A, as the stone steps' item 774) the light
+# from all round that can't get in: its cupboard's inside behind the doors, its corners, under the cloth's hang, the boxes on its floor, its
+# feet on the floor, baked into its points' colour (a colour each of them, multiplied over its pictures; never the lamps' light). Each
+# corner's share of the sky round it (cosine weighted, AO_RAYS rays) not met within AO_REACH by the counter as it stands, doors shut, or the
+# floor under it, what's met near counting for more; at most AO_LEAST of it taken away
+AO_REACH, AO_RAYS, AO_LEAST, AO_OFF = 0.16, 48, 0.5, 0.004
+
+
+def bake_occlusion(objs):
+    verts, polys = [], []
+    for o in objs:
+        mw = o.matrix_world
+        base = len(verts)
+        verts += [mw @ v.co for v in o.data.vertices]
+        polys += [[base + i for i in pl.vertices] for pl in o.data.polygons]
+    g = len(verts)
+    verts += [P(-3, 0, -3), P(3, 0, -3), P(3, 0, 3), P(-3, 0, 3)]
+    polys.append([g, g + 1, g + 2, g + 3])
+    tree = BVHTree.FromPolygons(verts, polys)
+    ga = math.pi * (3 - math.sqrt(5))
+    dirs = [(math.sqrt((i + 0.5) / AO_RAYS) * math.cos(i * ga), math.sqrt((i + 0.5) / AO_RAYS) * math.sin(i * ga), math.sqrt(1 - (i + 0.5) / AO_RAYS))
+            for i in range(AO_RAYS)]
+    for o in objs:
+        me = o.data
+        mw = o.matrix_world
+        nmat = mw.to_3x3().inverted().transposed()
+        if "Col" not in me.color_attributes:
+            me.color_attributes.new(name="Col", type="BYTE_COLOR", domain="CORNER")
+        col = me.color_attributes["Col"]
+        cn = me.corner_normals
+        seen, ks = {}, []
+        for li, lp in enumerate(me.loops):
+            n = (nmat @ Vector(cn[li].vector)).normalized()
+            key = (lp.vertex_index, round(n.x, 2), round(n.y, 2), round(n.z, 2))
+            if key not in seen:
+                # (each ray from AO_OFF out off its face: from on it, the split bamboo's own grooves took a door's front down by two fifths)
+                at = mw @ me.vertices[lp.vertex_index].co + n * AO_OFF
+                t = n.orthogonal().normalized()
+                b = n.cross(t)
+                occ = 0.0
+                for dx, dy, dz in dirs:
+                    hit = tree.ray_cast(at, t * dx + b * dy + n * dz, AO_REACH)
+                    if hit[0] is not None:
+                        occ += 1 - hit[3] / AO_REACH
+                seen[key] = 1 - AO_LEAST * occ / AO_RAYS
+            k = seen[key]
+            ks.append(k)
+            col.data[li].color_srgb = (k, k, k, 1.0)
+        ks.sort()
+        print("SERVE_AO", o.name, "corners", len(ks), "least", round(ks[0], 3), "a tenth under", round(ks[len(ks) // 10], 3), "middle", round(ks[len(ks) // 2], 3))
+
+
+bake_occlusion([counter] + doors)
 top = bpy.data.objects.new("ServeCounterTop", None)
 top.location = P(0, H, 0)
 front = bpy.data.objects.new("ServeCounterFront", None)

@@ -8,6 +8,7 @@ import { setTip } from '@/scene/interact/hoverTip'
 import { tipOver } from '@/shops/grill/bar'
 import { getEdit } from '@/shops/grill/edit'
 import { slideDoorSound } from '@/shops/grill/sounds/restroomSound'
+import { BlobShadow } from '@/scene/effects/BlobShadow'
 
 /**
  * The kitchen's serving counter (配膳台, blender/servecounter.py; item 167, the owner's, 2026-11-15): on the kitchen's floor between the cook
@@ -51,7 +52,9 @@ function ServeCounterImpl() {
       // (with its relief (item 499, the owner's 「貼圖部份，不夠立體，再美化」): the split bamboo's strips rounded, its nodes and the culms' raised,
       // in normal maps of their own; every lit material has one already (a flat one: scene/materialNormalize), so no new program)
       if (!t) {
-        const tt = new THREE.MeshToonMaterial({ color: src.color.clone(), map: src.map ?? null, normalMap: src.normalMap ?? null })
+        // (the light from all round baked into its points' colour (item 830, blender/servecounter.py's bake_occlusion): its cupboard's inside,
+        // its corners and its feet darker; every part has it, so its materials all read it)
+        const tt = new THREE.MeshToonMaterial({ color: src.color.clone(), map: src.map ?? null, normalMap: src.normalMap ?? null, vertexColors: !!m.geometry.attributes.color })
         if (src.normalMap) tt.normalScale.copy(src.normalScale)
         tt.name = src.name; made.set(src, tt); t = tt
       }
@@ -62,7 +65,8 @@ function ServeCounterImpl() {
     // (the kitchen's counters' line (0.0016 in the room's units), in the bar's, which are twice the size); not round the cloth (item 820, the
     // owner's 「邊腳有奇怪得黑色」: its hems thin to nothing and come down to a point at each corner, and the line's shell, swelled out round
     // that point, showed as two black triangles under it; a cloth's soft edge reads without a line)
-    inkModel(r, (m) => /ServeCloth/.test((m.material as THREE.Material).name), { width: 0.0008, weld: true })
+    // (nor round the crossed rattan at its joints (item 830): thin open strips, their line would swell into spikes, as the bench's would, 789)
+    inkModel(r, (m) => /ServeCloth|ServeRattan/.test((m.material as THREE.Material).name), { width: 0.0008, weld: true })
     // (the doors left whole, each to slide; the rest folded together by material)
     mergeByMaterial(r, (o) => /^ServeDoor\d$/.test(o.name))
     const ds = [0, 1].map((k) => r.getObjectByName(`ServeDoor${k}`)).filter((o): o is THREE.Object3D => !!o)
@@ -95,6 +99,9 @@ function ServeCounterImpl() {
   return (
     <>
       <primitive object={obj} />
+      {/* (its soft shadow on the floor under it (item 830, the owner's 「且沒甚麼軟陰影」): the cupboard 5 cm over the floor and its feet on it,
+          the floor under it darker, softly, out a little past its feet) */}
+      <group scale={[1.12, 1, 0.5]}><BlobShadow r={0.5} /></group>
       {doors.map(({ o }, k) => (
         <group key={k}
           // (what it says read as it's pointed at: open or shut by then)
