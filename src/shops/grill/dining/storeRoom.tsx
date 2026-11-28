@@ -700,9 +700,12 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
           before the doorway): on the mortar floor 2 cm in from the wall's inner face, 42 cm on into the room, as wide as the doorway's frame
           less 3 cm each side, square to the doorway (nothing stands there: no vertex of anything else in it, `_mat782.mjs`); 4 mm thick, half a
           millimetre over the mortar (its top 6.5 mm up), a dark rubber border; the stock keeper walks over it, the noren's hem over it) */}
+      {/* (item 1012, the owner's 「地毯往外移」, an arrow from it out to the shop: out to the doorway's sill (StoreSill, its inner edge 6.2 cm
+          in from the wall's line), its front a centimetre behind it, in the doorway's depth and on into the room; as wide as the doorway
+          between its posts less a centimetre each side (as wide as the frame, it went 2 cm into each post where it runs through the wall)) */}
       <Movable id="storemat" label="倉庫門口地墊" ground={0.007}>
-        <group position={[WALL_OUT + 0.02 + STORE_MAT_D / 2, 0.007, (door[0] + door[1]) / 2]} rotation-y={Math.PI / 2}>
-          <PatternMat art="navyWaves" w={outerW - 0.06} d={STORE_MAT_D} t={0.004} edge={0.03} rim="#1b1e26" />
+        <group position={[STORE_SILL_IN + 0.01 + STORE_MAT_D / 2, 0.007, (door[0] + door[1]) / 2]} rotation-y={Math.PI / 2}>
+          <PatternMat art="navyWaves" w={door[1] - door[0] - 0.02} d={STORE_MAT_D} t={0.004} edge={0.03} rim="#1b1e26" />
         </group>
       </Movable>
       {/* its mortar floor (item 739), over the shop's boards (their top 4 mm up here: at a millimetre it was under them, never seen), 2.5 mm
@@ -721,6 +724,8 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
 const FRIDGE_FOOT = 0.193 - 0.007
 /** how high the doorway's sill stands over the shop's boards (item 803: low enough for the stocker to walk over, his feet on the floor) */
 const SILL_H = 0.013
+/** where the sill's inner edge is, in from the wall's line on the shop's side (StoreSill's x1; item 1012: the mat's front a centimetre behind it) */
+const STORE_SILL_IN = 0.062
 /**
  * The stock room doorway's sill (敷居, item 803, the owner's 「倉庫與門須要有個橫條木做為坎。」): a bar of the frame's dark wood across the
  * doorway's foot over the line where the shop's boards meet the stock room's hinoki (its start, 6 mm in from the wall's line), 7 cm across,
@@ -730,7 +735,7 @@ const SILL_H = 0.013
  * it). Item 709 took the sill there was away with the posts the owner had out; he's asked for one again.
  */
 function StoreSill({ door }: { door: [number, number] }) {
-  const x0 = -0.008, x1 = 0.062, z0 = door[0] + 0.001, z1 = door[1] - 0.001
+  const x0 = -0.008, x1 = STORE_SILL_IN, z0 = door[0] + 0.001, z1 = door[1] - 0.001
   return (
     <mesh name="store-sill" position={[(x0 + x1) / 2, 0.003 + SILL_H / 2, (z0 + z1) / 2]} receiveShadow>
       <boxGeometry args={[x1 - x0, SILL_H, z1 - z0]} />

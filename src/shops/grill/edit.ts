@@ -421,6 +421,9 @@ const RELAIDS: [string, string[]][] = [
   ['jgs-edit-relaid-48', ['doorbamboo']],
   // (and out to the street, its culms in front of the door's frame (item 728, the owner's 「竹往前，不被門吃掉」): dropped once more)
   ['jgs-edit-relaid-49', ['doorbamboo']],
+  // (the tissues and cleaning things out from the wall (item 1013, the owner's 「衛生紙 Z: 0.4 然後 Reset。」), the store room's mat out to its
+  // doorway's sill (item 1012, 「地毯往外移」): what was kept for them dropped once)
+  ['jgs-edit-relaid-50', ['supplies', 'storemat']],
 ]
 const relaidDue = RELAIDS.filter(([k]) => { try { return !localStorage.getItem(k) } catch { return false } })
 const relaid = !relaidDue.length
@@ -567,7 +570,8 @@ export const BASES: Record<string, V3> = {
   // (and X -0.19 in the panel (the owner's, 2026-11-17, item 299: 「衛生紙與清潔用品 X: -0.19，然後 Reset」): 19 cm along the wall away from the
   // fridge, toward the door (the panel's X along the wall, away from the door, as above; read the other way (its parent's -z), it went 19 cm
   // into the fridge's shelves, 1 cm off them as it stood: clips.mjs))
-  supplies: [0.015, 0, 0.178],
+  // (and Z 0.4 in the panel (item 1013, the owner's 「衛生紙 Z: 0.4 然後 Reset。」): 40 cm out from the wall, its panel's Z this parent's X)
+  supplies: [0.015 + 0.4, 0, 0.178],
   chochin: [0, 0.25, 0],
   chochin2: [0, 0.25, 0],
   // (then X -0.2, Z 0.16 as the owner set it in the panel's object axes (2026-11-15), taken into the parent's (turned 20.25°))
