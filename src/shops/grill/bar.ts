@@ -1460,7 +1460,11 @@ export const GENKAN = { depth: 0.1, along: [0.15, 1.45] as [number, number], lay
 export const GENKAN_RUG = { along: [0.175, 0.895] as [number, number], lay: [-1.391, -0.445] as [number, number], top: 0.014 }
 /** the stone steps down out of the sliding door (item 410, blender/stonesteps.py's StoneStep1, StoneStep2): how far out past the genkan's
  * front each reaches (along), its top's height; past them the street's */
-const DOOR_STEPS: readonly (readonly [number, number])[] = [[0.17, -0.228], [0.34, -0.341], [0.9, -0.45]]
+// (each 0.21 out since item 823, the owner's 「石階往外推」 (guestbar/floors.tsx's STEP_GO): 0.17 and 0.34 they were, and one going out stood
+// 4 to 8 cm down in the stone where each now reaches past its old edge)
+// (and past them, item 832, the owner's 「客人進門會從外面顯示，再進來。」: the bed before the door (its gravel and stepping stone, to its curb),
+// then the earth out to where they're first shown (DOOR_LANE.street))
+const DOOR_STEPS: readonly (readonly [number, number])[] = [[0.21, -0.228], [0.42, -0.341], [0.9, -0.45], [3, -0.462]]
 /** how high someone stands at a point (the bar's frame): the room's floor, down in the genkan, or up on its rug there; out of the door, on
  * its steps (item 410: one going out stood on the air over them) */
 export function genkanY(cs: Counter[], p: THREE.Vector3) {
@@ -1500,7 +1504,9 @@ export const wayInOf = (cs: Counter[]) => doorOf(cs).addScaledVector(cs[0].lay, 
  * second step down, their head clear of the shut leaves) and where one going is gone (`far`, past the steps)
  */
 // (item 415: through the two leaves' open way, x -0.131 to 0.429, its middle; the leaves' line between their tracks)
-export const DOOR_LANE = { x: 0.149, in: 0.3, line: 0.407, wait: 0.72, far: 0.95 }
+// (item 832, the owner's 「客人進門會從外面顯示，再進來。」: one coming in first shown out on the earth past the bed before the door (`street`,
+// past the outer stepping stone), walking in over it and up the steps to the door, which slides open as they come (game/slideDoor))
+export const DOOR_LANE = { x: 0.149, in: 0.3, line: 0.407, wait: 0.72, far: 0.95, street: 2.15 }
 /** a point in the doorway's own frame (x along the front, z out to the street, as DOOR_LANE's) in the bar's frame: at doorOf, turned as the
  * look-door group is (its z the first counter's along, ALONG) */
 export function doorAt(cs: Counter[], x: number, z: number, y = 0) {

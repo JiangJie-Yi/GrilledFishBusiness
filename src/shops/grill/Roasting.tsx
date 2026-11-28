@@ -849,8 +849,12 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
   }, [plateCount, dishCount, basketCount, root, space])
   // (with the shop open, everything cooked is served to the customers along the bar behind the fire)
   // (only what a customer ordered: cooked for no one, it stays with the cook, on a plate of their own, not sent off to some seat)
+  // (item 836, the Tester window's: what they've already eaten of it counted too, and a piece of theirs eaten or being eaten not: once theirs
+  // was eaten and its piece taken back for someone else, they were owed it again, the next of it off the fire was set before them, uneaten
+  // (not owed), and with food before them (FED) they never gave up or went: four of them sat on 48 to 134 minutes in a day)
   const ownerOf = (p: Piece) => guests.current.find((g) => (g.state === 'waiting' || g.state === 'eating') &&
-    g.orders.filter((o) => o === p.id).length > pieces.current.filter((q) => q !== p && q.guest === g.id && q.id === p.id).length)
+    g.orders.filter((o) => o === p.id).length > g.ate.filter((a) => a === p.id).length
+      + pieces.current.filter((q) => q !== p && q.guest === g.id && q.id === p.id && !q.eaten && !(q.eat > 0)).length)
   const destination = (p: Piece) => (space === 'open' && (p.container === 'bar' || (!p.collected && ownerOf(p))) ? 'bar' : inBowl(p) ? 'bowl' : inBasket(p) ? 'basket' : onDish(p) ? 'dish' : 'plate')
 
   /** take this container out of its stack (or what's on it off it), set down clear of the rest */
@@ -2372,6 +2376,9 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
             KITCHEN.got.set(key, (KITCHEN.got.get(key) ?? 1) - 1)
             asked.splice(asked.indexOf(got), 1)
             g.firstAte ??= now
+            // (item 836: whatever they ate, kitchen dish, rice, soup or sake, not only what's grilled: had their first bite been one of those,
+            // they never gave up waiting on the next (gaveUpOnNext of undefined) and sat on till STAY_MAX)
+            g.lastAte = now
             g.eaten.push(Math.max(0, DISH_TASTE - (WC_GRUMBLE.get(g.id) ?? 0)))
             g.ate.push(got)
             g.sideUntil = Math.max(g.sideUntil ?? 0, now + SIDE_EAT_S)
@@ -2381,6 +2388,9 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
           }
         } else if (now - g.since > cookSeconds(dishOwed[0]) + 6) {
           g.firstAte ??= now
+          // (item 836: whatever they ate, kitchen dish, rice, soup or sake, not only what's grilled: had their first bite been one of those,
+          // they never gave up waiting on the next (gaveUpOnNext of undefined) and sat on till STAY_MAX)
+          g.lastAte = now
           g.eaten.push(Math.max(0, DISH_TASTE - (WC_GRUMBLE.get(g.id) ?? 0)))
           g.ate.push(dishOwed[0])
           g.state = g.eaten.length >= g.orders.length ? 'done' : 'eating'
@@ -2400,6 +2410,9 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
           BOWLS.got.delete(`${got === 'MisoSoup' ? 'soup' : 'rice'}:${g.id}`)
           // (something to start on, but not a dish off the fire: the wait for the rest goes on from when they sat down (item 203))
           g.firstAte ??= now
+          // (item 836: whatever they ate, kitchen dish, rice, soup or sake, not only what's grilled: had their first bite been one of those,
+          // they never gave up waiting on the next (gaveUpOnNext of undefined) and sat on till STAY_MAX)
+          g.lastAte = now
           g.eaten.push(Math.max(0, SOUP_TASTE - (WC_GRUMBLE.get(g.id) ?? 0)))
           g.ate.push(got)
           g.sideUntil = Math.max(g.sideUntil ?? 0, now + SIDE_EAT_S)
@@ -2418,6 +2431,9 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
         if (!g.takeout) { SOUP_SEATS.add(g.seat); SOUP.served++ }
         // (something to start on, but not a dish off the fire: the wait for the rest goes on from when they sat down (item 203))
         g.firstAte ??= now
+        // (item 836: whatever they ate, kitchen dish, rice, soup or sake, not only what's grilled: had their first bite been one of those,
+        // they never gave up waiting on the next (gaveUpOnNext of undefined) and sat on till STAY_MAX)
+        g.lastAte = now
         g.eaten.push(Math.max(0, SOUP_TASTE - (WC_GRUMBLE.get(g.id) ?? 0)))
         g.ate.push('MisoSoup')
         g.state = g.eaten.length >= g.orders.length ? 'done' : 'eating'
@@ -2431,6 +2447,9 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
         SAKE_SEATS.add(g.seat)
         SAKE.served++
         g.firstAte ??= now
+        // (item 836: whatever they ate, kitchen dish, rice, soup or sake, not only what's grilled: had their first bite been one of those,
+        // they never gave up waiting on the next (gaveUpOnNext of undefined) and sat on till STAY_MAX)
+        g.lastAte = now
         g.eaten.push(Math.max(0, SOUP_TASTE - (WC_GRUMBLE.get(g.id) ?? 0)))
         g.ate.push('Sake')
         g.state = g.eaten.length >= g.orders.length ? 'done' : 'eating'

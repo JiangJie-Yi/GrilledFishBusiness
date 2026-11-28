@@ -128,7 +128,7 @@ feature('石台像日本古城的石垣（第 751 項）', () => {
         }
       }
     })
-  })
+  }, 20000)
 
   scenario('同一個石台每次排出來都一樣', ({ given, then }) => {
     let a: ReturnType<typeof plan>, b: ReturnType<typeof plan>

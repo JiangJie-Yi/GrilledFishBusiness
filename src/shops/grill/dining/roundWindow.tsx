@@ -334,17 +334,21 @@ export function Sudare() {
   /** the blind hung at `foot`: its square's foot and its picture, the roll under it, the cords round the roll, the place to point at */
   const hang = (foot: number) => {
     const { pos, feet, tops, blind, roll, rollMade, cords, cordDrop } = parts
+    // (item 831, the owner's 「捲到高的時候，這邊空空。」: the hanging part stopped at the roll's top, and the roll hung out in front of it by
+    // its own girth, so from above, rolled right up, one looked down between the two at the window. Now the slats go on down behind the
+    // roll to its middle, the roll against their face (wound on them, as a blind's is): seen from above, its top, and behind it the slats,
+    // nothing between)
+    const rr = rollR(foot)
     if (pos && blind) {
       const uv = blind.geometry.attributes.uv as THREE.BufferAttribute
-      for (const i of feet) { pos.setY(i, foot); uv.setY(i, (BLIND_TOP - foot) / BLIND_PERIOD) }
+      for (const i of feet) { pos.setY(i, foot - rr); uv.setY(i, (BLIND_TOP - foot + rr) / BLIND_PERIOD) }
       for (const i of tops) uv.setY(i, 0)
       pos.needsUpdate = true
       uv.needsUpdate = true
       blind.geometry.computeBoundingSphere()
     }
-    const rr = rollR(foot)
     if (roll) {
-      roll.position.set(BLIND_X - 0.003 - rr, foot - rr, 0)
+      roll.position.set(BLIND_X - 0.0015 - rr, foot - rr, 0)
       roll.scale.set(rr / rollMade, rr / rollMade, 1)
     }
     const drop = BLIND_KNOT - (foot - 2 * rr - 0.004)

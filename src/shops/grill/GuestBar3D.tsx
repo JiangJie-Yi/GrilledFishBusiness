@@ -95,7 +95,7 @@ import { Entrance } from './guestbar/entrance'
 import { SHOE_CUBBIES, BenchShoes } from './guestbar/genkan'
 import { shoeKey } from '@/game/guests/shoes'
 import { GENKAN_SUNK, DiningFloor, RoomFloor } from './guestbar/floors'
-import { STOOL_STAND, STOOL_OUT, STOOL_LEAVE, SEAT_MARKS, BENCH_MARKS, SEAT_SHIFT, BENCH_AT, BENCH_A, BENCH_B, STOOL_PULL_S, STOOL_STEP_S, STOOL_SLIDE_S, STOOL_HOME_AT, backOf, type Shown, SHOES_S, DOOR_WAIT_S, DOOR_SLIDE_S, STEP_Y_RATE, NO_SHOES, PayFloat, PAY_S, QUEUE_GAP, STEP_TURN, billFor, TRAY_ERRANDS, placedOnce, withPause, UMB_STAND, standGrip, gearFor, gearAtOf, COAT_POSE, GEAR_P, GEAR_Q, shoeStep, SeatBits, Fridges, Stools } from './guestbar/seats'
+import { STOOL_STAND, STOOL_OUT, STOOL_LEAVE, SEAT_MARKS, BENCH_MARKS, SEAT_SHIFT, BENCH_AT, BENCH_A, BENCH_B, STOOL_PULL_S, STOOL_STEP_S, STOOL_SLIDE_S, STOOL_HOME_AT, backOf, type Shown, SHOES_S, DOOR_STEP_IN_S, DOOR_SLIDE_S, STEP_Y_RATE, NO_SHOES, PayFloat, PAY_S, QUEUE_GAP, STEP_TURN, billFor, TRAY_ERRANDS, placedOnce, withPause, UMB_STAND, standGrip, gearFor, gearAtOf, COAT_POSE, GEAR_P, GEAR_Q, shoeStep, SeatBits, Fridges, Stools } from './guestbar/seats'
 import { HER, WC_TO_SEAT, WC_SIT_LIFT, wcStayOf, HAND_S, HAND_DRY_S, REFILL_RATE, DRINKS_MAX, drinkRate, wcRate, DRINK_STAY, type PlateRun, STACK_GAP, NEST_GAP, SURFACE_RAY, SURFACE_HITS, TOP_FROM, DOWN_Y, UP_Y, binThrow, SERVE_S, CLEAR_S, CLEAR_DELAY, LAY_S, FLY_PER, HOME_S, READY_S, ON_TABLE, X_AXIS, COAL_STICK_GEO, COAL_STICK_MAT, DIPPER_CUP_GEO, DIPPER_HANDLE_GEO, DIPPER_MAT, DIPPER_WATER_GEO, DIPPER_WATER_MAT, SOUP_EVERY, STIR_S, GRATE_EVERY, GRATE_S, DIP_NEAR, DIP_REACH, RICE_BOWL_GEO, BOWL_HOLD, RICE_WASH_PHASES, WASH_BOWL_HANDS, WASH_BOWL_ON, riceBowlHands, RICE_IN_GEO, WIPE_S, CLEAR_REACH, CLEAR_LIFT, CHOP_ON, WARE_LEFT, WARE_RINSE, SINK_BOWLS_SHOWN, POT_PAIRS_SHOWN, POT_RENGE_SHOWN, BOWL_NEST, CLEAR_WIPE_AT, CLEAR_HANDS, SINK_HANDS, CLEAR_SIDE, WIPE_HAND_Z, CLEAR_TOWARD, WIPE_STAND, RAG_GEO, PASS_STACK_SHOWN, IN_SINK, SINK_SHOWN, IN_DRAIN, WASH_EACH, frontOf, KITCHEN_BLOCKS, PASS_ROOM, HEAD_HIGH, NAMED_BLOCKS, HEAD_ROOM, HOME_ROOM, TRAY_REACH, SINK_BACK, TILL_WAIT_MAX, TILL_BY_PLATER, TAKEOUT_ASIDE, TAKEOUT_NEXT, SHOE_OFF_S, SHOES_BACK, STOOL_HALF, STOOL_STEP, STOOL_CLIMB, PLATE_R, PLATE_GEO, DISH_ALONG, DISH_STEP, DISH_LAY, KITCHEN_DUE_MS, turnBy, PASS_YAW, FOAM_AT, FOAM_GEO, FOAM_MAT, DRIP_GEO, DRIP_MAT, WASH_SHIFT, WORK_IN, WORK_UP, WASH_FWD, SPOUT_AT, STREAM_W, HAND_TO, HAND_TO_BASKET_S, STATION_POUR_AT, HAND_STREAM, HAND_NDC, HAND_PLANE, HAND_HIT, HAND_TOP, HAND_W, HAND_BOX, UNDER_MAX, PILE_STEP, PILE_AT, SPONGE_BACK_S, RUB_BOX, RUB_C, CARRY_UP, CARRY_CLEAR, CARRY_RAY, CARRY_FROM, CARRY_DOWN, DRIP_LOW, smearOpacity, GLASS_ON, TISSUE_ON, WIPE_MOUTH_MS, SIP_S, SOUP_SIP_S, SIP_GAP, SIPS } from './guestbar/service'
 import { LONG_GEO, ROUND_GEO, Plate, PlateKinds, showKind, smearsOf, pickupReady } from './guestbar/plates'
 import { WaitingBench, KraftBag, TakeoutStandModel, STAND_TOP, STAND_SLOTS, WARM_TUB_Z, WarmTub, STAND_TURN, STAND_LIFT, STAND_GIVE, TakeoutBag, RiderGear } from './guestbar/takeoutStand'
@@ -277,11 +277,14 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
   /** in from outside (item 410, the owner's 「客人進來的時候會先開拉門再脫鞋」): shown out on the step past the sliding door, where they stand while
    * it's slid open (game/slideDoor: a moment after they show), then just in through its open way; put before the way in from the door's place
    * (doorOf), walked back going out. `len` its length (going out, they slide it open just in from it) */
+  // (item 832, the owner's 「客人進門會從外面顯示，再進來。」: shown out in the street (DOOR_LANE.street, on the earth past the bed before the
+  // door), they walk in over it and up the steps to the door, which slides open as they come (game/slideDoor: one walking in from out past
+  // it); `waitD` how far along it the door is, where they stop a moment, or close their umbrella)
   const doorLead = useMemo(() => {
-    const pts = given ? [doorAt(counters, DOOR_LANE.x, DOOR_LANE.wait), doorAt(counters, DOOR_LANE.x, DOOR_LANE.in)] : []
-    // (where they're first put: there, at its step's height (item 410: put at the floor's, they dropped onto the step the next frame))
+    const pts = given ? [doorAt(counters, DOOR_LANE.x, DOOR_LANE.street), doorAt(counters, DOOR_LANE.x, DOOR_LANE.wait), doorAt(counters, DOOR_LANE.x, DOOR_LANE.in)] : []
+    // (where they're first put: there, at the ground's height there (item 410: put at the floor's, they dropped onto the step the next frame))
     const start = pts[0]?.clone().setY(genkanY(counters, pts[0]))
-    return { pts, len: pathLength(pts), start }
+    return { pts, len: pathLength(pts), start, waitD: pts.length ? pts[0].distanceTo(pts[1]) : 0 }
   }, [counters, given])
   const paths = useMemo(() => seats.map((st) => {
     const path = [...doorLead.pts.map((v) => v.clone()), ...pathTo(counters, st)]
@@ -2893,13 +2896,15 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         // next one in was put down in the first, 31 times in three minutes))
         if (!s.from && doorLead.len && s.t < 0.5 && shown.some((o) => o !== s && o.phase === 'enter' && !o.from && (o.t > s.t || (o.t === s.t && o.id < s.id))
           // (item 700: one with an umbrella till it's in the stand just inside: their moment at the door, the walk in, their moment there)
-          && o.t - (o.stepHold ?? 0) < (o.gear === 'umbrella' ? UMB_IN_S + doorLead.len / (SPEED * walkSpeedOf(kindOf(o.id).kind)) : DOOR_WAIT_S) + 0.4)) {
+          && o.t - (o.stepHold ?? 0) < (o.gear === 'umbrella' ? UMB_IN_S + doorLead.len / (SPEED * walkSpeedOf(kindOf(o.id).kind)) : DOOR_STEP_IN_S + doorLead.waitD / (SPEED * walkSpeedOf(kindOf(o.id).kind))) + 0.4)) {
           s.t = 0; s.stepHold = 0
         }
         // (item 623: with an umbrella, the moment at the door is its closing and shaking out (UMB_DOOR_S); item 700, the stand in the genkan by
         // the shoe cupboard: then in, and a stop just in from the door beside it to stand it in it (UMB_PUT_S), as a genkan's is used)
         const umbIn = s.gear === 'umbrella' && !s.from && !!doorLead.len
-        const rawDoor = s.from || !doorLead.len ? raw0 : withPause(raw0, 0, (umbIn ? UMB_DOOR_S : DOOR_WAIT_S) * v)
+        // (item 832: the stop at the door once they've walked up to it from the street: the door's opened as they came (it ran while they
+        // walked the last of the way), a beat there and in; with an umbrella, its closing there)
+        const rawDoor = s.from || !doorLead.len ? raw0 : withPause(raw0, doorLead.waitD, (umbIn ? UMB_DOOR_S : DOOR_STEP_IN_S) * v)
         const raw = umbIn ? withPause(rawDoor, doorLead.len, UMB_PUT_S * v) : rawDoor
         // (and with a raincoat, the stop at the step its taking off first (COAT_OFF_S), then the shoes)
         const coatS = s.gear === 'coat' ? COAT_OFF_S : 0
@@ -2929,7 +2934,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         if (g) g.rotation.y = s.t < dt * 1.5 ? Math.atan2(dir.x, dir.z) : turnToward(g.rotation.y, d < stand ? Math.atan2(dir.x, dir.z) : st.yaw, dt * 1.5)
         // (welcomed in as they come through the noren: the owner's call passed along by those in (crewTalk, item 324: only the owner and
         // the first server had said it))
-        if (!s.welcomed && s.t > 0.5) {
+        // (item 832: as they come in at the door, not as they're first seen out in the street)
+        if (!s.welcomed && s.t > 0.5 && (!!s.from || d >= doorLead.waitD)) {
           s.welcomed = true
           crewWelcome(lang)
         }
@@ -2937,7 +2943,8 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         // inside turned to the stand and stood in it, turned back; the beat's own clock the time they've been shown out at the door, held as
         // they walk in, on by the time they've stood by the stand; its place in the stand taken as the hand goes out to it)
         if (umbIn && g) {
-          const bt = s.t - (s.stepHold ?? 0), ga = gearAtOf(s), put = (rawDoor - doorLead.len) / v
+          // (item 832: their walk up from the street, the umbrella still up over them, before the beat at the door)
+          const bt = Math.max(0, s.t - (s.stepHold ?? 0) - doorLead.waitD / v), ga = gearAtOf(s), put = (rawDoor - doorLead.len) / v
           if (put <= UMB_PUT_S) {
             const pose = umbInBeat(bt <= UMB_DOOR_S ? bt : UMB_DOOR_S + Math.max(0, put), ga.pose)
             ga.umb = s.umbC ?? 0

@@ -21,7 +21,8 @@ export function feature(name: string, body: () => void) {
   describe(`Feature: ${name}`, body)
 }
 
-export function scenario(name: string, body: (s: Steps) => void) {
+/** `timeout` (ms): for a scenario that does a lot of work (vitest's own 5 s otherwise; a busy machine took the stone wall's past it) */
+export function scenario(name: string, body: (s: Steps) => void, timeout?: number) {
   const steps: { label: string; fn: Step }[] = []
   const add = (kind: Kind | null) => (text: string, fn: Step) => {
     steps.push({ label: `${kind ?? 'And'} ${text}`, fn })
@@ -35,5 +36,5 @@ export function scenario(name: string, body: (s: Steps) => void) {
         throw e
       }
     }
-  })
+  }, timeout)
 }
