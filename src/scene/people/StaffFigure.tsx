@@ -14,7 +14,7 @@ import { warmLater } from '@/scene/render/Prewarm'
 import { holdVeil } from '@/scene/render/Later'
 import { crewFaceSheet, crewFrame, faceRange, markFace, ownShape, setFace, squash as jelly, type CrewFace, type FaceKind } from './faceSheet'
 import { faceNow, newFaceLife, type FaceLife } from '@/game/staff/faceLife'
-import { ATMOS, CREW_BONDS, CREW_LOAD, CREW_MOOD, RUSH, SPEAKERS, STAFF_IDLE, STAFF_SAY, STAFF_TALK, STAFF_TIRED, URGED } from '@/game/world/shopState'
+import { ATMOS, CREW_BONDS, CREW_LOAD, CREW_MOOD, ON_DUTY, RUSH, SPEAKERS, STAFF_IDLE, STAFF_SAY, STAFF_TALK, STAFF_TIRED, URGED } from '@/game/world/shopState'
 import { crewMood, newCrewMood, type CrewEmote, type CrewMoodState } from '@/game/staff/crewMood'
 import { CREW_BUSY, CREW_TIRED } from '@/data/crewMoodLines'
 import { makeEmote, type Emote } from './crewEmote'
@@ -540,11 +540,15 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
   }, [fig, own.skin, own.hair])
   // (their name tag's words (App keeps who's who); their role alone before it's known)
   const nameTag = useMemo(() => () => SPEAKERS.get(id) ?? ROLE_TAG[role], [id, role])
-  /** (what a click on them does, in the page's language (item 348)) */
+  /** (what a click on them does, in the page's language (item 348); one of the hired off duty (out of the door, up the stair, or not on
+   * today: App's popover gives after work's things then, items 770, 796), not praise or a push (item 1015, the owner's 「下班時間，hover
+   * 移過去不該出現這個」)) */
   const staffHint = useMemo(() => () => {
     const l = document.documentElement.lang
+    const off = offDuty || (CREW_BONDS.has(id) && (!ON_DUTY.in.has(id) || ON_DUTY.out.has(id)))
+    if (off) return l.startsWith('ja') ? '退勤後・クリック：ねぎらう・付き合う' : l.startsWith('en') ? 'Off duty · Click: thank them or keep them company' : '下班了・點一下：慰勞或陪伴'
     return l.startsWith('ja') ? 'クリック：褒める・急かす' : l.startsWith('en') ? 'Click: praise or hurry them' : '點一下：稱讚或催促'
-  }, [])
+  }, [id, offDuty])
   // (their face (setExpression): what they're doing says it; a squash and stretch as it changes, or as they start to say something)
   const faceWas = useRef<{ face: CrewFace; at: number; said: number; saidAt: number; carry: boolean; wipe: boolean }>({ face: 'idle', at: -1e9, said: 0, saidAt: -1e9, carry: false, wipe: false })
   // (a cook fans the fire only now and then: a spell of it, the fan in hand, then put down; each to their own times. Kept by the frame,
