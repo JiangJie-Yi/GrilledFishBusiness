@@ -117,12 +117,15 @@ function toToon(src: THREE.MeshStandardMaterial): THREE.MeshToonMaterial {
 
 /** what's real metal in a model (the hearth's brass sleeves over its corners and the line inlaid round it): polished, the studio reflected in
  * it, so it reads as brass, not as a flat yellow block, as it did drawn in the toon light */
-const REAL_METAL = new Set(['RobuchiBrass'])
+const REAL_METAL = new Set(['RobuchiBrass', 'RobuchiBrassLine'])
+/** (item 955) how polished each is: the corner caps a mirror; the line inlaid round the hearth satin (polished as the caps, a flat strip of it
+ * caught the studio as one bright band, a lit tube more than brass; a bead now, its light along it) */
+const METAL_ROUGH: Record<string, number> = { RobuchiBrass: 0.2, RobuchiBrassLine: 0.34 }
 function toMetal(src: THREE.MeshStandardMaterial): THREE.MeshStandardMaterial {
   // (a deep polished brass: the model's pale yellow showed the studio's white walls as a flat cream)
   // (its picture and its relief kept: the pattern pressed into the hearth's corner caps, darker in its hollows (blender/grilledfish.py))
   const metal = new THREE.MeshStandardMaterial({ name: src.name, color: new THREE.Color('#c99a40'), map: src.map,
-    normalMap: src.normalMap, normalScale: src.normalScale.clone(), metalness: 1, roughness: 0.2, envMapIntensity: 1.1 })
+    normalMap: src.normalMap, normalScale: src.normalScale.clone(), metalness: 1, roughness: METAL_ROUGH[src.name] ?? 0.2, envMapIntensity: 1.1 })
   metal.userData.made = true
   reflectStudio(metal)
   return metal

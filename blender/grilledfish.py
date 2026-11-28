@@ -986,17 +986,47 @@ for k in range(4):
     o = finish(o, f"RobuchiBrassCorner{k}", M["brass"], smooth_shade=True)
     o.data.set_sharp_from_angle(angle=math.radians(35))
     bars.append(o)
+# (the line's own brass (item 955, the owner's 「也有奇怪金屬條紋」): the game gives it a satin finish of its own (scene/props/Dish.tsx), the
+# corner caps' polish left as it was)
+M["brassline"] = pbr("RobuchiBrassLine", (0.78, 0.58, 0.26), rough=0.34, metal=1.0)
+BEAD_R, BEAD_SEG, BEAD_SINK = 0.003, 6, 0.001
 for k in range(4):
-    # (the inlaid line along each bar's inner edge, plain: all of it on a flat of the pattern's repeat)
+    # (the inlaid line along each bar's inner edge: a half-round bead let into the top (item 955: a flat strip 6 mm by 3 polished like a
+    # mirror caught the studio as one bright band down its middle, dark at its ends, a lit tube more than brass), its axis 1 mm under the
+    # top's flat so it stands 2 mm proud, 5.7 mm across where it meets the wood; shaded smooth over its round, so the light runs along it
+    # as a line; its ends a ladder across the half round (no fan); all of it on a flat of the pattern's repeat)
     along_x = k % 2 == 0
     sgn = -1 if k < 2 else 1
     # (on the top's flat, just past the inner round (item 379); it was 1.2 cm in from the inner edge)
-    loc = (0.0, sgn * (IY_ + ROUND_IN + 0.012), IRORI_H + 0.001) if along_x else (sgn * (IX_ + ROUND_IN + 0.012), 0.0, IRORI_H + 0.001)
-    bpy.ops.mesh.primitive_cube_add(size=1, location=loc)
-    o = active(); o.scale = (2 * IX_, 0.006, 0.003) if along_x else (0.006, 2 * IY_, 0.003)
-    for l in o.data.uv_layers.active.data:
-        l.uv = (0.25, 0.25)
-    bars.append(finish(o, f"RobuchiBrassLine{k}", M["brass"], smooth_shade=False))
+    cx, cy = (0.0, sgn * (IY_ + ROUND_IN + 0.012)) if along_x else (sgn * (IX_ + ROUND_IN + 0.012), 0.0)
+    half = IX_ if along_x else IY_
+    cz = IRORI_H - BEAD_SINK
+    bm = bmesh.new()
+    uvl = bm.loops.layers.uv.new()
+    rings = []
+    for e in (-1, 1):
+        ring = []
+        for j in range(BEAD_SEG + 1):
+            a = math.pi * j / BEAD_SEG
+            off, up = BEAD_R * math.cos(a), BEAD_R * math.sin(a)
+            ring.append(bm.verts.new((cx + e * half, cy + off, cz + up) if along_x else (cx + off, cy + e * half, cz + up)))
+        rings.append(ring)
+    faces = [bm.faces.new((rings[0][j], rings[0][j + 1], rings[1][j + 1], rings[1][j])) for j in range(BEAD_SEG)]
+    for ring in rings:
+        faces += ladder_fill(bm, ring)
+    for f in faces:
+        for l in f.loops:
+            l[uvl].uv = (0.25, 0.25)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me_ = bpy.data.meshes.new(f"RobuchiBrassLine{k}")
+    bm.to_mesh(me_)
+    bm.free()
+    o = bpy.data.objects.new(f"RobuchiBrassLine{k}", me_)
+    bpy.context.collection.objects.link(o)
+    o = finish(o, f"RobuchiBrassLine{k}", M["brassline"], smooth_shade=True)
+    # (its two ends flat; the round smooth)
+    o.data.set_sharp_from_angle(angle=math.radians(50))
+    bars.append(o)
 join(bars, "Robuchi")
 
 
