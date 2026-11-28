@@ -64,6 +64,8 @@ const DRIVEN_AT = new THREE.Vector3()
 const DRIVE_BOARDS = KITCHEN_FLOOR_Y - floorAt(CHEF_AT)
 /** (item 652) how near his round's line (his frame) he must come down to be on his round from there, not put somewhere off it */
 const ON_ROUND = 0.1
+/** (item 804) the least time (s) between two looks for the ground under him as he's moved a little at a time out of the editor */
+const PROBE_GAP = 0.25
 /** (the whole-day audit's 00:53, item 731's sweep) the most the ground found under him at a stop may stand over where he is (his frame's units,
  * a little over the notch's duckboard): at the one frame he reaches a corner of his walk he's stopped, the ray under his feet's middle met a
  * stool's seat or a counter's edge there, and he stood up on it for that frame (0.58 up), and walked on down off it the next */
@@ -1430,7 +1432,11 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     else if (speed > 0) s.ground = 0
     // (looked for again only when it may have changed: he's stopped somewhere new, or the editor's on (anything under him may be moved) or
     // has just gone off; standing at his place all through business, it was five rays a second through the room for the same answer)
-    else if (s.probeAt < 0 || Math.hypot(s.x - s.probeX, s.z - s.probeZ) > 0.005 || edit !== s.probeEdit || (edit && T - s.probeAt > 0.2)) {
+    // (and, moved a little at a time out of the editor (eased about his place at the fire all through business, Roasting's hand on him a few
+    // millimetres a frame), no more than PROBE_GAP apart: each a ray down through the whole room, 2.4% of a busy frame's work every frame
+    // (item 804's profile); carried and let down, as ever, each frame, to land on what's under him where he's let go)
+    else if (s.probeAt < 0 || edit !== s.probeEdit || (edit ? Math.hypot(s.x - s.probeX, s.z - s.probeZ) > 0.005 || T - s.probeAt > 0.2
+      : Math.hypot(s.x - s.probeX, s.z - s.probeZ) > 0.005 && (!!carry.current || T - s.probeAt > PROBE_GAP))) {
       s.probeAt = T; s.probeX = s.x; s.probeZ = s.z; s.probeEdit = edit
       // (out of the editor, never up onto what's more than a step over his feet: what he's been put on in it (a table, a crate) he's on
       // already, and stays on; let down from being carried he's over what he drops onto)
