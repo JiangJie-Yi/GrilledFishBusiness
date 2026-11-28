@@ -32,9 +32,9 @@ const TAU = Math.PI * 2
  * shut a curve across its middle. `t` +1 when the nose is to its right
  */
 function paintEye(g: CanvasRenderingContext2D, x: number, y: number, R: number, t: number, lid: number) {
-  // (set in: a soft dark round it)
+  // (set in: a soft dark round it; gone as the lid comes down (shut, it read as two dark rings round the shut eyes))
   const sock = g.createRadialGradient(x, y, R * 0.92, x, y, R * 1.32)
-  sock.addColorStop(0, 'rgba(8,5,5,0.6)'); sock.addColorStop(1, 'rgba(8,5,5,0)')
+  sock.addColorStop(0, 'rgba(8,5,5,' + (0.6 * (1 - lid)).toFixed(3) + ')'); sock.addColorStop(1, 'rgba(8,5,5,0)')
   g.fillStyle = sock
   g.beginPath(); g.arc(x, y, R * 1.32, 0, TAU); g.fill()
   // (the lid's edge: from its outer corner, high, to its inner, lower, bowed up over the eye; shutting, all three down to a curve under
