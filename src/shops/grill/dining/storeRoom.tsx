@@ -405,53 +405,81 @@ function StoreLamp({ at }: { at: [number, number, number] }) {
   )
 }
 /**
- * The stock room's floor (item 739, the owner's 「儲藏室的地板要稍微鋪個材質，你覺得甚麼好?」, answered: a mortar floor, 土間): a back room's
- * floor in a real izakaya, cement, as the crates are dragged over it and it's hosed down; grey, the trowel's sweeps faint in it, its grit,
- * a damp stain or two where the crates stand by the back wall, a control joint across it every so often and the dirt along the walls' feet.
- * Laid on the shop's boards that run on into it (item 710: no step up), from the wall's line on the shop's side to the back wall, so the shop's
- * wood stops at the doorway. Across its width (u) from the wall to the back wall, along its length (v) from the far end to the wall's start.
+ * The stock room's floor (item 739, the owner's 「儲藏室的地板要稍微鋪個材質，你覺得甚麼好?」: a mortar floor, cement; item 785, the owner's
+ * 「倉庫地板如果不用水泥地，還有什麼更合適？」): tamped earth, 三和土 (tataki), the floor of a doma and a storehouse, of the shop's old kind as
+ * its stone steps and its wood are: earth, slaked lime and bittern beaten flat, a warm grey with a little ochre in it; in broad soft patches
+ * where the lime's richer (paler) or the earth (darker); its fine gravel showing, specks of lime, a few hairline cracks where it dried; darker
+ * along the walls' feet where it keeps the damp and where the crates stand by the back wall; and a lane trodden smoother and a shade darker
+ * near the wall on the shop's side, from the doorway along to the fridges' backs, where the stock keeper walks. One piece, no joints (cement's
+ * were). Laid on the shop's boards that run on into it (item 710: no step up), from the wall's line on the shop's side to the back wall, so
+ * the shop's wood stops at the doorway. Across its width (u) from the wall to the back wall, along its length (v) from the far end to the
+ * wall's start.
  */
 const STORE_FLOOR = canvasTex(256, 1024, (g) => {
   let s = 7331
   const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647
-  g.fillStyle = '#8c8881'; g.fillRect(0, 0, 256, 1024)
-  // (soft mottling, lighter and darker, as a cement floor dries unevenly)
-  for (let i = 0; i < 150; i++) {
-    const x = rnd() * 256, y = rnd() * 1024, r = 16 + rnd() * 56, dark = rnd() < 0.5
+  g.fillStyle = '#9a8f7c'; g.fillRect(0, 0, 256, 1024)
+  // (broad soft patches: the lime richer and paler here, the earth darker and warmer there, as it was mixed and beaten by hand)
+  for (let i = 0; i < 110; i++) {
+    const x = rnd() * 256, y = rnd() * 1024, r = 26 + rnd() * 80, dark = rnd() < 0.5
     const gr = g.createRadialGradient(x, y, 0, x, y, r)
-    gr.addColorStop(0, dark ? 'rgba(58,54,48,0.11)' : 'rgba(206,202,194,0.10)'); gr.addColorStop(1, 'rgba(0,0,0,0)')
+    gr.addColorStop(0, dark ? 'rgba(104,88,66,0.16)' : 'rgba(198,190,172,0.15)'); gr.addColorStop(1, 'rgba(0,0,0,0)')
     g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r)
   }
-  // (the trowel's sweeps: faint arcs, a little lighter or darker)
-  g.lineCap = 'round'
-  for (let i = 0; i < 30; i++) {
-    const x = rnd() * 256, y = rnd() * 1024, r = 34 + rnd() * 70, a = rnd() * Math.PI * 2
-    g.lineWidth = 4 + rnd() * 6
-    g.strokeStyle = rnd() < 0.55 ? 'rgba(214,210,202,0.08)' : 'rgba(66,62,56,0.07)'
-    g.beginPath(); g.arc(x, y, r, a, a + 0.8 + rnd() * 0.9); g.stroke()
+  // (finer mottling over it)
+  for (let i = 0; i < 700; i++) {
+    const x = rnd() * 256, y = rnd() * 1024, r = 3 + rnd() * 9
+    g.fillStyle = rnd() < 0.5 ? `rgba(92,80,62,${0.05 + 0.06 * rnd()})` : `rgba(206,198,182,${0.05 + 0.06 * rnd()})`
+    g.beginPath(); g.ellipse(x, y, r, r * (0.6 + 0.4 * rnd()), rnd() * Math.PI, 0, Math.PI * 2); g.fill()
   }
-  // (its grit)
-  for (let i = 0; i < 6000; i++) {
+  // (its fine gravel: small stones a pixel or two across, grey, buff and rust, each with a lit side; and the earth's grit)
+  for (let i = 0; i < 1400; i++) {
+    const x = rnd() * 256, y = rnd() * 1024, r = 0.6 + rnd() * rnd() * 1.8, k = rnd()
+    g.fillStyle = k < 0.45 ? 'rgba(96,92,86,0.75)' : k < 0.8 ? 'rgba(172,160,138,0.8)' : 'rgba(132,92,62,0.7)'
+    g.beginPath(); g.ellipse(x, y, r, r * 0.8, rnd() * Math.PI, 0, Math.PI * 2); g.fill()
+    g.fillStyle = 'rgba(232,226,212,0.35)'; g.fillRect(x - r * 0.5, y - r * 0.6, Math.max(1, r * 0.6), 1)
+  }
+  for (let i = 0; i < 5000; i++) {
     const x = rnd() * 256, y = rnd() * 1024
-    g.fillStyle = rnd() < 0.5 ? `rgba(52,49,45,${0.16 + 0.22 * rnd()})` : `rgba(218,215,208,${0.14 + 0.2 * rnd()})`
+    g.fillStyle = rnd() < 0.5 ? `rgba(70,62,50,${0.14 + 0.2 * rnd()})` : `rgba(214,206,190,${0.12 + 0.18 * rnd()})`
     g.fillRect(x, y, 1, 1)
+  }
+  // (specks of lime, white, here and there)
+  for (let i = 0; i < 260; i++) {
+    const x = rnd() * 256, y = rnd() * 1024
+    g.fillStyle = `rgba(242,238,228,${0.45 + 0.4 * rnd()})`
+    g.fillRect(x, y, rnd() < 0.3 ? 2 : 1, 1)
+  }
+  // (hairline cracks where it dried: a few short meandering lines, dark, a lit lip beside)
+  g.lineCap = 'round'
+  for (let i = 0; i < 9; i++) {
+    let x = 20 + rnd() * 216, y = rnd() * 1024, a = rnd() * Math.PI * 2
+    const n = 6 + Math.floor(rnd() * 8)
+    g.beginPath(); g.moveTo(x, y)
+    for (let k = 0; k < n; k++) { a += (rnd() - 0.5) * 1.1; x += Math.cos(a) * (5 + rnd() * 7); y += Math.sin(a) * (5 + rnd() * 7); g.lineTo(x, y) }
+    g.lineWidth = 1; g.strokeStyle = 'rgba(62,54,42,0.42)'; g.stroke()
+  }
+  // (the stock keeper's lane, near the wall on the shop's side from the doorway to the fridges' backs: trodden smoother (fewer specks seen),
+  // a shade darker and a little sheen)
+  {
+    const gr = g.createLinearGradient(36, 0, 120, 0)
+    gr.addColorStop(0, 'rgba(84,74,58,0)'); gr.addColorStop(0.3, 'rgba(84,74,58,0.13)'); gr.addColorStop(0.7, 'rgba(84,74,58,0.13)'); gr.addColorStop(1, 'rgba(84,74,58,0)')
+    g.fillStyle = gr; g.fillRect(36, 0, 84, 1024)
+    const sh = g.createLinearGradient(52, 0, 104, 0)
+    sh.addColorStop(0, 'rgba(226,218,200,0)'); sh.addColorStop(0.5, 'rgba(226,218,200,0.07)'); sh.addColorStop(1, 'rgba(226,218,200,0)')
+    g.fillStyle = sh; g.fillRect(52, 0, 52, 1024)
   }
   // (damp where the crates stand, along the back wall toward the far end: darker, soft edged)
   for (const [x, y, r] of [[212, 760, 70], [200, 905, 58], [222, 600, 44], [190, 470, 36]]) {
     const gr = g.createRadialGradient(x, y, r * 0.2, x, y, r)
-    gr.addColorStop(0, 'rgba(48,46,42,0.26)'); gr.addColorStop(0.7, 'rgba(48,46,42,0.12)'); gr.addColorStop(1, 'rgba(48,46,42,0)')
+    gr.addColorStop(0, 'rgba(70,58,42,0.26)'); gr.addColorStop(0.7, 'rgba(70,58,42,0.12)'); gr.addColorStop(1, 'rgba(70,58,42,0)')
     g.fillStyle = gr; g.fillRect(x - r, y - r * 1.4, 2 * r, 2.8 * r)
   }
-  // (control joints across it, a groove with its lit edge)
-  for (const y of [340, 690]) {
-    g.fillStyle = 'rgba(44,42,38,0.55)'; g.fillRect(0, y, 256, 2)
-    g.fillStyle = 'rgba(220,216,208,0.22)'; g.fillRect(0, y + 2, 256, 1)
-  }
-  // (dirt along the walls' feet, both long sides)
-  for (const [x0, x1] of [[0, 22], [256, 234]]) {
+  // (damp and darker along the walls' feet, both long sides)
+  for (const [x0, x1] of [[0, 26], [256, 230]]) {
     const gr = g.createLinearGradient(x0, 0, x1, 0)
-    gr.addColorStop(0, 'rgba(40,38,34,0.30)'); gr.addColorStop(1, 'rgba(40,38,34,0)')
-    g.fillStyle = gr; g.fillRect(Math.min(x0, x1), 0, 22, 1024)
+    gr.addColorStop(0, 'rgba(62,52,38,0.34)'); gr.addColorStop(1, 'rgba(62,52,38,0)')
+    g.fillStyle = gr; g.fillRect(Math.min(x0, x1), 0, 26, 1024)
   }
 })
 /** an unseen sheet over the wall's face on the shop's side that takes the pointer and stops it there (item 735: the goods behind the wall,
