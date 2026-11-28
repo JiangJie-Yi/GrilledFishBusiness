@@ -46,8 +46,9 @@ const storeNoren = (wide: number) => {
     g.fillStyle = '#000000'
     for (let y = 0; y < H; y += 3) g.fillRect(0, y, W, 1)
     g.globalAlpha = 1
-    g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, 0, W, band)
-    g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(0, band, W, 3)
+    // (its top band over the rod a seam only (item 821, the owner's 「這個也拿除」, a red box round the dark bar over the noren and its own darker
+    // top with a light line under it: a band a third darker, a lit line))
+    g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(0, band, W, 1)
     // (the ring and the character in it, as large as they were (drawn for 1024 across 0.648), at a person's eyes: 0.34 under its top)
     const k = W / 1024
     g.translate(W / 2, Math.round(0.34 * PX)); g.scale(k, k)
@@ -405,53 +406,80 @@ function StoreLamp({ at }: { at: [number, number, number] }) {
   )
 }
 /**
- * The stock room's floor (item 739, the owner's 「儲藏室的地板要稍微鋪個材質，你覺得甚麼好?」, answered: a mortar floor, 土間): a back room's
- * floor in a real izakaya, cement, as the crates are dragged over it and it's hosed down; grey, the trowel's sweeps faint in it, its grit,
- * a damp stain or two where the crates stand by the back wall, a control joint across it every so often and the dirt along the walls' feet.
- * Laid on the shop's boards that run on into it (item 710: no step up), from the wall's line on the shop's side to the back wall, so the shop's
- * wood stops at the doorway. Across its width (u) from the wall to the back wall, along its length (v) from the far end to the wall's start.
+ * The stock room's floor (item 739, the owner's 「儲藏室的地板要稍微鋪個材質，你覺得甚麼好?」: a mortar floor, cement; item 785, the owner's
+ * 「倉庫地板如果不用水泥地，還有什麼更合適？」: tamped earth, 三和土; item 786, the owner's 「倉庫地板改用檜木呢？」): hinoki boards. Pale honey,
+ * the fine straight grain of edge-sawn cypress, a small knot here and there, each board a shade of its own; 10.5 cm boards (三寸五分) laid
+ * along the room's length, 1.82 m long (six feet) with their ends' joints staggered; and a store's wear on them: darker where the crates
+ * stand by the back wall, fine scratches where they're dragged along the lane near the wall on the shop's side (the doorway to the fridges'
+ * backs) and its sheen, darker along the walls' feet. Laid on the shop's boards that run on into it (item 710: no step up), from the wall's
+ * line on the shop's side to the back wall, so the shop's own darker wood stops at the doorway. Across its width (u) from the wall to the
+ * back wall (1.142, 512 px: 448 a unit), along its length (v) from the far end to the wall's start (2.513, 1,024 px: 407 a unit).
  */
-const STORE_FLOOR = canvasTex(256, 1024, (g) => {
+const STORE_FLOOR = canvasTex(512, 1024, (g) => {
   let s = 7331
   const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647
-  g.fillStyle = '#8c8881'; g.fillRect(0, 0, 256, 1024)
-  // (soft mottling, lighter and darker, as a cement floor dries unevenly)
-  for (let i = 0; i < 150; i++) {
-    const x = rnd() * 256, y = rnd() * 1024, r = 16 + rnd() * 56, dark = rnd() < 0.5
-    const gr = g.createRadialGradient(x, y, 0, x, y, r)
-    gr.addColorStop(0, dark ? 'rgba(58,54,48,0.11)' : 'rgba(206,202,194,0.10)'); gr.addColorStop(1, 'rgba(0,0,0,0)')
-    g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r)
+  const W = 512, H = 1024, PU = W / 1.142, PV = H / 2.513
+  const BOARD = 0.105 * PU, PIECE = 1.82 * PV
+  // (each board a shade of its own: honey, a few years' warmth on the new wood's cream (fresh it read white in the dim room), a little pinker
+  // or yellower or paler)
+  const shades = ['#d2b88e', '#d6ba94', '#ceb685', '#d9c39d', '#cfb289', '#d5bd95']
+  const n = Math.ceil(W / BOARD)
+  for (let k = 0; k < n; k++) {
+    const x0 = Math.round(k * BOARD), x1 = Math.round((k + 1) * BOARD)
+    // (its pieces along the room, the ends' joints staggered board to board)
+    const start = -rnd() * PIECE
+    for (let y = start; y < H; y += PIECE) {
+      const ya = Math.max(0, Math.round(y)), yb = Math.min(H, Math.round(y + PIECE))
+      g.fillStyle = shades[Math.floor(rnd() * shades.length)]; g.fillRect(x0, ya, x1 - x0, yb - ya)
+      // (its grain: fine straight lines along it, a little wavy, darker and lighter)
+      for (let i = 0; i < 9 + rnd() * 6; i++) {
+        const gx = x0 + 2 + rnd() * (x1 - x0 - 4), wob = 0.6 + rnd() * 1.4, f = 0.004 + rnd() * 0.01, ph = rnd() * 6
+        g.strokeStyle = rnd() < 0.7 ? `rgba(150,112,64,${0.10 + 0.12 * rnd()})` : `rgba(246,232,204,${0.12 + 0.1 * rnd()})`
+        g.lineWidth = 0.8 + rnd() * 0.9
+        g.beginPath(); g.moveTo(gx + Math.sin(ph + ya * f) * wob, ya)
+        for (let yy = ya; yy <= yb; yy += 16) g.lineTo(gx + Math.sin(ph + yy * f) * wob, yy)
+        g.stroke()
+      }
+      // (now and then a small knot)
+      if (rnd() < 0.16) {
+        const kx = x0 + (x1 - x0) * (0.3 + 0.4 * rnd()), ky = ya + (yb - ya) * (0.15 + 0.7 * rnd()), r = 2 + rnd() * 3
+        g.fillStyle = 'rgba(122,82,44,0.55)'; g.beginPath(); g.ellipse(kx, ky, r, r * 1.5, 0, 0, Math.PI * 2); g.fill()
+        g.strokeStyle = 'rgba(150,108,62,0.35)'; g.lineWidth = 1; g.beginPath(); g.ellipse(kx, ky, r + 2, r * 1.5 + 4, 0, 0, Math.PI * 2); g.stroke()
+      }
+      // (the end's joint: a dark line across, a lit lip)
+      if (ya > 0) { g.fillStyle = 'rgba(96,70,42,0.6)'; g.fillRect(x0, ya, x1 - x0, 1); g.fillStyle = 'rgba(246,232,206,0.35)'; g.fillRect(x0, ya + 1, x1 - x0, 1) }
+    }
+    // (the long joint to the next board)
+    g.fillStyle = 'rgba(92,66,40,0.62)'; g.fillRect(x1 - 1, 0, 1, H)
+    g.fillStyle = 'rgba(246,232,206,0.3)'; g.fillRect(x1, 0, 1, H)
   }
-  // (the trowel's sweeps: faint arcs, a little lighter or darker)
-  g.lineCap = 'round'
-  for (let i = 0; i < 30; i++) {
-    const x = rnd() * 256, y = rnd() * 1024, r = 34 + rnd() * 70, a = rnd() * Math.PI * 2
-    g.lineWidth = 4 + rnd() * 6
-    g.strokeStyle = rnd() < 0.55 ? 'rgba(214,210,202,0.08)' : 'rgba(66,62,56,0.07)'
-    g.beginPath(); g.arc(x, y, r, a, a + 0.8 + rnd() * 0.9); g.stroke()
+  // (the lane: the crates dragged along it, fine scratches along the boards, light and dark; a little sheen, a shade darker with the wear)
+  // (inside the room: the wall's inner face is 0.212 in (bar.ts's WALL_OUT); the lane from the doorway along to the fridges' backs beside it)
+  const IN = 0.212 * PU, L0 = 0.24 * PU, L1 = 0.58 * PU
+  {
+    const gr = g.createLinearGradient(L0, 0, L1, 0)
+    gr.addColorStop(0, 'rgba(110,80,46,0)'); gr.addColorStop(0.3, 'rgba(110,80,46,0.12)'); gr.addColorStop(0.7, 'rgba(110,80,46,0.12)'); gr.addColorStop(1, 'rgba(110,80,46,0)')
+    g.fillStyle = gr; g.fillRect(L0, 0, L1 - L0, H)
   }
-  // (its grit)
-  for (let i = 0; i < 6000; i++) {
-    const x = rnd() * 256, y = rnd() * 1024
-    g.fillStyle = rnd() < 0.5 ? `rgba(52,49,45,${0.16 + 0.22 * rnd()})` : `rgba(218,215,208,${0.14 + 0.2 * rnd()})`
-    g.fillRect(x, y, 1, 1)
+  for (let i = 0; i < 140; i++) {
+    const x = L0 + rnd() * (L1 - L0), y = rnd() * H, len = 14 + rnd() * 60
+    g.strokeStyle = rnd() < 0.5 ? `rgba(248,238,214,${0.18 + 0.2 * rnd()})` : `rgba(104,74,44,${0.14 + 0.16 * rnd()})`
+    g.lineWidth = 0.7
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + (rnd() - 0.5) * 3, y + len); g.stroke()
   }
-  // (damp where the crates stand, along the back wall toward the far end: darker, soft edged)
-  for (const [x, y, r] of [[212, 760, 70], [200, 905, 58], [222, 600, 44], [190, 470, 36]]) {
-    const gr = g.createRadialGradient(x, y, r * 0.2, x, y, r)
-    gr.addColorStop(0, 'rgba(48,46,42,0.26)'); gr.addColorStop(0.7, 'rgba(48,46,42,0.12)'); gr.addColorStop(1, 'rgba(48,46,42,0)')
-    g.fillStyle = gr; g.fillRect(x - r, y - r * 1.4, 2 * r, 2.8 * r)
+  // (darker where the crates stand, along the back wall toward the far end: soft edged, a ring or two where a wet crate stood)
+  for (const [vx, vy, r] of [[0.93, 0.74, 0.16], [0.88, 0.88, 0.13], [0.96, 0.59, 0.1], [0.85, 0.46, 0.08]]) {
+    const x = vx * W, y = vy * H, rr = r * W
+    const gr = g.createRadialGradient(x, y, rr * 0.2, x, y, rr)
+    gr.addColorStop(0, 'rgba(92,66,40,0.24)'); gr.addColorStop(0.7, 'rgba(92,66,40,0.11)'); gr.addColorStop(1, 'rgba(92,66,40,0)')
+    g.fillStyle = gr; g.fillRect(x - rr, y - rr * 1.2, 2 * rr, 2.4 * rr)
+    if (rnd() < 0.7) { g.strokeStyle = 'rgba(98,70,42,0.22)'; g.lineWidth = 2; g.beginPath(); g.ellipse(x + (rnd() - 0.5) * rr, y + (rnd() - 0.5) * rr, rr * 0.35, rr * 0.35 * PV / PU, 0, 0, Math.PI * 2); g.stroke() }
   }
-  // (control joints across it, a groove with its lit edge)
-  for (const y of [340, 690]) {
-    g.fillStyle = 'rgba(44,42,38,0.55)'; g.fillRect(0, y, 256, 2)
-    g.fillStyle = 'rgba(220,216,208,0.22)'; g.fillRect(0, y + 2, 256, 1)
-  }
-  // (dirt along the walls' feet, both long sides)
-  for (const [x0, x1] of [[0, 22], [256, 234]]) {
+  // (darker along the walls' feet, both long sides (the near one at the wall's inner face))
+  for (const [x0, x1] of [[IN, IN + 40], [W, W - 40]]) {
     const gr = g.createLinearGradient(x0, 0, x1, 0)
-    gr.addColorStop(0, 'rgba(40,38,34,0.30)'); gr.addColorStop(1, 'rgba(40,38,34,0)')
-    g.fillStyle = gr; g.fillRect(Math.min(x0, x1), 0, 22, 1024)
+    gr.addColorStop(0, 'rgba(90,62,36,0.3)'); gr.addColorStop(1, 'rgba(90,62,36,0)')
+    g.fillStyle = gr; g.fillRect(Math.min(x0, x1), 0, 40, H)
   }
 })
 /** an unseen sheet over the wall's face on the shop's side that takes the pointer and stops it there (item 735: the goods behind the wall,
@@ -526,15 +554,15 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
     // (item 781: bent, not swung stiff as a board: over his shoulder tilted aside, under it hanging down over him)
     g.children.forEach((p, i) => { const m = p.children[0] as THREE.Mesh | undefined; if (m) bendNoren(m.geometry, st.push * (0.62 - i * 0.08)) })
   })
-  // (the small wall over the doorway and the fridges (item 762): its outline across them, the doorway's stretch from over its lintel, the
-  // fridges' from the doorway's height (their lintel gone), up to the head; through the wall's thickness, 4 mm in from either face)
+  // (the small wall over the doorway and the fridges (item 762): across them both from the doorway's height (their lintel gone, and the
+  // doorway's too: item 821, the owner's 「這個也拿除」, red boxes round the dark bar over the noren, from the shop and from above), up to the
+  // head; through the wall's thickness, 4 mm in from either face)
   const smallWall = useMemo(() => {
     if (!frame) return null
-    const za = door[0] - STORE_POST + 0.004, zb = door[1] + STORE_POST, zc = frame.z1 - 0.004
-    const ya = h + STORE_HEAD - 0.001, yb = h - 0.001, yt = frame.headY + 0.001
+    const za = door[0] - STORE_POST + 0.004, zc = frame.z1 - 0.004
+    const yb = h - 0.001, yt = frame.headY + 0.001
     const x0 = Math.max(0.004, -FRIDGE_GAP + 0.002), x1 = WALL_OUT - 0.004
-    const sh = new THREE.Shape([new THREE.Vector2(za, ya), new THREE.Vector2(zb, ya), new THREE.Vector2(zb, yb), new THREE.Vector2(zc, yb),
-      new THREE.Vector2(zc, yt), new THREE.Vector2(za, yt)])
+    const sh = new THREE.Shape([new THREE.Vector2(za, yb), new THREE.Vector2(zc, yb), new THREE.Vector2(zc, yt), new THREE.Vector2(za, yt)])
     // (drawn in its z-y plane, carried through the wall along its x: turned a quarter so the shape's x is the room's z, its depth the room's x)
     const g = new THREE.ExtrudeGeometry(sh, { depth: x1 - x0, bevelEnabled: false })
     g.rotateY(-Math.PI / 2).translate(x1, 0, 0)
@@ -606,8 +634,8 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
             <boxGeometry args={[WALL_OUT + 0.004 - 0.002, frame.headTop - frame.headY, frame.z1 - frame.z0 - 0.004]} /><meshToonMaterial color="#35200f" />
           </mesh>
         )}
-        {/* (its back as deep in the stock room as the head over it and the posts (item 562): it stopped 4 mm short of them) */}
-        <mesh position={[(WALL_OUT + 0.004 - 0.035) / 2, h + STORE_HEAD / 2, (door[0] + door[1]) / 2]}><boxGeometry args={[WALL_OUT + 0.004 + 0.035, STORE_HEAD, outerW - 0.004]} /><meshToonMaterial color="#35200f" /></mesh>
+        {/* (the doorway's lintel taken away (item 821, the owner's 「這個也拿除」: a dark bar 7 cm high over the opening, 3.5 cm proud of the wall
+            into the shop, seen as a strip over the noren and as a ledge from above): the small wall's plaster down to the opening instead) */}
         {/* (and over it, up to the head over the whole stretch (item 562), a small wall (小壁) of the room's plaster, as a framed wall has (on
             over the fridges' lintel too, item 738, to the head's end): the
             shop's wall over the doorway is drawn from the shop's side only, and from the stock room the head and the lintel were two bars
@@ -628,7 +656,8 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
       </EditBlock>
       {/* the noren: its two panels hung from the rod, each its half of the one picture, a slit between; swung aside as the stocker goes
           through (not merged: it moves) */}
-      <group ref={noren} name="look-store" position={[-0.05, h + STORE_HEAD - 0.02, (door[0] + door[1]) / 2]}>
+      {/* (hung at the wall's face (item 821): 5 cm out it hung under the lintel's front; with that gone it stood off the wall from nothing) */}
+      <group ref={noren} name="look-store" position={[-0.012, h + STORE_HEAD - 0.02, (door[0] + door[1]) / 2]}>
         {[-1, 1].map((sd) => <StoreNorenPanel key={sd} sd={sd} wide={norenW} />)}
       </group>
       {/* (its lamp's light kept in it (item 754): unseen slabs where its open back and near end are, casting) */}
@@ -637,7 +666,7 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
       <StoreLamp at={[(WALL_OUT + deep) / 2, top - 0.1, zE - 0.006]} />
       {/* the noren, named when pointed at (item 735): over its cloth only, so the goods seen under it through the doorway are pointed at
           themselves; a click on it stopped there (it went through to them) */}
-      <mesh position={[-0.06, h + STORE_HEAD - 0.02 - STORE_NOREN_L / 2, (door[0] + door[1]) / 2]} rotation-y={-Math.PI / 2} material={STORE_BLOCK_MAT} {...hit} onClick={stopHere}>
+      <mesh position={[-0.02, h + STORE_HEAD - 0.02 - STORE_NOREN_L / 2, (door[0] + door[1]) / 2]} rotation-y={-Math.PI / 2} material={STORE_BLOCK_MAT} {...hit} onClick={stopHere}>
         <planeGeometry args={[outerW, STORE_NOREN_L]} />
       </mesh>
       {/* (the wall's face on the shop's side over the doorway, and on past it to the far end, the fridges' with it: the pointer stopped there,

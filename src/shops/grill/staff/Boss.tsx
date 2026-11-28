@@ -57,6 +57,10 @@ const DRIVEN_AT = new THREE.Vector3()
 const DRIVE_BOARDS = KITCHEN_FLOOR_Y - floorAt(CHEF_AT)
 /** (item 652) how near his round's line (his frame) he must come down to be on his round from there, not put somewhere off it */
 const ON_ROUND = 0.1
+/** (the whole-day audit's 00:53, item 731's sweep) the most the ground found under him at a stop may stand over where he is (his frame's units,
+ * a little over the notch's duckboard): at the one frame he reaches a corner of his walk he's stopped, the ray under his feet's middle met a
+ * stool's seat or a counter's edge there, and he stood up on it for that frame (0.58 up), and walked on down off it the next */
+const STEP_UP = 0.08
 import { crewFaceSheet, crewFrame, faceRange, markFace, ownShape, setFace, squash as jelly, type CrewFace } from '@/scene/people/faceSheet'
 import { faceNow, newFaceLife, type FaceLife } from '@/game/staff/faceLife'
 import { turnEase } from './commuteWalk'
@@ -1388,7 +1392,10 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
     // has just gone off; standing at his place all through business, it was five rays a second through the room for the same answer)
     else if (s.probeAt < 0 || Math.hypot(s.x - s.probeX, s.z - s.probeZ) > 0.005 || edit !== s.probeEdit || (edit && T - s.probeAt > 0.2)) {
       s.probeAt = T; s.probeX = s.x; s.probeZ = s.z; s.probeEdit = edit
-      s.ground = groundBelow(m, s.x, s.z)
+      // (out of the editor, never up onto what's more than a step over his feet: what he's been put on in it (a table, a crate) he's on
+      // already, and stays on; let down from being carried he's over what he drops onto)
+      const g = groundBelow(m, s.x, s.z)
+      if (edit || g <= s.y + STEP_UP) s.ground = g
     }
     const scale = m.parent?.getWorldScale(new THREE.Vector3()).y || 1
     // (item 748: a jump asked for, on his feet: up he springs (the fall below brings him down, a little bounce as he lands))
