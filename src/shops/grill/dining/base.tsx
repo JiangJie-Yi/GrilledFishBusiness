@@ -248,24 +248,17 @@ export function tintByHeight(g: THREE.BufferGeometry, ym: number, base = PLASTER
   return g
 }
 export function WallPiece({ z0, z1, y0, y1, plaster = false }: { z0: number; z1: number; y0: number; y1: number; plaster?: boolean }) {
-  const map = useMemo(() => {
-    const src = plaster ? PLASTER : WALL_BOARDS
-    if (!src) return null
-    const t = src.clone()
-    if (plaster) {
-      t.repeat.set((z1 - z0) / 1.2, (y1 - y0) / 1.2)
-      t.offset.set(-z1 / 1.2, y0 / 1.2)
-    } else {
-      // (boards twelve centimetres across, running up the wainscot's whole height in one)
-      t.repeat.set((z1 - z0) / 1.44, (y1 - y0) / WAINSCOT)
-      t.offset.set(-z1 / 1.44, y0 / WAINSCOT)
-    }
-    t.needsUpdate = true
-    return t
-  }, [z0, z1, y0, y1, plaster])
+  // (the one picture for every piece of wall, its tiling where each piece is written into the piece's own points (item 804): each had its own
+  // copy of the picture to tile it, and the room's merge took every piece for a look of its own, a draw each, 15 of them)
+  const map = plaster ? PLASTER : WALL_BOARDS
   // (the plaster's points tinted by their height (item 743))
   const geo = useMemo(() => {
     const g = new THREE.PlaneGeometry(z1 - z0, y1 - y0)
+    // (the plaster a tile every 1.2; the boards twelve centimetres across, running up the wainscot's whole height in one: as the picture's
+    // repeat and offset were, uv × repeat + offset)
+    const [ru, rv, ou, ov] = plaster ? [(z1 - z0) / 1.2, (y1 - y0) / 1.2, -z1 / 1.2, y0 / 1.2] : [(z1 - z0) / 1.44, (y1 - y0) / WAINSCOT, -z1 / 1.44, y0 / WAINSCOT]
+    const uv = g.attributes.uv as THREE.BufferAttribute
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * ru + ou, uv.getY(i) * rv + ov)
     return plaster ? tintByHeight(g, (y0 + y1) / 2) : g
   }, [z0, z1, y0, y1, plaster])
   useEffect(() => () => geo.dispose(), [geo])
