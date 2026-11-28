@@ -37,9 +37,11 @@ function plainPaper() {
   return t
 }
 
+/** the culms' one material (item 901): their skin's picture with its waxy sheen, each culm's shade on its points (BAMBOO_SHADES), so all the
+ * culms are drawn as one (five materials of one picture before, a draw each) */
+let bambooMat: THREE.MeshPhysicalMaterial | null = null
 function finishOf(src: THREE.MeshStandardMaterial): THREE.Material {
-  const shade = /^TillBamboo(\d)$/.exec(src.name)
-  if (shade) return new THREE.MeshPhysicalMaterial({ map: src.map, color: BAMBOO_SHADES[+shade[1]], roughness: 0.35, clearcoat: 0.4, clearcoatRoughness: 0.3 })
+  if (/^TillBamboo\d$/.test(src.name)) return (bambooMat ??= new THREE.MeshPhysicalMaterial({ map: src.map, vertexColors: true, roughness: 0.35, clearcoat: 0.4, clearcoatRoughness: 0.3 }))
   switch (src.name) {
     case 'TillMarble':
       // (polished marble: the lamps glint in it)
@@ -80,6 +82,13 @@ export function TillCounter({ top }: { top: number }) {
       const src = m.material as THREE.MeshStandardMaterial
       let t = mats.get(src)
       if (!t) { t = finishOf(src); mats.set(src, t) }
+      // (a culm's shade on its own points (its geometry its own copy, the model's left as loaded))
+      const shade = /^TillBamboo(\d)$/.exec(src.name)
+      if (shade) {
+        const c = new THREE.Color(BAMBOO_SHADES[+shade[1]]), g = m.geometry.clone(), n = g.attributes.position.count
+        g.setAttribute('color', new THREE.Float32BufferAttribute(Array.from({ length: n * 3 }, (_, i) => (i % 3 === 0 ? c.r : i % 3 === 1 ? c.g : c.b)), 3))
+        m.geometry = g
+      }
       m.material = t
       m.castShadow = !UNINKED.test(m.name)
       m.receiveShadow = true

@@ -313,8 +313,8 @@ const ART = {
     rsleeve.bezierCurveTo(183, 374, 179, 388, 166, 389)
     rsleeve.bezierCurveTo(158, 389.6, 151, 389.4, 143, 388.6)
     rsleeve.bezierCurveTo(135.4, 387.8, 132, 383.5, 132, 373)
-    rsleeve.bezierCurveTo(131.8, 330, 133, 284, 136, 258)
-    rsleeve.lineTo(147, 236)
+    rsleeve.bezierCurveTo(131.8, 330, 132.2, 284, 132.6, 253.4)
+    rsleeve.lineTo(141.5, 233.2)
     rsleeve.lineTo(151, 238.5)
     rsleeve.bezierCurveTo(144, 230, 134, 217, 124, 210)
     rsleeve.closePath()
@@ -572,36 +572,44 @@ const ART = {
       g.save(); g.translate(hx, hy); g.rotate(Math.atan2(sy, sx)); g.scale(1.6, 1.6)
       // (in here: +x out from the neck's middle toward her wrist, +y down the neck)
       const SKIN = '#faf3e8'
-      // (the fingers, first: from the knuckles past the neck's near edge over its face to their tips on the strings; the first apart from the
-      // rest, up the neck, pressing one)
-      for (const [by, tx, ty, w0, w1] of [[-3.9, -1.0, -5.6, 2.35, 1.55], [-1.3, -1.25, -1.2, 2.45, 1.6], [1.1, -1.0, 1.45, 2.35, 1.55], [3.3, -0.4, 3.75, 2.05, 1.4]]) {
-        handFinger(g, 5.0, by, tx, ty, w0, w1, -0.55, SKIN)
-      }
+      // (the fingers, first, as a hand stopping strings holds them (item 902, the owner's 「手好像還有點透視問題」: all four lay straight and
+      // flat across the neck to its far edge, a hand pressed flat on paper, none of them bent): the first and second arched over the neck's
+      // near edge and down onto the strings, their tips on the far string and the middle one, their nails toward us; the third and the
+      // little finger off the strings, curled at the near edge, only their bent middle joints showing)
+      handFinger(g, 4.6, -3.9, -0.55, -5.0, 2.45, 1.55, -0.7, SKIN)
+      handFinger(g, 4.6, -1.3, 0.0, -1.55, 2.55, 1.6, -0.7, SKIN)
+      handFinger(g, 4.6, 1.2, 1.6, 1.8, 2.45, 1.9, -0.4, SKIN, true)
+      handFinger(g, 4.4, 3.4, 2.4, 3.9, 2.1, 1.7, -0.3, SKIN, true)
       // (the back of the hand and the wrist, one shape: the wrist slender out of the sleeve, widening to the hand)
       const hand = new Path2D()
-      hand.moveTo(20.5, -2.7)
-      hand.bezierCurveTo(16.5, -2.9, 13.5, -3.5, 11.2, -4.6)
-      hand.bezierCurveTo(8.6, -5.6, 6.4, -5.9, 4.9, -5.0)
-      hand.bezierCurveTo(3.7, -4.0, 3.6, 3.8, 4.7, 5.0)
-      hand.bezierCurveTo(6.4, 6.0, 9.2, 5.5, 11.4, 4.2)
-      hand.bezierCurveTo(13.6, 3.2, 16.5, 2.8, 20.5, 2.9)
+      // (item 902: seen slant, as it faces down and a little toward us round the neck's underside, from wrist to knuckles about as long as
+      // it's broad (it was half again, laid flat on the paper); the sleeve's mouth nearer the neck with it)
+      hand.moveTo(15.6, -2.7)
+      hand.bezierCurveTo(13.0, -2.9, 10.6, -3.6, 8.8, -4.7)
+      hand.bezierCurveTo(7.0, -5.7, 5.6, -5.9, 4.9, -5.0)
+      // (its knuckles' edge a row of four rises over the fingers' roots, not a straight cut)
+      hand.quadraticCurveTo(3.4, -3.9, 4.2, -2.6); hand.quadraticCurveTo(3.3, -1.3, 4.2, 0.0); hand.quadraticCurveTo(3.5, 1.2, 4.3, 2.3)
+      hand.quadraticCurveTo(3.7, 3.4, 4.7, 5.0)
+      hand.bezierCurveTo(5.8, 5.9, 7.9, 5.5, 9.4, 4.3)
+      hand.bezierCurveTo(11.2, 3.2, 13.2, 2.8, 15.6, 2.9)
       hand.closePath()
       g.fillStyle = SKIN; g.fill(hand)
       // (its outline along the wrist and the hand's two sides; the knuckles' ridge over the finger roots fainter, as the brush lifts)
       line(0.42)
-      g.beginPath(); g.moveTo(20.5, -2.7); g.bezierCurveTo(16.5, -2.9, 13.5, -3.5, 11.2, -4.6); g.bezierCurveTo(8.6, -5.6, 6.4, -5.9, 4.9, -5.0); g.stroke()
-      g.beginPath(); g.moveTo(4.7, 5.0); g.bezierCurveTo(6.4, 6.0, 9.2, 5.5, 11.4, 4.2); g.bezierCurveTo(13.6, 3.2, 16.5, 2.8, 20.5, 2.9); g.stroke()
+      g.beginPath(); g.moveTo(15.6, -2.7); g.bezierCurveTo(13.0, -2.9, 10.6, -3.6, 8.8, -4.7); g.bezierCurveTo(7.0, -5.7, 5.6, -5.9, 4.9, -5.0); g.stroke()
+      g.beginPath(); g.moveTo(4.7, 5.0); g.bezierCurveTo(5.8, 5.9, 7.9, 5.5, 9.4, 4.3); g.bezierCurveTo(11.2, 3.2, 13.2, 2.8, 15.6, 2.9); g.stroke()
       line(0.3, 'rgba(26,18,16,0.55)')
-      g.beginPath(); g.moveTo(4.9, -5.0); g.bezierCurveTo(3.7, -4.0, 3.6, 3.8, 4.7, 5.0); g.stroke()
+      g.beginPath(); g.moveTo(4.9, -5.0); g.quadraticCurveTo(3.4, -3.9, 4.2, -2.6); g.quadraticCurveTo(3.3, -1.3, 4.2, 0.0)
+      g.quadraticCurveTo(3.5, 1.2, 4.3, 2.3); g.quadraticCurveTo(3.7, 3.4, 4.7, 5.0); g.stroke()
       // (a breath of shade where the hand turns down to the fingers, and the tendon's faint line up the back of the wrist)
       line(0.25, 'rgba(176,128,108,0.45)')
       g.beginPath(); g.moveTo(6.2, -3.8); g.quadraticCurveTo(5.3, 0, 6.0, 3.8); g.stroke()
-      g.beginPath(); g.moveTo(16, -1.2); g.quadraticCurveTo(12.4, -1.6, 9.4, -2.3); g.stroke()
+      g.beginPath(); g.moveTo(12.6, -1.2); g.quadraticCurveTo(10.0, -1.6, 7.8, -2.3); g.stroke()
       // (her sleeve to its mouth at the wrist, its red lining inside the lip)
-      const tube = new Path2D(); tube.moveTo(19.5, -7.4); tube.quadraticCurveTo(17.0, 0.2, 19.5, 7.8); tube.lineTo(29, 7.6); tube.lineTo(29, -7.6); tube.closePath()
-      const sides = new Path2D(); sides.moveTo(19.5, -7.4); sides.lineTo(27, -7.6); sides.moveTo(19.5, 7.8); sides.lineTo(27, 7.6)
-      const mouth = new Path2D(); mouth.moveTo(19.5, -7.4); mouth.quadraticCurveTo(17.0, 0.2, 19.5, 7.8)
-      const lining = new Path2D(); lining.moveTo(19.6, -6.9); lining.quadraticCurveTo(17.1, 0.2, 19.6, 7.3); lining.lineTo(20.9, 6.8); lining.quadraticCurveTo(18.7, 0.2, 20.9, -6.4); lining.closePath()
+      const tube = new Path2D(); tube.moveTo(14.8, -7.4); tube.quadraticCurveTo(12.3, 0.2, 14.8, 7.8); tube.lineTo(24.3, 7.6); tube.lineTo(24.3, -7.6); tube.closePath()
+      const sides = new Path2D(); sides.moveTo(14.8, -7.4); sides.lineTo(22.3, -7.6); sides.moveTo(14.8, 7.8); sides.lineTo(22.3, 7.6)
+      const mouth = new Path2D(); mouth.moveTo(14.8, -7.4); mouth.quadraticCurveTo(12.3, 0.2, 14.8, 7.8)
+      const lining = new Path2D(); lining.moveTo(14.9, -6.9); lining.quadraticCurveTo(12.4, 0.2, 14.9, 7.3); lining.lineTo(16.2, 6.8); lining.quadraticCurveTo(14.0, 0.2, 16.2, -6.4); lining.closePath()
       const pic = [tube, sides, mouth, lining].map(toPic)
       g.restore()
       armTube(pic[0], pic[1], pic[2], pic[3], rsleeve)
@@ -632,33 +640,45 @@ const ART = {
       line(0.55, 'rgba(255,255,255,0.9)'); g.beginPath(); g.moveTo(13.3, GY - 7); g.lineTo(14.5, GY + 5.8); g.stroke()
       line(0.5, 'rgba(150,118,70,0.75)'); g.beginPath(); g.moveTo(4.4, GY + 1.4); g.bezierCurveTo(8.2, GY + 1.9, 11.2, GY + 4, 14.3, GY + 6.1); g.stroke()
       const SKIN = '#faf3e8'
-      // (four slim fingers curled round under the handle, first: each down out of the knuckles' line over the handle and curling back under
-      // it, its tip tucked in, only the middle joint's turn showing below it; their roots hidden under the back of the hand, no seam; the
-      // little finger, by her wrist, the slightest, the middle the longest)
-      // (drawn over the handle: they close round it, their tips tucked back under it)
-      for (let k = 0; k < 4; k++) {
-        const x = -9.6 + k * 2.9, len = 5.5 - Math.abs(k - 2) * 0.45
-        handFinger(g, x, 1.0, x + 1.4, 1.0 + len, 2.45 + k * 0.15, 2.2 + k * 0.12, 0.55, SKIN, true)
-      }
-      // (the back of the hand and the wrist, one shape: the wrist slender out of the sleeve, widening to the hand, round its first knuckle onto
-      // the handle, along the knuckles' line to the heel of the hand)
-      const hand = new Path2D()
-      hand.moveTo(-17.5, -3.5)
-      hand.bezierCurveTo(-14, -3.9, -12, -4.8, -9.5, -5.8)
-      hand.bezierCurveTo(-6, -7.0, -1.0, -6.8, 1.8, -4.8)
-      hand.bezierCurveTo(3.6, -3.4, 3.9, -0.4, 2.8, 1.6)
-      hand.bezierCurveTo(0.6, 2.4, -6, 2.4, -10.6, 2.2)
-      hand.bezierCurveTo(-13, 2.4, -15, 3.2, -17.5, 3.6)
-      hand.closePath()
-      g.fillStyle = SKIN; g.fill(hand)
+      // (her fist round the handle, as a fist seen from its back is (item 902, the owner's 「手好像還有點透視問題」: four fingers hung apart
+      // under the handle, straight, their ends round as fingertips, a hand hung open over it; item 62's before that hung like pegs): one
+      // shape, the back of the hand from the wrist to the first knuckle, round it and down the first finger's front past the handle, along
+      // the four curled fingers' middle joints under it (each a round, the little finger's highest), up the little finger's side to the
+      // heel of the hand and back along it to the wrist; the fingers' partings and their middle joints' turns drawn in, the knuckles' row
+      // fainter; the handle's butt out past the little finger under the heel of the hand, its neck and blade out past the first finger)
+      const fist = new Path2D()
+      fist.moveTo(-17.5, -3.5)
+      fist.bezierCurveTo(-14, -3.9, -12, -4.8, -9.5, -5.8)
+      fist.bezierCurveTo(-6, -7.0, -1.0, -6.8, 1.8, -4.8)
+      fist.bezierCurveTo(3.6, -3.4, 4.1, -0.2, 3.6, 2.6)
+      fist.bezierCurveTo(3.4, 4.4, 3.3, 5.9, 2.4, 6.6)
+      fist.quadraticCurveTo(1.4, 7.2, 0.0, 6.7)
+      fist.quadraticCurveTo(-1.5, 7.4, -3.1, 6.9)
+      fist.quadraticCurveTo(-4.6, 7.3, -6.0, 6.6)
+      fist.quadraticCurveTo(-7.6, 6.9, -8.9, 6.0)
+      fist.bezierCurveTo(-10.2, 5.4, -10.9, 4.0, -10.9, 2.6)
+      fist.bezierCurveTo(-13, 2.7, -15, 3.2, -17.5, 3.6)
+      fist.closePath()
+      g.fillStyle = SKIN; g.fill(fist)
       line(0.42)
       g.beginPath(); g.moveTo(-17.5, -3.5); g.bezierCurveTo(-14, -3.9, -12, -4.8, -9.5, -5.8); g.bezierCurveTo(-6, -7.0, -1.0, -6.8, 1.8, -4.8)
-      g.bezierCurveTo(3.6, -3.4, 3.9, -0.4, 2.8, 1.6); g.stroke()
-      g.beginPath(); g.moveTo(-10.6, 2.2); g.bezierCurveTo(-13, 2.4, -15, 3.2, -17.5, 3.6); g.stroke()
-      // (the knuckles' line over the curled fingers fainter, a little wave along it at each knuckle)
-      line(0.3, 'rgba(26,18,16,0.55)')
-      g.beginPath(); g.moveTo(2.8, 1.6)
-      for (let k = 3; k >= 0; k--) { const x = -9.6 + k * 2.9; g.quadraticCurveTo(x + 1.5, 2.2, x - 0.3, 2.4) }
+      g.bezierCurveTo(3.6, -3.4, 4.1, -0.2, 3.6, 2.6); g.bezierCurveTo(3.4, 4.4, 3.3, 5.9, 2.4, 6.6); g.quadraticCurveTo(1.4, 7.2, 0.0, 6.7)
+      g.quadraticCurveTo(-1.5, 7.4, -3.1, 6.9); g.quadraticCurveTo(-4.6, 7.3, -6.0, 6.6); g.quadraticCurveTo(-7.6, 6.9, -8.9, 6.0)
+      g.bezierCurveTo(-10.2, 5.4, -10.9, 4.0, -10.9, 2.6); g.bezierCurveTo(-13, 2.7, -15, 3.2, -17.5, 3.6); g.stroke()
+      // (the fingers' partings, up from between their middle joints to the knuckles; finer than the outline, as the brush lifts)
+      line(0.3, 'rgba(26,18,16,0.6)')
+      for (const [x0, y0, x1, y1] of [[0.0, 6.6, 0.6, 2.2], [-3.1, 6.8, -2.6, 2.3], [-6.0, 6.5, -5.6, 2.4]]) {
+        g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo((x0 + x1) / 2 - 0.25, (y0 + y1) / 2, x1, y1); g.stroke()
+      }
+      // (each middle joint's turn: a soft fold across it where the finger goes back under the handle toward the palm)
+      line(0.28, 'rgba(170,118,98,0.6)')
+      for (const [cx, cy] of [[1.4, 5.7], [-1.55, 5.9], [-4.5, 5.8], [-7.3, 5.3]]) {
+        g.beginPath(); g.moveTo(cx - 1.05, cy); g.quadraticCurveTo(cx, cy + 0.45, cx + 1.05, cy); g.stroke()
+      }
+      // (the knuckles' row over the fingers' roots, a little wave at each knuckle)
+      line(0.3, 'rgba(26,18,16,0.45)')
+      g.beginPath(); g.moveTo(2.9, 1.4)
+      for (const x of [0.6, -2.6, -5.6, -8.6]) g.quadraticCurveTo(x + 1.2, 1.5, x, 2.1)
       g.stroke()
       // (her thumb short along the handle's top toward the blade, its tip on it at the fist's front, not out over the blade (it read as
       // pointing at it); a soft fold where it leaves the hand, and the tendon's faint line up the back of the wrist)
