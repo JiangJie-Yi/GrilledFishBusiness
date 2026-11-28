@@ -4,6 +4,8 @@ import { getClock } from '@/ui/kit/clockStore'
  * an hour) (item 787: half an hour and an hour, and the staff went home after six, an hour and a half's overtime and night pay a night) */
 export const CLOSE_HURRY = 15
 export const CLOSE_HARD = 30
+/** (item 838) and those already up and paying, walking out, waited for this much more before the staff go (the cashier stays for them) */
+export const CLOSE_LAST = 20
 /** where the clock's put when the day's sheet is put away: the next day's getting ready, half an hour before opening (16:30) */
 export const PREP_AT = 16 * 60
 export const gameMinutes = () => getClock().day * 1440 + getClock().minute

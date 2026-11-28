@@ -104,12 +104,15 @@ export function floorWipePose(at: THREE.Vector3) {
   unbend(WIPE_POSE.left.set(-0.13, 0.3, 0.36))
   return WIPE_POSE
 }
+/** how far out in front of their feet the hand broom's straw tip sweeps (the figure's upright frame): where they stand for glass on the floor is
+ * this short of it (GuestBar3D's spillPath, item 951) */
+export const SWEEP_TIP = 0.66
 /** `upper`: the right hand, on the broom's handle; `lower`: the left, on the dustpan's grip; `pan`: the dustpan's middle on the floor */
 export function ownerSweepPose(t: number) {
   const s = Math.sin(t * Math.PI * 2.2)
   const f = OWNER_SWEEP
   // (the straw's tip on the floor out in front, swept from his right across toward the pan at his left, the handle up and back to his hand)
-  f.foot.set(0.1 - (s * 0.5 + 0.5) * 0.14, 0.012, 0.66)
+  f.foot.set(0.1 - (s * 0.5 + 0.5) * 0.14, 0.012, SWEEP_TIP)
   OWNER_TOP.set(0.16 - (s * 0.5 + 0.5) * 0.06, 0.2, 0.58)
   f.dir.copy(OWNER_TOP).sub(f.foot).normalize()
   f.upper.copy(f.foot).addScaledVector(f.dir, HAND_BROOM_LEN * 0.9)

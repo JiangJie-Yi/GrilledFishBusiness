@@ -114,6 +114,9 @@ export const CHOPS_UP = keep(import.meta.hot, 'CHOPS_UP', new Set<number>())
 /** the customers with food before them just now, on their own plate at the bar (Roasting keeps it): only they're drawn eating, chopsticks in
  * hand (the owner's: waiting for the next dish, they went on picking at an empty plate) */
 export const FED = keep(import.meta.hot, 'FED', new Set<number>())
+/** (item 838) the customers whose food's done and on its way to them (GuestBar3D: at the serving counter, at the plating place, in a server's
+ * hands): not hurried out at closing (Roasting's SHOP.hurry) */
+export const ON_ITS_WAY = keep(import.meta.hot, 'ON_ITS_WAY', new Set<number>())
 /** how far into the dish they're eating each customer is, in bites (0 to Roasting's BITES_PER_PIECE; a bite's taken out of the food as it
  * passes x.65): kept by Roasting each frame, so their hand's beats go with it, the chopsticks in the food as the bite goes from the plate
  * (item 242) */

@@ -39,7 +39,7 @@ export const BENCH_A = new THREE.Vector3(), BENCH_B = new THREE.Vector3()
 export const STOOL_PULL_S = 0.25, STOOL_STEP_S = 0.3, STOOL_SLIDE_S = 0.4, STOOL_HOME_AT = 0.4
 /** the way back from a place's stool toward the aisle (level) */
 export const backOf = (st: { stool: THREE.Vector3; aisle: THREE.Vector3 }) => st.aisle.clone().sub(st.stool).setY(0).normalize()
-export type Shown = { id: number; seat: number; phase: 'enter' | 'sit' | 'leave' | 'wcGo' | 'wcIn' | 'wcWash' | 'wcBack'; t: number
+export type Shown = { payK?: number; id: number; seat: number; phase: 'enter' | 'sit' | 'leave' | 'wcGo' | 'wcIn' | 'wcWash' | 'wcBack'; t: number
   /** (in a toilet) sat on it just now; whether they switched its light on going in (and so put it out after, if they're the last); their
    * way out from it to the washstand once they're up (and how far along it, in seconds walked) */
   wcSit?: boolean; wcLit?: boolean; wcOut?: { path: THREE.Vector3[]; len: number; t: number }
@@ -128,6 +128,8 @@ export function PayFloat({ text, follow, done }: { text: string; follow: () => T
 }
 /** how long they stand at the till paying: the bill rung up, the drawer out and in, the change given */
 export const PAY_S = 5.6
+/** (item 838) at closing, hurried out (SHOP.hurry), how much of PAY_S paying takes */
+export const PAY_HURRY = 0.5
 /** how far back the next one waits while someone's paying */
 export const QUEUE_GAP = 0.6
 /** the genkan's step, one at a time changing their shoes, the next a body's length (QUEUE_GAP) back till they've stepped on (item 414:

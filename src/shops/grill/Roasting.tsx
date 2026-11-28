@@ -50,7 +50,7 @@ import { getLights } from '@/scene/render/lightsStore'
 import { canRide, comesAt, drinksAlcohol, familyShare, kindOf, LATE_MORE, pastHour, WITH_CHILD } from '@/data/guests'
 import { fitsBeforeClose, RIDER_SHARE, TAKEOUT_MAX, takeoutGap, takeoutSize } from '@/game/guests/takeout'
 import { CLOSE_AT } from '@/game/world/hours'
-import { type Seasoning } from '@/data/menu'
+import { type Seasoning, PULL_LEAST } from '@/data/menu'
 import { partName, type Seasoning as Dab } from '@/data/recipes'
 import { tipIn } from '@/data/tipText'
 import { bestStage, PAIRING, PAIRING_DEFAULT, stageOf as seasonStage, timingLoss } from '@/game/kitchen/taste'
@@ -69,7 +69,7 @@ import { EditBlock } from '@/shops/grill/editor/Movable'
 import { plateFor, type PlateKind } from '@/game/service/plateSize'
 import { CREW_LOAD, GAZE, SHOP, STAFF_SAY, LATE, LAST_CALL, RATING_FLOW, STAFF_TALK } from '@/game/world/shopState'
 import { loadOf } from '@/game/staff/crewMood'
-import { FED, EAT_PHASE, PLATE_FACES, SAY_SEATED, BOWLS, RICE_SEATS, SIDE_SALE, FIRE_TEND, SKEWERS, SEAT_MOVE, CHOPS_USED, CHOPS_OFF, SEAT_LEFT, SEATS_UNCLEARED, GRIPES, gripe, meterWater, SUPPLIES, SICK, PLATING, READY_SLOTS, PLATES_OUT, PLATER_OUT, OWNER_GRILL, FETCHER, SEAT_STICKS, SEAT_BONES, WHOLE_FISH, ALONG, drinkFor, POINTER_HINT, PLATES_SET, SEATS_TAKEN, SERVICE, PANTRY, GRILL_COUNTERS, GRILL_OFFSET, GRILL_SCALE, GRILL_SEATS, FIRE_SHIFT, KITCHEN_DROP, LAY, toGrillScene, COOK_NOTCH, SOUS_NOTCH, seatTurn } from './bar'
+import { FED, ON_ITS_WAY, EAT_PHASE, PLATE_FACES, SAY_SEATED, BOWLS, RICE_SEATS, SIDE_SALE, FIRE_TEND, SKEWERS, SEAT_MOVE, CHOPS_USED, CHOPS_OFF, SEAT_LEFT, SEATS_UNCLEARED, GRIPES, gripe, meterWater, SUPPLIES, SICK, PLATING, READY_SLOTS, PLATES_OUT, PLATER_OUT, OWNER_GRILL, FETCHER, SEAT_STICKS, SEAT_BONES, WHOLE_FISH, ALONG, drinkFor, POINTER_HINT, PLATES_SET, SEATS_TAKEN, SERVICE, PANTRY, GRILL_COUNTERS, GRILL_OFFSET, GRILL_SCALE, GRILL_SEATS, FIRE_SHIFT, KITCHEN_DROP, LAY, toGrillScene, COOK_NOTCH, SOUS_NOTCH, seatTurn } from './bar'
 import { freshFactor, sickChance } from '@/game/stock/freshness'
 import { NO_POINTER, zr } from '@/scene/interact/htmlProps'
 import { GAZE_AT, baseName, SIDE_LEAD, TURN_AT, TURN_S, STICK_AXIS, FIRE_SIDE, FIRE_INV, STICK_TURN, DONE_TINT, BURNT_TINT, CHAR_START, CHAR_FULL, FACE_CAMERA, SIPS, SOUP_TASTE, DISH_TASTE, FAN_GAIN, FAN_MAX, FAN_FADE, FAN_RISE, FAN_BURN, FIRE_FANNED_MAX, FAN_OVER_BURN, SIDE_EAT_S, FLIGHT_SECONDS, PIERCE_MS, LAY_DIR, STACK_DIR, ON_BOARD, ONE, PLATE_R, SLOT_GAP, PER_LAYER, PER_PLATE, ASH_GAIN, ASH_TINT, PLATE_STEP, DISH_TOP, BASKET_TOP, CONTAINER_TIP, BOWL_TOP, BOWL_R, FATTY, TRAY_REST, TRAY_SIDE, TRAY_OFF, TONG_LEN, TONG_REST_OUT, TONG_LIE, TONG_LIFT_S, TONG_BACK_S, type TongPhase, TONG_X, TONG_Y, TONG_Z, TONG_M, TONG_QR, TONG_QU, TONG_AT, TONG_REST_TIP, BONE_SCALE, BONES_TIP, BOWL_PUSH, BOWL_RIM, EDIT_PIECES, DRAG_PIECES, PLATE_TOP, EAT_SECONDS, GUEST_EAT_SECONDS, BITES_PER_PIECE, UP, ZERO, SIZZLE_AT, HAND_OFFSET, BUCKET_SCALE, BIN_R, ROD_WS, TRASH_R, TRASH_H, FLOOR_BUCKET, FLOOR_TRASH } from './roasting/tuning'
@@ -1806,7 +1806,8 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
     }
     const pullOf = (p: Piece) => {
       const n = follows(p)
-      return n?.doneness !== undefined ? Math.min(1.45, Math.max(0.95, n.doneness)) : chef.pullAt
+      // (never short of done (item 841): a note's 0.95 was half cooked, and nobody ate it)
+      return n?.doneness !== undefined ? Math.min(1.45, Math.max(PULL_LEAST, n.doneness)) : chef.pullAt
     }
     // (of those done, the one nearest burning first (item 207: the fire kept higher, done ones go over sooner, and in a rush the first found
     // was taken while one further on burnt waiting its turn))
@@ -2046,16 +2047,17 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       const seat = Array.from({ length: BAR_SEATS }, (_, n) => n).find((n) => !used.has(n))
       for (const id of [...BENCH.ids]) {
         // (or past their hour while they waited (data/guests' pastHour, item 377): a child, a high schooler, the old folk gone home, not sat down)
-        const waitedOut = now - (BENCH.since.get(id) ?? now) > BENCH_WAIT, home = pastHour(id, getClock().minute)
+        const waited = now - (BENCH.since.get(id) ?? now), waitedOut = waited > BENCH_WAIT, home = pastHour(id, getClock().minute)
         if (SHOP.closing || LAST_CALL.on || !onOrder || waitedOut || home) {
           BENCH.ids = BENCH.ids.filter((x) => x !== id)
           BENCH.since.delete(id)
           BENCH.gone.add(id)
           onSay?.('guest', L().benchGone(id), id)
-          // (item 839, the Tester window's: sent off by the shop's hours (its last call, its closing, no orders taken) and not by their wait,
-          // no visit of theirs to rate: at the 04:00 last call the bench's were put down as having waited the bench's whole 90 minutes and
-          // gone, a star for it, a review a third of the time)
-          if (waitedOut || home) onVisit?.({ id, taste: null, waited: BENCH_WAIT, walkedOut: true, gripes: ['wait'] })
+          // (item 839, the Tester window's, measured in the reviews kept (jgs-reputation-1): only one who waited out the bench's whole time
+          // puts down a visit, a wait they'll grumble of, as long as they did wait; one gone home at their hour (a child at 19:30, the old
+          // folk and the housewives at 21:30, the high schoolers at 22:00) was put down as having waited the whole 90 and gone, a star for
+          // the wait, a review a third of the time, after 24 to 70 of them; one sent off by the shop's hours, none)
+          if (waitedOut) onVisit?.({ id, taste: null, waited: Math.round(waited), walkedOut: true, gripes: ['wait'] })
         }
       }
       if (seat !== undefined && BENCH.ids.length && onOrder && !SHOP.closing && !LAST_CALL.on) {
@@ -2321,7 +2323,13 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
     FED.clear()
     // (a tokkuri sold to someone no longer here (the shop shut on them, the day over): not to be poured (item 199))
     if (SAKE.unpoured.size) for (const id of SAKE.unpoured) if (!guests.current.some((g) => g.id === id)) SAKE.unpoured.delete(id)
-    for (const p of pieces.current) if (p.container === 'bar' && p.guest >= 0 && p.collected && p.flight >= 1 && !p.eaten && !p.stickOnly && p.via !== 'plated' && present(p)) FED.add(p.guest)
+    // (item 841, the Tester window's: only what they'll eat: theirs still owed, and done. A piece taken off half cooked and set before them,
+    // or one more of a dish they'd had, counted as food before them, and they never gave up or went: kept there 166 to 464 minutes)
+    for (const p of pieces.current) if (p.container === 'bar' && p.guest >= 0 && p.collected && p.flight >= 1 && !p.eaten && !p.stickOnly && p.via !== 'plated' && present(p)
+      && stageOf(p.progress / roast.times[p.id]).key === 'done') {
+      const g = guests.current.find((x) => x.id === p.guest)
+      if (g && g.orders.filter((o) => o === p.id).length > g.ate.filter((a) => a === p.id).length) FED.add(p.guest)
+    }
     /** a customer's tokkuri: asked for the first time (SAKE.want: poured by hand at the sake station on the serving counter and carried out to
      * them on a server's tray, GuestBar3D, item 177); whether it's been set at their place now (SAKE.ready); with no station or nobody to pour
      * at it (SAKE.station false: a bar on its own), set at their place after SAKE_WAIT_S as it was */
@@ -2347,11 +2355,12 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       // at an empty plate for ever)
       // (or hurried out half an hour past closing (SHOP.hurry), nothing before them: up to pay for what they've had, the rest refunded)
       // (or sat their time out (game/stay, item 207): up to pay for what they've had, the rest given back)
-      if ((g.state === 'eating' && !FED.has(g.id) && gaveUpOnNext(g.lastAte ?? now, now)) || (SHOP.hurry && !FED.has(g.id))
+      // (item 838: nor hurried out with their food done and on its way to them (ON_ITS_WAY): they eat it, quickly, and go)
+      if ((g.state === 'eating' && !FED.has(g.id) && gaveUpOnNext(g.lastAte ?? now, now)) || (SHOP.hurry && !FED.has(g.id) && !ON_ITS_WAY.has(g.id))
         || (g.ate.length > 0 && !FED.has(g.id) && overstayed(g.since, now))) {
         const owed = [...g.orders]
         for (const a of g.ate) owed.splice(owed.indexOf(a), 1)
-        const why = SHOP.hurry && !FED.has(g.id) ? 'hurry' : g.state === 'eating' && gaveUpOnNext(g.lastAte ?? now, now) ? 'next' : 'stay'
+        const why = SHOP.hurry && !FED.has(g.id) && !ON_ITS_WAY.has(g.id) ? 'hurry' : g.state === 'eating' && gaveUpOnNext(g.lastAte ?? now, now) ? 'next' : 'stay'
         g.state = 'done'
         if (!SHOP.hurry || g.ate.length === 0) gripe(g.id, 'wait')
         onWalkOut?.(owed, g.id, why)
