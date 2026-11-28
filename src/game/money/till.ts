@@ -73,6 +73,15 @@ export function takeTakings(d: DrawerCash, keep: DrawerCash = openingFloat()): {
   for (const k of DENOMS) { const n = Math.min(drawer[k], Math.floor(want / k)); drawer[k] -= n; want -= n * k }
   return { drawer, amount: drawerTotal(d) - drawerTotal(drawer) }
 }
+/**
+ * (item 822, the owner's 「幫我測一下自動模式可以撐幾天」: on its seventh day the auto-run had no cash to buy in with, sold out and stopped,
+ * NT$68,000 in the register's drawer it never took out) When the auto-run's manager brings the drawer's takings into the cash in hand (the
+ * float left for change, takeTakings): every time once the shop's shut; while it's open only once the cash is running short (under
+ * AUTO_SWEEP_LOW), and then at least AUTO_SWEEP_MIN at a time (not a few coins every few seconds)
+ */
+export const AUTO_SWEEP_LOW = 10000
+export const AUTO_SWEEP_MIN = 1000
+export const autoSweep = (open: boolean, cash: number, takings: number) => takings > 0 && (!open || (cash < AUTO_SWEEP_LOW && takings >= AUTO_SWEEP_MIN))
 /** everything out of the drawer, the change too */
 export const takeAll = (d: DrawerCash): { drawer: DrawerCash; amount: number } =>
   ({ drawer: Object.fromEntries(DENOMS.map((k) => [k, 0])) as DrawerCash, amount: drawerTotal(d) })

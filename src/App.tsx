@@ -28,7 +28,7 @@ import {
   menuPrice, restockOrder, topUpOrder, averageOrder, eachOrder, roomFor, coalCharge, STICKS_PER_PORTION, afterCharcoal, heatStep, canAddCharcoal, canServe, CAPITAL, cashInHand, costOf, entryCost, goodsOf, needOf, partCost, partsOf,
   keepsDry, portionsLeft, SHOP_COST, takesOf, bankrupt, savingsOf, warningsDue, autoOpeningOrder, keeperEvery
 } from '@/game/money/economy'
-import { drawerFrom, drawerTotal, owedAtTill, paysByCard, refundFor, tabTotal, takeAll, takeOut, takeTakings, tenderOf, type Denom, type DrawerCash, type Tab } from '@/game/money/till'
+import { autoSweep, drawerFrom, drawerTotal, owedAtTill, paysByCard, refundFor, tabTotal, takeAll, takeOut, takeTakings, tenderOf, type Denom, type DrawerCash, type Tab } from '@/game/money/till'
 import { Menu } from '@/ui/panels/Menu'
 import { Crash } from '@/ui/screens/Crash'
 import { Spills } from '@/shops/grill/kitchen/Spills'
@@ -2509,6 +2509,13 @@ export default function App() {
     const d = DISHES[active]
     const T = UI[lang]
     const mine = hired[d.id] ?? {}
+    // (item 822: the takings in the register's drawer into the cash in hand, the float left for change (game/money/till's autoSweep): after
+    // the night's close, and while it's open once the cash runs short; not while the cashier has the drawer. Left there, on its seventh day
+    // the auto-run had no cash to buy in with, sold out and stopped, NT$68,000 in the drawer)
+    if (!REGISTER.state.drawerLocked) {
+      const r = takeTakings(TILL_CASH.drawer)
+      if (autoSweep(ai, cash, r.amount)) { fromTill(r); return }
+    }
     if (ai) {
       // no stock keeper: order in what the menu's running low on, as one would
       const keeper = (CANDIDATES[d.id] ?? []).some((w) => w.role === 'stock' && mine[w.id])
