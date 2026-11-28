@@ -842,50 +842,73 @@ BAR_PLANS = [
 # fire ROUND_IN (they were all eased 1.2 cm, the mitres too); the mitres and the foot left square, so the rounds meet round each corner as a
 # moulding's do; the normals hardened, the flat faces flat and the rounds smooth)
 ROUND_OUT, ROUND_IN = 0.025, 0.035
+# (item 843, the owner's 「灶台模型有調整嗎？」「我看有些模型的佈線很誇張」: each bar was a box with a bevel modifier on its two top edges, and
+# at the mitres the bevel left fans, slivers and zero-area triangles (816 triangles, 71% of them slivers, scripts/topo-audit.mjs). Now swept
+# from its section: the section's 12 points round it (the foot, up the outer face, the outer round in 4, across the top, the inner round in
+# 4, down the inner face), each run along the bar as one long quad, the ends cut on the 45° mitre (each point as far along as it is in from
+# the outer face) and shut by a ladder across the section; smooth over the rounds, sharp at the corners. The grain along the bar, across it
+# unrolled round the section, at one scale)
+ROUND_SEG = 4
+
+
+def bar_section():
+    """the bar's section, (in from the outer face, up), round from the outer foot: the outer face, its round, the top, the inner round, the
+    inner face, the foot"""
+    pts = [(0.0, 0.0)]
+    for i in range(ROUND_SEG + 1):
+        a_ = (math.pi / 2) * i / ROUND_SEG
+        pts.append((ROUND_OUT - ROUND_OUT * math.cos(a_), IRORI_H - ROUND_OUT + ROUND_OUT * math.sin(a_)))
+    for i in range(ROUND_SEG + 1):
+        a_ = (math.pi / 2) * i / ROUND_SEG
+        pts.append((IRORI_W - ROUND_IN + ROUND_IN * math.sin(a_), IRORI_H - ROUND_IN + ROUND_IN * math.cos(a_)))
+    pts.append((IRORI_W, 0.0))
+    return pts
+
+
+SECTION = bar_section()
 for k in range(4):
+    plan = BAR_PLANS[k]
+    o0, o1 = Vector((*plan[0], 0)), Vector((*plan[1], 0))
+    u_ = (o1 - o0).normalized()
+    mid = (o0 + o1) / 2
+    w_ = (Vector((*plan[3], 0)) - o0)
+    w_ = (w_ - u_ * w_.dot(u_)).normalized()
+    half = (o1 - o0).length / 2
     bm_ = bmesh.new()
-    zs = (0.0, IRORI_H)
-    ring = BAR_PLANS[k]
-    lo = [bm_.verts.new((x, y, zs[0])) for x, y in ring]
-    hi = [bm_.verts.new((x, y, zs[1])) for x, y in ring]
-    bm_.faces.new(hi)
-    bm_.faces.new(lo[::-1])
-    for i in range(4):
-        bm_.faces.new((lo[i], lo[(i + 1) % 4], hi[(i + 1) % 4], hi[i]))
+    uvl_ = bm_.loops.layers.uv.new("UVMap")
+    # (how far round the section each point is, for the grain across: unrolled)
+    acc = [0.0]
+    for i in range(1, len(SECTION)):
+        acc.append(acc[-1] + math.dist(SECTION[i], SECTION[i - 1]))
+    ends = []
+    for e in (-1, 1):
+        ends.append([bm_.verts.new(mid + u_ * (e * (half - d)) + w_ * d + Vector((0, 0, z))) for d, z in SECTION])
+    n = len(SECTION)
+    faces = []
+    for i in range(n):
+        j = (i + 1) % n
+        f = bm_.faces.new((ends[0][i], ends[0][j], ends[1][j], ends[1][i]))
+        for lp in f.loops:
+            ii = ends[0].index(lp.vert) if lp.vert in ends[0] else ends[1].index(lp.vert)
+            al = (lp.vert.co - mid).dot(u_)
+            vv = acc[ii] if not (i == n - 1 and ii == 0) else acc[-1] + math.dist(SECTION[-1], SECTION[0])
+            lp[uvl_].uv = (al * 0.7 + k * 0.31, vv * 0.7)
+        faces.append(f)
+    for ring in ends:
+        for f in ladder_fill(bm_, ring):
+            for lp in f.loops:
+                d_ = (lp.vert.co - mid).dot(w_)
+                lp[uvl_].uv = (d_ * 0.7 + k * 0.31, lp.vert.co.z * 0.7)
     bmesh.ops.recalc_face_normals(bm_, faces=bm_.faces)
-    # (the plan's outer edge runs hi[0]-hi[1], its inner hi[2]-hi[3]: those two rounded, by their weights' share of the bevel's width)
-    wl = bm_.edges.layers.float.get("bevel_weight_edge") or bm_.edges.layers.float.new("bevel_weight_edge")
-    for e in bm_.edges:
-        vs = set(e.verts)
-        e[wl] = 1.0 if vs == {hi[2], hi[3]} else (ROUND_OUT / ROUND_IN if vs == {hi[0], hi[1]} else 0.0)
+    for f in bm_.faces:
+        f.smooth = True
     me_ = bpy.data.meshes.new(f"Robuchi{k}")
-    bm_.to_mesh(me_); bm_.free()
+    bm_.to_mesh(me_)
+    bm_.free()
     o = bpy.data.objects.new(f"Robuchi{k}", me_)
     bpy.context.collection.objects.link(o)
-    bpy.context.view_layer.objects.active = o
-    bpy.ops.object.select_all(action="DESELECT"); o.select_set(True)
-    for pg in o.data.polygons:
-        pg.use_smooth = True
-    mod = o.modifiers.new("Bevel", "BEVEL")
-    mod.width, mod.segments, mod.limit_method, mod.harden_normals = ROUND_IN, 4, "WEIGHT", True
-    bpy.ops.object.modifier_apply(modifier=mod.name)
-    # (the grain along each bar: u along its length; v across its top, and on round over its edges and down its sides as if unrolled (so the
-    # grain runs on unbroken over the rounds), at one scale everywhere so nothing stretches. Set through the mesh, not a bmesh: the hardened
-    # normals kept)
-    me_ = o.data
-    uvl_ = me_.uv_layers.new(name="UVMap") if not me_.uv_layers else me_.uv_layers[0]
-    along_x = k % 2 == 0
-    # (which way is out from the frame, across this bar)
-    s_out = 1 if k in (1, 2) else -1
-    for pg in me_.polygons:
-        n_ = pg.normal
-        outer = (n_.y if along_x else n_.x) * s_out > 0
-        for li in pg.loop_indices:
-            c = me_.vertices[me_.loops[li].vertex_index].co
-            al, ac = (c.x, c.y) if along_x else (c.y, c.x)
-            v_ = ac + (s_out if outer else -s_out) * (IRORI_H - c.z)
-            uvl_.data[li].uv = (al * 0.7 + k * 0.31, v_ * 0.7)
     o = finish(o, f"Robuchi{k}", M["robuchi"])
+    o.data.set_sharp_from_angle(angle=math.radians(35))
     # (its face toward the fire scorched)
     o.data.materials.append(M["robuchi_burnt"])
     for f in o.data.polygons:
@@ -962,8 +985,9 @@ for k in range(4):
     bpy.context.view_layer.objects.active = cap
     bpy.ops.object.join()
     o = cap
-    bevel(o, 0.0025, 1, angle=False)
-    bpy.ops.object.modifier_apply(modifier="Bevel")
+    # (item 843: no 2.5 mm chamfer round its every edge any more: on the hull's many-sided faces it left a fan of flat slivers and
+    # zero-area triangles at each corner (100 such in the frame, scripts/topo-audit.mjs), for an edge too small to see at the game's
+    # distance; its faces flat, each cut in a ladder as it's exported)
     # (the pattern's place on it: see above. In the layer the bars' grain is in ("UVMap", the mesh's own: a bmesh's new layer is "Float2", and
     # joined the two were two layers, the brass's pattern left in the one not drawn))
     me_ = o.data
@@ -1565,7 +1589,8 @@ def hokke_open():
     down its middle, the head split too; the skin on the far side; a little tail."""
     L, H = 0.2, 0.11
     pts = []
-    for i in range(41):
+    # (item 843: forty points round, not forty-one: the last was the first again, a face of no area there)
+    for i in range(40):
         a = -math.pi + 2 * math.pi * i / 40
         x = L * math.cos(a)
         # wide at the split head (+X), tapering to the tail root
@@ -1573,10 +1598,13 @@ def hokke_open():
         pts.append((x, h * math.sin(a)))
     bm = bmesh.new()
     verts = [bm.verts.new((x, 0.0, z)) for x, z in pts]
-    face = bm.faces.new(verts)
-    bmesh.ops.triangulate(bm, faces=[face], quad_method="BEAUTY", ngon_method="EAR_CLIP")
+    # (item 843, the owner's 「我看有些模型的佈線很誇張」: its one face of forty sides was cut by ear-clipping, a spray of flat slivers out
+    # of a few points, 23 triangles at one; now a ladder across it, each rung from the belly's edge to the back's at the same place along)
+    ladder_fill(bm, verts)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     # (the outline runs round so the face points into the fire: turn it to face out, the flesh side to the diners)
-    bmesh.ops.reverse_faces(bm, faces=bm.faces)
+    if bm.faces[:] and bm.faces[0].normal.y < 0:
+        bmesh.ops.reverse_faces(bm, faces=bm.faces)
     me = bpy.data.meshes.new("HokkeOpen")
     bm.to_mesh(me)
     bm.free()
