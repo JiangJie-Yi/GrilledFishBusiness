@@ -3,7 +3,7 @@ three 1.8-litre bottles (一升瓶) up on its back step and two 720 ml ones (四
 metres, z up, the stand's foot's middle at the origin, its front toward -y.
 
 The owner's (2026-11-13, item 73: "a sake stand in the red box, a few bottles of sake on it", with four Sketchfab sake bottles to go by;
-low-poly, its look real). Low-poly by docs/LOWPOLY.md: each bottle a lathe of 16 round and six rings (foot, shoulder, neck, the paper cap),
+low-poly, its look real). Low-poly by docs/MODELING.md: each bottle a lathe of 16 round and six rings (foot, shoulder, neck, the paper cap),
 its ends laddered; its glass, its label and its cap all painted in one picture (SakeBottles: a column a bottle, round it once), drawn in
 one material shiny as glass (the game gives it the studio's reflection), no transmission. The stand an extruded step, its hinoki and its
 black-lacquered edges painted (SakeStandWood). The makes made up after the way real brewers name theirs (雪嶺錦, 朝霞川, 鶴汀, 月汀桜; the owner's), each

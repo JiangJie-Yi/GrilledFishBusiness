@@ -3,7 +3,7 @@ shochu.glb, node "ShochuSet": a small black-lacquered tray, a 360 ml bottle of g
 shot glasses, each with the drink in it to be filled as it's poured (its liquid a node of its own, scaled up from its floor). In metres,
 z up, the tray's middle at the origin, its front toward -y; drawn by the game at the sake stand's size.
 
-Low-poly by docs/LOWPOLY.md: lathes 16 round, their ends laddered (no fan into a point); the label's lettering painted, not modelled. The
+Low-poly by docs/MODELING.md: lathes 16 round, their ends laddered (no fan into a point); the label's lettering painted, not modelled. The
 make is the shop's own, generic: 燒酒 and the shop's seal, no brand.
 
 Run:
