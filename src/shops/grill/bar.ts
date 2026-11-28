@@ -291,6 +291,9 @@ export const BOSS_BED = keep(import.meta.hot, 'BOSS_BED', {
    * out in the room along the aisle to the nearer of the bar's gates and in through it, as the crew go */
   home: null as ((fromGrill: THREE.Vector3, toGrill: THREE.Vector3) => THREE.Vector3[] | null) | null,
   wanted: false,
+  /** (item 802) where he is while the player walks him by the keys (the world's; null while not): the bar's gates swing open for him as he
+   * comes up to one, as they do for the crew (roasting/barGate) */
+  drivenAt: null as THREE.Vector3 | null,
   /** (item 659) on his way home now, back to his place from where he was put down (Boss): those standing in his way stand aside for him
    * (Roasting's HearthGuard), the customers walking step round him (GuestBar3D's step aside) */
   passing: false,

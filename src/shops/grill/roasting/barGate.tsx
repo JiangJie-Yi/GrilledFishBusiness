@@ -8,7 +8,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { COMMUTERS } from '@/shops/grill/staff/commuteWalk'
 import { AxisGizmo, focusCamera, useEditBox } from '@/shops/grill/editor/Movable'
 import { beginChange, commitOffsets, getEdit, moveTo, offsetOf, positionOf, registerMovable, useEditSel } from '@/shops/grill/edit'
-import { SERVICE, BAR_GATES, gateOf, type Gate, BAR_BASE_Z, type Counter } from '@/shops/grill/bar'
+import { SERVICE, BAR_GATES, BOSS_BED, gateOf, type Gate, BAR_BASE_Z, type Counter } from '@/shops/grill/bar'
 import { BAR_TOP } from './barPlaces'
 import { TRAY_WOOD } from './common'
 
@@ -121,6 +121,12 @@ function BarGateImpl({ c, gate }: { c: Counter; gate: Gate }) {
     const par = frame.current?.parent
     if (par && COMMUTERS.size) for (const { p } of COMMUTERS.values()) {
       const w = par.worldToLocal(GATE_AT.copy(p))
+      const d = Math.hypot(w.x - middle.x, w.z - middle.z)
+      if (d < best) { best = d; near = w.clone() }
+    }
+    // (and the owner walked by the player's keys (item 802, the owner's 「當我控制老闆時，過不了閘門」): it swung for the crew alone)
+    if (par && BOSS_BED.drivenAt) {
+      const w = par.worldToLocal(GATE_AT.copy(BOSS_BED.drivenAt))
       const d = Math.hypot(w.x - middle.x, w.z - middle.z)
       if (d < best) { best = d; near = w.clone() }
     }
