@@ -595,7 +595,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
    * takeaway customers and delivery riders (game/takeout, the owner's): in at the front door to the edge of the genkan, by the till, where
    * they wait in their shoes (no seat, no shoes off) for a server to bring their box out to them; and out again with it, fading through the door
    */
-  type Visitor = { id: number; rider: boolean; order: (typeof TAKEOUT.orders)[number]; phase: 'in' | 'wait' | 'toTill' | 'atTill' | 'out'; t: number; fade: number; fadeT: number; pos: THREE.Vector3; yaw: number
+  type Visitor = { y?: number; id: number; rider: boolean; order: (typeof TAKEOUT.orders)[number]; phase: 'in' | 'wait' | 'toTill' | 'atTill' | 'out'; t: number; fade: number; fadeT: number; pos: THREE.Vector3; yaw: number
     /** where they wait: two side by side in the genkan, not in one another; and where they come up to the till for their bag from the cashier */
     wait: THREE.Vector3; till?: THREE.Vector3 }
   const visitors = useRef(new Map<number, Visitor>())
@@ -4669,7 +4669,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         const taken = new Set([...visitors.current.values()].filter((v) => v.phase !== 'out').map((v) => v.wait.distanceTo(way.wait) > 0.1 ? 1 : 0))
         // (a second one by the first, along toward the till (item 410: beside it, out toward the door, they stood in the sliding door))
         const wait = (taken.has(0) ? way.next : way.wait).clone()
-        visitors.current.set(o.id, { id: o.id, rider: o.rider, order: o, phase: 'in', t: 0, fade: 0, fadeT: 0, pos: way.door.clone(), yaw: 0, wait })
+        visitors.current.set(o.id, { id: o.id, rider: o.rider, order: o, phase: 'in', t: 0, fade: 0, fadeT: 0, pos: (doorLead.start ?? way.door).clone(), yaw: 0, wait })
         changed = true
       }
       for (const v of visitors.current.values()) {
@@ -4677,9 +4677,14 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         const sp = SPEED * walkSpeedOf(kindOf(v.id).kind)
         if (!way || !open) { v.order.gone = true; visitors.current.delete(v.id); changed = true; continue }
         if (v.phase === 'in') {
-          const len = way.door.distanceTo(v.wait), d = Math.min(len, v.t * sp)
-          v.pos.lerpVectors(way.door, v.wait, len ? d / len : 1)
-          v.yaw = Math.atan2(v.wait.x - way.door.x, v.wait.z - way.door.z)
+          // (item 832, the owner's 「客人進門會從外面顯示，再進來。」: in from the street as the seated ones are (doorLead: shown out past the bed,
+          // up the steps, a beat at the sliding door as it's opened for them), then on in to where they wait; they were shown in the genkan)
+          const path = doorLead.len ? [...doorLead.pts, way.door, v.wait] : [way.door, v.wait]
+          const len = pathLength(path), raw = v.t * sp
+          const d = Math.min(len, doorLead.len ? withPause(raw, doorLead.waitD, DOOR_STEP_IN_S * sp) : raw)
+          const { p, dir } = alongPath(path, d)
+          v.pos.copy(p).setY(0)
+          v.yaw = Math.atan2(dir.x, dir.z)
           v.fade = Math.min(1, d / 0.6 + v.t / FADE_S)
           if (d >= len) { v.phase = 'wait'; v.t = 0 }
         } else if (v.phase === 'toTill' || v.phase === 'atTill') {
@@ -4713,18 +4718,25 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
             onSay?.('guest', LINES[lang].payThanks(v.id, v.id + 1), v.id)
           }
         } else {
-          // (back out of the door with it, fading on the last stretch, and no quicker than FADE_S)
-          const len = v.wait.distanceTo(way.door), d = Math.min(len, v.t * sp)
-          v.pos.lerpVectors(v.wait, way.door, len ? d / len : 1)
-          v.yaw = Math.atan2(way.door.x - v.wait.x, way.door.z - v.wait.z)
-          if (len - d < 0.9) v.fadeT += step
-          v.fade = Math.max(0, Math.min(1, Math.max((len - d) / 0.9, 1 - v.fadeT / FADE_S)))
+          // (back out of the door with it, fading on the last stretch, and no quicker than FADE_S; item 832: out through the sliding door (a
+          // moment just in from it as it's slid), down the steps and out over the bed to the street, faded there)
+          const path = doorLead.len ? [v.wait, way.door, ...[...doorLead.pts].reverse()] : [v.wait, way.door]
+          const len = pathLength(path), raw = v.t * sp, fadeOver = doorLead.len ? 0.3 : 0.9
+          const d = Math.min(len, doorLead.len ? withPause(raw, len - doorLead.len, DOOR_SLIDE_S * sp) : raw)
+          const { p, dir } = alongPath(path, d)
+          v.pos.copy(p).setY(0)
+          v.yaw = Math.atan2(dir.x, dir.z)
+          if (len - d < fadeOver) v.fadeT += step
+          v.fade = Math.max(0, Math.min(1, Math.max((len - d) / fadeOver, 1 - v.fadeT / FADE_S)))
           if (d >= len && v.fade <= 0) { v.order.gone = true; visitors.current.delete(v.id); changed = true }
         }
         const g = visitorObjs.current.get(v.id)
         if (g) {
           g.position.copy(v.pos)
-          g.position.y = genkanY(counters, v.pos)
+          // (up and down the sliding door's steps no faster than STEP_Y_RATE, as the seated ones (item 832: they walk them now))
+          const ty = genkanY(counters, v.pos), most = STEP_Y_RATE * step
+          v.y = v.y === undefined ? ty : v.y + Math.max(-most, Math.min(most, ty - v.y))
+          g.position.y = v.y
           // (turned to the way they face a moment at a time: set at once, they spun round as they took their bag and went)
           g.rotation.y = turnToward(g.rotation.y, v.yaw, step * 1.5)
         }
