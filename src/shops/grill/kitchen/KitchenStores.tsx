@@ -6,7 +6,7 @@ import { useGLTF } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { inkModel } from '@/scene/render/inkHull'
-import { countedBatch, homeCopy, mergeByMaterial, plainColours } from '@/scene/render/StaticBatch'
+import { countedBatch, homeCopy, mergeByMaterial, pileBatch, plainColours } from '@/scene/render/StaticBatch'
 import { parOf, unitsShown } from '@/game/stock/pantry'
 import { reflectStudio, useStudio } from '@/scene/render/studio'
 import { SACK_STICKS, SEASON_GOODS } from '@/game/stock/supplies'
@@ -471,7 +471,7 @@ const LARDER = ['Potato', 'SweetPotato', 'Onion', ...Object.values(VEG_STOCK).fi
 /** `deeper`: the container's sides drawn up that much more than it's drawn across (item 524), what's in it raised with its rim, its own shape */
 export function VegBasket({ node, deeper = 1 }: { node: VegNode; deeper?: number }) {
   const gltf = useGLTF(PRODUCE_URL) as unknown as { scene: THREE.Group }
-  const { obj, kinds, mouth } = useMemo(() => {
+  const { obj, kinds, pile, mouth } = useMemo(() => {
     // (each vegetable its own piece in the model, <node>_<Kind>_<i>, the first at the bottom (blender/produce.py, item 262): kept out of the
     // container's merging, to be counted out as there's stock)
     const vegRe = new RegExp(`^${node}_(?!Frame)([A-Za-z]+)_(\\d+)$`)
@@ -493,8 +493,7 @@ export function VegBasket({ node, deeper = 1 }: { node: VegNode; deeper?: number
       r.updateMatrixWorld(true)
     }
     r.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = true })
-    // (each kind's pieces by material (a tomato's red and its green calyx), in the vegetables' order: one mesh and one line each, cut to the
-    // first so many (countedBatch, as the sacks' potatoes))
+    // (each kind's pieces by material (a tomato's red and its green calyx), and by their number)
     const byKind = new Map<string, Map<THREE.Material, { m: THREE.Mesh; i: number }[]>>()
     r.traverse((o) => {
       const m = o as THREE.Mesh
@@ -507,13 +506,20 @@ export function VegBasket({ node, deeper = 1 }: { node: VegNode; deeper?: number
       mats.set(m.material as THREE.Material, list)
       list.push({ m, i: v.i })
     })
+    // (the whole pile at once, every kind's pieces in one: a mesh for each material and one ink line for all of it (pileBatch, item 804: a
+    // mesh and a line for each kind and colour, the basket was 24 draws); each kind's pieces in their order, by their number, shown as there's
+    // stock for so many of them)
+    const items: THREE.Mesh[][] = []
     const kinds = [...byKind].map(([kind, mats]) => {
-      const lists = [...mats.values()].map((list) => list.sort((a, b) => a.i - b.i))
-      const all = Math.max(...lists.flatMap((l) => l.map((x) => x.i))) + 1
-      return { stock: VEG_STOCK[kind] ?? null, all, shown: -1, batches: lists.map((l) => ({ at: l.map((x) => x.i), b: countedBatch(r, l.map((x) => x.m)) })) }
+      const byNumber = new Map<number, THREE.Mesh[]>()
+      for (const list of mats.values()) for (const { m, i } of list) { const a = byNumber.get(i) ?? []; a.push(m); byNumber.set(i, a) }
+      const order = [...byNumber.keys()].sort((a, b) => a - b)
+      const at = order.map((i) => { items.push(byNumber.get(i)!); return { i, item: items.length - 1 } })
+      return { stock: VEG_STOCK[kind] ?? null, all: Math.max(...order) + 1, shown: -1, at }
     })
+    const pile = pileBatch(r, items)
     // (its mouth: the top of what it's made of, where a delivery's put in (item 607))
-    return { obj: r, kinds, mouth: mouthOf(r) }
+    return { obj: r, kinds, pile, mouth: mouthOf(r) }
   }, [gltf, node, deeper])
   useFrame((_, dt) => {
     // (none of anything in the larder: the kinds that aren't on the menu go too; no shop running: all of them there)
@@ -528,11 +534,7 @@ export function VegBasket({ node, deeper = 1 }: { node: VegNode; deeper?: number
       if (k.shown >= 0 && Math.floor(next) === Math.floor(k.shown)) { k.shown = next; continue }
       k.shown = next
       const m = Math.floor(next)
-      for (const bt of k.batches) {
-        let c = 0
-        for (const i of bt.at) if (i < m) c++
-        bt.b.show(c)
-      }
+      for (const { i, item } of k.at) pile.show(item, i < m)
     }
     if (went) putIn(obj, mouth, went, full)
   })

@@ -332,6 +332,98 @@ export function countedBatch(root: THREE.Object3D, pieces: THREE.Mesh[]) {
 }
 
 /**
+ * (item 804) A pile of things any of which may be shown or not (a crate's vegetables, each kind counted out by its own stock): all of the
+ * pile's pieces folded together by material, and the ink lines round them into one, for the whole pile, where countedBatch is a mesh and a
+ * line for each kind (a basket of four kinds was 24 draws). A piece not shown has its stretch of each drawn in to one point, its normals
+ * with it (the ink's shader pushes a line out along them: left as they were, a speck of ink stayed where the piece had been); shown, put
+ * back from how it was made. Only its own stretches are sent again, and only as it changes. `items`: each piece's meshes (an inked one's
+ * line its child, as inkModel leaves it), all shown to begin with. Returns `show(i, on)` for the i-th of `items`.
+ */
+export function pileBatch(root: THREE.Object3D, items: THREE.Mesh[][]) {
+  root.updateWorldMatrix(true, true)
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert()
+  type Set_ = { geos: THREE.BufferGeometry[]; spans: [number, number, number][]; count: number; shadow: boolean; lit: boolean; name: string }
+  const sets = new Map<THREE.Material, Set_>()
+  const ink: Set_ = { geos: [], spans: [], count: 0, shadow: false, lit: false, name: 'pile-ink' }
+  let inkMat: THREE.Material | null = null
+  items.forEach((meshes, i) => {
+    for (const p of meshes) {
+      const mat = p.material as THREE.Material
+      const set = sets.get(mat) ?? { geos: [], spans: [], count: 0, shadow: false, lit: false, name: p.name }
+      sets.set(mat, set)
+      const b = bakeable(p.geometry, new THREE.Matrix4().multiplyMatrices(inv, p.matrixWorld))
+      set.spans.push([i, set.count, b.attributes.position.count])
+      set.count += b.attributes.position.count
+      set.geos.push(b)
+      set.shadow ||= p.castShadow
+      set.lit ||= p.receiveShadow
+      const h = p.children.find((c) => (c as THREE.Mesh).isMesh && c.userData.inked) as THREE.Mesh | undefined
+      if (!h) continue
+      inkMat = h.material as THREE.Material
+      const src = h.geometry.index ? h.geometry.toNonIndexed() : h.geometry
+      const hg = new THREE.BufferGeometry()
+      hg.setAttribute('position', src.attributes.position.clone())
+      hg.setAttribute('normal', src.attributes.normal.clone())
+      if (src !== h.geometry) src.dispose()
+      hg.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, h.matrixWorld))
+      ink.spans.push([i, ink.count, hg.attributes.position.count])
+      ink.count += hg.attributes.position.count
+      ink.geos.push(hg)
+    }
+  })
+  /** each merged mesh, its pieces' stretches, its points and normals as they were made (to put a piece back from), and how many of its
+   * stretches are shown (none: the mesh hidden, not drawn at all, as countedBatch's are with none of theirs) */
+  const made: { mesh: THREE.Mesh; spans: [number, number, number][]; pos: Float32Array; nrm: Float32Array | null; live: number }[] = []
+  const merge = (set: Set_, mat: THREE.Material) => {
+    const geo = set.geos.length ? mergeGeometries(set.geos) : null
+    for (const x of set.geos) x.dispose()
+    if (!geo) return null
+    const mesh = new THREE.Mesh(geo, mat)
+    mesh.name = set.name
+    root.add(mesh)
+    const nrm = geo.attributes.normal as THREE.BufferAttribute | undefined
+    made.push({ mesh, spans: set.spans, pos: (geo.attributes.position.array as Float32Array).slice(), nrm: nrm ? (nrm.array as Float32Array).slice() : null, live: set.spans.length })
+    return mesh
+  }
+  for (const [mat, set] of sets) {
+    const mesh = merge(set, mat)
+    if (!mesh) continue
+    mesh.castShadow = set.shadow
+    mesh.receiveShadow = set.lit
+    mesh.userData.inked = true
+  }
+  if (inkMat) {
+    const line = merge(ink, inkMat)
+    if (line) { line.raycast = () => {}; line.userData.inked = true }
+  }
+  for (const meshes of items) for (const p of meshes) p.removeFromParent()
+  const shown = items.map(() => true)
+  return {
+    show(i: number, on: boolean) {
+      if (shown[i] === on) return
+      shown[i] = on
+      for (const m of made) for (const [k, from, n] of m.spans) {
+        if (k !== i) continue
+        const pos = m.mesh.geometry.attributes.position as THREE.BufferAttribute, arr = pos.array as Float32Array
+        const nAttr = m.mesh.geometry.attributes.normal as THREE.BufferAttribute | undefined
+        const o = from * 3, end = (from + n) * 3
+        if (on) { arr.set(m.pos.subarray(o, end), o); if (nAttr && m.nrm) (nAttr.array as Float32Array).set(m.nrm.subarray(o, end), o) }
+        else {
+          const x = m.pos[o], y = m.pos[o + 1], z = m.pos[o + 2]
+          for (let j = o; j < end; j += 3) { arr[j] = x; arr[j + 1] = y; arr[j + 2] = z }
+          if (nAttr) (nAttr.array as Float32Array).fill(0, o, end)
+        }
+        pos.addUpdateRange(o, n * 3)
+        pos.needsUpdate = true
+        if (nAttr) { nAttr.addUpdateRange(o, n * 3); nAttr.needsUpdate = true }
+        m.live += on ? 1 : -1
+        m.mesh.visible = m.live > 0
+      }
+    },
+  }
+}
+
+/**
  * Parts that move only now and then (a shrine's doors, swung open on a click), drawn as one while they're all home: a copy of them as they're
  * posed now, one mesh per material, put under `root`, hidden till `home(true)`, when it's shown and the parts themselves hidden (still pointed
  * at: the pointer's rays don't mind what's hidden); `home(false)` the other way, as soon as any is to move. Six doors of four draws each are
