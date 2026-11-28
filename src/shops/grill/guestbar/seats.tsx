@@ -101,6 +101,9 @@ export const SHOES_S = 1.2
 /** (item 410) how long one coming stands on the step at the sliding door while it's slid open (game/slideDoor: it's wanted open DOOR_SEEN_S
  * after they show out there, and open in DOOR_OPEN_S; a beat more); one going, just in from it as they slide it */
 export const DOOR_WAIT_S = 0.9, DOOR_SLIDE_S = 0.35
+/** (item 832) the beat at the door for one who's walked up to it from the street: it's been sliding open as they came
+ * (game/slideDoor), so they stop only a moment and step in */
+export const DOOR_STEP_IN_S = 0.35
 /** how fast a customer's height may change (a second, the bar's units): a step's 0.13 in a little over a tenth of a second (item 410) */
 export const STEP_Y_RATE = 1.2
 /** (their shoes go into the cupboard now: none left out on the genkan's stones) */
