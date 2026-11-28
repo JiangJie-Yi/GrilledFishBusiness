@@ -37,7 +37,8 @@ import { PathMap } from '@/shops/grill/editor/PathMap'
 import { Drips } from '@/scene/effects/Drips'
 import { ServeCounter } from '@/shops/grill/kitchen/ServeCounter'
 import { PathVias, PathZones } from '@/shops/grill/editor/PathZone'
-import { StaffFigure, TRAY_AT as HELD_AT, wipeStroke, SHAPE_HAND } from '@/scene/people/StaffFigure'
+import { StaffFigure, TRAY_AT as HELD_AT, wipeStroke, SHAPE_HAND, SWEEP_TIP } from '@/scene/people/StaffFigure'
+import { BAR_DEPTH } from './roasting/common'
 import { CRATE, CRATE_FULL } from '@/shops/grill/decor/Decor'
 import { COAL_PER_ADD } from '@/game/kitchen/coalPile'
 import { moodOf, walkSpeedOf } from '@/scene/people/people'
@@ -150,6 +151,11 @@ const tuckOf = (o: THREE.Object3D): [number, number] => {
   return TUCK_OUT
 }
 if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __tuck: TUCK })
+/** how far out from the bar top's edge on the guests' side a sweeper's feet keep (the bar's frame, item 951): stooped over the hand broom
+ * (OWNER_BEND about their feet) their head reaches this far forward of them at the top's height (shot from the side, tests/e2e/_sweep951.mjs:
+ * at 0.4 the owner's face touched the top's edge, at 0.48 his glasses' rim did), and a few centimetres more; the straw's tip (SWEEP_TIP out)
+ * still reaches 2 cm in under the lip */
+const STOOP_CLEAR = 0.52
 /** (item 659 d's next, the bar's frame) a server walking holds back for the owner on his way home ahead of them on their line: from
  * SERVER_HOLD_AHEAD ahead (1.1 m in the world) to a stand at SERVER_HOLD_STOP (a body's width and a little), he within SERVER_HOLD_SIDE of
  * their line; SERVER_HOLD_MOST at most at a time; dev `__serverHold.on = false` as before */
@@ -539,8 +545,15 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
     seats.forEach((st, n) => { const d = Math.hypot(st.aisle.x - p.x, st.aisle.z - p.z); if (d < bd) { bd = d; best = n } })
     const a = seats[best].aisle
     const to = new THREE.Vector3(p.x - a.x, 0, p.z - a.z)
-    const len = to.length(), reach = 0.36 * STAFF_SCALE
+    // (as far back as the broom's straw reaches: the hand broom's tip, SWEEP_TIP out in their upright frame (item 951, the owner's 「老闆再清掃得
+    // 時候頭會穿模型」: stood the old long broom's 0.36 short of it, they stood so close that, stooped, their head went into the bar's top over
+    // glass under its lip); and never nearer the top's edge on the guests' side (their -lay) than their stooped head reaches (STOOP_CLEAR),
+    // the straw then a little short of glass right under the counter)
+    const len = to.length(), reach = SWEEP_TIP * STAFF_SCALE
     const stand = len > reach ? a.clone().addScaledVector(to, (len - reach) / len) : a.clone()
+    const c = counters[seats[best].counter]
+    const out = -stand.clone().sub(c.at).dot(c.lay) - BAR_DEPTH / 2
+    if (out < STOOP_CLEAR) stand.addScaledVector(c.lay, out - STOOP_CLEAR)
     stand.y = a.y
     return [...backPath(wi, best).slice(0, -1), stand]
   }
