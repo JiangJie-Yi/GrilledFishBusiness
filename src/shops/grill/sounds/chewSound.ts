@@ -86,11 +86,43 @@ export function gulpSound() {
 
 /** (items 461, 469) a sizzle: egg going into a hot pan, or what's let down into the fryer's oil: a hiss of high noise with crackle in it,
  * fading over `seconds`; `loud` 0..1 */
+/** a sizzle's crackle, `seconds` long, rising in and dying away */
+const sizzleShape = (x: number) => (x < 0.06 ? x / 0.06 : 1) * Math.pow(1 - x, 1.6) * (0.7 + 0.3 * Math.random())
+/**
+ * (item 804) each length of sizzle's noise made SIZZLE_TAKES times over and played again, a take picked at random (and its filter's pitch as
+ * ever, each time its own): made afresh for every sizzle, its 50 to 77 thousand samples (a random number and a power each) took 1.3 to 1.9 ms
+ * of a frame, every second or two while the stove or the fryer was on. The first take of a length made as it's first asked for, the rest in
+ * the browser's idle time after it
+ */
+const SIZZLE_TAKES = 3
+const SIZZLES = new Map<number, AudioBuffer[]>()
+function sizzleNoise(a: AudioContext, seconds: number) {
+  const key = Math.round(seconds * 100)
+  let takes = SIZZLES.get(key)
+  if (!takes) {
+    SIZZLES.set(key, (takes = []))
+    const more = (left: number) => {
+      if (left <= 0) return
+      const idle = (globalThis as { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number }).requestIdleCallback
+      const make = () => { takes!.push(noise(a, seconds, sizzleShape, 0.25).buffer!); more(left - 1) }
+      if (idle) idle(make, { timeout: 4000 }); else setTimeout(make, 500)
+    }
+    more(SIZZLE_TAKES - 1)
+  }
+  if (!takes.length) {
+    const s = noise(a, seconds, sizzleShape, 0.25)
+    takes.push(s.buffer!)
+    return s
+  }
+  const s = a.createBufferSource()
+  s.buffer = takes[Math.floor(Math.random() * takes.length)]
+  return s
+}
 export function sizzleSound(seconds = 1.1, loud = 1) {
   const a = ctx()
   if (!a) return
   const t = a.currentTime
-  const n = noise(a, seconds, (x) => (x < 0.06 ? x / 0.06 : 1) * Math.pow(1 - x, 1.6) * (0.7 + 0.3 * Math.random()), 0.25)
+  const n = sizzleNoise(a, seconds)
   const f = a.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 2200 + Math.random() * 600
   const g = a.createGain(); g.gain.value = 0.05 * loud
   n.connect(f).connect(g).connect(a.destination)

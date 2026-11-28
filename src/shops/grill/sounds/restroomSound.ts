@@ -66,7 +66,9 @@ export function flushSound(near: number) {
   const a = ctx()
   if (!a || near < 0.02) return
   const t = a.currentTime
-  const rush = noise(a, 3.2, (x) => Math.min(1, x * 12) * Math.pow(1 - x, 1.6))
+  // (item 804: the long noises of a flush made three ways the first times, then one of those picked (noise's pool): made afresh at every
+  // flush, the rush and the refill were some 370 thousand samples worked out in the frame a customer pulled the chain)
+  const rush = noise(a, 3.2, (x) => Math.min(1, x * 12) * Math.pow(1 - x, 1.6), 0.4, { key: 'flush-rush', ways: 3 })
   const f = a.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = 3
   f.frequency.setValueAtTime(2600, t)
   f.frequency.exponentialRampToValueAtTime(380, t + 3)
@@ -87,7 +89,7 @@ export function flushSound(near: number) {
     o.stop(at + 0.12)
   }
   // (and the cistern refilling: a thin hiss, running into the basin on its lid)
-  const fill = noise(a, 4.5, (x) => Math.min(1, x * 6) * (1 - x), 0.2)
+  const fill = noise(a, 4.5, (x) => Math.min(1, x * 6) * (1 - x), 0.2, { key: 'flush-fill', ways: 3 })
   const ff = a.createBiquadFilter(); ff.type = 'bandpass'; ff.frequency.value = 3200; ff.Q.value = 1.2
   fill.connect(ff).connect(out(a, 0.12 * near))
   fill.start(t + 2.6)
@@ -99,7 +101,7 @@ export function scrubSound(near: number) {
   if (!a || near < 0.02) return
   const t = a.currentTime
   for (let k = 0; k < 8; k++) {
-    const s = noise(a, 0.14, (x) => Math.sin(Math.PI * x), 0.1)
+    const s = noise(a, 0.14, (x) => Math.sin(Math.PI * x), 0.1, { key: 'scrub', ways: 6 })
     const f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 4200 + (k % 2) * 1400; f.Q.value = 0.8
     s.connect(f).connect(out(a, 0.25 * near))
     s.start(t + k * 0.16)
@@ -112,7 +114,7 @@ export function dryerSound(near: number, seconds = 1.5) {
   const a = ctx()
   if (!a || near < 0.02) return
   const t = a.currentTime
-  const air = noise(a, seconds + 0.3, (x) => Math.min(1, x * (seconds + 0.3) / 0.18) * Math.min(1, (1 - x) * (seconds + 0.3) / 0.3), 0.55)
+  const air = noise(a, seconds + 0.3, (x) => Math.min(1, x * (seconds + 0.3) / 0.18) * Math.min(1, (1 - x) * (seconds + 0.3) / 0.3), 0.55, { key: `dryer-${seconds.toFixed(1)}`, ways: 3 })
   // (a warm wind blown down (the owner's, 2026-11-10: a dryer on the wall that blows down): broad and soft, its body low, a little hiss on top)
   const f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 640; f.Q.value = 0.45
   const soft = a.createBiquadFilter(); soft.type = 'lowpass'; soft.frequency.value = 2400
