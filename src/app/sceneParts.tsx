@@ -109,6 +109,8 @@ export const ShadowPacer = memo(function ShadowPacer() {
   const scene = useThree((st) => st.scene)
   const n = useRef(0)
   const seen = useRef(-1)
+  /** how many times the room's been looked over (every tenth time the whole of it, the rest what's shown) */
+  const scans = useRef(0)
   // (the sun's map and the other lights' drawn on frames of their own: the sun's without what's indoors (its shadow's unseen in there since
   // item 721, scene/render/indoorSun), those casters' castShadow off for that one draw and back on after it; the spot's over the room with
   // them all, a frame later. Each list kept and filled again in place, no garbage)
@@ -158,11 +160,15 @@ export const ShadowPacer = memo(function ShadowPacer() {
     // (left out last frame and not put back, the frame not drawn)
     if (off.current.length) castersBack(off.current)
     // (once a second and a half)
+    // (item 804: what's shown, not the whole room: every object in it walked took 3.8 ms, a long frame each second and a half. What's under
+    // something hidden casts no shadow, and holds no light (fixed rule 6: a light's never hidden); every tenth look the whole of it, so what's
+    // hidden now has its small casters turned off and its see-through two-sided materials made one pass before it comes out, as before)
     if (clock.elapsedTime - seen.current > 1.5) {
       seen.current = clock.elapsedTime
       const v = new THREE.Vector3()
       sun.current = null; others.current.length = 0; casters.current.length = 0
-      scene.traverse((o) => {
+      const whole = scans.current++ % 10 === 0
+      scene[whole ? 'traverse' : 'traverseVisible']((o) => {
         // (every light lit on both floors' layers (item 457, scene/floors): the same lights seen up or down, no program made afresh)
         if ((o as THREE.Light).isLight) {
           if (!o.layers.isEnabled(DORM_LAYER)) o.layers.enable(DORM_LAYER)

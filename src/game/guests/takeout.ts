@@ -33,7 +33,9 @@ export const takeoutSize = (rider: boolean, r: number) => 1 + Math.floor(r * (ri
 /** (`opened`: its box set out, from the moment the first of its food is on its way into it: before, that food lay on the bare table till it was
  * counted in (`packed`, a moment later)) */
 export type TakeoutOrder = { id: number; rider: boolean; items: number; packed: number; ready: boolean; taken: boolean; handed: boolean; gone: boolean
-  tier?: number; opened?: boolean }
+  tier?: number; opened?: boolean
+  /** (item 1004) the game's minute it was all packed (first seen ready) */
+  readyMin?: number }
 
 /** how many takeaways the warming tub on the takeaway table is keeping warm (the owner's, 2026-11-11: it holds the takeaways, not rice): those
  * packed and ready that haven't been handed over yet, as many as it holds */

@@ -24,7 +24,7 @@ React 19 + TypeScript + Vite + three.js（@react-three/fiber / drei）。推到 
 - 先定位、再改：畫面的問題先找出畫它的網格與「檔案：行號」，回報後才改；改完自己驗證，回報前後的數字或同一鏡頭的近拍對照。
 - 提交訊息用 `feat:`、`fix:`、`perf:`、`docs:`、`refactor:`、`test:`、`revert:` 開頭；`git add` 一律列出檔案，不要 `git add -A`（根目錄有很多不進 git 的截圖）。
 - 改 `src/` 的檔案用編輯工具或 Python，不要用 `sed -i`（Vite 偵測不到，瀏覽器看到的還是舊的）。
-- 在自己的 worktree 分支上工作的視窗（例如 `HANDOFF.md` 5-2 的組 A、組 B）不改本檔、不推 `main`，進度只寫在 `HANDOFF.md` 自己那一節。
+- 在自己的 worktree 分支上工作的視窗（例如 `docs/archive/HANDOFF-1110.md` 5-2 的組 A、組 B）不改本檔、不推 `main`，進度只寫在 `HANDOFF.md` 自己那一節。
 - **兩個視窗（chat）同時在這個資料夾工作時**（店主定的，2026-11-21：「記得每做完一項就自動合併，然後要跟另一個chat sync 好」）：後來的那個視窗不在這個資料夾直接改 `src/`（先來的視窗的 dev 頁面會跟著重新載入，提交也會混在一起），在自己的 worktree 分支上做；**每做完一項，`npx tsc -b`、`npm test`、`npm run build` 通過就自動合併進本機 `main`，不用問**（不推：推 `main` 照「同步流程」）；合併前後用訊息跟另一個視窗對好：合併了什麼、動到哪些檔案、`TASKS.md` 編到第幾項、接下來各自要改哪些檔案（同一個檔案的同一段只由一個視窗改）。
 - 每件擺設、每個流程的細節（怎麼做的、店主為什麼要這樣、改過什麼）在 `docs/DETAILS.md`，不會自動載入：要改某樣東西前，先用搜尋找它的名字或檔名，只讀那一段。新的細節寫進那裡，不要寫進本檔（本檔只放守則與索引）。
 
@@ -209,7 +209,7 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  app/  ←  App.tsx
 - 註冊 listener、timer 或訂閱時，必須寫 cleanup function。
 - 高頻率變動的數值優先用 `useRef`，避免頻繁觸發 React re-render。
 
-（Claude 補的註記，不是店主的原文：把值同步到模組層的 store 或 three.js 物件（`setTip`、`setLightSwitch`、`setFireGauge`…：名字像 setState，但不是 React state）是 `useEffect` 的正當用途，不算違反第一條；2026-11-21 全專案 331 個 effect 的掃描結果與還沒改的項目在 `TASKS.md`「useEffect 掃描」那一列。）
+（Claude 補的註記，不是店主的原文：把值同步到模組層的 store 或 three.js 物件（`setTip`、`setLightSwitch`、`setFireGauge`…：名字像 setState，但不是 React state）是 `useEffect` 的正當用途，不算違反第一條；2026-11-21 全專案 331 個 effect 的掃描結果與還沒改的項目在 `docs/archive/TASKS-done.md`「useEffect 掃描」那一列（第 1000 項從 `TASKS.md` 搬去）。）
 
 **開發用（只在 dev）**：瀏覽器 console 可用 `__gl`（renderer，看 draw calls）、`__scene`、`__cam` 與 `__ctl`（設定視角：`__ctl.target.set(...)`、`__cam.position.set(...)`）、`__service`、`__toilets`（例如 `__toilets.m.open = true`）。場景裡名稱 `look-*` 的群組（`look-altar`、`look-fridge`、`look-door`、`look-wc-m`…）方便用 `__scene.getObjectByName` 找位置截圖。
 
