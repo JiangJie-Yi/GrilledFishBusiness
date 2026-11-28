@@ -891,6 +891,14 @@ def bake_occlusion(objs):
 
 
 bake_occlusion([s1, s2, s0, sf])
+# ---- (item 774, stage B) the granite and the pebble-wash, and their normal maps, packed into one page each (common.py's slot_atlas): the
+# four parts one material, drawn once (they were two draws). Each picture as large as it was (the granite 1024 in a cell of its own, shrunk
+# by its border's 16 px; the pebble-wash 512 kept as it is), so the page is 2048 by 1024: the game keeps it at twice its cap (floors.tsx's
+# pavingOf: a high tier's 2048 as the granite was, a medium one's 1024, its granite 504 as it was 512). The normals' strengths drawn in as
+# the game had them (the granite's 0.8, item 485; the pebble-wash's 1). The moss's material, nothing on it since item 626, left out
+STEP_ATLAS, STEP_CUT = slot_atlas("StepAtlas", [s1, s2, s0, sf], 2048, 1024, skip=lambda m: m.name.startswith("StepMoss"), cell=1024,
+                                  normals={"StepStone": 0.8, "StepPebble": 1.0})
+print("STEP_ATLAS", [m.name for m in STEP_ATLAS], "cut", STEP_CUT, "tris", sum(len(p.vertices) - 2 for o in (s1, s2, s0, sf) for p in o.data.polygons))
 s2.location = P(0, 0, 0.5)   # (apart in the file; the game sets each where it stands)
 s0.location = P(0, 0, -0.5)
 sf.location = P(4, 0, 0)

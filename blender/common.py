@@ -673,6 +673,17 @@ def _mat_picture(m):
     return None, tuple(m.diffuse_color[:3])
 
 
+def _mat_normal(m):
+    """a material's normal map (the image node feeding its Normal Map node's colour), or None"""
+    if m.use_nodes:
+        for n in m.node_tree.nodes:
+            if n.type == "NORMAL_MAP":
+                for l in n.inputs["Color"].links:
+                    if l.from_node.type == "TEX_IMAGE" and l.from_node.image is not None:
+                        return l.from_node.image
+    return None
+
+
 def _lanczos_axis(px, n_out, axis, wrap, a=3):
     """one axis of a picture drawn again at n_out samples, through a Lanczos filter (a lobes; widened as it shrinks, so nothing finer than
     the new size aliases); `wrap`: the picture repeats, its far edge running into its near one"""
@@ -745,7 +756,7 @@ def _split_at_repeats(bm, uvl, faces):
     return made
 
 
-def slot_atlas(name, objects, width, height, skip=lambda m: False, cell=512, pad=8, rough=0.6):
+def slot_atlas(name, objects, width, height, skip=lambda m: False, cell=512, pad=8, rough=0.6, normals=None):
     """(docs/BAKING.md, stage B) the pieces of an area that never move given a few pictures, each a material of its own (pages: `name`,
     `name`2, ...; the game merges what shares a material, so a page is a draw), the materials' own pictures packed whole into them: a picture
     bigger than a cell's inside (`cell` less `pad` each side) shrunk into a cell of its own (or a row of them) through a Lanczos filter; a
@@ -756,7 +767,9 @@ def slot_atlas(name, objects, width, height, skip=lambda m: False, cell=512, pad
     on across them) to where the fewest of them cross a repeat, and those that still do cut there (a picture drawn once, not repeating, is
     never moved). Every face is checked to lie within its place, and the build stops if one doesn't. Not baked: as sharp as the pictures were
     (the shrunk ones nearly), a few faces more (only the ones longer than a repeat). Materials for which `skip` is true are left as they are.
-    Returns the pages' materials, and how many faces were cut"""
+    `normals` (item 774: the stone steps' granite and pebble-wash have theirs), if given, a page of normals beside each of colours, laid out
+    the same: each picture's material's normal map in its place (a flat normal where it has none), its strength there `normals[material's
+    name]` (default 1: the game's, drawn in; the page's own is 1). Returns the pages' materials, and how many faces were cut"""
     objs, seen = [], set()
     for o in objects:
         if o.type == "MESH" and len(o.data.polygons):
@@ -905,13 +918,46 @@ def slot_atlas(name, objects, width, height, skip=lambda m: False, cell=512, pad
         # came out near black)
         c = np.clip(np.asarray(colours[m], np.float32), 0, 1)
         pix[pi][y0:y0 + SW, x0:x0 + SW, :3] = np.where(c <= 0.0031308, c * 12.92, 1.055 * np.power(c, 1 / 2.4) - 0.055)
+    # ---- (item 774) and their normals, the same places: each drawn at its slot's size as its colour was, its tilt times its strength,
+    # made a unit again; flat where there's none
+    npix = None
+    if normals is not None:
+        npix = []
+        for pw, ph in sizes:
+            a = np.zeros((ph, pw, 4), np.float32)
+            a[...] = (0.5, 0.5, 1.0, 1.0)
+            npix.append(a)
+        for img, (pi, x0, y0, w_, h_) in place.items():
+            m0 = pictures[img][0]
+            nimg = _mat_normal(m0)
+            if nimg is None:
+                continue
+            rep = tiled[img]
+            pic = _resample(np.array(nimg.pixels[:], np.float32).reshape(nimg.size[1], nimg.size[0], 4), w_, h_, rep)
+            n = pic[..., :3] * 2 - 1
+            k = normals.get(m0.name, 1.0)
+            n[..., :2] *= k
+            n /= np.maximum(1e-6, np.linalg.norm(n, axis=-1, keepdims=True))
+            pic[..., :3] = n * 0.5 + 0.5
+            ys = np.arange(-pad, h_ + pad)
+            xs = np.arange(-pad, w_ + pad)
+            ys = ys % h_ if rep else np.clip(ys, 0, h_ - 1)
+            xs = xs % w_ if rep else np.clip(xs, 0, w_ - 1)
+            npix[pi][y0 - pad:y0 + h_ + pad, x0 - pad:x0 + w_ + pad] = pic[ys][:, xs]
     out = []
     for pi, (pw, ph) in enumerate(sizes):
         nm = name if pi == 0 else f"{name}{pi + 1}"
         im = bpy.data.images.new(nm + "Color", pw, ph)
         im.pixels.foreach_set(pix[pi].ravel())
         im.pack()
-        out.append(pbr(nm, (1, 1, 1), tex=im, rough=rough))
+        if npix is None:
+            out.append(pbr(nm, (1, 1, 1), tex=im, rough=rough))
+            continue
+        nim = bpy.data.images.new(nm + "Normal", pw, ph)
+        nim.colorspace_settings.name = "Non-Color"
+        nim.pixels.foreach_set(npix[pi].ravel())
+        nim.pack()
+        out.append(pbr(nm, (1, 1, 1), tex=im, nrm=nim, nrm_strength=1.0, rough=rough))
     # ---- each face's UVs into its place, and its page's material
     spill = []
     for o in objs:

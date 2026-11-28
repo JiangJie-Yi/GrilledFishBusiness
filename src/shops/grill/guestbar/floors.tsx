@@ -78,14 +78,16 @@ useGLTF.preload(STEPS_URL)
 const STONE_MADE: Record<string, [number, number, number]> = { StoneStep0: [1.2369, 0.1123, 0.012], StoneStep1: [1.2329, 0.2247, 0.168],
   StoneStep2: [1.2289, 0.1123, 0.168], StoneFoot: [1.2369, 0.337, 1.3155] }
 /** the way in's stone in the room's toon light, made once for each of the model's materials and shared by all its parts (the stones' tints
- * in their points' colour, item 424) */
+ * in their points' colour, item 424; the light from all round they can't have baked into it, item 774) */
 const PAVING = new Map<THREE.Material, THREE.MeshToonMaterial>()
 function pavingOf(sm: THREE.MeshStandardMaterial, tinted: boolean) {
   let t = PAVING.get(sm)
   if (!t) {
     t = new THREE.MeshToonMaterial({ color: '#ffffff', map: sm.map ?? null, normalMap: sm.normalMap ?? null, vertexColors: tinted })
-    // (the steps' stones as smooth as the genkan's inside (item 485: 「光澤還差這麼一點」): its normals at the floor's 0.8)
-    if (sm.normalMap && /StepStone/.test(sm.name)) t.normalScale.set(0.8, 0.8)
+    // (item 774: the granite and the pebble-wash one page now (blender/stonesteps.py's slot_atlas: one draw, not two), each picture as
+    // large as it was, so the page is twice the cap: kept at that, the pictures as sharp as they were on each tier. Their normals' strengths
+    // drawn into the page as they were here (the stones as smooth as the genkan's inside, item 485: the granite's at the floor's 0.8))
+    for (const m of [t.map, t.normalMap]) if (m) m.userData.capScale = 2
     t.name = sm.name
     PAVING.set(sm, t)
   }
