@@ -59,8 +59,10 @@ function ServeCounterImpl() {
       m.castShadow = true
       m.receiveShadow = true
     })
-    // (the kitchen's counters' line (0.0016 in the room's units), in the bar's, which are twice the size)
-    inkModel(r, () => false, { width: 0.0008, weld: true })
+    // (the kitchen's counters' line (0.0016 in the room's units), in the bar's, which are twice the size); not round the cloth (item 820, the
+    // owner's 「邊腳有奇怪得黑色」: its hems thin to nothing and come down to a point at each corner, and the line's shell, swelled out round
+    // that point, showed as two black triangles under it; a cloth's soft edge reads without a line)
+    inkModel(r, (m) => /ServeCloth/.test((m.material as THREE.Material).name), { width: 0.0008, weld: true })
     // (the doors left whole, each to slide; the rest folded together by material)
     mergeByMaterial(r, (o) => /^ServeDoor\d$/.test(o.name))
     const ds = [0, 1].map((k) => r.getObjectByName(`ServeDoor${k}`)).filter((o): o is THREE.Object3D => !!o)
