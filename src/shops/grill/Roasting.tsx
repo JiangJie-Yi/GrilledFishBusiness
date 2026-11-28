@@ -38,7 +38,7 @@ import { fairPrice } from '@/game/money/economy'
 import { getClock, minutesNow } from '@/ui/kit/clockStore'
 import { crewAnswer, crewEcho } from '@/shops/grill/staff/crewTalk'
 import { sideChance } from '@/game/kitchen/sides'
-import { gaveUpOnNext, overstayed } from '@/game/guests/stay'
+import { gaveUpOnNext, holdsOn, overstayed } from '@/game/guests/stay'
 import { RICE_SIDE, riceName } from '@/data/sides'
 import { SOUP_SERVE_S, SOUP_SIDE, soupReady, takeBowl } from '@/game/kitchen/soup'
 import { SAKE_SERVE_S, SAKE_SIDE, SAKE_WAIT_S } from '@/game/kitchen/sakeStand'
@@ -1567,6 +1567,8 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
   /** when each customer's tokkuri was asked for (the shop's clock): poured at the sake station and carried out to them (GuestBar3D), or with no
    * station set at their place after SAKE_WAIT_S */
   const sakeAsked = useRef(new Map<number, number>())
+  /** (item 1005's own, the Tester window's 877) each customer held for what's on its way, from when they'd have gone (the bar's clock) */
+  const heldFrom = useRef(new Map<number, number>())
   /** when the kitchen last said a bowl of rice or soup couldn't be had for want of it in stock (item 229) */
   const sideSaid = useRef<Partial<Record<'rice' | 'soup', number>>>({})
   const report = () => onGuests?.(guests.current.filter((g) => !g.takeout).map((g) => ({ id: g.id, state: g.state, items: g.orders.length, ate: [...g.ate],
@@ -2364,12 +2366,22 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       // (item 838: nor hurried out with their food done and on its way to them (ON_ITS_WAY): they eat it, quickly, and go)
       // (item 1005: nor sent off at their time, nor giving up on the rest, with a dish, their bowls or their tokkuri on its way: the Tester
       // window's 874 saw a tokkuri set down the very minute its customer was sent off)
-      const coming = ON_ITS_WAY.has(g.id)
-      if ((g.state === 'eating' && !FED.has(g.id) && !coming && gaveUpOnNext(g.lastAte ?? now, now)) || (SHOP.hurry && !FED.has(g.id) && !coming)
-        || (g.ate.length > 0 && !FED.has(g.id) && !coming && overstayed(g.since, now))) {
+      // (and its own, the Tester window's 877: held for it, they left the minute it was set down, uneaten: this ran before what has them
+      // eat what's set down, and a side being eaten wasn't something before them. What's set down and not yet taken, and a side being eaten
+      // (sideUntil), they stay for; for what's still on its way, at most HOLD_MAX past when they'd have gone: 456 sat 35 minutes for a soup
+      // that stood 44 at the counter)
+      const going = (g.state === 'eating' && !FED.has(g.id) && gaveUpOnNext(g.lastAte ?? now, now)) || (SHOP.hurry && !FED.has(g.id))
+        || (g.ate.length > 0 && !FED.has(g.id) && overstayed(g.since, now))
+      if (!going) heldFrom.current.delete(g.id)
+      const setDown = SAKE.ready.has(g.id) || BOWLS.got.has(`rice:${g.id}`) || BOWLS.got.has(`soup:${g.id}`)
+        || g.orders.some((id) => KITCHEN_IDS.has(id) && (KITCHEN.got.get(`${id}:${g.id}`) ?? 0) > 0)
+      if (going && !heldFrom.current.has(g.id)) heldFrom.current.set(g.id, now)
+      const held = holdsOn({ setDown, eatingSide: (g.sideUntil ?? 0) > now, coming: ON_ITS_WAY.has(g.id), heldFor: now - (heldFrom.current.get(g.id) ?? now) })
+      if (going && !held) {
+        heldFrom.current.delete(g.id)
         const owed = [...g.orders]
         for (const a of g.ate) owed.splice(owed.indexOf(a), 1)
-        const why = SHOP.hurry && !FED.has(g.id) && !coming ? 'hurry' : g.state === 'eating' && gaveUpOnNext(g.lastAte ?? now, now) ? 'next' : 'stay'
+        const why = SHOP.hurry && !FED.has(g.id) ? 'hurry' : g.state === 'eating' && gaveUpOnNext(g.lastAte ?? now, now) ? 'next' : 'stay'
         g.state = 'done'
         if (!SHOP.hurry || g.ate.length === 0) gripe(g.id, 'wait')
         onWalkOut?.(owed, g.id, why)

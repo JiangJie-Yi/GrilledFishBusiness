@@ -15,3 +15,13 @@ export const NEXT_WAIT = 40
 export const EAT_MINUTES = 8
 /** whether one who began their last dish at `lastAte` (the shop's minutes) has given up on the next by `now` */
 export const gaveUpOnNext = (lastAte: number, now: number) => now - lastAte > NEXT_WAIT + EAT_MINUTES
+/**
+ * (items 1005 and its own, the Tester window's 874 and 877) Whether one who'd go now (given up on the next, sat their time out, hurried out
+ * at closing) stays a little: for something of theirs set down and not yet taken (a dish, their bowls, a tokkuri) or a side they're eating,
+ * always, to eat it; for something still on its way to them (made, at the counter or carried), HOLD_MAX at most past when they'd have gone
+ * (`heldFor`, the shop's minutes): a tokkuri set down the minute its customer was sent off, then, held for it, they left the minute a soup
+ * that had stood 44 minutes at the counter was set down, 35 minutes on, uneaten
+ */
+export const HOLD_MAX = 20
+export const holdsOn = (s: { setDown: boolean; eatingSide: boolean; coming: boolean; heldFor: number }) =>
+  s.setDown || s.eatingSide || (s.coming && s.heldFor < HOLD_MAX)
