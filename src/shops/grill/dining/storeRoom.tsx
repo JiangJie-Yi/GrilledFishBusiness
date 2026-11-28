@@ -704,14 +704,15 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
 /** how high the doorway's sill stands over the shop's boards (item 803: low enough for the stocker to walk over, his feet on the floor) */
 const SILL_H = 0.013
 /**
- * The stock room doorway's sill (敷居, item 803, the owner's 「倉庫與門須要有個橫條木做為坎。」): a beam of the frame's dark wood across the
- * doorway's foot where the shop's boards meet the stock room's hinoki, through the wall's thickness, 4 mm proud of its line on the shop's
- * side and 6 mm past the post's face on the room's; between the post at the wall's start and the doorway's far side, a millimetre clear of
- * each; its foot a millimetre into the shop's boards (not in one plane with them). Its own piece, not in the frame's batch (the room's
- * merge takes it). Item 709 took the sill there was away with the posts the owner had out; he's asked for one again.
+ * The stock room doorway's sill (敷居, item 803, the owner's 「倉庫與門須要有個橫條木做為坎。」): a bar of the frame's dark wood across the
+ * doorway's foot over the line where the shop's boards meet the stock room's hinoki (its start, 6 mm in from the wall's line), 7 cm across,
+ * a little proud of that line on the shop's side (as wide as the whole wall's thickness, the first try, it read as a dark board laid there,
+ * not the bar the owner drew along the line); between the post at the wall's start and the doorway's far side, a millimetre clear of each;
+ * its foot a millimetre into the shop's boards (not in one plane with them). Its own piece, not in the frame's batch (the room's merge takes
+ * it). Item 709 took the sill there was away with the posts the owner had out; he's asked for one again.
  */
 function StoreSill({ door }: { door: [number, number] }) {
-  const x0 = -0.004, x1 = WALL_OUT + 0.012, z0 = door[0] + 0.001, z1 = door[1] - 0.001
+  const x0 = -0.008, x1 = 0.062, z0 = door[0] + 0.001, z1 = door[1] - 0.001
   return (
     <mesh name="store-sill" position={[(x0 + x1) / 2, 0.003 + SILL_H / 2, (z0 + z1) / 2]} receiveShadow>
       <boxGeometry args={[x1 - x0, SILL_H, z1 - z0]} />

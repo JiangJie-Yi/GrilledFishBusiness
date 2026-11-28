@@ -51,6 +51,8 @@ const DRIVE_V = new THREE.Vector3()
 /** (item 802) a gate's way through, walked by the keys: in from this far inside its doorway's middle (the bar's units, as the crew go in),
  * out to the aisle's middle before it; and how far from that line he may stray, a share of the doorway's width (the rest his body's) */
 const DRIVE_GATE_IN = 0.45, DRIVE_GATE_HALF = 0.36
+/** (item 802) how far either side of the kitchen's route to a gate he may go (the bar's units), where its floor's clear */
+const DRIVE_KITCHEN_BAND = 0.22
 /** (item 802) where he is while he's walked by the keys (the world's), for the bar's gates to swing open for him (roasting/barGate) */
 const DRIVEN_AT = new THREE.Vector3()
 /** the boards' thickness over the floor roasting/kitchen's floorAt gives (Roasting's frame): the kitchen's boards' top over its floor */
@@ -798,7 +800,7 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
   // out of the kitchen nor back in. Each gate's way, as the crew go: from his place across the kitchen (its route round what stands there)
   // to just inside the doorway, through it, out to the aisle's middle; walkable too, the doorway's part as wide as the doorway allows. His
   // frame's; worked out the first time it's asked for once the kitchen's route is ready, again if he's in another frame)
-  const gateWays = useRef<{ at: THREE.Object3D; segs: [number, number, number, number, number][] } | null>(null)
+  const gateWays = useRef<{ at: THREE.Object3D; segs: [number, number, number, number, number, number][] } | null>(null)
   const onGate = (m: THREE.Object3D, x: number, z: number) => {
     const f = BOSS_BED.frame, p = m.parent, route = KITCHEN_ROUTE.route
     if (!f || !p || !route) return false
@@ -807,27 +809,37 @@ export function Boss({ to = [0, 0], aisle, open = false, lang = 'zh', children }
       // (a place in the bar's frame, in his)
       const his = (v: THREE.Vector3) => p.worldToLocal(f.localToWorld(fromBar(v)))
       const home = toBar(f.worldToLocal(p.localToWorld(new THREE.Vector3(0, 0, 0))))
-      const segs: [number, number, number, number, number][] = []
+      const segs: [number, number, number, number, number, number][] = []
       for (let k = 0; k < Math.min(GRILL_COUNTERS.length, BAR_GATES.length); k++) {
         const c = GRILL_COUNTERS[k], gate = BAR_GATES[k], mid = gateOf(c, gate).mid.setY(0)
         const inside = mid.clone().addScaledVector(c.lay, DRIVE_GATE_IN), out = mid.clone().addScaledVector(c.lay, -aisleOf(c))
-        // (the doorway's part: as far either side of its middle line as the doorway's width allows, in his units)
-        const half = DRIVE_GATE_HALF * gate.w * his(mid.clone().addScaledVector(c.along, 1)).distanceTo(his(mid.clone()))
+        // (his units to the bar's)
+        const unit = his(mid.clone().addScaledVector(c.along, 1)).distanceTo(his(mid.clone()))
+        // (the doorway's part: as far either side of its middle line as the doorway's width allows)
         const a = his(inside), b = his(out)
-        segs.push([a.x, a.z, b.x, b.z, half])
-        // (and the kitchen's part, from his place to inside the doorway, round what's on its floor: as narrow as his round's line)
+        segs.push([a.x, a.z, b.x, b.z, DRIVE_GATE_HALF * gate.w * unit, 0])
+        // (and the kitchen's part, from his place to inside the doorway along its route: a body's width either side of it, where the
+        // kitchen's floor is clear (below). As narrow as his round's line, the first try, the keys' turning took him off it and he stuck)
         const way = route(home.clone(), inside.clone()) ?? [home, inside]
         for (let i = 1; i < way.length; i++) {
           const q0 = his(way[i - 1].clone().setY(0)), q1 = his(way[i].clone().setY(0))
-          segs.push([q0.x, q0.z, q1.x, q1.z, DRIVE_ROUND])
+          segs.push([q0.x, q0.z, q1.x, q1.z, DRIVE_KITCHEN_BAND * unit, 1])
         }
       }
       gw = gateWays.current = { at: p, segs }
     }
-    return gw.segs.some(([x0, z0, x1, z1, half]) => {
+    let bar: THREE.Vector3 | null = null
+    return gw.segs.some(([x0, z0, x1, z1, half, kitchen]) => {
       const dx = x1 - x0, dz = z1 - z0, l2 = dx * dx + dz * dz || 1
       const k = Math.max(0, Math.min(1, ((x - x0) * dx + (z - z0) * dz) / l2))
-      return Math.hypot(x0 + dx * k - x, z0 + dz * k - z) < half
+      const d = Math.hypot(x0 + dx * k - x, z0 + dz * k - z)
+      if (d >= half) return false
+      // (the kitchen's part: on its route's own line, as narrow as his round's, always; further off it only where nothing stands on its floor
+      // (the kitchen's own test, the crew's))
+      if (!kitchen || d < DRIVE_ROUND) return true
+      bar ??= toBar(f.worldToLocal(p.localToWorld(DRIVE_V.set(x, 0, z))))
+      const clear = KITCHEN_ROUTE.clear?.(bar)
+      return !!clear && Math.hypot(clear.x - bar.x, clear.z - bar.z) < 1e-4
     })
   }
   /** the floor under (x, z) of his frame, in his frame: the kitchen's raised floor or the customers' (roasting/kitchen's floorAt, in
