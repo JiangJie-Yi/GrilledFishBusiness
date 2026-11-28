@@ -2626,8 +2626,11 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
   useEffect(() => { setLocked(open) }, [open])
   // (the day's rice and soup made fresh: the cooker and the soup's pot empty as the shop opens, the third cook to cook them (the owner's,
   // 2026-11-11))
+  /** (item 837) whether the day's first pot of rice and of soup have been put on yet: the third cook's first jobs of the day */
+  const dayPrep = useRef({ rice: false, soup: false })
   useEffect(() => {
     if (!open) return
+    dayPrep.current = { rice: false, soup: false }
     RICE.rice = 0
     RICE.kama = emptyKama()
     SOUP.pot = emptyPot()
@@ -3986,6 +3989,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       }
       /** (item 835) off to put the rice on: the cooker's empty, to the open sack for the next pot's rice, then to the sink to wash it */
       const riceRun = () => {
+        dayPrep.current.rice = true
             // (the cooker's empty: to the open sack for the next pot's rice, over the kitchen's edge to it, then to the sink to wash it)
             pl.pos.copy(home())
             const sk = sackSpots()
@@ -3997,6 +4001,7 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
       }
       /** (item 835) off to make the soup, or top up a pot run low */
       const soupRun = () => {
+        dayPrep.current.soup = true
             // (or run low, hot: the next pot's worth made and added, the pot kept hot (item 207))
             // (the soup's pot empty (the day's start): to it to make it, water and dashi in and the miso stirred in, then it heats in its well)
             pl.pos.copy(home())
@@ -4061,6 +4066,14 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
               // (called out: the fire wanting coal (item 324))
               if (plater) crewCall(lang, 'coal', plater.id)
             } else { const near = dipFrom(); if (near) stepTo(near, 'toBucket'); else setOff(reachOf(bucketAt()), 'toBucket') }
+          } else if (open && !SHOP.leaving && !dayPrep.current.rice && riceGoes(RICE.kama) && anyInStock(['Onigiri'])) {
+            // (item 837, the Tester window's: the day's first pot of rice put on first thing, before the plates: the plates went first, then
+            // only with no one waiting, and the day's rice was ready 45 to 77 minutes after the doors opened, the soup 57 to 89, the first to
+            // ask for them going without. The rice the longest to come, its cooking going on by itself once it's on; the plates are wanted only
+            // once the first fish is off the fire, a good while after the first order)
+            riceRun()
+          } else if (open && !SHOP.leaving && !dayPrep.current.soup && soupGoes(SOUP.pot) && anyInStock(['MisoSoup'])) {
+            soupRun()
           } else if (open && !SHOP.leaving && platerGoes(PLATING.stock, PLATING.coming, PLATE_RACK.n + LOW_RACK.n)) {
             // (the plating place running low: plates before anything else but the fire, nothing done coming off the fire can be served without
             // one (item 207); seen to as it runs low, not once it's bare, and before a late dish or a pour of sake (item 630: bare 45% of a
