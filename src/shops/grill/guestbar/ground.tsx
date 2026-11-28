@@ -36,7 +36,9 @@ const CURB_TOP = GRAVEL_Y + 0.035, STEP_TOP = GRAVEL_Y + 0.012
 const CURB_W = 0.05, CURB_LEN = 0.32, CURB_SPREAD = 0.18, CURB_JOINT = 0.004
 /** the bed before the door: how far out from the front, how far past the doorway each side (the steps' width and a little (item 741): it
  * was 0.65, the facade's width) */
-const APRON_OUT = 1.25, APRON_SIDE = 0.03
+// (item 833, the owner's 「石階縮短三分之一」, a red box round the steps and two thirds of the bed out from them: 1.25 it was, from the
+// building's front to the curb)
+const APRON_OUT = 0.83, APRON_SIDE = 0.03
 /**
  * the door's bamboo's planter (guestbar/entrance's DOOR_BAMBOO_AT), measured in the floor's frame (tests/e2e/_ground741.mjs): from the
  * doorway's far side, across (its near side 2.2 cm past it) and out from the front; the bed's edge goes round it, its curb from its front on
@@ -48,6 +50,9 @@ const PLANTER = { x: [0.022, 0.352], z: [-0.002, 0.328] }
  * ragged with blobs before), straight along each side and square at each corner; soft (item 779, the owner's 「泥土地要有點柔邊」: crisp
  * to a pixel, a darker tamped line round it, since item 765): faded out over EARTH_SOFT each side of its outline */
 const EARTH_REACH = 0.42, EARTH_BAND = 0.36, EARTH_FADE = 0.04, EARTH_PX = 96, EARTH_SOFT = 0.022
+/** (item 828, the owner's 「然後到最外圍就稍微淡些」) its outermost band fainter: how wide, and how much of it shows at its edge (all of it
+ * EARTH_THIN in) */
+const EARTH_THIN = 0.13, EARTH_EDGE = 0.5
 /** how much ground one repeat of the gravel's picture covers */
 const GRAVEL_TILE = 0.5
 /** the stepping stones: their half sizes across and along the way out, the gaps between them */
@@ -312,8 +317,11 @@ export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut
     gravel.setAttribute('uv', new THREE.Float32BufferAttribute(gu, 2))
     // ---- the stepping stones: from the steps' foot out to the street, the doorway's middle, each a little off the line and turned
     const mid = (door[0] + door[1]) / 2, apronEnd = front + APRON_OUT
+    // (as many as the bed has room for between the steps' foot and its curb (three it had, item 833 shortened it), spread evenly; and one
+    // over the curb on the earth)
     const stepAt: [number, number, number][] = []
-    for (let k = 0, z = stepsFoot + 0.06 + STEP_RZ; k < 3; k++, z += STEP_PITCH) stepAt.push([mid + [0, 0.06, -0.05][k], z, [0.12, -0.18, 0.08][k]])
+    const bedLen = apronEnd - stepsFoot, nStep = Math.max(1, Math.floor((bedLen - 0.12) / STEP_PITCH))
+    for (let k = 0; k < nStep; k++) stepAt.push([mid + [0, 0.06, -0.05][k % 3], stepsFoot + ((k + 0.5) * bedLen) / nStep, [0.12, -0.18, 0.08][k % 3]])
     stepAt.push([mid + 0.04, apronEnd + CURB_W + 0.03 + STEP_RZ, -0.1])
     // ---- the curb: its stones along the bed's outer edge
     const curb = curbStones(plan.runs, CURB_W, CURB_LEN, CURB_SPREAD, CURB_JOINT, [], 725)
@@ -347,32 +355,57 @@ export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut
     const clearOfWay = (x: number, z: number) => !(z > front && Math.abs(x - mid) < STEP_RX + 0.2) &&
       !(x > apron[0] - CURB_W - 0.04 && x < apron[2] + CURB_W + 0.04 && z > apron[1] - 0.02 && z < apron[3] + CURB_W + 0.04) &&
       !(keep ?? []).some(([x0, z0, x1, z1]) => x > x0 && x < x1 && z > z0 && z < z1)
-    // ---- the tufts: in clumps along the edges, out in the earth, and three at each of their outer corners
+    // ---- the tufts (item 833, the owner's 「泥土地上的草可以多種一點、自然些」: they were clumps of one to three, 0.7 to 1.6 apart, only along
+    // the edges, a row of them): along the plinth's foot and the curb in clumps closer together and fuller (two to five, the middle one the
+    // biggest, the rest smaller round it), a cluster at each outer corner; and out over the earth, a clump here and there, thicker close in
+    // under the building (damp, nobody walks there) and thinning out toward the earth's edge; none on the way in
     const tufts: [number, number, number, number][] = []
+    const clump = (cx: number, cz: number, n: number, spread: number, big: number) => {
+      for (let k = 0; k < n; k++) {
+        const a = rnd() * Math.PI * 2, d = k === 0 ? 0 : spread * (0.45 + rnd() * 0.55)
+        const x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d
+        if (clearOfWay(x, z)) tufts.push([x, z, rnd() * Math.PI * 2, big * (k === 0 ? 1 : 0.55 + rnd() * 0.35)])
+      }
+    }
     for (const { r, off } of edges) {
       const alongX = r.out[0] === 0, s0 = alongX ? r.a[0] : r.a[1], s1 = alongX ? r.b[0] : r.b[1]
       const edge = alongX ? r.a[1] : r.a[0], ox = r.out[0], oz = r.out[1]
-      for (let s = s0 + 0.3 + rnd() * 0.5; s < s1 - 0.25; s += 0.7 + rnd() * 0.9) {
-        const clump = 1 + Math.floor(rnd() * 3)
-        for (let k = 0; k < clump; k++) {
-          const along = s + (rnd() - 0.5) * 0.16, out = off + 0.1 + rnd() * 0.08
-          const x = alongX ? along : edge + ox * out, z = alongX ? edge + oz * out : along
-          if (clearOfWay(x, z)) tufts.push([x, z, rnd() * Math.PI * 2, 0.8 + rnd() * 0.45])
-        }
+      for (let s = s0 + 0.15 + rnd() * 0.3; s < s1 - 0.15; s += 0.32 + rnd() * 0.6) {
+        const out = off + 0.07 + rnd() * 0.12
+        clump(alongX ? s : edge + ox * out, alongX ? edge + oz * out : s, 2 + Math.floor(rnd() * 4), 0.075, 0.85 + rnd() * 0.5)
       }
       for (const [conv, p, dir] of [[r.convexA, r.a, -1], [r.convexB, r.b, 1]] as const) {
         if (!conv) continue
-        for (let k = 0; k < 3; k++) {
-          const along = (alongX ? p[0] : p[1]) + dir * (0.06 + rnd() * 0.12), out = off + 0.11 + rnd() * 0.08
-          const x = alongX ? along : edge + ox * out, z = alongX ? edge + oz * out : along
-          if (clearOfWay(x, z)) tufts.push([x, z, rnd() * Math.PI * 2, 0.9 + rnd() * 0.4])
-        }
+        const along = (alongX ? p[0] : p[1]) + dir * (0.08 + rnd() * 0.08), out = off + 0.1 + rnd() * 0.06
+        clump(alongX ? along : edge + ox * out, alongX ? edge + oz * out : along, 4 + Math.floor(rnd() * 3), 0.09, 1.05 + rnd() * 0.3)
       }
     }
-    // ---- the earth round the building and past the curb: its picture, faded out at its edge
+    // (out over the earth: tried at random over its square, taken the more often the nearer the building's plinth (clear of it by a hand))
+    {
+      const xs = building.flatMap((b) => [b[0], b[2]]), zs = building.flatMap((b) => [b[1], b[3]])
+      const ex0 = Math.min(...xs) - EARTH_REACH, ex1 = Math.max(...xs) + EARTH_REACH, ez0 = Math.min(...zs) - EARTH_REACH, ez1 = Math.max(...zs) + EARTH_REACH
+      const awayOf = (x: number, z: number) => Math.min(...building.map(([a0, b0, a1, b1]) => Math.max(a0 - x, x - a1, b0 - z, z - b1, -1e9)))
+      const tries = Math.round((ex1 - ex0) * (ez1 - ez0) * 6)
+      for (let i = 0; i < tries; i++) {
+        const x = ex0 + 0.06 + rnd() * (ex1 - ex0 - 0.12), z = ez0 + 0.06 + rnd() * (ez1 - ez0 - 0.12)
+        const away = awayOf(x, z)
+        if (away < plinthOut + 0.08) continue
+        if (rnd() > 0.1 + 0.55 * (1 - THREE.MathUtils.smoothstep(away, plinthOut + 0.1, EARTH_REACH))) continue
+        clump(x, z, 1 + Math.floor(rnd() * 3), 0.06, 0.6 + rnd() * 0.55)
+      }
+    }
+    // ---- the earth round the building and past the curb: its picture, faded out at its edge. (item 828, the owner's 「泥土地要正方形」, red
+    // rings round three jogs in its edge, as item 765's 「泥土地必須要方的」: it was each of the building's rects EARTH_REACH out, put
+    // together, so wherever the building stepped in or out (the toilets' block, the stock room, the wing, the genkan's corner) its edge
+    // stepped with it, notched and jogged) one square: the building's whole extent EARTH_REACH out all round, its corners square; and the
+    // band before the door out past the bed's curb as before (item 752: 「除了玄關」)
     const reach = EARTH_REACH
-    const shapes: Rect[] = [...building.map((r) => [r[0] - reach, r[1] - reach, r[2] + reach, r[3] + reach] as Rect),
-      [apron[0] - CURB_W - EARTH_BAND, apron[1], apron[2] + CURB_W + EARTH_BAND, apron[3] + CURB_W + EARTH_BAND + 0.12]]
+    const bx = building.flatMap((r) => [r[0], r[2]]), bz = building.flatMap((r) => [r[1], r[3]])
+    const sq: Rect = [Math.min(...bx) - reach, Math.min(...bz) - reach, Math.max(...bx) + reach, Math.max(...bz) + reach]
+    // (the band before the door, its sides flush with the square's where they come within a forearm of them: a step of a hand or two
+    // between them was the third jog the owner ringed, at the front corner)
+    const tab: Rect = [apron[0] - CURB_W - EARTH_BAND, apron[1], apron[2] + CURB_W + EARTH_BAND, apron[3] + CURB_W + EARTH_BAND + 0.12]
+    const shapes: Rect[] = [sq, [tab[0] - sq[0] < 0.5 ? sq[0] : tab[0], tab[1], sq[2] - tab[2] < 0.5 ? sq[2] : tab[2], tab[3]]]
     const X0 = Math.min(...shapes.map((r) => r[0])) - EARTH_FADE, X1 = Math.max(...shapes.map((r) => r[2])) + EARTH_FADE
     const Z0 = Math.min(...shapes.map((r) => r[1])) - EARTH_FADE, Z1 = Math.max(...shapes.map((r) => r[3])) + EARTH_FADE
     const W = X1 - X0, H = Z1 - Z0
@@ -511,7 +544,7 @@ export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut
         data[to + i] = col[from + i] + (200 - col[from + i]) * du
         data[to + i + 1] = col[from + i + 1] + (182 - col[from + i + 1]) * du
         data[to + i + 2] = col[from + i + 2] + (152 - col[from + i + 2]) * du
-        data[to + i + 3] = 255 * ease(d, -EARTH_SOFT, EARTH_SOFT)
+        data[to + i + 3] = 255 * ease(d, -EARTH_SOFT, EARTH_SOFT) * (EARTH_EDGE + (1 - EARTH_EDGE) * ease(d, 0, EARTH_THIN))
       }
     }
     const tex = new THREE.DataTexture(data, cw, ch, THREE.RGBAFormat)
