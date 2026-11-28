@@ -90,6 +90,15 @@ const SUN_AT = new THREE.Vector3()
  * it. The test made in the light's frame (the view's matrix times the light's world matrix), not on the box carried out to the world: the
  * room stands turned in the world, and the box turned out there and boxed again was half as wide again (module-level, nothing new a frame) */
 const LIT_VIEW = new THREE.Frustum(), LIT_VP = new THREE.Matrix4(), LIT_M = new THREE.Matrix4()
+/**
+ * NO_MAP_YET (item 773, the owner's 「畫面全黑?」「壞了」: the whole shop black, hundreds of 「GL_INVALID_OPERATION: Mismatch between texture
+ * format and sampler type (signed/unsigned/float/shadow)」 in the console, every load): a light that casts shadows is never left without its
+ * map. With two spot lights casting (the lamp over the fire, the stock room's bulb, item 729) the shaders take their maps as an array, and
+ * three (r186, WebGLUniforms' setValueT1Array) puts its empty depth picture in for a map not made yet without setting its comparison, as the
+ * single one's way does: a shadow sampler given a plain depth picture, and every draw that takes shadows refused. The bulb pulled off and kept
+ * so in the browser, its map was never drawn (put out, a light's map is left as it was), and the room came up black at every load. So a map
+ * not made yet is drawn once, lit or not, in view or not; then as before.
+ */
 /** the casters left out of the sun's map this frame, back on */
 function castersBack(o: THREE.Mesh[]) { for (let i = 0; i < o.length; i++) o[i].castShadow = true; o.length = 0 }
 
@@ -124,6 +133,8 @@ export const ShadowPacer = memo(function ShadowPacer() {
       for (const l of others.current) {
         const box = l.userData.litBox as THREE.Box3 | undefined
         if (!box || !l.castShadow) continue
+        // (item 773) never without a map: one not made yet is drawn now, put out or out of view as it may be (see NO_MAP_YET)
+        if (!l.shadow.map) { l.userData.mapStale = false; l.shadow.needsUpdate = true; fresh = true; continue }
         if (!ready) { LIT_VP.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); ready = true }
         if (!(l.intensity > 0) || !LIT_VIEW.setFromProjectionMatrix(LIT_M.multiplyMatrices(LIT_VP, l.matrixWorld)).intersectsBox(box)) {
           l.shadow.needsUpdate = false; l.userData.mapStale = true
@@ -210,7 +221,8 @@ export const ShadowPacer = memo(function ShadowPacer() {
     } else {
       // (a light put out (its strength 0: the stock room's bulb pulled off, item 729) its map left as it was: drawn again the first frame
       // after it's lit; one with a lit box, whose box is out of the view, left as it was too, item 730, scene.onBeforeRender above)
-      for (const l of others.current) if (l.intensity > 0) l.shadow.needsUpdate = true
+      // (but one with no map yet drawn once all the same: NO_MAP_YET)
+      for (const l of others.current) if (l.intensity > 0 || !l.shadow.map) l.shadow.needsUpdate = true
     }
     gl.shadowMap.needsUpdate = true
   })
