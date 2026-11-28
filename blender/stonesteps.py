@@ -25,6 +25,7 @@ import bmesh
 import bpy
 import numpy as np
 from mathutils import Vector
+from mathutils.bvhtree import BVHTree
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from common import *  # noqa: E402,F403
@@ -833,6 +834,63 @@ s2 = build_step("StoneStep2")
 s0 = build_step("StoneStep0")
 
 sf = build_foot()
+
+
+# ---- (item 774, the owner's 「石階梯部份應該可以用烘焙的」; docs/BAKING.md stage A) the light from all round that can't reach into the
+# joints, a stone's foot in its pebble-wash, a step's back corner against the riser or the band over it, its foot on the street, baked into
+# the stones' and the pebble-wash's point colours (they carry each stone's tint and its moss already: nothing more to load or draw). Never the
+# lamps' own light (they go on and off, the day turns): an occlusion only, at most four tenths off (the pipeline's floor, AO_FLOOR, as the
+# colour's seen). Each corner's share of the sky round it (cosine weighted, AO_RAYS rays) not met within AO_REACH by the steps as they stand
+# in the game (each part at its place there in StoneStep1's frame, tests/e2e/_stepsplace774.mjs) or the street's paving under them, what's
+# met near counting for more than what's met far
+AO_REACH, AO_RAYS, AO_FLOOR = 0.06, 96, 0.6
+AO_PLACE = {"StoneStep0": (0, 0.1688, -0.0785), "StoneStep1": (0, 0, 0), "StoneStep2": (0, -0.0562, 0.17), "StoneFoot": (0, 0.0562, -0.7438)}
+AO_GROUND = -0.1204          # the street's paving under the lower step, in StoneStep1's frame (its foot 8 mm over it, as measured)
+
+
+def bake_occlusion(objs):
+    verts, polys = [], []
+    for o in objs:
+        off = P(*AO_PLACE[o.name])
+        base = len(verts)
+        verts += [v.co + off for v in o.data.vertices]
+        polys += [[base + i for i in pl.vertices] for pl in o.data.polygons]
+    g = len(verts)
+    verts += [P(-3, AO_GROUND, -3), P(3, AO_GROUND, -3), P(3, AO_GROUND, 3), P(-3, AO_GROUND, 3)]
+    polys.append([g, g + 1, g + 2, g + 3])
+    tree = BVHTree.FromPolygons(verts, polys)
+    ga = math.pi * (3 - math.sqrt(5))
+    dirs = [(math.sqrt((i + 0.5) / AO_RAYS) * math.cos(i * ga), math.sqrt((i + 0.5) / AO_RAYS) * math.sin(i * ga), math.sqrt(1 - (i + 0.5) / AO_RAYS))
+            for i in range(AO_RAYS)]
+    for o in objs:
+        me = o.data
+        off = P(*AO_PLACE[o.name])
+        cn = me.corner_normals
+        col = me.color_attributes["Col"]
+        seen, ks = {}, []
+        for li, lp in enumerate(me.loops):
+            n = Vector(cn[li].vector).normalized()
+            key = (lp.vertex_index, round(n.x, 3), round(n.y, 3), round(n.z, 3))
+            if key not in seen:
+                at = me.vertices[lp.vertex_index].co + off + n * 0.0004
+                t = n.orthogonal().normalized()
+                b = n.cross(t)
+                occ = 0.0
+                for dx, dy, dz in dirs:
+                    hit = tree.ray_cast(at, t * dx + b * dy + n * dz, AO_REACH)
+                    if hit[0] is not None:
+                        occ += 1 - hit[3] / AO_REACH
+                seen[key] = AO_FLOOR + (1 - AO_FLOOR) * (1 - occ / AO_RAYS)
+            k = seen[key]
+            ks.append(k)
+            c = col.data[li].color_srgb
+            col.data[li].color_srgb = (c[0] * k, c[1] * k, c[2] * k, c[3])
+        ks.sort()
+        print("STEP_AO", o.name, "corners", len(ks), "points", len(seen), "least", round(ks[0], 3), "a tenth under", round(ks[len(ks) // 10], 3),
+              "middle", round(ks[len(ks) // 2], 3))
+
+
+bake_occlusion([s1, s2, s0, sf])
 s2.location = P(0, 0, 0.5)   # (apart in the file; the game sets each where it stands)
 s0.location = P(0, 0, -0.5)
 sf.location = P(4, 0, 0)
