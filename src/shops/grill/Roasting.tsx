@@ -56,7 +56,7 @@ import { tipIn } from '@/data/tipText'
 import { bestStage, PAIRING, PAIRING_DEFAULT, stageOf as seasonStage, timingLoss } from '@/game/kitchen/taste'
 import type { Step } from '@/game/types'
 import { CRATE, DECOR, Decor, FRIDGE_KICK, backToCrate, liftFromCrate, takeFromCrate, type Held } from '@/shops/grill/decor/Decor'
-import { BOARD, COAL_BRIDGE, IRONS, SAKE, SAKE_SEATS, SAKE_TASTED, SOUP, SOUP_SEATS, SHRINE_FLOWERS, WC_GRUMBLE, TAKEOUT, RIDERS, TAKEOUT_SPOT, SERVE_COUNTER, barToFire, BENCH, BENCH_SEATS, BENCH_WAIT, PULLED } from './bar'
+import { BOARD, COAL_BRIDGE, IRONS, SAKE, SAKE_AT, SAKE_SEATS, SAKE_TASTED, SOUP, SOUP_SEATS, SHRINE_FLOWERS, WC_GRUMBLE, TAKEOUT, RIDERS, TAKEOUT_SPOT, SERVE_COUNTER, barToFire, BENCH, BENCH_SEATS, BENCH_WAIT, PULLED } from './bar'
 import { fireAmbience } from '@/shops/grill/sounds/fireAmbience'
 import { fireSound } from '@/game/kitchen/fireSound'
 import { flowerBuffs } from '@/game/world/shrineFlowers'
@@ -2323,7 +2323,7 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
      * at it (SAKE.station false: a bar on its own), set at their place after SAKE_WAIT_S as it was */
     const sakePoured = (id: number, now: number) => {
       const asked = sakeAsked.current.get(id)
-      if (asked === undefined) { sakeAsked.current.set(id, now); SAKE.want.push(id); return false }
+      if (asked === undefined) { sakeAsked.current.set(id, now); SAKE.want.push(id); SAKE_AT.set(id, performance.now()); return false }
       const done = SAKE.ready.delete(id)
       const queued = SAKE.want.indexOf(id)
       if (!done && !(queued >= 0 && !SAKE.station && now - asked > SAKE_WAIT_S)) return false
@@ -2403,7 +2403,7 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       if (space === 'open' && bar && !g.takeout && (owed.includes('MisoSoup') || owed.includes(RICE_SIDE.id))) {
         if (!BOWLS.asked.has(g.id)) {
           BOWLS.asked.add(g.id)
-          BOWLS.want.push({ guest: g.id, rice: owed.includes(RICE_SIDE.id), soup: owed.includes('MisoSoup') })
+          BOWLS.want.push({ guest: g.id, rice: owed.includes(RICE_SIDE.id), soup: owed.includes('MisoSoup'), at: performance.now() })
         }
         const got = owed.includes(RICE_SIDE.id) && BOWLS.got.has(`rice:${g.id}`) ? RICE_SIDE.id : owed.includes('MisoSoup') && BOWLS.got.has(`soup:${g.id}`) ? 'MisoSoup' : null
         if (got) {

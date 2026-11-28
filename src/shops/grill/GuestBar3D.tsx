@@ -77,7 +77,7 @@ import { LINES } from '@/data/lines'
 import { looksOf, openRoom, penaltyOf, visitRoom } from '@/game/guests/restroom'
 import { platerFree } from '@/game/kitchen/kitchenCrew'
 import { WARE, SEAT_LEFT, CHOPS_USED, CHOPS_OFF, CHOPS_LOOSE, SEATS_UNCLEARED, FLOOR_CHECK, type PathCross, BOSS_BED } from './bar'
-import { DRAIN_KINDS, PLATE_FACES, SEATS_SAT, DRAWER_KICK, seatTurn, GRATING, ONIGIRI_TRAY, HAND_WASH, FIGURES, CARRIED, SOY_DISH_AT, FETCHER, FIRE_TEND, SKEWERS, SEAT_MOVE, SEAT_PULL, STOOL_TUCK, SHOE_CELLS, aisleCornerOf, aisleOf, SHOP_PURSE, STOCKER_WC, SUPPLIES, CHOPS_UP, FED, BENCH, BENCH_SEATS, BENCH_EACH, BENCH_PLACE, BENCH2_ALONG, TAKEOUT_STAND, STAND_AT, cashierIn, gripe, setTissues, tissuesAt, meterWater, OWNER_OUT, OWNER_SPOT, OWNER_YAW, FIRE_SHIFT, KITCHEN_ROUTE, PATH_MAP, type PathRoute, SERVE_COUNTER, PLACE, SICK, SHRINE_FLOWERS, PLATING, READY_SLOTS, PLATE_STACK_ALONG, PLATE_STACK_ACROSS, readyAlong, PLATES_OUT, PLATER_OUT, DRYER, DRAIN, PLATE_COUNT, SINK_BIN, SEAT_STICKS, SEAT_BONES, RICE, SOUP, SOUP_SEATS, SAKE, SAKE_SEATS, LOW_RACK, takeDrink, KITCHEN_DROP, kitchenOf, FLOOR_FAR, FLOOR_NEAR, PLATES_SET, SINK, PILE, KITCHEN_FOLK, GENKAN, inGenkan, sauceSide, SEATS_TAKEN, SERVICE, BAR_GATES, TILL, TILL_CASH, anyInStock, batchOf, payIn, TILL_STATE, PLATE_RACK, GUEST_BILLS, DRINKS, yen, payOf, TAKEOUT, takeoutOf, tipOver, TOILETS, WC_GRUMBLE, DRINK_BACK, FRIDGE, FRIDGE_AT, FRIDGE_STATE, isCan, drinkFor, farOf, fridgesOf, storeOf, fridgeUnitOf, gateOf, toiletsOf, type DrinkId, platingOf, alongPath, doorOf, wayInOf, doorAt, doorOutOf, DOOR_LANE, pathLength, pathTo, seatsOf, singleCounter, type Counter, SPILLS, IRONS, type Spill, genkanY, soapPlate, scrubDose, SAY_SEATED, BOWLS, RICE_SEATS, sakeLeft, ownerAway, ownerFree, ownerBack, DRINK_COMING, KITCHEN, DRINK_FRIDGE_TEMP } from './bar'
+import { DRAIN_KINDS, PLATE_FACES, SEATS_SAT, DRAWER_KICK, seatTurn, GRATING, ONIGIRI_TRAY, HAND_WASH, FIGURES, CARRIED, SOY_DISH_AT, FETCHER, FIRE_TEND, SKEWERS, SEAT_MOVE, SEAT_PULL, STOOL_TUCK, SHOE_CELLS, aisleCornerOf, aisleOf, SHOP_PURSE, STOCKER_WC, SUPPLIES, CHOPS_UP, FED, BENCH, BENCH_SEATS, BENCH_EACH, BENCH_PLACE, BENCH2_ALONG, TAKEOUT_STAND, STAND_AT, cashierIn, gripe, setTissues, tissuesAt, meterWater, OWNER_OUT, OWNER_SPOT, OWNER_YAW, FIRE_SHIFT, KITCHEN_ROUTE, PATH_MAP, type PathRoute, SERVE_COUNTER, PLACE, SICK, SHRINE_FLOWERS, PLATING, READY_SLOTS, PLATE_STACK_ALONG, PLATE_STACK_ACROSS, readyAlong, PLATES_OUT, PLATER_OUT, DRYER, DRAIN, PLATE_COUNT, SINK_BIN, SEAT_STICKS, SEAT_BONES, RICE, SOUP, SOUP_SEATS, SAKE, SAKE_SEATS, SAKE_AT, LOW_RACK, takeDrink, KITCHEN_DROP, kitchenOf, FLOOR_FAR, FLOOR_NEAR, PLATES_SET, SINK, PILE, KITCHEN_FOLK, GENKAN, inGenkan, sauceSide, SEATS_TAKEN, SERVICE, BAR_GATES, TILL, TILL_CASH, anyInStock, batchOf, payIn, TILL_STATE, PLATE_RACK, GUEST_BILLS, DRINKS, yen, payOf, TAKEOUT, takeoutOf, tipOver, TOILETS, WC_GRUMBLE, DRINK_BACK, FRIDGE, FRIDGE_AT, FRIDGE_STATE, isCan, drinkFor, farOf, fridgesOf, storeOf, fridgeUnitOf, gateOf, toiletsOf, type DrinkId, platingOf, alongPath, doorOf, wayInOf, doorAt, doorOutOf, DOOR_LANE, pathLength, pathTo, seatsOf, singleCounter, type Counter, SPILLS, IRONS, type Spill, genkanY, soapPlate, scrubDose, SAY_SEATED, BOWLS, RICE_SEATS, sakeLeft, ownerAway, ownerFree, ownerBack, DRINK_COMING, KITCHEN, DRINK_FRIDGE_TEMP } from './bar'
 import { servedWarm } from '@/game/stock/fridgeTemp'
 import { arrivals, buyCase, caseCost } from '@/game/stock/drinkStock'
 import { GAME_SPEED, tick } from '@/scene/kit/speed'
@@ -85,7 +85,7 @@ import { Register } from './guestbar/register'
 import { SOUND_AT, LAY, ALONG, SPEED, RAKE_S, SERVER_SPEED, rampedAlong, AHEAD_S, ASIDE_V, WALK_MOST, STOCKER_KEY, BOSS_KEY, BOSS_AT, SITTER_KEY } from './guestbar/walking'
 import { type WallKeep, measureWall, SERVER_HALF, BESIDE_LEAST, BESIDE_MOST, aisleSqueeze, squeezeLay, squeezePath } from './guestbar/aisle'
 import { Part } from './guestbar/part'
-import { PEOPLE_SCALE, STAFF_SCALE, BALL_GEO, BALL_NORI_GEO, STATION_POSE, SAKE_HANDS, SAKE_HANDS_ON, BOWL_HANDS, BOWL_HANDS_ON, STIR_HANDS, STIR_HANDS_ON, COOK_HANDS, COOK_HANDS_ON, AT_WORK_COUNTER, PLATER_BACK, BACK_DIR, GRATE_HANDS, GRATE_ON, BOWL_PASS, RICE_LEN, SOUP_LEN, BOWL_PUT_S, BOWL_UP_S, BOWL_SET_S, PASS_MAX, BOWLS_LATE, PASS_Z, TRAY_SETS, SAKE_TRAY, SAKE_TRAY_YAW } from './guestbar/staffPoses'
+import { PEOPLE_SCALE, STAFF_SCALE, BALL_GEO, BALL_NORI_GEO, STATION_POSE, SAKE_HANDS, SAKE_HANDS_ON, BOWL_HANDS, BOWL_HANDS_ON, STIR_HANDS, STIR_HANDS_ON, COOK_HANDS, COOK_HANDS_ON, AT_WORK_COUNTER, PLATER_BACK, BACK_DIR, GRATE_HANDS, GRATE_ON, BOWL_PASS, RICE_LEN, SOUP_LEN, BOWL_PUT_S, BOWL_UP_S, BOWL_SET_S, PASS_MAX, PASS_Z, TRAY_SETS, SAKE_TRAY, SAKE_TRAY_YAW } from './guestbar/staffPoses'
 import { OwnerWalker } from './guestbar/ownerWalker'
 import { STAFF_DOOR_AT, koiHang, FOLK_FIT } from './guestbar/decorTex'
 import { STOCKER_FIG, Stocker } from './guestbar/stocker'
@@ -96,7 +96,7 @@ import { SHOE_CUBBIES, BenchShoes } from './guestbar/genkan'
 import { shoeKey } from '@/game/guests/shoes'
 import { GENKAN_SUNK, DiningFloor, RoomFloor } from './guestbar/floors'
 import { STOOL_STAND, STOOL_OUT, STOOL_LEAVE, SEAT_MARKS, BENCH_MARKS, SEAT_SHIFT, BENCH_AT, BENCH_A, BENCH_B, STOOL_PULL_S, STOOL_STEP_S, STOOL_SLIDE_S, STOOL_HOME_AT, backOf, type Shown, SHOES_S, DOOR_STEP_IN_S, DOOR_SLIDE_S, STEP_Y_RATE, NO_SHOES, PayFloat, PAY_S, QUEUE_GAP, STEP_TURN, billFor, TRAY_ERRANDS, placedOnce, withPause, UMB_STAND, standGrip, gearFor, gearAtOf, COAT_POSE, GEAR_P, GEAR_Q, shoeStep, SeatBits, Fridges, Stools } from './guestbar/seats'
-import { HER, WC_TO_SEAT, WC_SIT_LIFT, wcStayOf, HAND_S, HAND_DRY_S, REFILL_RATE, DRINKS_MAX, drinkRate, wcRate, DRINK_STAY, type PlateRun, STACK_GAP, NEST_GAP, SURFACE_RAY, SURFACE_HITS, TOP_FROM, DOWN_Y, UP_Y, binThrow, SERVE_S, CLEAR_S, CLEAR_DELAY, LAY_S, FLY_PER, HOME_S, READY_S, ON_TABLE, X_AXIS, COAL_STICK_GEO, COAL_STICK_MAT, DIPPER_CUP_GEO, DIPPER_HANDLE_GEO, DIPPER_MAT, DIPPER_WATER_GEO, DIPPER_WATER_MAT, SOUP_EVERY, STIR_S, GRATE_EVERY, GRATE_S, DIP_NEAR, DIP_REACH, RICE_BOWL_GEO, BOWL_HOLD, RICE_WASH_PHASES, WASH_BOWL_HANDS, WASH_BOWL_ON, riceBowlHands, RICE_IN_GEO, WIPE_S, CLEAR_REACH, CLEAR_LIFT, CHOP_ON, WARE_LEFT, WARE_RINSE, SINK_BOWLS_SHOWN, POT_PAIRS_SHOWN, POT_RENGE_SHOWN, BOWL_NEST, CLEAR_WIPE_AT, CLEAR_HANDS, SINK_HANDS, CLEAR_SIDE, WIPE_HAND_Z, CLEAR_TOWARD, WIPE_STAND, RAG_GEO, PASS_STACK_SHOWN, IN_SINK, SINK_SHOWN, IN_DRAIN, WASH_EACH, frontOf, KITCHEN_BLOCKS, PASS_ROOM, HEAD_HIGH, NAMED_BLOCKS, HEAD_ROOM, HOME_ROOM, TRAY_REACH, SINK_BACK, TILL_WAIT_MAX, TILL_BY_PLATER, TAKEOUT_ASIDE, TAKEOUT_NEXT, SHOE_OFF_S, SHOES_BACK, STOOL_HALF, STOOL_STEP, STOOL_CLIMB, PLATE_R, PLATE_GEO, DISH_ALONG, DISH_STEP, DISH_LAY, KITCHEN_DUE_MS, turnBy, PASS_YAW, FOAM_AT, FOAM_GEO, FOAM_MAT, DRIP_GEO, DRIP_MAT, WASH_SHIFT, WORK_IN, WORK_UP, WASH_FWD, SPOUT_AT, STREAM_W, HAND_TO, HAND_TO_BASKET_S, STATION_POUR_AT, HAND_STREAM, HAND_NDC, HAND_PLANE, HAND_HIT, HAND_TOP, HAND_W, HAND_BOX, UNDER_MAX, PILE_STEP, PILE_AT, SPONGE_BACK_S, RUB_BOX, RUB_C, CARRY_UP, CARRY_CLEAR, CARRY_RAY, CARRY_FROM, CARRY_DOWN, DRIP_LOW, smearOpacity, GLASS_ON, TISSUE_ON, WIPE_MOUTH_MS, SIP_S, SOUP_SIP_S, SIP_GAP, SIPS } from './guestbar/service'
+import { HER, WC_TO_SEAT, WC_SIT_LIFT, wcStayOf, HAND_S, HAND_DRY_S, REFILL_RATE, DRINKS_MAX, drinkRate, wcRate, DRINK_STAY, type PlateRun, STACK_GAP, NEST_GAP, SURFACE_RAY, SURFACE_HITS, TOP_FROM, DOWN_Y, UP_Y, binThrow, SERVE_S, CLEAR_S, CLEAR_DELAY, LAY_S, FLY_PER, HOME_S, READY_S, ON_TABLE, X_AXIS, COAL_STICK_GEO, COAL_STICK_MAT, DIPPER_CUP_GEO, DIPPER_HANDLE_GEO, DIPPER_MAT, DIPPER_WATER_GEO, DIPPER_WATER_MAT, SOUP_EVERY, STIR_S, GRATE_EVERY, GRATE_S, DIP_NEAR, DIP_REACH, RICE_BOWL_GEO, BOWL_HOLD, RICE_WASH_PHASES, WASH_BOWL_HANDS, WASH_BOWL_ON, riceBowlHands, RICE_IN_GEO, WIPE_S, CLEAR_REACH, CLEAR_LIFT, CHOP_ON, WARE_LEFT, WARE_RINSE, SINK_BOWLS_SHOWN, POT_PAIRS_SHOWN, POT_RENGE_SHOWN, BOWL_NEST, CLEAR_WIPE_AT, CLEAR_HANDS, SINK_HANDS, CLEAR_SIDE, WIPE_HAND_Z, CLEAR_TOWARD, WIPE_STAND, RAG_GEO, PASS_STACK_SHOWN, IN_SINK, SINK_SHOWN, IN_DRAIN, WASH_EACH, frontOf, KITCHEN_BLOCKS, PASS_ROOM, HEAD_HIGH, NAMED_BLOCKS, HEAD_ROOM, HOME_ROOM, TRAY_REACH, SINK_BACK, TILL_WAIT_MAX, TILL_BY_PLATER, TAKEOUT_ASIDE, TAKEOUT_NEXT, SHOE_OFF_S, SHOES_BACK, STOOL_HALF, STOOL_STEP, STOOL_CLIMB, PLATE_R, PLATE_GEO, DISH_ALONG, DISH_STEP, DISH_LAY, turnBy, PASS_YAW, FOAM_AT, FOAM_GEO, FOAM_MAT, DRIP_GEO, DRIP_MAT, WASH_SHIFT, WORK_IN, WORK_UP, WASH_FWD, SPOUT_AT, STREAM_W, HAND_TO, HAND_TO_BASKET_S, STATION_POUR_AT, HAND_STREAM, HAND_NDC, HAND_PLANE, HAND_HIT, HAND_TOP, HAND_W, HAND_BOX, UNDER_MAX, PILE_STEP, PILE_AT, SPONGE_BACK_S, RUB_BOX, RUB_C, CARRY_UP, CARRY_CLEAR, CARRY_RAY, CARRY_FROM, CARRY_DOWN, DRIP_LOW, smearOpacity, GLASS_ON, TISSUE_ON, WIPE_MOUTH_MS, SIP_S, SOUP_SIP_S, SIP_GAP, SIPS } from './guestbar/service'
 import { LONG_GEO, ROUND_GEO, Plate, PlateKinds, showKind, smearsOf, pickupReady } from './guestbar/plates'
 import { WaitingBench, KraftBag, TakeoutStandModel, STAND_TOP, STAND_SLOTS, WARM_TUB_Z, WarmTub, STAND_TURN, STAND_LIFT, STAND_GIVE, TakeoutBag, RiderGear } from './guestbar/takeoutStand'
 import { GuestLabel, CUP_AHEAD, CUP_SIDE, SeatDrink, PersonClock } from './guestbar/labels'
@@ -3984,6 +3984,26 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         setOff(station === 'board' ? prepSpot() : inBar(`${station}-front`, home()).setY(0), 'toStation')
         away(true)
       }
+      /** (item 835) off to put the rice on: the cooker's empty, to the open sack for the next pot's rice, then to the sink to wash it */
+      const riceRun = () => {
+            // (the cooker's empty: to the open sack for the next pot's rice, over the kitchen's edge to it, then to the sink to wash it)
+            pl.pos.copy(home())
+            const sk = sackSpots()
+            pl.path = [...kitchenRoute(pl.pos, sk.edge), sk.front]
+            pl.len = pathLength(pl.path)
+            pl.phase = 'toSack'
+            pl.t = 0
+            away(true)
+      }
+      /** (item 835) off to make the soup, or top up a pot run low */
+      const soupRun = () => {
+            // (or run low, hot: the next pot's worth made and added, the pot kept hot (item 207))
+            // (the soup's pot empty (the day's start): to it to make it, water and dashi in and the miso stirred in, then it heats in its well)
+            pl.pos.copy(home())
+            pl.making = true
+            setOff(soupStand(), 'toSoup')
+            away(true)
+      }
       /** off for plates for the plating place's stack: off the low rack by the table while it has any (a few steps), else across the kitchen
        * to the racks */
       const goPlates = () => {
@@ -4016,6 +4036,14 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
         // steps and jumped back (item 411))
         if (pl.t > 0.5 && (!!plater || ownerFree('plate')) && platerFree(!!plater && FETCHER.id === plater.id, FETCHER.busy) && !(plater && open && !ON_DUTY.in.has(plater.id))) {
           pl.t = 0
+          // (item 835: how long the oldest of each of his three jobs for those sat at the bar has been waited on (ms), -1 none he can take now)
+          const tq = performance.now(), atBar = open && !SHOP.leaving && !!STATION_OBJ.group
+          const ageOf = (g: number, at?: number) => (guestSeat(g) >= 0 ? tq - (at ?? tq) : -1)
+          const jobAges = {
+            bowls: atBar && !bowlJob.current && freeRow() >= 0 && bowlsNow() ? BOWLS.want.reduce((m, x) => Math.max(m, ageOf(x.guest, x.at)), -1) : -1,
+            kitchen: atBar && !kitchenJob.current ? KITCHEN.want.reduce((m, x) => Math.max(m, ageOf(x.guest, x.at)), -1) : -1,
+            sake: atBar && !sakeJob.current ? SAKE.want.reduce((m, g) => Math.max(m, ageOf(g, SAKE_AT.get(g))), -1) : -1,
+          }
           if (open && !SHOP.leaving && FIRE_TEND.want && !FIRE_TEND.done) {
             // (the fire's asked for: charcoal from the crate, or water from the bucket on the table by his bay, first of all)
             pl.pos.copy(home())
@@ -4038,12 +4066,36 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
             // one (item 207); seen to as it runs low, not once it's bare, and before a late dish or a pour of sake (item 630: bare 45% of a
             // rush, and a third of the time still with it after the sake, the third cook off at a station while the low rack stood full))
             goPlates()
-          } else if (open && !SHOP.leaving && !kitchenJob.current && STATION_OBJ.group
-            && KITCHEN.want.some((x) => guestSeat(x.guest) >= 0 && performance.now() - (x.at ?? performance.now()) > KITCHEN_DUE_MS)) {
+          } else if (open && !SHOP.leaving && riceGoes(RICE.kama) && anyInStock(['Onigiri']) && BOWLS.want.some((x) => x.rice && guestSeat(x.guest) >= 0)) {
+            // (item 835, the Tester window's: the rice's pot empty with someone sat waiting on a bowl of it: put on next, after the fire and the
+            // plates; at the bottom of his list (below the late dishes, the sake, the bowls, the till and the skewers) it stood empty five hours
+            // of a rush's evening, its bowls never filled. The longest to come (washed, then cooked), so the first of the two)
+            riceRun()
+          } else if (open && !SHOP.leaving && (soupGoes(SOUP.pot) || topUpGoes(SOUP.pot, SOUP.left)) && anyInStock(['MisoSoup']) && BOWLS.want.some((x) => x.soup && guestSeat(x.guest) >= 0)) {
+            soupRun()
+          } else if (jobAges.bowls >= 0 && jobAges.bowls >= jobAges.kitchen && jobAges.bowls >= jobAges.sake) {
+            // (item 835: a customer's bowls, a dish off the stove, the fryer or the board, and a tokkuri: whichever's been waited on longest
+            // taken first (from when it was asked for); the late dish (KITCHEN_DUE_MS from its asking, which was at the door) went before all
+            // the rest, and in a rush one always was: of 34 who'd asked for rice or soup 20 had none)
+            // (a customer's rice and soup (items 205, 206): over to the cooker for the rice, to the pot for the soup, both filled by hand,
+            // then to the serving counter with them; only with some ready to fill (bowlsNow, item 207), and a place at the counter to set
+            // them down in (another customer's may wait there already: item 207))
+            const b = nextBowls()
+            if (b) {
+              bowlJob.current = { ...b, by: 'plater', stage: b.rice ? 'rice' : 'soup', t: 0, riceFill: 0, soupFill: 0, W: null, row: freeRow() }
+              // (the clean bowls out of the cabinets for it as it's begun, the soup's renge with it (item 600))
+              takeBowlsFor(b)
+              pl.pos.copy(home())
+              setOff(b.rice ? riceStand() : soupFillAt().stand, b.rice ? 'toRiceBowl' : 'toSoupBowl')
+              away(true)
+            }
+          } else if (jobAges.kitchen >= 0 && jobAges.kitchen >= jobAges.sake) {
             // (a dish from the stove, the fryer or the board waited on long enough: made before the sake's poured, the plates fetched and the
             // bowls filled (item 461's evening: below them all, it was never come to while the sake kept coming, and those who'd ordered only
             // a dish off the stove sat with nothing for three hours of the shop's, or went))
-            takeKitchen()
+            // (its station a long while from the plating place: the stack topped up first if it's short of full (item 630))
+            if (PLATING.stock + PLATING.coming < STACK_CAP && PLATE_RACK.n + LOW_RACK.n > 0) goPlates()
+            else takeKitchen()
           } else if (open && !SHOP.leaving && SAKE.want.length && !sakeJob.current && STATION_OBJ.group) {
             // (item 630: its own again: put in under the late dish's (f166ab30), a sake was poured only when a dish was late too, a second
             // one's over the one being poured, and with none asked for, an empty one queued (the grating and the rice balls held for it))
@@ -4060,19 +4112,6 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
               sakeSpotOf(seat)
               pl.pos.copy(home())
               setOff(stationSpot(), 'toSake')
-              away(true)
-            }
-          } else if (open && !SHOP.leaving && !bowlJob.current && STATION_OBJ.group && freeRow() >= 0 && bowlsNow()) {
-            // (a customer's rice and soup (items 205, 206): over to the cooker for the rice, to the pot for the soup, both filled by hand,
-            // then to the serving counter with them; only with some ready to fill (bowlsNow, item 207), and a place at the counter to set
-            // them down in (another customer's may wait there already: item 207))
-            const b = nextBowls()
-            if (b) {
-              bowlJob.current = { ...b, by: 'plater', stage: b.rice ? 'rice' : 'soup', t: 0, riceFill: 0, soupFill: 0, W: null, row: freeRow() }
-              // (the clean bowls out of the cabinets for it as it's begun, the soup's renge with it (item 600))
-              takeBowlsFor(b)
-              pl.pos.copy(home())
-              setOff(b.rice ? riceStand() : soupFillAt().stand, b.rice ? 'toRiceBowl' : 'toSoupBowl')
               away(true)
             }
           } else if (open && !SHOP.leaving && !kitchenJob.current && STATION_OBJ.group && KITCHEN.want.some((x) => guestSeat(x.guest) >= 0)
@@ -4105,21 +4144,9 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           // (the rice first when both are empty (item 346): the cooker's the longest to come (washed, then a quarter minute cooking), and the soup
           // heats in its well by itself once it's made; soup first, the first bowls of rice came half a minute after the doors opened)
           } else if (open && !SHOP.leaving && riceGoes(RICE.kama) && anyInStock(['Onigiri']) && (BOWLS.want.some((x) => x.rice) || !platerGoes(PLATING.stock, PLATING.coming, PLATE_RACK.n + LOW_RACK.n))) {
-            // (the cooker's empty: to the open sack for the next pot's rice, over the kitchen's edge to it, then to the sink to wash it)
-            pl.pos.copy(home())
-            const sk = sackSpots()
-            pl.path = [...kitchenRoute(pl.pos, sk.edge), sk.front]
-            pl.len = pathLength(pl.path)
-            pl.phase = 'toSack'
-            pl.t = 0
-            away(true)
+            riceRun()
           } else if (open && !SHOP.leaving && (soupGoes(SOUP.pot) || topUpGoes(SOUP.pot, SOUP.left)) && anyInStock(['MisoSoup']) && (BOWLS.want.some((x) => x.soup) || topUpGoes(SOUP.pot, SOUP.left) || !platerGoes(PLATING.stock, PLATING.coming, PLATE_RACK.n + LOW_RACK.n))) {
-            // (or run low, hot: the next pot's worth made and added, the pot kept hot (item 207))
-            // (the soup's pot empty (the day's start): to it to make it, water and dashi in and the miso stirred in, then it heats in its well)
-            pl.pos.copy(home())
-            pl.making = true
-            setOff(soupStand(), 'toSoup')
-            away(true)
+            soupRun()
           } else if (open && !SHOP.leaving && lowGoes(LOW_RACK.n, LOW_RACK.coming, PLATE_RACK.n)) {
             // (the low rack by the table run low, nothing else wanting: across to the racks for a carry of plates to fill it)
             pl.pos.copy(home())
@@ -5066,7 +5093,9 @@ function GuestBar3DImpl({ guests, at, length = 3.6, drawCounter = true, lang, to
           const bowlsWait = SHOP.leaving || !STATION_OBJ.group ? -1
             : passQ.current.reduce((m, b) => (b.server === undefined && guestSits(b.guest, b.seat) ? Math.max(m, b.wait) : m), -1)
           // (the food first, as long as the bowls haven't waited BOWLS_LATE: a calm evening's food waited behind the bowls (item 207))
-          if (bowlsWait >= 0 && (ready < 0 || (bowlsWait >= BOWLS_LATE && bowlsWait > readyFor.current[ready])) && takeBowls()) return
+          // (item 835, the Tester window's: not only once they'd waited BOWLS_LATE as well: in a rush there was always food at the plating place
+          // newer than them, and the bowls stood at the counter 6 to 12 minutes, its two rows full and the third cook kept from setting more)
+          if (bowlsWait >= 0 && (ready < 0 || bowlsWait >= readyFor.current[ready]) && takeBowls()) return
           if (ready >= 0) {
             w.slot = ready
             w.seat = PLATING.slots[ready]!.seat

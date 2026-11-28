@@ -1276,7 +1276,8 @@ export const RICE: { rice: number; kama: Kama; washing: boolean; batch: number
  * each place's was set down (`rice:<seat>`, `soup:<seat>`: how much is left of it as they eat, GuestBar3D draws it); `ver` counts each
  * change, for the drawing to see.
  */
-export const BOWLS = keep(import.meta.hot, 'BOWLS', { want: [] as { guest: number; rice: boolean; soup: boolean }[], asked: new Set<number>(), got: new Set<string>(),
+// (`at` on each wanted: when it was asked for (performance.now()), item 835: the third cook's jobs taken whichever's waited longest)
+export const BOWLS = keep(import.meta.hot, 'BOWLS', { want: [] as { guest: number; rice: boolean; soup: boolean; at?: number }[], asked: new Set<number>(), got: new Set<string>(),
   setAt: new Map<string, number>(), ver: 0 })
 /**
  * The kitchen's made-to-order dishes (items 461, 469: data/kitchenDishes): Roasting asks for each a customer's ordered (`want`: the
@@ -1338,6 +1339,8 @@ export const tasteSake = (k: number) => {
 }
 export const SAKE: { levels: number[]; served: number; want: number[]; ready: Set<number>; open: number; station: boolean; unpoured: Set<number> } =
   keep(import.meta.hot, 'SAKE', { levels: fullStand(), served: 0, want: [], ready: new Set(), open: 1, station: false, unpoured: new Set() })
+/** when each customer's tokkuri was asked for (performance.now(); item 835: the third cook's jobs taken whichever's waited longest) */
+export const SAKE_AT = keep(import.meta.hot, 'SAKE_AT', new Map<number, number>())
 // (kept over a hot update from when the stand had fewer bottles (item 285: eight to twelve): the ones it didn't have, full)
 if (SAKE.levels.length !== fullStand().length) SAKE.levels = fullStand().map((l, k) => SAKE.levels[k] ?? l)
 /** the shop's sake not yet poured, in tokkuri (item 199): what's in stock, and what's been sold and is still to be poured; Infinity with no
