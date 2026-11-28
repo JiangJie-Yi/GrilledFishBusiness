@@ -3,7 +3,7 @@ import { useProgress } from '@react-three/drei'
 import { GrillingFish } from '@/ui/art/GrillingFish'
 import { EMBER_SHEETS, NOREN_CREST } from '@/ui/art/loadingLook'
 import { laterPending, laterSeen, sceneDrawn } from '@/scene/render/Later'
-import { veilLifting } from '@/scene/render/WorldBatch'
+import { veilLifting } from '@/scene/render/worldMerge'
 import { LOADING_LINES, lineStep } from '@/data/loadingLines'
 import { loadingPct, loadingStep } from '@/game/system/loadingCreep'
 

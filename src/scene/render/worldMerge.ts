@@ -7,7 +7,7 @@ import * as THREE from 'three'
  * kept still is merged across the room, a mesh a look; anything in it that then moves, hides, changes its look or goes is taken out of it on
  * the spot (its stretch of the merged mesh drawn in to a point, the mesh itself drawn again), never the whole put back for it.
  */
-export const WORLD = {
+const FRESH = {
   /** how many times it's been made (a dev's count: once or twice a session), and taken out of since; how many times what's come in and kept
    * still since has been merged on its own and added to it (item 374) */
   builds: 0,
@@ -18,8 +18,19 @@ export const WORLD = {
   /** made again soon (the editor left, many taken out) */
   dirty: true,
   changedAt: 0,
+  /** (item 767) the loading veil lifting (ui/LoadingScreen, the moment it's all in, veilLifting): the room's first making done at once, on the
+   * next frame, while the veil's still all but opaque over it (its fade is the compositor's and goes on), not a second or so after it's gone
+   * (a frame of some 90 ms just as the player starts); one look forced (WorldBatch), then as before */
+  lifting: false,
 }
+// (this file's state kept through a hot update of it in dev (import.meta.hot.data), the merge's and the merged-away meshes' (STATE below):
+// made anew, the meshes the old copy had merged away were left hidden by its getter, unknown to the new one's STATE and never given back;
+// tried, 57 of them stayed hidden for good and the room was drawn unmerged at 1 FPS (the owner's black room looked into, 11-28))
+export const WORLD: typeof FRESH = (import.meta.hot?.data.world as typeof FRESH | undefined) ?? FRESH
+if (import.meta.hot) import.meta.hot.data.world = WORLD
 if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __world: WORLD })
+/** the loading veil's lifting, told the room's merge (ui/LoadingScreen; WORLD.lifting) */
+export function veilLifting() { WORLD.lifting = true }
 
 /** each merged-away mesh's place in the room's merge: the merged mesh, its first vertex there, how many; and its own mesh and the frame it
  * was merged in (its root's: null, the room's own; a wall's), its positions written again from them as it's put back (none kept aside: a copy
@@ -68,7 +79,9 @@ function collapse(s: WorldSpan, on: boolean) {
 /** a merged-away mesh's part in the merge (beside it, not in its userData, which a clone copies as JSON): its span; whether it's drawn by
  * the merge just now (`hidden`: its own drawing hidden), or by itself a moment for the pointer's glow (`lifted`); the `visible` its code set */
 export type MergeState = { span: WorldSpan; hidden: boolean; lifted: boolean; want: boolean }
-const STATE = new WeakMap<THREE.Object3D, MergeState>()
+// (kept through a hot update of this file, as WORLD is)
+const STATE: WeakMap<THREE.Object3D, MergeState> = (import.meta.hot?.data.state as WeakMap<THREE.Object3D, MergeState> | undefined) ?? new WeakMap()
+if (import.meta.hot) import.meta.hot.data.state = STATE
 /** its part in the merge, if it's been taken into it (merged away, or taken out since): none once it's given back */
 export const mergeState = (m: THREE.Object3D) => STATE.get(m)
 /** whether it's drawn by the room's merge just now */
