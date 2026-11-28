@@ -65,8 +65,10 @@ const RISER = '#3a2416'
  * footing's band over them, the footing's sides and the genkan's side by the wall, each a part of blender/stonesteps.py's
  * made to its measure (STONE_MADE), scaled to it as it stands
  */
-/** how far out each of the doorway's stone steps reaches (the bar's units: a tread a third of a metre deep, the dining room's metres) */
-const STEP_GO = 0.17
+/** how far out each of the doorway's stone steps reaches (the bar's units: a tread a third of a metre deep, the dining room's metres); 0.17
+ * until item 823's redo (the owner's 「石階往外推」, the stone plinth 6 cm proud beside them now): each 4 cm deeper, as far past the plinth's
+ * face as before, the lower one 8 cm further out (blender/stonesteps.py's GO, 2 mm less) */
+const STEP_GO = 0.21
 /** the steps themselves (item 352, the owner's 「石階梯太假了吧」: they were boxes in the base's masonry picture, bricks stacked); now each
  * (and the band over them) stones of their own on each face that shows, as the genkan's floor is made, in a recessed pebble-wash, moss in
  * their shaded corners (item 424, the owner's 「這石階跟裡面比，不夠精緻，其次是可以加點青苔感。」: they were slabs with a picture of stones on
@@ -75,8 +77,8 @@ const STEPS_URL = import.meta.env.BASE_URL + 'models/stonesteps.glb'
 useGLTF.preload(STEPS_URL)
 /** each part's size as made (blender/stonesteps.py's SLABS): the footing's band over the upper step (item 404: a riser of its own, laid on the
  * footing's face), the upper step, the lower; the footing (the genkan's side's low curb over it, StoneSide, taken away: item 539) */
-const STONE_MADE: Record<string, [number, number, number]> = { StoneStep0: [1.2369, 0.1123, 0.012], StoneStep1: [1.2329, 0.2247, 0.168],
-  StoneStep2: [1.2289, 0.1123, 0.168], StoneFoot: [1.2369, 0.337, 1.3155] }
+const STONE_MADE: Record<string, [number, number, number]> = { StoneStep0: [1.2369, 0.1123, 0.012], StoneStep1: [1.2329, 0.2247, 0.208],
+  StoneStep2: [1.2289, 0.1123, 0.208], StoneFoot: [1.2369, 0.337, 1.3155] }
 /** the way in's stone in the room's toon light, made once for each of the model's materials and shared by all its parts (the stones' tints
  * in their points' colour, item 424; the light from all round they can't have baked into it, item 774) */
 const PAVING = new Map<THREE.Material, THREE.MeshToonMaterial>()
@@ -124,16 +126,14 @@ function laid(part: THREE.Object3D, made: [number, number, number], [x0, y0, z0]
  * from the floor's edge (the fill under the boards shows over the rim) down to the earth, 0.279 of 0.462, three fifths. Its stone a
  * castle's stone wall (item 751, guestbar/castleWall: it was granite cut and laid in two even courses)
  */
-const PLINTH_OUT = 0.018, PLINTH_SUNK = 0.015
-/** (item 823, the owner's 「要有厚度」, a red mark at the end of the light strip along the wall's top: its top's plain patch met the wall's face
- * at one edge and read as a sheet of paper laid on it) a coping stone along its top: how thick, and how far proud of the wall's face */
-const CAP_H = 0.03, CAP_OUT = 0.006
+// (item 823, the owner's 「要有厚度」 and then, over the coping stone laid along its top for it, 「多了這一條不大對，是下面的厚度要加深，石階往外推、
+// 然後要有點深度」: it stood 1.8 cm proud, its top a strip like a sheet of paper; 6 cm now, its top a ledge, the doorway's steps out with it)
+const PLINTH_OUT = 0.06, PLINTH_SUNK = 0.015
 /**
- * The plinth's mesh from its plan (game/world/groundLayout's plinthPlan): along each run its face, from `foot` (in the earth) to the coping
- * stone's foot, turned out, in its bits of the stone wall's picture (item 751, guestbar/castleWall: each face its own strip of it, broken
- * where the strip goes on in the picture's next row); over each of its ledge's rects its top (the picture's patch for it); at each end where
- * it stops at the steps a face across it, back to the base's face, its end stone's side (its strip's first or last few centimetres); and
- * along its top a coping stone with a thickness (item 823)
+ * The plinth's mesh from its plan (game/world/groundLayout's plinthPlan): along each run its face, from `foot` (in the earth) to `top`,
+ * turned out, in its bits of the stone wall's picture (item 751, guestbar/castleWall: each face its own strip of it, broken where the strip
+ * goes on in the picture's next row); over each of its ledge's rects its top (the picture's patch for it); at each end where it stops at the
+ * steps a face across it, back to the base's face, its end stone's side (its strip's first or last few centimetres)
  */
 function plinthGeometry(plan: PlinthPlan, top: number, foot: number, out: number, faces: WallFace[], atlas: WallAtlas) {
   const pos: number[] = [], nor: number[] = [], uv: number[] = []
@@ -147,14 +147,12 @@ function plinthGeometry(plan: PlinthPlan, top: number, foot: number, out: number
   }
   const H = top - foot
   const uvOf = (p: WallPiece, s: number, y: number): [number, number] => [(p.x + (s - p.s0) * atlas.K) / atlas.W, (p.y + y * atlas.K) / atlas.H]
-  // (the wall's stones up to the coping stone's foot (item 823): their picture where it was, its top CAP_H under the coping)
-  const capY = top - CAP_H
   for (const f of faces) {
     const r = plan.runs[f.run], [ox, oz] = r.out, [dx, dz] = f.along, [fx, fz] = f.from
     const ps = atlas.pieces[f.run]
     for (const p of ps) {
       const ax = fx + dx * p.s0, az = fz + dz * p.s0, bx = fx + dx * p.s1, bz = fz + dz * p.s1
-      quad([[ax, foot, az], [bx, foot, bz], [bx, capY, bz], [ax, capY, az]], [uvOf(p, p.s0, H), uvOf(p, p.s1, H), uvOf(p, p.s1, CAP_H), uvOf(p, p.s0, CAP_H)], [ox, 0, oz])
+      quad([[ax, foot, az], [bx, foot, bz], [bx, top, bz], [ax, top, az]], [uvOf(p, p.s0, H), uvOf(p, p.s1, H), uvOf(p, p.s1, 0), uvOf(p, p.s0, 0)], [ox, 0, oz])
     }
     // (an end at the steps: across it, from the plinth's face back to the base's; its picture from its strip's end inward)
     const aFirst = Math.abs(r.a[0] - fx) < 1e-9 && Math.abs(r.a[1] - fz) < 1e-9
@@ -163,33 +161,13 @@ function plinthGeometry(plan: PlinthPlan, top: number, foot: number, out: number
       const p = dir < 0 ? ps[0] : ps[ps.length - 1]
       const ex = fx + dx * s, ez = fz + dz * s, ix = ex - ox * out, iz = ez - oz * out
       const s1 = Math.min(p.s1, Math.max(p.s0, s - dir * out))
-      quad([[ex, foot, ez], [ix, foot, iz], [ix, capY, iz], [ex, capY, ez]], [uvOf(p, s, H), uvOf(p, s1, H), uvOf(p, s1, CAP_H), uvOf(p, s, CAP_H)], [dx * dir, 0, dz * dir])
+      quad([[ex, foot, ez], [ix, foot, iz], [ix, top, iz], [ex, top, ez]], [uvOf(p, s, H), uvOf(p, s1, H), uvOf(p, s1, 0), uvOf(p, s, 0)], [dx * dir, 0, dz * dir])
     }
   }
   // (its ledge's top: the picture's plain patch for it)
   const [u0, v0, u1, v1] = atlas.ledge
-  const plain: [number, number][] = [[u0, v0], [u1, v0], [u1, v1], [u0, v1]]
   for (const [x0, z0, x1, z1] of plan.ledge) {
-    quad([[x0, top, z0], [x1, top, z0], [x1, top, z1], [x0, top, z1]], plain, [0, 1, 0])
-  }
-  // (item 823) the coping stone along each run, in the ledge's plain stone: its front CAP_H high and CAP_OUT proud of the wall's face, its
-  // top and its underside over that, its ends meeting the next run's at a corner (out round a convex one, in at a concave one), square
-  // where it stops at the steps with an end across it back to the base's face
-  for (const r of plan.runs) {
-    const [ox, oz] = r.out, len = Math.hypot(r.b[0] - r.a[0], r.b[1] - r.a[1])
-    if (len < 1e-6) continue
-    const dx = (r.b[0] - r.a[0]) / len, dz = (r.b[1] - r.a[1]) / len
-    const ea = r.cutA ? 0 : r.convexA ? CAP_OUT : -CAP_OUT, eb = r.cutB ? 0 : r.convexB ? CAP_OUT : -CAP_OUT
-    const [ax, az] = r.a, [bx, bz] = r.b
-    const fa: [number, number] = [ax - dx * ea + ox * CAP_OUT, az - dz * ea + oz * CAP_OUT], fb: [number, number] = [bx + dx * eb + ox * CAP_OUT, bz + dz * eb + oz * CAP_OUT]
-    quad([[fa[0], capY, fa[1]], [fb[0], capY, fb[1]], [fb[0], top, fb[1]], [fa[0], top, fa[1]]], plain, [ox, 0, oz])
-    quad([[ax, top, az], [bx, top, bz], [fb[0], top, fb[1]], [fa[0], top, fa[1]]], plain, [0, 1, 0])
-    quad([[ax, capY, az], [bx, capY, bz], [fb[0], capY, fb[1]], [fa[0], capY, fa[1]]], plain, [0, -1, 0])
-    for (const [cut, px, pz, dir] of [[r.cutA, ax, az, -1], [r.cutB, bx, bz, 1]] as const) {
-      if (!cut) continue
-      const ix = px - ox * out, iz = pz - oz * out, fx = px + ox * CAP_OUT, fz = pz + oz * CAP_OUT
-      quad([[ix, capY, iz], [fx, capY, fz], [fx, top, fz], [ix, top, iz]], plain, [dx * dir, 0, dz * dir])
-    }
+    quad([[x0, top, z0], [x1, top, z0], [x1, top, z1], [x0, top, z1]], [[u0, v0], [u1, v0], [u1, v1], [u0, v1]], [0, 1, 0])
   }
   const g = new THREE.BufferGeometry()
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
