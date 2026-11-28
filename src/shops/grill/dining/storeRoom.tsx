@@ -23,39 +23,44 @@ import { GLOW } from './shrine'
 
 /** the stock room's doorway's frame (items 430): its posts' width in the wall's line, its head's height over the opening */
 export const STORE_POST = STORE.post, STORE_HEAD = 0.07
-/** the stock room's noren (a half-noren, to the stocker's shoulders): as wide as the frame's posts' outer sides (the doorway's as laid out,
- * item 467), and how long */
-const STORE_NOREN_L = 0.6
+/** the stock room's noren: as wide as the frame's posts' outer sides (the doorway's as laid out, item 467), and how long (item 781, the
+ * owner's 「簾子長一些，最少要一半以上」: 0.6, a half-noren to the stocker's shoulders, a third of the doorway; 1.15 a mid-length one, its hem
+ * 0.76 over the floor, six tenths of the opening behind it, the crates in there still seen under it) */
+const STORE_NOREN_L = 1.15
 /**
  * The stock room's noren (item 430, the owner's 「這邊挖空並加上掛簾，後面是小儲藏室，倉儲員工專用」): indigo cotton, the shop's back rooms'
  * plain kind: its top band darker where it's sewn over the rod; across its middle, where its two panels part, a white ring round 倉 (the
  * store), and under it in small spaced capitals STAFF ONLY; a white line along its hem; the cotton's weave. One picture over both panels.
  */
 const storeNoren = (wide: number) => {
-  const PX = 1024 / wide, H = Math.round(STORE_NOREN_L * PX)
-  return canvasTex(1024, H, (g) => {
+  // (as many pixels a metre as keep both its width and its length within 1024: a picture past that is halved as it's uploaded)
+  const PX = Math.min(1024 / wide, 1024 / STORE_NOREN_L), W = Math.round(wide * PX), H = Math.round(STORE_NOREN_L * PX)
+  return canvasTex(W, H, (g) => {
     const cloth = '#1f2f52'
-    const band = Math.round(0.034 * PX), cy = Math.round(band + (H - band) * 0.43)
+    const band = Math.round(0.034 * PX)
     g.save()
-    g.fillStyle = cloth; g.fillRect(0, 0, 1024, H)
+    g.fillStyle = cloth; g.fillRect(0, 0, W, H)
     g.globalAlpha = 0.06
     g.fillStyle = '#ffffff'
-    for (let x = 0; x < 1024; x += 3) g.fillRect(x, 0, 1, H)
+    for (let x = 0; x < W; x += 3) g.fillRect(x, 0, 1, H)
     g.fillStyle = '#000000'
-    for (let y = 0; y < H; y += 3) g.fillRect(0, y, 1024, 1)
+    for (let y = 0; y < H; y += 3) g.fillRect(0, y, W, 1)
     g.globalAlpha = 1
-    g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, 0, 1024, band)
-    g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(0, band, 1024, 3)
-    // (the ring and the character in it)
+    g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, 0, W, band)
+    g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(0, band, W, 3)
+    // (the ring and the character in it, as large as they were (drawn for 1024 across 0.648), at a person's eyes: 0.34 under its top)
+    const k = W / 1024
+    g.translate(W / 2, Math.round(0.34 * PX)); g.scale(k, k)
     g.strokeStyle = '#efe9dc'; g.lineWidth = 16
-    g.beginPath(); g.arc(512, cy, 150, 0, Math.PI * 2); g.stroke()
+    g.beginPath(); g.arc(0, 0, 150, 0, Math.PI * 2); g.stroke()
     g.fillStyle = '#efe9dc'; g.textAlign = 'center'; g.textBaseline = 'middle'
     g.font = `700 200px ${SIGN_FONT}`
-    g.fillText('倉', 512, cy + 8)
+    g.fillText('倉', 0, 8)
     g.font = '700 46px "Arial Black", sans-serif'
     ;(g as unknown as { letterSpacing: string }).letterSpacing = '14px'
-    g.fillText('STAFF ONLY', 512, cy + 232)
-    g.fillRect(0, H - Math.round(0.022 * PX), 1024, 5)
+    g.fillText('STAFF ONLY', 0, 232)
+    g.setTransform(1, 0, 0, 1, 0, 0)
+    g.fillRect(0, H - Math.round(0.022 * PX), W, Math.max(3, Math.round(5 * k)))
     g.restore()
   })
 }
@@ -518,7 +523,8 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
     st.push += st.v * dt
     const g = noren.current
     if (!g) return
-    g.children.forEach((p, i) => { p.rotation.z = st.push * (0.62 - i * 0.08) })
+    // (item 781: bent, not swung stiff as a board: over his shoulder tilted aside, under it hanging down over him)
+    g.children.forEach((p, i) => { const m = p.children[0] as THREE.Mesh | undefined; if (m) bendNoren(m.geometry, st.push * (0.62 - i * 0.08)) })
   })
   // (the small wall over the doorway and the fridges (item 762): its outline across them, the doorway's stretch from over its lintel, the
   // fridges' from the doorway's height (their lintel gone), up to the head; through the wall's thickness, 4 mm in from either face)
@@ -644,12 +650,13 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
         onPointerOver={stopHere} onPointerMove={stopHere} onClick={stopHere}>
         <planeGeometry args={[zE - door[1] - STORE_POST, WALL_H]} />
       </mesh>
-      {/* (a mat before its doorway on the shop's floor (item 756, the owner's 「倉庫玄關口要有地墊。」, a red box on the boards before the
-          doorway's noren; item 763: the owner's navy 青海波 with blossoms, the dirt of the back's coming and going not seen on it): the
-          doorway's width less 3 cm each side, 42 cm out into the shop from 3 cm off the wall; 4 mm thick, half a millimetre over the boards
-          (their top 4 mm up), a dark rubber border; the stock keeper walks over it) */}
-      <Movable id="storemat" label="倉庫門口地墊" ground={0.0045}>
-        <group position={[-0.03 - STORE_MAT_D / 2, 0.0045, (door[0] + door[1]) / 2]} rotation-y={Math.PI / 2}>
+      {/* (a mat at its doorway (item 756, the owner's 「倉庫玄關口要有地墊。」; item 763: the owner's navy 青海波 with blossoms, the dirt of
+          the back's coming and going not seen on it); inside the room (item 782, the owner's 「腳踏墊放倉庫室內」: it lay on the shop's boards
+          before the doorway): on the mortar floor 2 cm in from the wall's inner face, 42 cm on into the room, as wide as the doorway's frame
+          less 3 cm each side, square to the doorway (nothing stands there: no vertex of anything else in it, `_mat782.mjs`); 4 mm thick, half a
+          millimetre over the mortar (its top 6.5 mm up), a dark rubber border; the stock keeper walks over it, the noren's hem over it) */}
+      <Movable id="storemat" label="倉庫門口地墊" ground={0.007}>
+        <group position={[WALL_OUT + 0.02 + STORE_MAT_D / 2, 0.007, (door[0] + door[1]) / 2]} rotation-y={Math.PI / 2}>
           <PatternMat art="navyWaves" w={outerW - 0.06} d={STORE_MAT_D} t={0.004} edge={0.03} rim="#1b1e26" />
         </group>
       </Movable>
@@ -664,16 +671,49 @@ export function StoreRoom({ door, room, deep, fridges }: { door: [number, number
     </group>
   )
 }
+/** (item 781) how far under the rod the stocker's shoulder meets the noren as he goes through (over it the cloth tilted aside, under it
+ * hanging down again, draped over him), how much of the tilt the cloth under it keeps, half the length of the turn between; its rows across
+ * (how finely it bends) */
+const NOREN_PUSH_AT = 0.48, NOREN_HANG = 0.22, NOREN_BEND = 0.12, NOREN_ROWS = 12
+/** one of the noren's panels pushed `a` (radians) aside: from the rod down to where it's pushed tilted a, under that hanging again (a
+ * little of a kept), the turn between eased; each row put along the cloth (its length kept, not moved straight); flat as it hangs at 0. Only
+ * when it's moved */
+function bendNoren(g: THREE.BufferGeometry, a: number) {
+  const ud = g.userData as { rest?: Float32Array; a?: number }
+  const rest = ud.rest
+  if (!rest || Math.abs((ud.a ?? 0) - a) < 1e-4) return
+  ud.a = a
+  const pos = g.attributes.position as THREE.BufferAttribute
+  const lo = NOREN_PUSH_AT - NOREN_BEND, hi = NOREN_PUSH_AT + NOREN_BEND
+  // (down the rows, top first, two to a row (the plane's own order): walked along the cloth in 2 cm steps)
+  let x = 0, y = 0, sAt = 0
+  for (let r = 0; r * 2 < pos.count; r++) {
+    const y0 = rest[r * 6 + 1], s = Math.max(0, -y0)
+    const n = Math.max(1, Math.ceil((s - sAt) / 0.02)), ds = (s - sAt) / n
+    for (let j = 0; j < n; j++) {
+      const t = a * (1 - THREE.MathUtils.smoothstep(sAt + (j + 0.5) * ds, lo, hi) * (1 - NOREN_HANG))
+      x += Math.sin(t) * ds; y += Math.cos(t) * ds
+    }
+    sAt = s
+    // (its own frame's -z is into the stock room, the way it's pushed)
+    for (let c = 0; c < 2; c++) { const i = r * 2 + c; pos.setXYZ(i, rest[i * 3], y0 > 0 ? y0 : -y, -x) }
+  }
+  pos.needsUpdate = true
+  g.computeVertexNormals()
+}
 /** one of the stock room noren's two panels: its half of the picture, hung from the rod (its top), a slit between the two */
 function StoreNorenPanel({ sd, wide }: { sd: number; wide: number }) {
   const geo = useMemo(() => {
     const w = (wide - 0.008) / 2
-    const g = new THREE.PlaneGeometry(w, STORE_NOREN_L)
+    const g = new THREE.PlaneGeometry(w, STORE_NOREN_L, 1, NOREN_ROWS)
     const u0 = sd < 0 ? 0 : 1 - w / wide, u1 = u0 + w / wide
     const uv = g.attributes.uv as THREE.BufferAttribute
     for (let k = 0; k < uv.count; k++) uv.setX(k, u0 + uv.getX(k) * (u1 - u0))
-    // (hung from its top: the cloth below the rod)
+    // (hung from its top: the cloth below the rod; as it hangs kept to bend from, its bounds as wide as it's ever pushed)
     g.translate(0, -STORE_NOREN_L / 2 + 0.012, 0)
+    g.userData.rest = (g.attributes.position.array as Float32Array).slice()
+    g.computeBoundingSphere()
+    g.boundingSphere!.radius += STORE_NOREN_L * 0.4
     return { g, z: sd * (0.008 + w) / 2 }
   }, [sd, wide])
   useEffect(() => () => geo.g.dispose(), [geo])
