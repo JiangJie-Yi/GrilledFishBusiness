@@ -31,7 +31,12 @@ export function Kabuto() {
           ? new THREE.MeshStandardMaterial({ color: '#ffffff', map: src.map, metalness: 1, roughness: 0.3 })
           : src.name === 'KabutoLacquer'
             ? new THREE.MeshPhysicalMaterial({ color: src.color.clone(), map: src.map, roughness: 0.3, clearcoat: 0.8, clearcoatRoughness: 0.15 })
-            : new THREE.MeshToonMaterial({ color: src.color.clone(), map: src.map })
+            // (the mask lacquered as the bowl is, its relief (the moustache, the wrinkles, the lips, the rolled rim) in its normal map (item 900:
+            // drawn in the toon light under the peak it was one flat black shape))
+            : src.name === 'KabutoMask'
+              ? new THREE.MeshPhysicalMaterial({ color: src.color.clone(), map: src.map, normalMap: src.normalMap,
+                normalScale: src.normalScale.clone(), roughness: 0.34, clearcoat: 0.8, clearcoatRoughness: 0.18 })
+              : new THREE.MeshToonMaterial({ color: src.color.clone(), map: src.map })
         if ((t as THREE.MeshStandardMaterial).metalness === 1) reflectStudio(t as THREE.MeshStandardMaterial)
         made.set(src, t)
       }
@@ -39,7 +44,8 @@ export function Kabuto() {
       m.castShadow = true
       m.receiveShadow = true
     })
-    inkModel(r, (m) => /Tehen|Crest|Cord|Knot|Inside/.test(m.name), { width: 0.0012, weld: true })
+    // (nor the teeth behind the mouth (item 900): their outline showed round the opening's inside)
+    inkModel(r, (m) => /Tehen|Crest|Cord|Knot|Inside|Teeth/.test(m.name), { width: 0.0012, weld: true })
     // (nothing on it moves: its parts drawn a few at a time)
     plainColours(r)
     mergeByMaterial(r)
