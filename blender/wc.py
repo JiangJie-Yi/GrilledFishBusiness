@@ -57,6 +57,16 @@ def fin(o, name, mat, parts, smooth=True):
     return o
 
 
+def flat_ends(o, axis=(0.0, 0.0, 1.0)):
+    """a turned piece's or a cylinder's flat ends (the faces square to its axis, `axis` in its own frame) shaded flat (item 901): with the
+    sides' smooth normals carried across them they shaded in streaks, a mirror's face most of all (scripts/topo-audit.mjs's soft caps)"""
+    ax = Vector(axis)
+    for p in o.data.polygons:
+        if abs(p.normal.dot(ax)) > 0.999:
+            p.use_smooth = False
+    return o
+
+
 def lathe_oval(name, prof, sx=1.0, sz=1.0, segs=24, cx=0.0, cz=0.0, cap=True):
     """a turned piece, its rings stretched to an oval (sx along x, sz along z), centred at (cx, cz) (three frame); a profile that closes
     on itself (a ring, like the seat) takes cap=False, or its ends would be filled across its hole. A profile's end on the axis (r 0) isn't a
@@ -180,7 +190,7 @@ def toilet():
     # (the cistern behind: a rounded tank, the hand-wash basin on its lid (手洗い付き), its spout curving over, the lever on its left side)
     fin(rbox("WcTank", (0.17, 0.34, 0.44), (0.305, 0.58, 0), 0.04, 3), "WcTank", M["china"], parts)
     basin = lathe_oval("WcTankBasin", [(0.0, 0.748), (0.15, 0.748), (0.205, 0.765), (0.212, 0.782), (0.196, 0.788), (0.15, 0.772), (0.0, 0.766)], 0.42, 1.0, RB, 0.3, 0)
-    fin(basin, "WcTankBasin", M["china"], parts)
+    flat_ends(fin(basin, "WcTankBasin", M["china"], parts))
     # (the spout: a round foot on the basin's back, a gooseneck rising and curving over in one smooth bend (its ends closed: an open pipe
     # end showed as a ring), a nozzle at its tip, its dark outlet underneath, over the basin's middle; the game's water runs from SPOUT_TIP)
     # (the spout's tube 8 round and 3 steps to each of its five bends (12 round and 5 before: 412 triangles for a pipe 2 cm thick); its
@@ -659,7 +669,7 @@ def washstand():
         pz = zc + (-1 if k == 0 else 1) * (dw / 2 - st / 2)
         fin(rbox(f"WashPull{k}", (0.006, 0.055, 0.009), (x0 - 0.013, (y0 + y1) / 2, pz), 0.002, 1), f"WashPull{k}", M["shadow"], parts)
     # ---- the bowl, on the counter, and its brass drain
-    fin(bowl, "WashBowl", M["bowl"], parts)
+    flat_ends(fin(bowl, "WashBowl", M["bowl"], parts))
     bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.027, depth=0.004, location=P(-0.21, T + 0.035, 0))
     fin(active(), "WashDrain", M["brass"], parts)
     for k in range(6):
@@ -785,9 +795,9 @@ def washstand():
     # (the frame and the glass 64 round: at 48 the frame's edge showed its corners close to; the ring between them 48 round and its tube four
     # (item 25): 64 by six it was 768 triangles, a ring 6 mm thick; at 48 it's 0.4 mm off the circle at most, between the two)
     bpy.ops.mesh.primitive_cylinder_add(vertices=64, radius=0.205, depth=0.022, location=P(-0.011, MY, 0), rotation=(0, math.pi / 2, 0))
-    fin(active(), "WashMirrorFrame", M["frame"], parts)
+    flat_ends(fin(active(), "WashMirrorFrame", M["frame"], parts))
     bpy.ops.mesh.primitive_cylinder_add(vertices=64, radius=0.188, depth=0.004, location=P(-0.0235, MY, 0), rotation=(0, math.pi / 2, 0))
-    fin(active(), "WashMirror", M["mirror"], parts)
+    flat_ends(fin(active(), "WashMirror", M["mirror"], parts))
     bpy.ops.mesh.primitive_torus_add(major_radius=0.19, minor_radius=0.0032, major_segments=48, minor_segments=4, location=P(-0.024, MY, 0), rotation=(0, math.pi / 2, 0))
     fin(active(), "WashMirrorRing", M["brass"], parts)
     # (the marks the game reads: the spout's mouth, the drain)
