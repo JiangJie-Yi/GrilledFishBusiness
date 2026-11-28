@@ -251,8 +251,9 @@ def tube(name, pts, r, mat_, ring=None, steps=None):
 
 def hole(prefix, x, z):
     """a small cable hole let into the surface the device stands on, its ring flush, black inside"""
-    return [cyl(f"{prefix}HoleRing", 0.007, 0.0008, P(x, 0.0004, z), M["holeRing"], verts=24),
-            cyl(f"{prefix}Hole", 0.0045, 0.0009, P(x, 0.00045, z), M["hole"], verts=20)]
+    # (sixteen round: a ring a centimetre and a half across)
+    return [cyl(f"{prefix}HoleRing", 0.007, 0.0008, P(x, 0.0004, z), M["holeRing"], verts=16),
+            cyl(f"{prefix}Hole", 0.0045, 0.0009, P(x, 0.00045, z), M["hole"], verts=16)]
 
 
 def node(name, parts):
@@ -714,7 +715,9 @@ cr.append(box("ReaderChipSlot", S(0.062, 0.004, 0.003), P(0, 0.012, FZ - 0.0002)
 for sx in (-1, 1):
     for sz in (-1, 1):
         cr.append(cyl(f"ReaderFoot{sx}{sz}", 0.005, 0.002, P(sx * (RW / 2 - 0.012), 0.001, sz * (RL / 2 - 0.02)), M["felt"], verts=12))
-cr.append(tube("ReaderCable", [(0.0, 0.014, BZ - 0.002), (0.0, 0.012, BZ + 0.008), (0.0, 0.004, BZ + 0.014), (0.0, -0.01, BZ + 0.016)], 0.0024, M["cable"]))
+# (three steps a span: six were 216 triangles for a lead a few centimetres long, its bends gentle; the printer's, round its back corner,
+# keeps its six: at three its turn showed kinks from above)
+cr.append(tube("ReaderCable", [(0.0, 0.014, BZ - 0.002), (0.0, 0.012, BZ + 0.008), (0.0, 0.004, BZ + 0.014), (0.0, -0.01, BZ + 0.016)], 0.0024, M["cable"], steps=3))
 cr += hole("Reader", 0.0, BZ + 0.016)
 nodes.append(node("TillCardReader", cr))
 
@@ -757,7 +760,7 @@ plunger = bpy.data.objects.new("TillBellPlunger", None)
 bpy.context.collection.objects.link(plunger)
 plunger.location = P(0, 0.015 + 0.0296 + 0.0035, 0)
 pl = [cyl("BellStem", 0.0024, 0.012, (0, 0, 0.006), M["nickel"], verts=16),
-      cyl("BellKnob", 0.0085, 0.006, (0, 0, 0.0135), M["nickel"], verts=32)]
+      cyl("BellKnob", 0.0085, 0.006, (0, 0, 0.0135), M["nickel"], verts=20)]
 for o in pl:
     o.parent = plunger
 bl.append(plunger)
@@ -915,9 +918,9 @@ nodes.append(node("TillCatStand", cs))
 # =====================================================================
 mtree = []
 PR, PH2 = 0.055, 0.075
-# (a pot widening up to its lip)
-pot = cyl("TreePot", PR * 0.8, PH2, P(0, PH2 / 2, 0), M["potGlaze"], verts=40, r2=PR)
-potin = cyl("tpin", PR * 0.8 - 0.006, PH2, P(0, PH2 / 2 + 0.008, 0), M["potGlaze"], verts=40, r2=PR - 0.006)
+# (a pot widening up to its lip, 24 round as its rim is)
+pot = cyl("TreePot", PR * 0.8, PH2, P(0, PH2 / 2, 0), M["potGlaze"], verts=24, r2=PR)
+potin = cyl("tpin", PR * 0.8 - 0.006, PH2, P(0, PH2 / 2 + 0.008, 0), M["potGlaze"], verts=24, r2=PR - 0.006)
 m_ = pot.modifiers.new("cut", "BOOLEAN"); m_.operation = "DIFFERENCE"; m_.object = potin; m_.solver = "EXACT"
 apply_mods(pot)
 bpy.data.objects.remove(potin)
@@ -925,8 +928,9 @@ mtree.append(pot)
 # (its rim: a rolled lip round the top, open in the middle so the soil and pebbles show)
 bpy.ops.mesh.primitive_torus_add(major_radius=PR - 0.003, minor_radius=0.0045, major_segments=24, minor_segments=6, location=P(0, PH2, 0))
 mtree.append(finish(active(), "TreePotRim", M["potGlaze"]))
-mtree.append(cyl("TreePotFoot", PR * 0.74, 0.006, P(0, 0.003, 0), M["potFoot"], verts=40))
-mtree.append(cyl("TreeSoil", PR - 0.008, 0.004, P(0, PH2 - 0.012, 0), M["soil"], verts=32))
+# (no foot ring under it: the one made was inside the pot's own solid base all round, 3 mm in from its edge and below its floor, never
+# seen; 156 triangles and a material of its own for nothing)
+mtree.append(cyl("TreeSoil", PR - 0.008, 0.004, P(0, PH2 - 0.012, 0), M["soil"], verts=24))
 # (pale river pebbles over the soil: smooth, each its own size and squash and turn, three shades, packed round the trunks)
 _pr = __import__("random").Random(7)
 for i in range(30):
@@ -939,7 +943,7 @@ for i in range(30):
     pb = active(); pb.scale = (1 + _pr.random() * 0.5, 1, 0.55); apply_scale(pb)
     mtree.append(finish(pb, f"TreePebble{i}", M[("pebble", "pebble2", "pebble3")[i % 3]]))
 # (a gold band round the pot's shoulder, and 發 in gold on its front)
-mtree.append(cyl("TreePotBand", PR * 0.954 + 0.0008, 0.004, P(0, PH2 - 0.016, 0), M["coinGold"], verts=40, r2=PR * 0.965 + 0.0008))
+mtree.append(cyl("TreePotBand", PR * 0.954 + 0.0008, 0.004, P(0, PH2 - 0.016, 0), M["coinGold"], verts=24, r2=PR * 0.965 + 0.0008))
 mtree.append(DESK_PRINT.add(text("TreePotChar", "發", 0.034, M["coinGold"], P(0, PH2 * 0.45, PR * 0.895 + 0.0015), (math.pi / 2 - 0.13, 0, 0), HAN_, res=8)))
 
 
@@ -1020,9 +1024,9 @@ for sd in (-1, 1):
                                      location=P(0.006 * sd, TB + 0.062, 0.0125), rotation=(math.pi / 2, 0.5 * sd, 0))
     lp_ = active(); lp_.scale = (1.4, 1, 0.7); apply_scale(lp_)
     mtree.append(finish(lp_, f"TreeRibbonLoop{sd}", M["ribbonRed"]))
-mtree.append(tube("TreeRibbonTail", [(0.011, TB + 0.06, 0), (0.016, TB + 0.045, 0.004), (0.017, TB + 0.03, 0.006)], 0.0018, M["ribbonRed"]))
-mtree.append(tube("TreeRibbonTail2", [(0.0, TB + 0.06, 0.012), (-0.004, TB + 0.045, 0.014), (-0.006, TB + 0.032, 0.015)], 0.0016, M["ribbonRed"]))
-coin = cyl("TreeCoin", 0.011, 0.002, P(0.018, TB + 0.022, 0.007), M["coinGold"], rot=(math.pi / 2, 0, 0.3), verts=28)
+mtree.append(tube("TreeRibbonTail", [(0.011, TB + 0.06, 0), (0.016, TB + 0.045, 0.004), (0.017, TB + 0.03, 0.006)], 0.0018, M["ribbonRed"], steps=3))
+mtree.append(tube("TreeRibbonTail2", [(0.0, TB + 0.06, 0.012), (-0.004, TB + 0.045, 0.014), (-0.006, TB + 0.032, 0.015)], 0.0016, M["ribbonRed"], steps=3))
+coin = cyl("TreeCoin", 0.011, 0.002, P(0.018, TB + 0.022, 0.007), M["coinGold"], rot=(math.pi / 2, 0, 0.3), verts=20)
 hole_ = box("ch", S(0.006, 0.006, 0.02), P(0.018, TB + 0.022, 0.007), M["coinGold"])
 m_ = coin.modifiers.new("cut", "BOOLEAN"); m_.operation = "DIFFERENCE"; m_.object = hole_; m_.solver = "EXACT"
 apply_mods(coin)
