@@ -170,6 +170,194 @@ export function roundedShape(pts: [number, number][], radii: number[]) {
   sh.closePath()
   return sh
 }
+type P2 = [number, number]
+/**
+ * A slab through an outline of square corners `pts`, each rounded off to its radius as roundedShape rounds it, extruded and bevelled as
+ * ExtrudeGeometry does (its sides are ExtrudeGeometry's own), but its two flat faces cut into even quads where earcut cut them into long
+ * slivers fanning out from one corner across the whole face (item 954, the owner's 「灶台區的面數很怪」 with the wireframe of the cook table's
+ * top round the hearth). The lines through the outline's own corners cut the face into cells, each one quad; a cell with a rounded corner
+ * at a corner of it a square there half its narrower side (or the curve's radius), the curve's piece a ladder across it from the square's
+ * inner corner (as blender/common.py's ladder_fill: no fan), the rest of the cell quads; a notch's inside corner, its curve hollow toward the
+ * cell, a ladder between the curve and the cell's two sides. Wherever a cut meets the outline, the outline is given that point, so the sides
+ * meet the faces point for point. `arc`: the straight steps round each curve (ExtrudeGeometry's curveSegments 4 made 8).
+ */
+export function quadSlab(pts: P2[], radii: number[], ex: { depth: number; bevelThickness: number; bevelSize: number; bevelSegments: number }, arc = 8) {
+  const n = pts.length
+  const near = (p: P2, q: P2) => Math.abs(p[0] - q[0]) < 1e-7 && Math.abs(p[1] - q[1]) < 1e-7
+  // ---- the outline: each rounded corner a true quarter circle from its cut-in point on the edge before to the one on the edge after
+  const ring: P2[] = []
+  const put = (p: P2) => { if (!ring.length || !near(ring[ring.length - 1], p)) ring.push(p) }
+  for (let k = 0; k < n; k++) {
+    const [x, y] = pts[k], [px, py] = pts[(k + n - 1) % n], [nx, ny] = pts[(k + 1) % n]
+    const dp = Math.hypot(px - x, py - y), dn = Math.hypot(nx - x, ny - y)
+    const r = Math.min(radii[k] ?? 0, dp / 2, dn / 2)
+    if (r < 1e-6) { put([x, y]); continue }
+    const a: P2 = [x + (px - x) / dp * r, y + (py - y) / dp * r], b: P2 = [x + (nx - x) / dn * r, y + (ny - y) / dn * r]
+    const cx = a[0] + b[0] - x, cy = a[1] + b[1] - y, t0 = Math.atan2(a[1] - cy, a[0] - cx)
+    let d = Math.atan2(b[1] - cy, b[0] - cx) - t0
+    if (d > Math.PI) d -= 2 * Math.PI
+    if (d < -Math.PI) d += 2 * Math.PI
+    for (let s = 0; s <= arc; s++) put(s === 0 ? a : s === arc ? b : [cx + Math.cos(t0 + d * s / arc) * r, cy + Math.sin(t0 + d * s / arc) * r])
+  }
+  if (ring.length > 1 && near(ring[0], ring[ring.length - 1])) ring.pop()
+  const onSeg = (p: P2, a: P2, b: P2) => {
+    const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy
+    if (l2 < 1e-18) return near(p, a)
+    const t = ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2
+    if (t < -1e-9 || t > 1 + 1e-9) return false
+    const ex = a[0] + dx * t - p[0], ey = a[1] + dy * t - p[1]
+    return ex * ex + ey * ey < 1e-14
+  }
+  const onRing = (p: P2) => { for (let k = 0; k < ring.length; k++) if (onSeg(p, ring[k], ring[(k + 1) % ring.length])) return true; return false }
+  const area = (q: P2[]) => { let s = 0; for (let k = 0; k < q.length; k++) { const a = q[k], b = q[(k + 1) % q.length]; s += a[0] * b[1] - b[0] * a[1] } return s / 2 }
+  // ---- a cell's piece of the face: the outline clipped to the cell (Sutherland and Hodgman's, one side of it at a time)
+  const clip = (poly: P2[], x0: number, x1: number, y0: number, y1: number) => {
+    const side = (p: P2[], inside: (q: P2) => boolean, cut: (a: P2, b: P2) => P2) => {
+      const out: P2[] = []
+      for (let k = 0; k < p.length; k++) {
+        const a = p[k], b = p[(k + 1) % p.length], ia = inside(a), ib = inside(b)
+        if (ia) out.push(a)
+        if (ia !== ib) out.push(cut(a, b))
+      }
+      return out
+    }
+    const atX = (x: number) => (a: P2, b: P2): P2 => [x, a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0])]
+    const atY = (y: number) => (a: P2, b: P2): P2 => [a[0] + (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]), y]
+    let p = side(poly, (q) => q[0] >= x0 - 1e-9, atX(x0))
+    p = side(p, (q) => q[0] <= x1 + 1e-9, atX(x1))
+    p = side(p, (q) => q[1] >= y0 - 1e-9, atY(y0))
+    p = side(p, (q) => q[1] <= y1 + 1e-9, atY(y1))
+    const out: P2[] = []
+    for (const q of p) if (!out.length || !near(out[out.length - 1], q)) out.push(q)
+    if (out.length > 1 && near(out[0], out[out.length - 1])) out.pop()
+    // (a point on a straight run between two others left out: it's on neither the outline's turns nor the cell's)
+    return out.filter((q, k) => {
+      const a = out[(k + out.length - 1) % out.length], b = out[(k + 1) % out.length]
+      return Math.abs((q[0] - a[0]) * (b[1] - a[1]) - (q[1] - a[1]) * (b[0] - a[0])) > 1e-12 || onRing(q)
+    })
+  }
+  const tris: P2[][] = []
+  const quad = (a: P2, b: P2, c: P2, d: P2) => { tris.push([a, b, c], [a, c, d]) }
+  // (a convex piece: a ladder across it from `s` (a triangle, then quads one rung at a time, a triangle or a quad at the far end), as
+  // blender/common.py's ladder_fill)
+  const ladder = (q: P2[], s: number) => {
+    const m = q.length, at = (k: number) => q[(s + k) % m]
+    tris.push([at(0), at(1), at(m - 1)])
+    let lo = 1, hi = m - 1
+    while (hi - lo > 2) { quad(at(lo), at(lo + 1), at(hi - 1), at(hi)); lo++; hi-- }
+    if (hi - lo === 2) tris.push([at(lo), at(lo + 1), at(hi)])
+  }
+  const convex = (q: P2[]) => {
+    let sign = 0
+    for (let k = 0; k < q.length; k++) {
+      const a = q[k], b = q[(k + 1) % q.length], c = q[(k + 2) % q.length]
+      const z = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0])
+      if (Math.abs(z) < 1e-14) continue
+      if (!sign) sign = Math.sign(z)
+      else if (Math.sign(z) !== sign) return false
+    }
+    return true
+  }
+  // (a cut piece: one quad if it's the whole cell; a ladder across it from its corner off the outline if it's convex (a rounded corner's);
+  // otherwise (a notch's inside corner, its curve hollow toward it) a ladder between the curve (the outline's run through it) and the cell's
+  // sides, the shorter given as many steps as the longer, its longest steps halved)
+  const cut = (piece: P2[], x0: number, x1: number, y0: number, y1: number) => {
+    if (piece.length < 3) return
+    const A = Math.abs(area(piece))
+    if (A < 1e-10) return
+    if (Math.abs(A - (x1 - x0) * (y1 - y0)) < 1e-9 && piece.every((q) => (Math.abs(q[0] - x0) < 1e-7 || Math.abs(q[0] - x1) < 1e-7) && (Math.abs(q[1] - y0) < 1e-7 || Math.abs(q[1] - y1) < 1e-7))) {
+      quad([x0, y0], [x1, y0], [x1, y1], [x0, y1])
+      return
+    }
+    if (convex(piece)) {
+      const s = piece.findIndex((q) => !onRing(q))
+      ladder(piece, s < 0 ? 0 : s)
+      return
+    }
+    const on = piece.map(onRing), m = piece.length
+    let s = -1
+    for (let k = 0; k < m; k++) if (on[k] && !on[(k + m - 1) % m]) { s = s === -1 ? k : -2 }
+    if (s < 0) {
+      for (const t of THREE.ShapeUtils.triangulateShape(piece.map(([x, y]) => new THREE.Vector2(x, y)), [])) tris.push([piece[t[0]], piece[t[1]], piece[t[2]]])
+      return
+    }
+    let e = s
+    while (on[(e + 1) % m] && (e + 1) % m !== s) e = (e + 1) % m
+    const r1: P2[] = [], r2: P2[] = []
+    for (let k = s; ; k = (k + 1) % m) { r1.push(piece[k]); if (k === e) break }
+    for (let k = s; ; k = (k + m - 1) % m) { r2.push(piece[k]); if (k === e) break }
+    const M = Math.max(r1.length, r2.length) - 1
+    for (const r of [r1, r2]) {
+      while (r.length - 1 < M) {
+        let w = 0, best = -1
+        for (let k = 0; k + 1 < r.length; k++) { const L = Math.hypot(r[k + 1][0] - r[k][0], r[k + 1][1] - r[k][1]); if (L > best) { best = L; w = k } }
+        r.splice(w + 1, 0, [(r[w][0] + r[w + 1][0]) / 2, (r[w][1] + r[w + 1][1]) / 2])
+      }
+    }
+    for (let k = 0; k < M; k++) {
+      const a = r1[k], b = r1[k + 1], c = r2[k + 1], d = r2[k]
+      if (near(a, d)) tris.push([a, b, c])
+      else if (near(b, c)) tris.push([a, b, d])
+      else quad(a, b, c, d)
+    }
+  }
+  // (the face cut along the lines through the outline's square corners only (its own notches' and ends' lines): a cell with no rounded corner
+  // at its corners one quad; one with, a square at each such corner half the cell's narrower side (or the curve's radius, if that's more), so
+  // no strip as thin as a small curve runs the cell's length: the square's piece a ladder across it, the rest of the cell quads)
+  const uniq = (v: number[]) => [...v].sort((a, b) => a - b).filter((x, k, w) => !k || x - w[k - 1] > 1e-6)
+  const X = uniq(pts.map((q) => q[0])), Y = uniq(pts.map((q) => q[1]))
+  const roundAt = (x: number, y: number) => {
+    for (let k = 0; k < n; k++) if (Math.abs(pts[k][0] - x) < 1e-7 && Math.abs(pts[k][1] - y) < 1e-7) return Math.min(radii[k] ?? 0, Math.hypot(pts[(k + n - 1) % n][0] - x, pts[(k + n - 1) % n][1] - y) / 2, Math.hypot(pts[(k + 1) % n][0] - x, pts[(k + 1) % n][1] - y) / 2)
+    return 0
+  }
+  for (let i = 0; i + 1 < X.length; i++) for (let j = 0; j + 1 < Y.length; j++) {
+    const x0 = X[i], x1 = X[i + 1], y0 = Y[j], y1 = Y[j + 1]
+    const [r00, r10, r11, r01] = [roundAt(x0, y0), roundAt(x1, y0), roundAt(x1, y1), roundAt(x0, y1)]
+    if (!(r00 || r10 || r11 || r01)) { cut(clip(ring, x0, x1, y0, y1), x0, x1, y0, y1); continue }
+    const half = Math.min(x1 - x0, y1 - y0) / 2
+    const sq = (r: number) => Math.max(half, r)
+    const lx = uniq([x0, x1, ...(r00 || r01 ? [x0 + sq(Math.max(r00, r01))] : []), ...(r10 || r11 ? [x1 - sq(Math.max(r10, r11))] : [])].filter((x) => x >= x0 - 1e-9 && x <= x1 + 1e-9))
+    const ly = uniq([y0, y1, ...(r00 || r10 ? [y0 + sq(Math.max(r00, r10))] : []), ...(r01 || r11 ? [y1 - sq(Math.max(r01, r11))] : [])].filter((y) => y >= y0 - 1e-9 && y <= y1 + 1e-9))
+    for (let a = 0; a + 1 < lx.length; a++) for (let b = 0; b + 1 < ly.length; b++) cut(clip(ring, lx[a], lx[a + 1], ly[b], ly[b + 1]), lx[a], lx[a + 1], ly[b], ly[b + 1])
+  }
+  // ---- the outline given every point of the faces that lies on it, so the sides are cut where the faces are
+  const extra: P2[] = []
+  for (const t of tris) for (const p of t) if (!ring.some((q) => near(q, p)) && !extra.some((q) => near(q, p)) && onRing(p)) extra.push(p)
+  const full: P2[] = []
+  for (let k = 0; k < ring.length; k++) {
+    const a = ring[k], b = ring[(k + 1) % ring.length]
+    full.push(a)
+    const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy
+    const on = extra.filter((p) => onSeg(p, a, b) && !near(p, a) && !near(p, b))
+    on.sort((p, q) => ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2 - ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / l2)
+    full.push(...on)
+  }
+  // ---- the sides and bevels ExtrudeGeometry's own, through every point of the outline; the two faces ours, as its are: lying at its two
+  // ends, the near one facing back (-z), their texture coordinates where they are
+  const g = new THREE.ExtrudeGeometry(new THREE.Shape(full.map(([x, y]) => new THREE.Vector2(x, y))), { ...ex, bevelEnabled: true, curveSegments: 1 })
+  const cap = g.groups.find((q) => q.materialIndex === 0)!, sides = g.groups.find((q) => q.materialIndex === 1)!
+  const P = g.attributes.position, U = g.attributes.uv, N = g.attributes.normal
+  let zn = Infinity, zf = -Infinity
+  for (let k = cap.start; k < cap.start + cap.count; k++) { const z = P.getZ(k); if (z < zn) zn = z; if (z > zf) zf = z }
+  const pos: number[] = [], uv: number[] = [], nor: number[] = []
+  for (const [z, up] of [[zn, -1], [zf, 1]] as const) {
+    for (const t of tris) {
+      const ccw = (t[1][0] - t[0][0]) * (t[2][1] - t[0][1]) - (t[1][1] - t[0][1]) * (t[2][0] - t[0][0]) > 0
+      const o = ccw === (up > 0) ? [t[0], t[1], t[2]] : [t[0], t[2], t[1]]
+      for (const [x, y] of o) { pos.push(x, y, z); uv.push(x, y); nor.push(0, 0, up) }
+    }
+  }
+  const capCount = pos.length / 3
+  for (let k = sides.start; k < sides.start + sides.count; k++) { pos.push(P.getX(k), P.getY(k), P.getZ(k)); uv.push(U.getX(k), U.getY(k)); nor.push(N.getX(k), N.getY(k), N.getZ(k)) }
+  g.dispose()
+  const out = new THREE.BufferGeometry()
+  out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+  out.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2))
+  out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3))
+  out.addGroup(0, capCount, 0)
+  out.addGroup(capCount, pos.length / 3 - capCount, 1)
+  return out
+}
 /**
  * The bar's top as one plank round the corner: each counter's top as a rectangle (along the first counter, across
  * it), the side counter's outer edge squared up with the first's end, joined into an L and given rounded edges.

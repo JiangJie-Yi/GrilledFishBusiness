@@ -4,7 +4,7 @@ import { normalFromHeight } from '@/scene/render/normalFromHeight'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { LIP_H, ALONG, BAR_GATES, gateCut, type Gate, GRILL_COUNTERS, SIDE_PULL, LAY, type Counter } from '@/shops/grill/bar'
 import { BAR_TOP } from './barPlaces'
-import { TRAY_WOOD, roundedShape, BAR_DEPTH } from './common'
+import { TRAY_WOOD, quadSlab, BAR_DEPTH } from './common'
 
 function barTopShape(grow: number) {
   const box = (c: Counter) => {
@@ -24,10 +24,10 @@ function barTopShape(grow: number) {
     [x0, by1 - i]]
   // (item 379: the outer corner, where the two rows of places meet, rounded off (BAR_CORNER_R); the inside corner on the kitchen's side a
   // little; the ends at the gates square, the gates' flaps running on from them)
-  const sh = roundedShape(pts, [BAR_CORNER_R + grow, 0, 0, 0.04 + grow, 0, 0])
   const thick = BAR_TOP_ROUND + grow * 0.6
-  const g = new THREE.ExtrudeGeometry(sh, { depth: 0.06 - 2 * thick, bevelEnabled: true, bevelThickness: thick, bevelSize: BAR_TOP_OUT + grow * 0.6,
-    bevelSegments: 4, curveSegments: 4 })
+  // (its top and underside cut into even quads, not earcut's slivers fanning across the L from a corner (item 954): quadSlab)
+  const g = quadSlab(pts, [BAR_CORNER_R + grow, 0, 0, 0.04 + grow, 0, 0],
+    { depth: 0.06 - 2 * thick, bevelThickness: thick, bevelSize: BAR_TOP_OUT + grow * 0.6, bevelSegments: 4 })
   // (the boards on the top run along each arm of the L: along the first counter, and along the side counter, at one scale
   // over both: the faces' texture coordinates laid from where they are, not stretched over the shape)
   const pos = g.attributes.position, uv = g.attributes.uv
