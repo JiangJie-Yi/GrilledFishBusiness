@@ -137,7 +137,7 @@ import { orderSaid, saidAgain, withOrder, type OrderSaid } from '@/game/kitchen/
 import { FREEZER, FREEZER_TEMP } from '@/shops/grill/decor/Decor'
 import { LOG_MAX, ChatLog } from '@/app/chatLog'
 import { pullAtOf } from '@/game/kitchen/chefFlow'
-import { CLOSE_HURRY, CLOSE_HARD, PREP_AT, gameMinutes, FIRE_BURN_PER_TICK } from '@/app/timing'
+import { CLOSE_HURRY, CLOSE_HARD, CLOSE_LAST, PREP_AT, gameMinutes, FIRE_BURN_PER_TICK } from '@/app/timing'
 import { FIRE_CAPACITY, ITEM_IDS, ALL_ITEMS, FULL_KCAL, DIGEST_KCAL_PER_SEC, servings, orderedBase, type Frame, OMIKI_MS, OFFERING_COST } from '@/app/dishes'
 import { IS_TOUCH, makeRenderer, NO_WEBGL } from '@/app/renderer'
 import { CAMERA_POSITION, CAMERA_FOV, FLY_S } from '@/app/camera'
@@ -2326,8 +2326,11 @@ export default function App() {
     const wait = window.setInterval(() => {
       const late = gameMinutes() - closingAt.current
       SHOP.hurry = late >= CLOSE_HURRY
-      const still = (guestsRef.current[DISHES[active].id] ?? []).some((g) => g.state === 'waiting' || g.state === 'eating') || SHOP.inRoom > 0
-      if (still && late < CLOSE_HARD) return
+      // (item 838, the Tester window's: at CLOSE_HARD the staff went home with the last still in the till's queue, the cashier with them, a
+      // server called round to ring each up, the shop shut 54 minutes past its time. Those still eating or waiting are seen out at
+      // CLOSE_HARD as before; those already up and paying, walking out, are waited for a while more (CLOSE_LAST), the cashier stays)
+      const eating = (guestsRef.current[DISHES[active].id] ?? []).some((g) => g.state === 'waiting' || g.state === 'eating')
+      if ((eating && late < CLOSE_HARD) || (SHOP.inRoom > 0 && late < CLOSE_HARD + CLOSE_LAST)) return
       window.clearInterval(wait)
       setLeaving(true)
     }, 300)

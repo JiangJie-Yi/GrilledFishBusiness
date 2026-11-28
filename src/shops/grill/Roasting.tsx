@@ -69,7 +69,7 @@ import { EditBlock } from '@/shops/grill/editor/Movable'
 import { plateFor, type PlateKind } from '@/game/service/plateSize'
 import { CREW_LOAD, GAZE, SHOP, STAFF_SAY, LATE, LAST_CALL, RATING_FLOW, STAFF_TALK } from '@/game/world/shopState'
 import { loadOf } from '@/game/staff/crewMood'
-import { FED, EAT_PHASE, PLATE_FACES, SAY_SEATED, BOWLS, RICE_SEATS, SIDE_SALE, FIRE_TEND, SKEWERS, SEAT_MOVE, CHOPS_USED, CHOPS_OFF, SEAT_LEFT, SEATS_UNCLEARED, GRIPES, gripe, meterWater, SUPPLIES, SICK, PLATING, READY_SLOTS, PLATES_OUT, PLATER_OUT, OWNER_GRILL, FETCHER, SEAT_STICKS, SEAT_BONES, WHOLE_FISH, ALONG, drinkFor, POINTER_HINT, PLATES_SET, SEATS_TAKEN, SERVICE, PANTRY, GRILL_COUNTERS, GRILL_OFFSET, GRILL_SCALE, GRILL_SEATS, FIRE_SHIFT, KITCHEN_DROP, LAY, toGrillScene, COOK_NOTCH, SOUS_NOTCH, seatTurn } from './bar'
+import { FED, ON_ITS_WAY, EAT_PHASE, PLATE_FACES, SAY_SEATED, BOWLS, RICE_SEATS, SIDE_SALE, FIRE_TEND, SKEWERS, SEAT_MOVE, CHOPS_USED, CHOPS_OFF, SEAT_LEFT, SEATS_UNCLEARED, GRIPES, gripe, meterWater, SUPPLIES, SICK, PLATING, READY_SLOTS, PLATES_OUT, PLATER_OUT, OWNER_GRILL, FETCHER, SEAT_STICKS, SEAT_BONES, WHOLE_FISH, ALONG, drinkFor, POINTER_HINT, PLATES_SET, SEATS_TAKEN, SERVICE, PANTRY, GRILL_COUNTERS, GRILL_OFFSET, GRILL_SCALE, GRILL_SEATS, FIRE_SHIFT, KITCHEN_DROP, LAY, toGrillScene, COOK_NOTCH, SOUS_NOTCH, seatTurn } from './bar'
 import { freshFactor, sickChance } from '@/game/stock/freshness'
 import { NO_POINTER, zr } from '@/scene/interact/htmlProps'
 import { GAZE_AT, baseName, SIDE_LEAD, TURN_AT, TURN_S, STICK_AXIS, FIRE_SIDE, FIRE_INV, STICK_TURN, DONE_TINT, BURNT_TINT, CHAR_START, CHAR_FULL, FACE_CAMERA, SIPS, SOUP_TASTE, DISH_TASTE, FAN_GAIN, FAN_MAX, FAN_FADE, FAN_RISE, FAN_BURN, FIRE_FANNED_MAX, FAN_OVER_BURN, SIDE_EAT_S, FLIGHT_SECONDS, PIERCE_MS, LAY_DIR, STACK_DIR, ON_BOARD, ONE, PLATE_R, SLOT_GAP, PER_LAYER, PER_PLATE, ASH_GAIN, ASH_TINT, PLATE_STEP, DISH_TOP, BASKET_TOP, CONTAINER_TIP, BOWL_TOP, BOWL_R, FATTY, TRAY_REST, TRAY_SIDE, TRAY_OFF, TONG_LEN, TONG_REST_OUT, TONG_LIE, TONG_LIFT_S, TONG_BACK_S, type TongPhase, TONG_X, TONG_Y, TONG_Z, TONG_M, TONG_QR, TONG_QU, TONG_AT, TONG_REST_TIP, BONE_SCALE, BONES_TIP, BOWL_PUSH, BOWL_RIM, EDIT_PIECES, DRAG_PIECES, PLATE_TOP, EAT_SECONDS, GUEST_EAT_SECONDS, BITES_PER_PIECE, UP, ZERO, SIZZLE_AT, HAND_OFFSET, BUCKET_SCALE, BIN_R, ROD_WS, TRASH_R, TRASH_H, FLOOR_BUCKET, FLOOR_TRASH } from './roasting/tuning'
@@ -2355,11 +2355,12 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       // at an empty plate for ever)
       // (or hurried out half an hour past closing (SHOP.hurry), nothing before them: up to pay for what they've had, the rest refunded)
       // (or sat their time out (game/stay, item 207): up to pay for what they've had, the rest given back)
-      if ((g.state === 'eating' && !FED.has(g.id) && gaveUpOnNext(g.lastAte ?? now, now)) || (SHOP.hurry && !FED.has(g.id))
+      // (item 838: nor hurried out with their food done and on its way to them (ON_ITS_WAY): they eat it, quickly, and go)
+      if ((g.state === 'eating' && !FED.has(g.id) && gaveUpOnNext(g.lastAte ?? now, now)) || (SHOP.hurry && !FED.has(g.id) && !ON_ITS_WAY.has(g.id))
         || (g.ate.length > 0 && !FED.has(g.id) && overstayed(g.since, now))) {
         const owed = [...g.orders]
         for (const a of g.ate) owed.splice(owed.indexOf(a), 1)
-        const why = SHOP.hurry && !FED.has(g.id) ? 'hurry' : g.state === 'eating' && gaveUpOnNext(g.lastAte ?? now, now) ? 'next' : 'stay'
+        const why = SHOP.hurry && !FED.has(g.id) && !ON_ITS_WAY.has(g.id) ? 'hurry' : g.state === 'eating' && gaveUpOnNext(g.lastAte ?? now, now) ? 'next' : 'stay'
         g.state = 'done'
         if (!SHOP.hurry || g.ate.length === 0) gripe(g.id, 'wait')
         onWalkOut?.(owed, g.id, why)
