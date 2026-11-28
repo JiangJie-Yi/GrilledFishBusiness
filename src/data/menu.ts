@@ -126,6 +126,9 @@ export type Roast = {
 export type Seasoning = 'salt' | 'soy' | 'milk' | 'peanut' | 'miso' | 'wasabi' | 'shichimi' | 'yuzu' | 'lemon' | 'water'
 
 /** Doneness stages for roasting, by fraction of the cook time. */
+/** (item 841) the least a piece is taken off the fire at, of its roasting time: just past done (ROAST_STAGES' 1), never short of it (a
+ * customer eats only what's done) */
+export const PULL_LEAST = 1.02
 export const ROAST_STAGES = [
   { until: 0.5, label: '生', key: 'raw' },
   { until: 1, label: '半熟', key: 'half' },

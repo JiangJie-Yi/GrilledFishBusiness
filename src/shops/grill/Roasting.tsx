@@ -50,7 +50,7 @@ import { getLights } from '@/scene/render/lightsStore'
 import { canRide, comesAt, drinksAlcohol, familyShare, kindOf, LATE_MORE, pastHour, WITH_CHILD } from '@/data/guests'
 import { fitsBeforeClose, RIDER_SHARE, TAKEOUT_MAX, takeoutGap, takeoutSize } from '@/game/guests/takeout'
 import { CLOSE_AT } from '@/game/world/hours'
-import { type Seasoning } from '@/data/menu'
+import { type Seasoning, PULL_LEAST } from '@/data/menu'
 import { partName, type Seasoning as Dab } from '@/data/recipes'
 import { tipIn } from '@/data/tipText'
 import { bestStage, PAIRING, PAIRING_DEFAULT, stageOf as seasonStage, timingLoss } from '@/game/kitchen/taste'
@@ -1806,7 +1806,8 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
     }
     const pullOf = (p: Piece) => {
       const n = follows(p)
-      return n?.doneness !== undefined ? Math.min(1.45, Math.max(0.95, n.doneness)) : chef.pullAt
+      // (never short of done (item 841): a note's 0.95 was half cooked, and nobody ate it)
+      return n?.doneness !== undefined ? Math.min(1.45, Math.max(PULL_LEAST, n.doneness)) : chef.pullAt
     }
     // (of those done, the one nearest burning first (item 207: the fire kept higher, done ones go over sooner, and in a rush the first found
     // was taken while one further on burnt waiting its turn))
@@ -2321,7 +2322,13 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
     FED.clear()
     // (a tokkuri sold to someone no longer here (the shop shut on them, the day over): not to be poured (item 199))
     if (SAKE.unpoured.size) for (const id of SAKE.unpoured) if (!guests.current.some((g) => g.id === id)) SAKE.unpoured.delete(id)
-    for (const p of pieces.current) if (p.container === 'bar' && p.guest >= 0 && p.collected && p.flight >= 1 && !p.eaten && !p.stickOnly && p.via !== 'plated' && present(p)) FED.add(p.guest)
+    // (item 841, the Tester window's: only what they'll eat: theirs still owed, and done. A piece taken off half cooked and set before them,
+    // or one more of a dish they'd had, counted as food before them, and they never gave up or went: kept there 166 to 464 minutes)
+    for (const p of pieces.current) if (p.container === 'bar' && p.guest >= 0 && p.collected && p.flight >= 1 && !p.eaten && !p.stickOnly && p.via !== 'plated' && present(p)
+      && stageOf(p.progress / roast.times[p.id]).key === 'done') {
+      const g = guests.current.find((x) => x.id === p.guest)
+      if (g && g.orders.filter((o) => o === p.id).length > g.ate.filter((a) => a === p.id).length) FED.add(p.guest)
+    }
     /** a customer's tokkuri: asked for the first time (SAKE.want: poured by hand at the sake station on the serving counter and carried out to
      * them on a server's tray, GuestBar3D, item 177); whether it's been set at their place now (SAKE.ready); with no station or nobody to pour
      * at it (SAKE.station false: a bar on its own), set at their place after SAKE_WAIT_S as it was */
