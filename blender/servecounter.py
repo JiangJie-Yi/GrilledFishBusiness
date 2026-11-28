@@ -460,7 +460,9 @@ def cloth_picture(W=1024):
     slate-blue cloth strewn with white chrysanthemums, and the cloth as it was, indigo in 七宝 rings: ) slate blue, the dye a little uneven
     (paler in soft patches), its weave; strewn with white chrysanthemums cut as 菊割り, each its own size (1.6 to 5 cm across the half), a
     count of thin petals (16, 20 or 24) from a small heart out to rounded tips, a hair of the blue between each two; none on another; and
-    round it a white border, down its hang and 2.2 cm in onto its top, a fine slate line along its inner edge"""
+    round it a white border, a fine slate line along its inner edge: (item 777, the owner's 「白邊太多」: down its hang, over the culm's round
+    and 2.2 cm in onto its top, 6.5 cm of it from the hem; 3 cm, its hang and the round's foot, still a wide white band face on) the
+    lower part of its hang, 1.8 cm from its hem (a hem band, as a cloth's is), the blue over the culm's round and the top of its hang"""
     HP = int(round(W * DC / WC / 4)) * 4
     col = np.arange(W, dtype=np.float32)[None, :].repeat(HP, 0)
     row = np.arange(HP, dtype=np.float32)[:, None].repeat(W, 1)
@@ -469,7 +471,7 @@ def cloth_picture(W=1024):
     pic = np.ones((HP, W, 3), np.float32) * np.array((0.27, 0.36, 0.45), np.float32)[None, None, :]
     pic = mix(pic, (0.35, 0.44, 0.53), smooth(0.55, 0.85, fbm(W, 15, 6, 4)[np.arange(HP) * W // HP]) * 0.35)
     edge = np.minimum(np.minimum(X, WC - X), np.minimum(Y, DC - Y))
-    BORDER = S + 0.022
+    BORDER = 0.018
     field = smooth(BORDER, BORDER + 0.0015, edge)
     # (the flowers: placed one by one, each clear of the others by a little; within the field, a few running under its border)
     rf = np.random.default_rng(757)
