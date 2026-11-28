@@ -356,6 +356,9 @@ _bm.free()
 sleeve = bpy.data.objects.new("TillWindowSleeve", _me)
 bpy.context.collection.objects.link(sleeve)
 finish(sleeve, "TillWindowSleeve", M["ring"])
+# (smooth round the ring, hard at its four edges (item 901, after item 956's list): all smooth, its rims' right angles were shaded round,
+# its thickness a soft blur)
+smooth_angle(sleeve, 50)
 bpy.ops.object.select_all(action="DESELECT"); sleeve.select_set(True); bpy.context.view_layer.objects.active = sleeve
 bpy.ops.object.mode_set(mode="EDIT"); bpy.ops.mesh.select_all(action="SELECT"); bpy.ops.uv.cylinder_project(); bpy.ops.object.mode_set(mode="OBJECT")
 bd.append(sleeve)
