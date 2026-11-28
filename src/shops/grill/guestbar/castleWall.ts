@@ -66,10 +66,33 @@ const smooth = (e0: number, e1: number, x: number) => {
 }
 /** the granite's greys (sRGB): beige-grey, as the castle's in the sun but a shade nearer the door's steps' grey, a few cooler, a few
  * weathered darker */
-const TONES: [number, number, number][] = [
-  [158, 152, 140], [146, 141, 132], [164, 157, 144], [136, 133, 126], [151, 144, 131], [142, 137, 127], [125, 122, 116], [154, 149, 140],
-]
-const CORNER_TONE: [number, number, number] = [168, 163, 151]
+/**
+ * (items 1009, 1010, the owner's 「請用 backing map 來做」「階梯的與地基的石階不太同，能否依階梯的品質為主，須同步一下。」: the plinth's stones
+ * pale and blotchy, painted, beside the steps' dark fine granite) the steps' own granite: their baked picture (blender/stonesteps.py's, the
+ * granite's cell of their atlas page, public/textures/plinth_granite.webp) laid over the plinth in its material as a detail map, as fine as on
+ * the steps (GRANITE_TILE a repeat; the plinth's own picture is 256 px a metre); its mean colour, sRGB as painted here and linear as the
+ * shader divides by it, so the stones keep the tones painted under it
+ */
+const GRANITE_URL = import.meta.env.BASE_URL + 'textures/plinth_granite.webp'
+const GRANITE_SRGB: [number, number, number] = [124.8, 120.9, 114.7]
+const GRANITE_MEAN = new THREE.Vector3(0.2147, 0.201, 0.1804)
+const GRANITE_TILE = 0.75
+let graniteTex: THREE.Texture | null = null
+const graniteDetail = () => {
+  if (!graniteTex) {
+    graniteTex = new THREE.TextureLoader().load(GRANITE_URL)
+    graniteTex.wrapS = graniteTex.wrapT = THREE.RepeatWrapping
+    graniteTex.colorSpace = THREE.SRGBColorSpace
+    graniteTex.anisotropy = 4
+  }
+  return graniteTex
+}
+/** (item 1010) each stone's tone over the granite: the steps' wall's (stonesteps.py's WALL_TINTS, item 527: greys a shade and two deeper, a
+ * hair warmer and cooler) */
+const TONES: [number, number, number][] = [[1.0, 1.0, 1.0], [0.99, 0.975, 0.95], [0.94, 0.955, 0.98], [0.90, 0.895, 0.89], [0.83, 0.83, 0.835],
+  [0.96, 0.96, 0.955]].map(([r, g, b]) => [GRANITE_SRGB[0] * r, GRANITE_SRGB[1] * g, GRANITE_SRGB[2] * b])
+/** a corner stone, dressed: a little paler */
+const CORNER_TONE: [number, number, number] = [GRANITE_SRGB[0] * 1.05, GRANITE_SRGB[1] * 1.05, GRANITE_SRGB[2] * 1.04]
 
 interface Px { r: number; g: number; b: number; h: number }
 /** a point of a face: its colour and height (`y` down from the wall's top, `visible` the earth there) */
@@ -111,8 +134,7 @@ function paintAt(w: WallLayout, face: number, s: number, y: number, beds: number
     const pat = noise(s * 3.2, y * 3.2, 51 + face)
     f *= 0.93 + 0.12 * pat - 0.16 * smooth(0.66, 0.86, noise(s * 5.5 + 7, y * 5.5, 53 + face))
     if (y < 0.004) f *= 1.08
-    // (the granite's grains: dark mica, white feldspar, the rest a speckle)
-    f *= grain < 0.045 ? 0.78 : grain > 0.955 ? 1.1 : 0.972 + 0.056 * hash(Math.floor(s * K), Math.floor(y * K), 7)
+    // (the granite's grains: in its detail map now (items 1009, 1010), as fine as the steps'; here only the stone's own light)
     // (a corner stone dressed: the chisel's fine strokes across it)
     if (stone.corner) f *= 1 + 0.025 * Math.sin((s + y) * Math.PI * 2 / 0.011)
     r = r0 * f + warm; g = g0 * f; b = b0 * f - warm
@@ -133,7 +155,8 @@ function paintAt(w: WallLayout, face: number, s: number, y: number, beds: number
     // (a small stone in the gap, darker, rounded)
     const t = 0.78 + 0.16 * hash(Math.floor(s * 300), Math.floor(y * 300), 41)
     const f = t * (0.86 + 0.14 * smooth(0, 0.004, wedge)) * (grain < 0.06 ? 0.7 : 1)
-    r = 150 * f; g = 145 * f; b = 136 * f
+    // (item 1010: the granite, a shade darker)
+    r = GRANITE_SRGB[0] * 0.95 * f; g = GRANITE_SRGB[1] * 0.95 * f; b = GRANITE_SRGB[2] * 0.95 * f
     h = 0.26 + 0.24 * smooth(0, 0.005, wedge)
   } else {
     // (a joint: dark, darkest deep in it; moss in it low down and along the beds, the rest earth and dust)
@@ -238,9 +261,9 @@ function paintWall(plan: PlinthPlan, height: number, visible: number) {
   const [lu0, lv0, lu1, lv1] = atlas.ledge
   for (let Y = Math.floor(lv0 * atlas.H) - 4; Y < Math.ceil(lv1 * atlas.H) + 4; Y++) {
     for (let X = Math.floor(lu0 * atlas.W) - 4; X < Math.ceil(lu1 * atlas.W) + 4; X++) {
-      const i = (Y * atlas.W + X) * 4, gr = hash(X, Y, 91)
-      const f = gr < 0.05 ? 0.7 : gr > 0.95 ? 1.12 : 0.97 + 0.06 * hash(X, Y, 93)
-      d[i] = 172 * f; d[i + 1] = 166 * f; d[i + 2] = 154 * f; d[i + 3] = 255
+      // (item 1010: the granite's, a little lighter, facing the sky; its grains in the detail map)
+      const i = (Y * atlas.W + X) * 4, f = 1.05 + 0.03 * (hash(X >> 3, Y >> 3, 93) - 0.5)
+      d[i] = GRANITE_SRGB[0] * f; d[i + 1] = GRANITE_SRGB[1] * f; d[i + 2] = GRANITE_SRGB[2] * f; d[i + 3] = 255
       const hi = (Y >> 1) * hw + (X >> 1)
       hsum[hi] += 0.8; hcount[hi]++
     }
@@ -264,5 +287,17 @@ function paintWall(plan: PlinthPlan, height: number, visible: number) {
   for (const t of [map, normalMap]) { t.flipY = false; t.anisotropy = 4 }
   const material = new THREE.MeshToonMaterial({ color: '#ffffff', map, normalMap })
   material.name = 'ShopPlinth'
+  // (items 1009, 1010: the steps' granite over it as a detail map, by where each point is: along a face and up it, or across its top; over
+  // the granite's mean, so the stones keep their tones; compiled as it's first drawn, with the rest at load)
+  const detail = graniteDetail()
+  material.onBeforeCompile = (sh) => {
+    sh.uniforms.uGranite = { value: detail }
+    sh.uniforms.uGraniteMean = { value: GRANITE_MEAN }
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vGrUv;')
+      .replace('#include <begin_vertex>', `#include <begin_vertex>\nvGrUv = (abs(normal.y) > 0.5 ? position.xz : vec2(position.x + position.z, position.y)) / ${GRANITE_TILE.toFixed(3)};`)
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D uGranite;\nuniform vec3 uGraniteMean;\nvarying vec2 vGrUv;')
+      .replace('#include <map_fragment>', '#include <map_fragment>\ndiffuseColor.rgb *= texture2D(uGranite, vGrUv).rgb / uGraniteMean;')
+  }
+  material.customProgramCacheKey = () => 'plinth-granite'
   return { faces, atlas, material, dispose: () => { map.dispose(); normalMap.dispose(); material.dispose() } }
 }
