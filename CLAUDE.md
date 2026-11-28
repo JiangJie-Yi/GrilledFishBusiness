@@ -209,7 +209,7 @@ data  ←  game  ←  scene  ←  ui  ←  shops/*  ←  app/  ←  App.tsx
 - 註冊 listener、timer 或訂閱時，必須寫 cleanup function。
 - 高頻率變動的數值優先用 `useRef`，避免頻繁觸發 React re-render。
 
-（Claude 補的註記，不是店主的原文：把值同步到模組層的 store 或 three.js 物件（`setTip`、`setLightSwitch`、`setFireGauge`…：名字像 setState，但不是 React state）是 `useEffect` 的正當用途，不算違反第一條；2026-11-21 全專案 331 個 effect 的掃描結果與還沒改的項目在 `TASKS.md`「useEffect 掃描」那一列。）
+（Claude 補的註記，不是店主的原文：把值同步到模組層的 store 或 three.js 物件（`setTip`、`setLightSwitch`、`setFireGauge`…：名字像 setState，但不是 React state）是 `useEffect` 的正當用途，不算違反第一條；2026-11-21 全專案 331 個 effect 的掃描結果與還沒改的項目在 `docs/archive/TASKS-done.md`「useEffect 掃描」那一列（第 1000 項從 `TASKS.md` 搬去）。）
 
 **開發用（只在 dev）**：瀏覽器 console 可用 `__gl`（renderer，看 draw calls）、`__scene`、`__cam` 與 `__ctl`（設定視角：`__ctl.target.set(...)`、`__cam.position.set(...)`）、`__service`、`__toilets`（例如 `__toilets.m.open = true`）。場景裡名稱 `look-*` 的群組（`look-altar`、`look-fridge`、`look-door`、`look-wc-m`…）方便用 `__scene.getObjectByName` 找位置截圖。
 
