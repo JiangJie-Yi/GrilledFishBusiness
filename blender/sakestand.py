@@ -802,6 +802,15 @@ def mesh_obj(name, bm, mat, smooth_=True, join=True):
     return o
 
 
+def flat_level(o):
+    """its faces lying level (a bottle's foot, its cap's top, its sake's top) shaded flat (item 901): smooth with the sides they close,
+    their ladders' end triangles drew streaks across them, and a cap's rim read soft"""
+    for p_ in o.data.polygons:
+        if abs(p_.normal.z) > 0.999:
+            p_.use_smooth = False
+    return o
+
+
 def prof_r(prof, z):
     """the bottle's radius at height z, by its outline"""
     for (r0, z0), (r1, z1) in zip(prof, prof[1:]):
@@ -948,6 +957,7 @@ def bottle(k, prof, at, turn):
             l[uvl].uv = uvq
     bmesh.ops.transform(bm, matrix=Matrix.Rotation(turn, 4, "Z"), verts=bm.verts)
     o = mesh_obj(f"SakeBottle{k}", bm, [M["glass"], M["clear"]], join=False)
+    flat_level(o)
     o.location = at
     bottles.append(o)
     if cord is not None:
@@ -976,6 +986,7 @@ def bottle(k, prof, at, turn):
     ladder_fill(bl, lr[-1])
     bmesh.ops.recalc_face_normals(bl, faces=bl.faces)
     lo = mesh_obj(f"SakeLiquid{k}", bl, M["nigori"] if k in NIGORI else M["liquid"], join=False)
+    flat_level(lo)
     lo.parent = o
     bottles.append(lo)
 
