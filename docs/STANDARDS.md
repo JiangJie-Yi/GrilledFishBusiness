@@ -4,8 +4,7 @@
 
 這份是**照業界慣例整理、能用工具量的標準**。本專案自己的規則仍然優先，寫在：
 - `CLAUDE.md` 的固定規則
-- [`docs/MODELING.md`](MODELING.md)：建模流程
-- [`docs/LOWPOLY.md`](LOWPOLY.md)：低面數做法
+- [`docs/MODELING.md`](MODELING.md)：建模流程與低面數做法（原本的 `LOWPOLY.md` 第 1000 項併進來了）
 - [`docs/BAKING.md`](BAKING.md)：烘焙管線
 - `docs/DETAILS.md`「效能」那一節
 
