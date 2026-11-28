@@ -35,7 +35,7 @@ import { boardRoom, freeRingSlot } from '@/game/kitchen/fireSlots'
 import { pickOrders, takesAt } from '@/game/kitchen/orderPick'
 import { addWares, leftBehind, noWares, wareCount } from '@/game/service/ware'
 import { fairPrice } from '@/game/money/economy'
-import { getClock } from '@/ui/kit/clockStore'
+import { getClock, minutesNow } from '@/ui/kit/clockStore'
 import { crewAnswer, crewEcho } from '@/shops/grill/staff/crewTalk'
 import { sideChance } from '@/game/kitchen/sides'
 import { gaveUpOnNext, overstayed } from '@/game/guests/stay'
@@ -56,7 +56,7 @@ import { tipIn } from '@/data/tipText'
 import { bestStage, PAIRING, PAIRING_DEFAULT, stageOf as seasonStage, timingLoss } from '@/game/kitchen/taste'
 import type { Step } from '@/game/types'
 import { CRATE, DECOR, Decor, FRIDGE_KICK, backToCrate, liftFromCrate, takeFromCrate, type Held } from '@/shops/grill/decor/Decor'
-import { BOARD, COAL_BRIDGE, IRONS, SAKE, SAKE_AT, SAKE_SEATS, SAKE_TASTED, SOUP, SOUP_SEATS, SHRINE_FLOWERS, WC_GRUMBLE, TAKEOUT, RIDERS, TAKEOUT_SPOT, SERVE_COUNTER, barToFire, BENCH, BENCH_SEATS, BENCH_WAIT, PULLED } from './bar'
+import { BOARD, COAL_BRIDGE, IRONS, SAKE, SAKE_AT, SAKE_MIN, SAKE_SEATS, SAKE_TASTED, SOUP, SOUP_SEATS, SHRINE_FLOWERS, WC_GRUMBLE, TAKEOUT, RIDERS, TAKEOUT_SPOT, SERVE_COUNTER, barToFire, BENCH, BENCH_SEATS, BENCH_WAIT, PULLED } from './bar'
 import { fireAmbience } from '@/shops/grill/sounds/fireAmbience'
 import { fireSound } from '@/game/kitchen/fireSound'
 import { flowerBuffs } from '@/game/world/shrineFlowers'
@@ -69,7 +69,7 @@ import { EditBlock } from '@/shops/grill/editor/Movable'
 import { plateFor, type PlateKind } from '@/game/service/plateSize'
 import { CREW_LOAD, GAZE, SHOP, STAFF_SAY, LATE, LAST_CALL, RATING_FLOW, STAFF_TALK } from '@/game/world/shopState'
 import { loadOf } from '@/game/staff/crewMood'
-import { FED, ON_ITS_WAY, EAT_PHASE, PLATE_FACES, SAY_SEATED, BOWLS, RICE_SEATS, SIDE_SALE, FIRE_TEND, SKEWERS, SEAT_MOVE, CHOPS_USED, CHOPS_OFF, SEAT_LEFT, SEATS_UNCLEARED, GRIPES, gripe, meterWater, SUPPLIES, SICK, PLATING, READY_SLOTS, PLATES_OUT, PLATER_OUT, OWNER_GRILL, FETCHER, SEAT_STICKS, SEAT_BONES, WHOLE_FISH, ALONG, drinkFor, POINTER_HINT, PLATES_SET, SEATS_TAKEN, SERVICE, PANTRY, GRILL_COUNTERS, GRILL_OFFSET, GRILL_SCALE, GRILL_SEATS, FIRE_SHIFT, KITCHEN_DROP, LAY, toGrillScene, COOK_NOTCH, SOUS_NOTCH, seatTurn } from './bar'
+import { FED, ON_ITS_WAY, EAT_PHASE, PLATE_FACES, SAY_SEATED, BOWLS, RICE_SEATS, SIDE_SALE, FIRE_TEND, SKEWERS, SEAT_MOVE, CHOPS_USED, CHOPS_OFF, SEAT_LEFT, SEATS_UNCLEARED, GRIPES, gripe, meterWater, SUPPLIES, SICK, PLATING, READY_SLOTS, PLATES_OUT, PLATER_OUT, HELPER_OUT, OWNER_GRILL, FETCHER, SEAT_STICKS, SEAT_BONES, WHOLE_FISH, ALONG, drinkFor, POINTER_HINT, PLATES_SET, SEATS_TAKEN, SERVICE, PANTRY, GRILL_COUNTERS, GRILL_OFFSET, GRILL_SCALE, GRILL_SEATS, FIRE_SHIFT, KITCHEN_DROP, LAY, toGrillScene, COOK_NOTCH, SOUS_NOTCH, seatTurn } from './bar'
 import { freshFactor, sickChance } from '@/game/stock/freshness'
 import { NO_POINTER, zr } from '@/scene/interact/htmlProps'
 import { GAZE_AT, baseName, SIDE_LEAD, TURN_AT, TURN_S, STICK_AXIS, FIRE_SIDE, FIRE_INV, STICK_TURN, DONE_TINT, BURNT_TINT, CHAR_START, CHAR_FULL, FACE_CAMERA, SIPS, SOUP_TASTE, DISH_TASTE, FAN_GAIN, FAN_MAX, FAN_FADE, FAN_RISE, FAN_BURN, FIRE_FANNED_MAX, FAN_OVER_BURN, SIDE_EAT_S, FLIGHT_SECONDS, PIERCE_MS, LAY_DIR, STACK_DIR, ON_BOARD, ONE, PLATE_R, SLOT_GAP, PER_LAYER, PER_PLATE, ASH_GAIN, ASH_TINT, PLATE_STEP, DISH_TOP, BASKET_TOP, CONTAINER_TIP, BOWL_TOP, BOWL_R, FATTY, TRAY_REST, TRAY_SIDE, TRAY_OFF, TONG_LEN, TONG_REST_OUT, TONG_LIE, TONG_LIFT_S, TONG_BACK_S, type TongPhase, TONG_X, TONG_Y, TONG_Z, TONG_M, TONG_QR, TONG_QU, TONG_AT, TONG_REST_TIP, BONE_SCALE, BONES_TIP, BOWL_PUSH, BOWL_RIM, EDIT_PIECES, DRAG_PIECES, PLATE_TOP, EAT_SECONDS, GUEST_EAT_SECONDS, BITES_PER_PIECE, UP, ZERO, SIZZLE_AT, HAND_OFFSET, BUCKET_SCALE, BIN_R, ROD_WS, TRASH_R, TRASH_H, FLOOR_BUCKET, FLOOR_TRASH } from './roasting/tuning'
@@ -1626,8 +1626,12 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       C.from.copy(p.node.position); C.fromQ.copy(p.node.quaternion)
       footOf(p, C.foot)
     }
-    // (not while he's off plating or at the charcoal: the orders wait till he's back at the board)
-    if (T.phase === 'idle' && chefLive && PLATER_OUT.id !== FETCHER.id) {
+    // (item 845: how many of the orders wait in their stores for him: he goes out to lend the floor a hand (GuestBar3D) only with none)
+    let queued = 0
+    for (const p of pieces.current) if (p.fetching && present(p)) queued++
+    HELPER_OUT.queued = queued
+    // (not while he's off plating or at the charcoal, or out carrying for the floor: the orders wait till he's back at the board)
+    if (T.phase === 'idle' && chefLive && PLATER_OUT.id !== FETCHER.id && HELPER_OUT.id !== FETCHER.id) {
       // (no more than the board has room for (game/fireSlots): its raw skewers waiting there counted; full, he waits by it)
       const onBoard = pieces.current.filter((p) => p.staged && !p.fetching && !p.loose && present(p) && !p.eaten && !roast.rawDish?.items.includes(p.id)).length
       const trip = nextTrip(pieces.current.filter((p) => p.fetching && present(p)).map((p) => ({ key: p.key, id: p.id, at: p.stagedAt })), boardRoom(onBoard))
@@ -2335,7 +2339,7 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
      * at it (SAKE.station false: a bar on its own), set at their place after SAKE_WAIT_S as it was */
     const sakePoured = (id: number, now: number) => {
       const asked = sakeAsked.current.get(id)
-      if (asked === undefined) { sakeAsked.current.set(id, now); SAKE.want.push(id); SAKE_AT.set(id, performance.now()); return false }
+      if (asked === undefined) { sakeAsked.current.set(id, now); SAKE.want.push(id); SAKE_AT.set(id, performance.now()); SAKE_MIN.set(id, minutesNow()); return false }
       const done = SAKE.ready.delete(id)
       const queued = SAKE.want.indexOf(id)
       if (!done && !(queued >= 0 && !SAKE.station && now - asked > SAKE_WAIT_S)) return false
@@ -2416,7 +2420,7 @@ function RoastingImpl({ url, roast, itemIds, quantities, active, instant = false
       if (space === 'open' && bar && !g.takeout && (owed.includes('MisoSoup') || owed.includes(RICE_SIDE.id))) {
         if (!BOWLS.asked.has(g.id)) {
           BOWLS.asked.add(g.id)
-          BOWLS.want.push({ guest: g.id, rice: owed.includes(RICE_SIDE.id), soup: owed.includes('MisoSoup'), at: performance.now() })
+          BOWLS.want.push({ guest: g.id, rice: owed.includes(RICE_SIDE.id), soup: owed.includes('MisoSoup'), at: performance.now(), min: minutesNow() })
         }
         const got = owed.includes(RICE_SIDE.id) && BOWLS.got.has(`rice:${g.id}`) ? RICE_SIDE.id : owed.includes('MisoSoup') && BOWLS.got.has(`soup:${g.id}`) ? 'MisoSoup' : null
         if (got) {

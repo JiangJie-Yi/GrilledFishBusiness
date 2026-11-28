@@ -36,7 +36,7 @@ import { type Visit } from '@/game/guests/reputation'
 import { ContactShades } from '@/shops/grill/decor/ContactShades'
 import { type Chef } from '@/data/chefs'
 import { QUALITY } from '@/scene/render/quality'
-import { platerOf } from '@/game/kitchen/kitchenCrew'
+import { helperOf, platerOf } from '@/game/kitchen/kitchenCrew'
 import { Steam } from '@/scene/effects/Steam'
 import { DISHES, type Dish as DishInfo } from '@/data/menu'
 import { VIEW_SPOTS, type ViewId } from '@/data/views'
@@ -702,6 +702,11 @@ export function Scene({ omiki, active, orders, theme, sky, reducedMotion, fire, 
                     return { id: m.id, role: m.role as 'chef' | 'sous', look: m.look }
                   })() : null}
                   stocker={dish.roast && ai ? crewOf(dish.id).find((w) => w.role === 'stock') ?? null : null}
+                  helper={dish.roast && ai ? (() => {
+                    // (item 845: with a third cook at the plating, the second (hired, or the shop's own) lends the floor a hand between his rounds)
+                    const m = helperOf(crewOf(dish.id), HOUSE_CHEF)
+                    return m ? { id: m.id, look: m.look } : null
+                  })() : null}
                   mark={dish.roast ? '聞野' : '食堂'}
                   top={dish.roast ? BAR_TOP : 0.465} counters={dish.roast ? GRILL_COUNTERS : undefined} scale={dish.roast ? GRILL_SCALE : 1} offset={dish.roast ? GRILL_OFFSET : undefined}
                   at={dish.roast ? BAR_AT : new THREE.Vector3(-0.59, 0, -0.81).multiplyScalar(1.95)}

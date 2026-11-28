@@ -56,6 +56,9 @@ const EARTH_REACH = 0.42, EARTH_BAND = 0.36, EARTH_FADE = 0.04, EARTH_PX = 96, E
 /** (item 828, the owner's 「然後到最外圍就稍微淡些」) its outermost band fainter: how wide, and how much of it shows at its edge (all of it
  * EARTH_THIN in) */
 const EARTH_THIN = 0.13, EARTH_EDGE = 0.5
+/** (item 1002, the owner's 「有角的地方都改成圓的」, red rings round two of its corners) the earth's corners rounded this far, and where its
+ * shapes meet the corner between them as much (a smooth union of the two) */
+const EARTH_ROUND = 0.4
 /** how much ground one repeat of the gravel's picture covers */
 const GRAVEL_TILE = 0.5
 /** the stepping stones: their half sizes across and along the way out, the gaps between them */
@@ -386,7 +389,9 @@ export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut
     // (out over the earth: tried at random over its square, taken the more often the nearer the building's plinth (clear of it by a hand))
     {
       const xs = building.flatMap((b) => [b[0], b[2]]), zs = building.flatMap((b) => [b[1], b[3]])
-      const ex0 = Math.min(...xs) - EARTH_REACH, ex1 = Math.max(...xs) + EARTH_REACH, ez0 = Math.min(...zs) - EARTH_REACH, ez1 = Math.max(...zs) + EARTH_REACH
+      // (item 1002: out before the front as far as the earth goes now, the band before the door's depth all along it)
+      const ex0 = Math.min(...xs) - EARTH_REACH, ex1 = Math.max(...xs) + EARTH_REACH, ez0 = Math.min(...zs) - EARTH_REACH
+      const ez1 = Math.max(Math.max(...zs) + EARTH_REACH, apron[3] + CURB_W + EARTH_BAND + 0.12)
       const awayOf = (x: number, z: number) => Math.min(...building.map(([a0, b0, a1, b1]) => Math.max(a0 - x, x - a1, b0 - z, z - b1, -1e9)))
       const tries = Math.round((ex1 - ex0) * (ez1 - ez0) * 6)
       for (let i = 0; i < tries; i++) {
@@ -404,10 +409,12 @@ export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut
     // band before the door out past the bed's curb as before (item 752: 「除了玄關」)
     const reach = EARTH_REACH
     const bx = building.flatMap((r) => [r[0], r[2]]), bz = building.flatMap((r) => [r[1], r[3]])
-    const sq: Rect = [Math.min(...bx) - reach, Math.min(...bz) - reach, Math.max(...bx) + reach, Math.max(...bz) + reach]
     // (the band before the door, its sides flush with the square's where they come within a forearm of them: a step of a hand or two
     // between them was the third jog the owner ringed, at the front corner)
     const tab: Rect = [apron[0] - CURB_W - EARTH_BAND, apron[1], apron[2] + CURB_W + EARTH_BAND, apron[3] + CURB_W + EARTH_BAND + 0.12]
+    // (item 1002, the owner's 「前面泥土地需多出這一區塊」, the strip before the building's whole front framed: bare past EARTH_REACH, and the
+    // band before the door out further. The square's front out as far as that band's, the whole length of the front)
+    const sq: Rect = [Math.min(...bx) - reach, Math.min(...bz) - reach, Math.max(...bx) + reach, Math.max(Math.max(...bz) + reach, tab[3])]
     const shapes: Rect[] = [sq, [tab[0] - sq[0] < 0.5 ? sq[0] : tab[0], tab[1], sq[2] - tab[2] < 0.5 ? sq[2] : tab[2], tab[3]]]
     const X0 = Math.min(...shapes.map((r) => r[0])) - EARTH_FADE, X1 = Math.max(...shapes.map((r) => r[2])) + EARTH_FADE
     const Z0 = Math.min(...shapes.map((r) => r[1])) - EARTH_FADE, Z1 = Math.max(...shapes.map((r) => r[3])) + EARTH_FADE
@@ -434,10 +441,10 @@ export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut
       g.beginPath(); g.arc(rnd() * cw, rnd() * ch, (0.012 + rnd() * 0.03) * sx, 0, Math.PI * 2); g.fill()
     }
     for (let i = 0; i < 9000; i++) { g.fillStyle = i % 3 ? 'rgba(82,64,46,0.4)' : 'rgba(208,190,162,0.4)'; g.fillRect(rnd() * cw, rnd() * ch, 1, 1) }
-    // (the way out from the last stepping stone to the street, trodden paler)
+    // (the way out from the last stepping stone to the street, trodden paler (item 1002: a little, as the rest's one colour))
     g.save()
     g.filter = `blur(${Math.round(0.08 * sx)}px)`
-    g.fillStyle = 'rgba(186,162,128,0.4)'
+    g.fillStyle = 'rgba(186,162,128,0.18)'
     g.beginPath(); g.ellipse(px(mid + 0.02), pz(apronEnd + 0.55), 0.3 * sx, 0.55 * sz, 0, 0, Math.PI * 2); g.fill()
     g.restore()
     // (small stones, each with its shadow)
@@ -512,24 +519,34 @@ export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut
     for (const [a0, b0, a1, b1] of building) kg.fillRect(px(a0 - 0.05), pz(b0 - 0.05), (a1 - a0 + 0.1) * sx, (b1 - b0 + 0.1) * sz)
     g.save()
     g.filter = `blur(${Math.round(0.14 * sx)}px)`
-    g.globalAlpha = 0.5
+    // (item 1002, the owner's 「泥土地顏色應該一致」: a hint of it, not a darker band of its own round the building (it was at half))
+    g.globalAlpha = 0.18
     g.drawImage(damp, 0, 0)
     g.restore()
     // (how far in from its whole outline each pixel is, in units, outside less than 0: the most, over its shapes, of a shape's least way to
     // its sides (measured as a square is, so its corners stay square). Its rim's dust and its fade from it, not from each shape on its own
     // (item 780, the owner's 「而且不要有這種接口」: each shape's outline was stroked darker, and where one ran on inside another, the bed's
     // band's side across the narrow band before the shop's front, it was a dark seam out from the shop's corner))
+    // (item 1002: each shape a box with its corners rounded EARTH_ROUND (a rounded box's distance), the two put together smoothly, so the
+    // corner where the band before the door meets the square rounds too; inside, how far in, as before)
+    const boxSd = (wx: number, wz: number, r: Rect) => {
+      const cx = (r[0] + r[2]) / 2, cz = (r[1] + r[3]) / 2, rr = Math.min(EARTH_ROUND, (r[2] - r[0]) / 2, (r[3] - r[1]) / 2)
+      const qx = Math.abs(wx - cx) - (r[2] - r[0]) / 2 + rr, qz = Math.abs(wz - cz) - (r[3] - r[1]) / 2 + rr
+      return Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qz), 0) - rr
+    }
     const deep = new Float32Array(cw * ch)
     for (let y = 0; y < ch; y++) {
       const z = Z0 + (y + 0.5) / sz
       for (let x = 0; x < cw; x++) {
         const wx = X0 + (x + 0.5) / sx
-        let d = -1e9
+        let d = 1e9
         for (const r of shapes) {
-          const v = Math.min(wx - r[0], r[2] - wx, z - r[1], r[3] - z)
-          if (v > d) d = v
+          const b = boxSd(wx, z, r)
+          // (a smooth union: the least of the two, eased together within EARTH_ROUND of where they meet)
+          const h = Math.min(1, Math.max(0, 0.5 + 0.5 * (b - d) / EARTH_ROUND))
+          d = d > 1e8 ? b : b + (d - b) * h - EARTH_ROUND * h * (1 - h)
         }
-        deep[y * cw + x] = d
+        deep[y * cw + x] = -d
       }
     }
     // (its colour and its fade put together by hand, not cut out on the canvas: a canvas keeps nothing of a colour where it's wholly clear
@@ -543,7 +560,8 @@ export const ShopGround = memo(function ShopGround({ building, plinth, plinthOut
     for (let y = 0; y < ch; y++) {
       const from = y * cw * 4, to = (ch - 1 - y) * cw * 4
       for (let x = 0; x < cw; x++) {
-        const i = x * 4, d = deep[y * cw + x], du = 0.62 * (1 - ease(d, 0.05, 0.15))
+        // (item 1002: the dust toward its edge a touch, not a pale rim of its own (it was 0.62))
+        const i = x * 4, d = deep[y * cw + x], du = 0.15 * (1 - ease(d, 0.05, 0.15))
         data[to + i] = col[from + i] + (200 - col[from + i]) * du
         data[to + i + 1] = col[from + i + 1] + (182 - col[from + i + 1]) * du
         data[to + i + 2] = col[from + i + 2] + (152 - col[from + i + 2]) * du

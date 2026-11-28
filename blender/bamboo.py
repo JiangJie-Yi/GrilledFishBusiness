@@ -243,16 +243,28 @@ def door_bamboo():
     # a little as they rise, to pass the fish lantern's box (from 1.36 up over the box's other half) and out to the street)
     # (item 824: their feet 7 cm further to the building's side, against the box's inner wall there, so they rise 10 cm clear of the
     # fish lantern's box (they were 5 cm))
-    culms = [((-0.1, -0.04), 2.35, (-0.07, 0.12), 0.022), ((-0.07, 0.035), 2.15, (-0.1, 0.22), 0.02),
-             ((-0.115, 0.075), 1.95, (-0.04, 0.28), 0.018), ((-0.09, -0.085), 1.55, (-0.03, -0.04), 0.016)]
+    # (item 849, the owner's 「竹沒置中，且須要往外垂」, as item 737 had asked: item 824's feet against the box's side had undone it. Their
+    # feet back round the box's middle; clear of the fish lantern now by their way up, not by where they stand: over to the building's side
+    # low down (most of it done by half way up, culm_pt's early lean), through the gap at the lantern's height between its box (10 cm clear)
+    # and the way in, 13 cm across; then out to the street up top (a late arch) and their tops nodding over, the tufts hanging)
+    culms = [((-0.02, -0.035), 2.35, (-0.155, 0.5), 0.022), ((0.015, 0.03), 2.15, (-0.185, 0.58), 0.02),
+             ((-0.03, 0.065), 1.95, (-0.15, 0.62), 0.018), ((-0.045, -0.07), 1.55, (-0.12, 0.3), 0.016)]
+    NOD = 0.06
+
+    def culm_pt(c, t):
+        """a culm `t` of the way up it (0 its foot .. 1 its top): over to the building's side early (1 - (1 - t)^2: three quarters of it by
+        half way), out to the street late (t^2.6), and its top lowered as it nods (NOD of its height at the very top)"""
+        (bx, bz), h, (lx, lz), _ = c
+        return Vector((bx + lx * (1 - (1 - t) ** 2), SOIL + h * (t - NOD * t ** 4), bz + lz * t ** 2.6))
     # (which way is out (item 737): away from the door and the building's side, to the street)
     OUT = math.atan2(1.0, 0.6)
     # (each culm's middle kept clear of the lantern's box and the building's side, its girth with it: said, not made, if not)
-    for (bx, bz), h, (lx, lz), r0 in culms:
-        for t in [i / 20 for i in range(21)]:
-            p = Vector((bx + lx * t * t, SOIL + h * t, bz + lz * t * t))
+    for c in culms:
+        r0 = c[3]
+        for t in [i / 40 for i in range(41)]:
+            p = culm_pt(c, t)
             for dx, dz in ((r0, 0), (-r0, 0), (0, r0), (0, -r0)):
-                assert clear(p + Vector((dx, 0, dz))), ('culm in the way', bx, bz, t, tuple(p))
+                assert clear(p + Vector((dx, 0, dz))), ('culm in the way', c[0], t, tuple(p))
     leaf_bm = bmesh.new()
     leaf_uv = leaf_bm.loops.layers.uv.new()
     n_leaves = [0]
@@ -281,9 +293,11 @@ def door_bamboo():
         n_leaves[0] += 1
         return True
 
-    for k, ((bx, bz), h, (lx, lz), r0) in enumerate(culms):
-        def pt(t, bx=bx, bz=bz, h=h, lx=lx, lz=lz):
-            return Vector((bx + lx * t * t, SOIL + h * t, bz + lz * t * t))
+    for k, c in enumerate(culms):
+        (bx, bz), h, (lx, lz), r0 = c
+
+        def pt(t, c=c):
+            return culm_pt(c, t)
 
         nodes, t = [0.0], 0.0
         while True:

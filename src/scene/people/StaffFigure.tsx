@@ -477,7 +477,7 @@ const CREW_FEEL = new Map<string, unknown>()
 const AT_NOW = new THREE.Vector3(), HAND_OUT = new THREE.Vector3(), FAN_OFF = new THREE.Vector3(0, 0.03, 0.02)
 if (import.meta.env.DEV && typeof window !== 'undefined') Object.assign(window, { __crewFeel: CREW_FEEL })
 export const StaffFigure = memo(StaffFigureImpl)
-function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, face: faceAsked, playing = false, offDuty = false }: { id: string; role: Role; look: StaffLook; moving?: boolean
+function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, face: faceAsked, playing = false, offDuty = false, tray = false }: { id: string; role: Role; look: StaffLook; moving?: boolean
   /** a face to make, whatever they're doing (the character viewer's buttons) */
   face?: CrewFace
   /** sat (the cashier on the till's chair): leaning in a little, the hands up on the counter in front, now and then tapping at the keys;
@@ -488,8 +488,12 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
   playing?: boolean
   /** off duty (upstairs in the dorm, sat with the owner after hours): nothing of the shop's in their hands, no tray, no clipboard, no fan
    * (item 797, the owner's 「下班身上還有餐盤」: a server upstairs at the table still held the shop's round tray out before her) */
-  offDuty?: boolean }) {
+  offDuty?: boolean
+  /** (item 845) the floor's round tray in their hands as a server's is, whatever their role: the second cook out carrying for the floor */
+  tray?: boolean }) {
   const own = featuresOf(id, who)
+  /** (a server's, or one carrying for the floor) the round tray before them */
+  const trays = role === 'server' || tray
   const h = own.h
   const seed = h % 997
   // (sat at all: the till's chair (true) or a counter that far up (a number))
@@ -507,10 +511,10 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
     const get = (n: string) => root.getObjectByName(n) ?? null
     // (what they don't have scaled to nothing: their part of the one mesh drawn as nothing)
     get('glasses')?.scale.setScalar(glasses ? 1 : 0)
-    get('tray')?.scale.setScalar(role === 'server' ? 1 : 0)
+    get('tray')?.scale.setScalar(trays ? 1 : 0)
     get('clip')?.scale.setScalar(0)
     return { root, body: root, handL: get('handL'), handR: get('handR'), fan: get('fan'), eyes: get('eyes'), clip: get('clip'), tray: get('tray') }
-  }, [gltf, fan, v, own.glasses, role])
+  }, [gltf, fan, v, own.glasses, trays])
   // (their skeleton's picture let go as they go)
   useEffect(() => () => releaseFigure(fig.root), [fig])
   // (their own skin and hair: colours over the variant's shape, in a colour attribute of their own, the shape's other attributes shared.
@@ -792,8 +796,8 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
     // at the tray's height, holding nothing, they went into the sink's cabinet as they stood at it); out to hold it and back eased, a
     // quarter second, not at once)
     // (off duty, nothing of the shop's carried and the hands their own (item 797))
-    const carrying = !offDuty && (role === 'server' || role === 'stock' || !!job?.carry)
-    const holdWant = carrying ? (role === 'server' && job?.trayDown && !job?.holding ? 0 : 1) : role === 'cashier' && !offDuty ? 0.6 : 0
+    const carrying = !offDuty && (trays || role === 'stock' || !!job?.carry)
+    const holdWant = carrying ? (trays && job?.trayDown && !job?.holding ? 0 : 1) : role === 'cashier' && !offDuty ? 0.6 : 0
     // (eased back from what they held as it was held: a cook's hands, done carrying, went by the cashier's place on their way down)
     if (holdWant > 0) heldAs.current = carrying
     const holder = heldAs.current
@@ -802,7 +806,7 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
     const hold = holdK.current
     // (item 675: the tray lifted over the sink's top as they come up to it and go from it (GuestBar3D's trayLift, their own frame), the
     // hands under it with it)
-    const lift = role === 'server' ? job?.trayLift ?? 0 : 0
+    const lift = trays ? job?.trayLift ?? 0 : 0
     // (both hands where a job wants them in the world (item 177: the open sake bottle held at its foot and its neck as it's poured, a tokkuri
     // brought up onto the counter, a cup set down): eased to them and back as it begins and ends; each place to the hand on its side (the one
     // further along their +x to the +x hand), so the two never cross)
@@ -963,7 +967,7 @@ function StaffFigureImpl({ id, role, look: who, moving = false, seated = false, 
     // (nor while they're on an errand (GuestBar3D's trayDown: the till, the skewers, the sink, sweeping up): the tray's put down for it, picked
     // up again at their place, item 249)
     // (picked up again once their hands are out for it (item 675: they come out to it eased now); lifted with them over the sink's top)
-    fig.tray?.scale.setScalar(role === 'server' && !offDuty && !job?.broom && job?.floorWipe === undefined && !job?.trayDown && reachK.current < 0.5 && hold > 0.9 ? 1 : 0)
+    fig.tray?.scale.setScalar(trays && !offDuty && !job?.broom && job?.floorWipe === undefined && !job?.trayDown && reachK.current < 0.5 && hold > 0.9 ? 1 : 0)
     if (fig.tray) fig.tray.position.y = lift
   })
   // (clicked: the owner's ways with them (App's popover, item 348); the same handler from one redraw to the next (item 374: a new one each

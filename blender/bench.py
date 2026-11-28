@@ -188,16 +188,6 @@ YA = SEAT_H - 0.075
 SY = 0.085
 
 
-def around(c, hw):
-    """a binding `hw` either side of `c` along a culm"""
-    return (c - hw, c + hw)
-
-
-def ends(length, w):
-    """a binding at each end of a culm, `w` long"""
-    return [(0.0, w), (length - w, length)]
-
-
 # (the rails: unbound (item 788, the owner's 「上面不用」, red rings round the six over its corners and its middle legs: item 791 had them bound
 # where each end culm meets them and over each leg and bearer))
 for k, zz in enumerate((ZB, ZF)):
@@ -214,7 +204,7 @@ for k, lx in enumerate(JX):
 legs_at = [(lx, ZBL, YF - FR * 0.5) for lx in JX] + [(lx, ZFL, YBR - SR * 0.5) for lx in JX]
 for k, (lx, lz, top) in enumerate(legs_at):
     # (bound where the second rail crosses it, and once round both the low stretchers)
-    culm_part(f"BenchLeg{k}", (lx, 0.0, lz), (lx, top, lz), LR, turn=0.7 * k + 0.3, bands=[around(YA, 0.016), (SY - 0.025 - 0.016, SY + 0.016)])
+    culm_part(f"BenchLeg{k}", (lx, 0.0, lz), (lx, top, lz), LR, turn=0.7 * k + 0.3)
     # (its head's ring of rattan under the frame gone with the frame's bindings (item 788))
 # ---- (item 789, the owner's 「下面綁的要有交叉的感覺」 and then 「還是有點怪怪」: painted on the culms the X was a dark smudge, and on the
 # stretchers' thin ends a zigzag) each joint below the seat lashed with strips of rattan crossed over it: on the leg's two faces square to
@@ -222,59 +212,174 @@ for k, (lx, lz, top) in enumerate(legs_at):
 # hugging the leg's round (2.5 mm off it, the second over the first where they cross), past the culm's top and its foot; the painted
 # turns straight round under them. One mesh, its own material, a lighter rattan than the turns; drawn without the ink line (too thin for
 # one: WaitingBench leaves it out)
-LASH_W, LASH_SEGS, LASH_SPAN = 0.0055, 6, math.radians(52)
+LASH_W, LASH_SPAN = 0.0055, math.radians(52)
+# (items 846, 847, the owner's 「XX的部份可以留，幫我再細緻化，避免錯位」 with his close-up of one, the strip stood off the leg here and sunk
+# in there: it went round a circle 2.5 mm out from the leg's corners, and the leg's an octagon (culm_part's 8 sides), its faces' middles
+# 1.4 mm further in, the octagon turned its own way on each leg; and the painted turns it lay on, gone now (「原本候位椅的褐色部份拿掉」).
+# Each strip now laid on the leg's own faces, LASH_GAP off them all the way, folding at each corner it crosses (a point there, its offset
+# mitred), straight across each face as a strap wound on round a prism goes; the one on top lifted LASH_LIFT where it crosses the other,
+# down on the face again a strip's width either side)
+LASH_GAP, LASH_LIFT = 0.0006, 0.0009
+OCT = 8
+R_IN = LR * math.cos(math.pi / OCT)
 lash = bmesh.new()
 
 
-def lash_x(lx, lz, yc, cx, cz, cr, sides=(1, -1)):
-    """the X over a joint: the leg at (lx, lz), the culm meeting it at height yc running along (cx, cz) (a unit vector in the floor's
-    plane), cr its radius; on the leg's faces square to it (`sides`: 1 the one whose normal is (-cz, cx)), its arms 5 mm past the culm,
-    inside the painted turns round the leg"""
+def oct_at(lx, lz, turn, a):
+    """where a ray from the leg's axis at the angle `a` round it (sin, cos: its x, z) meets the octagon culm_part made of it (turned `turn`:
+    its corners at turn + pi + 2 pi k / 8, the game's frame), and the angle of that face's normal"""
+    step = 2 * math.pi / OCT
+    rel = (a - (turn + math.pi)) % (2 * math.pi)
+    k = int(rel // step)
+    af = turn + math.pi + (k + 0.5) * step
+    rho = R_IN / math.cos(a - af)
+    return Vector((lx + rho * math.sin(a), 0.0, lz + rho * math.cos(a))), af
+
+
+def lash_x(lx, lz, turn, yc, cx, cz, cr, sides=(1, -1)):
+    """the X over a joint: the leg at (lx, lz) turned `turn`, the culm meeting it at height yc running along (cx, cz) (a unit vector in the
+    floor's plane), cr its radius; on the leg's faces square to it (`sides`: 1 the one whose normal is (-cz, cx)), its arms 5 mm past the
+    culm's top and its foot"""
     hy = cr + 0.005
+    step = 2 * math.pi / OCT
     for side in sides:
         nx, nz = -cz * side, cx * side
+        ac = math.atan2(nx, nz)
+        a0, a1 = ac - LASH_SPAN, ac + LASH_SPAN
+        # (a point at each end, at each corner between, and at the crossing and a strip's width either side of it, for the lift)
+        dl = LASH_W * 0.95 / R_IN
+        rel0 = (a0 - (turn + math.pi)) % (2 * math.pi)
+        first = a0 - rel0 + (math.floor(rel0 / step) + 1) * step
+        corners = []
+        c_ = first
+        while c_ < a1 - 1e-6:
+            corners.append(c_)
+            c_ += step
         for k, sgn in enumerate((1, -1)):
-            r = LR + 0.0025 + 0.0012 * k
+            angs = sorted(set([a0, a1] + corners + ([ac - dl, ac, ac + dl] if k else [ac])))
             pts = []
-            for i in range(LASH_SEGS + 1):
-                t = i / LASH_SEGS
-                ph = -LASH_SPAN + 2 * LASH_SPAN * t
-                y = yc + sgn * (-hy + 2 * hy * t)
-                ux, uz = nx * math.cos(ph) + cx * math.sin(ph), nz * math.cos(ph) + cz * math.sin(ph)
-                pts.append((Vector((lx + r * ux, y, lz + r * uz)), Vector((ux, 0.0, uz))))
+            for a in angs:
+                at_corner = any(abs(a - c__) < 1e-9 for c__ in corners)
+                b, af = oct_at(lx, lz, turn, a)
+                # (off the face along its normal; at a corner, off both faces' planes: along the corner, mitred)
+                nrm = Vector((math.sin(a), 0.0, math.cos(a))) / math.cos(math.pi / OCT) if at_corner else Vector((math.sin(af), 0.0, math.cos(af)))
+                pts.append([a, b, nrm])
+            # (how far along the leg's faces each point is, unrolled: the strip straight on each face)
+            run = [0.0]
+            for q in range(1, len(pts)):
+                run.append(run[-1] + (pts[q][1] - pts[q - 1][1]).length)
+            total = run[-1]
+            sc = run[angs.index(ac)]
+            span_lift = run[angs.index(ac + dl)] - sc if k else 1.0
             rows = []
-            for i, (pt, rad) in enumerate(pts):
-                d = (pts[min(i + 1, LASH_SEGS)][0] - pts[max(i - 1, 0)][0]).normalized()
-                w = d.cross(rad).normalized() * (LASH_W / 2)
+            spots = []
+            for q, (a, b, nrm) in enumerate(pts):
+                y = yc + sgn * (-hy + 2 * hy * run[q] / total)
+                lift = LASH_LIFT * max(0.0, 1.0 - abs(run[q] - sc) / span_lift) if k else 0.0
+                spots.append((Vector((b.x, y, b.z)) + nrm * (LASH_GAP + lift), nrm.normalized()))
+            for q, (pt, nrm) in enumerate(spots):
+                d = (spots[min(q + 1, len(spots) - 1)][0] - spots[max(q - 1, 0)][0]).normalized()
+                w = d.cross(nrm).normalized() * (LASH_W / 2)
                 rows.append([lash.verts.new(P(*(pt + w))), lash.verts.new(P(*(pt - w)))])
-            for i in range(LASH_SEGS):
-                f = lash.faces.new((rows[i][0], rows[i + 1][0], rows[i + 1][1], rows[i][1]))
+            for q in range(len(rows) - 1):
+                f = lash.faces.new((rows[q][0], rows[q + 1][0], rows[q + 1][1], rows[q][1]))
                 # (turned out, away from the leg)
-                mid = (pts[i][0] + pts[i + 1][0]) / 2
+                mid = (spots[q][0] + spots[q + 1][0]) / 2
                 f.normal_update()
-                out_ = P(*(mid + (pts[i][1] + pts[i + 1][1]) / 2)) - P(*mid)
+                out_ = P(*(mid + (spots[q][1] + spots[q + 1][1]) / 2)) - P(*mid)
                 if f.normal.dot(out_) < 0:
                     f.normal_flip()
                 # (smooth: in flat facets each piece of it took its own shade, a strip round a culm read as a zigzag)
                 f.smooth = True
 
 
-# ---- a second rail under the frame, along the front and the back from end leg to end leg through the middle one (bound over each leg)
+# (item 1003, the owner's 「XX 有點怪，請考究一下綁法」, circling two joints: the stretchers ran through the legs' middles (貫), the X drawn on the
+# leg's face over nothing it bound, a stretcher's end coming out through it beside. Bamboo furniture lashed as it's made: each stretcher
+# laid against the leg's face where it crosses it, and a cross lashing over the crossing, its strips from above the stretcher on the one
+# side diagonally down over its front to below it on the other, round the leg behind, the second the other way: the X's middle on the
+# stretcher, its arms on the leg above and below. The long ones along the front against the front legs' faces to the room, along the back
+# against the back legs' faces in under the seat (behind them is the wall); across the ends outside the end legs, across the middle beside
+# the middle legs; past the last leg OVER, as such a frame's are)
+OVER = 0.02
+OFF = LR + SR
+CROSS_SIDE = [-1 if lx < 0 else 1 for lx in JX]
+# ---- a second rail under the frame, along the front and the back from end leg to end leg past the middle one
 for k, lz in enumerate((ZBL, ZFL)):
-    culm_part(f"BenchApron{k}", (-LX - LR, YA, lz), (LX + LR, YA, lz), SR, segs=6, turn=5.0 + k, bands=[around(x + LX + LR, 0.034) for x in JX])
+    culm_part(f"BenchApron{k}", (-LX - LR - OVER, YA, lz + OFF), (LX + LR + OVER, YA, lz + OFF), SR, segs=6, turn=5.0 + k)
 # ---- the stretchers, low: along the front and the back (貫), and across each end and the middle a little lower (offset, as a joiner
-# makes them, so no two meet at one point); the long ones bound over each leg, the cross ones at their ends
+# makes them, so no two meet at one point)
 for k, lz in enumerate((ZBL, ZFL)):
-    culm_part(f"BenchStretchLong{k}", (-LX - LR, SY, lz), (LX + LR, SY, lz), SR, segs=6, turn=4.0 + k, bands=[around(x + LX + LR, 0.034) for x in JX])
-CROSS_L = (ZFL - LR - 0.001) - (ZBL + LR + 0.001)
+    culm_part(f"BenchStretchLong{k}", (-LX - LR - OVER, SY, lz + OFF), (LX + LR + OVER, SY, lz + OFF), SR, segs=6, turn=4.0 + k)
 for k, lx in enumerate(JX):
-    culm_part(f"BenchStretch{k}", (lx, SY - 0.025, ZBL + LR + 0.001), (lx, SY - 0.025, ZFL - LR - 0.001), SR, segs=6, turn=3.1 + k, bands=ends(CROSS_L, 0.022))
-# (item 789: the crossed strips over each leg's joints: the second rail's and the long stretcher's on the leg's face to the room (along
-# them: the faces to the wall and in under the seat not seen), the cross stretcher's on its two sides (across))
-for lx, lz, top in legs_at:
-    lash_x(lx, lz, YA, 1.0, 0.0, SR, sides=(1,))
-    lash_x(lx, lz, SY, 1.0, 0.0, SR, sides=(1,))
-    lash_x(lx, lz, SY - 0.025, 0.0, 1.0, SR)
+    xs = lx + CROSS_SIDE[k] * OFF
+    culm_part(f"BenchStretch{k}", (xs, SY - 0.025, ZBL - LR + 0.003), (xs, SY - 0.025, ZFL + LR + OVER), SR, segs=6, turn=3.1 + k)
+LASH_N = 18
+
+
+def lash_over(lx, lz, turn, yc, nx, nz, sr):
+    """(item 1003) a cross lashing where a stretcher of radius `sr` crosses the leg at (lx, lz), against its face toward (nx, nz) (the game's
+    frame), its axis at height yc: two strips, each from above the stretcher on the one side diagonally down to below it on the other, round
+    the leg's sides; on the leg's faces LASH_GAP off them, over the stretcher's front as far off it, drawn taut between the two (not into the
+    corner where they meet); the second over the first where they cross"""
+    ac = math.atan2(nx, nz)
+    n2 = Vector((nx, 0.0, nz))
+    hy = sr + 0.007
+    so = LR + sr
+    for k, sgn in enumerate((1, -1)):
+        pts = []
+        for i in range(LASH_N + 1):
+            t = i / LASH_N
+            a = ac - LASH_SPAN + 2 * LASH_SPAN * t
+            b, af = oct_at(lx, lz, turn, a)
+            nrm = Vector((math.sin(af), 0.0, math.cos(af)))
+            y = yc + sgn * (hy - 2 * hy * t)
+            p = Vector((b.x, y, b.z)) + nrm * LASH_GAP
+            # (how far out along the stretcher's side of the leg, from the leg's axis)
+            on = (p.x - lx) * n2.x + (p.z - lz) * n2.z
+            # (over the stretcher where it's at its height: its round front that far out, the strip on it)
+            dy = y - yc
+            want = so + math.sqrt(max(0.0, (sr + LASH_GAP) ** 2 - dy * dy)) if abs(dy) < sr + LASH_GAP else -1.0
+            pts.append([p, on, max(on, want), nrm, dy])
+        # (drawn taut: no point in a hollow between its neighbours, where the strip would dip into the corner between the leg and the stretcher)
+        outs = [q[2] for q in pts]
+        for _ in range(60):
+            for i in range(1, len(outs) - 1):
+                outs[i] = max(outs[i], (outs[i - 1] + outs[i + 1]) / 2)
+        spots = []
+        for i, (p, on, _w, nrm, dy) in enumerate(pts):
+            lift = outs[i] - on
+            q = p + n2 * lift
+            # (its normal: the leg's face's on the leg; over the stretcher, out from its axis; between, the two leaned together)
+            on_stretch = min(1.0, lift / max(1e-6, sr))
+            sn = (n2 * max(0.0, outs[i] - so) + Vector((0.0, dy, 0.0))).normalized() if (outs[i] - so) > -1e-6 or abs(dy) > 1e-6 else n2
+            nn = (nrm * (1 - on_stretch) + sn * on_stretch).normalized()
+            # (the one on top lifted where it crosses the other, a strip's width either side)
+            t = i / LASH_N
+            if k:
+                q = q + nn * (LASH_LIFT * max(0.0, 1.0 - abs(t - 0.5) / 0.12))
+            spots.append((q, nn))
+        rows = []
+        for i, (pt, nn) in enumerate(spots):
+            d = (spots[min(i + 1, len(spots) - 1)][0] - spots[max(i - 1, 0)][0]).normalized()
+            w = d.cross(nn).normalized() * (LASH_W / 2)
+            rows.append([lash.verts.new(P(*(pt + w))), lash.verts.new(P(*(pt - w)))])
+        for i in range(len(rows) - 1):
+            f = lash.faces.new((rows[i][0], rows[i + 1][0], rows[i + 1][1], rows[i][1]))
+            mid = (spots[i][0] + spots[i + 1][0]) / 2
+            f.normal_update()
+            out_ = P(*(mid + (spots[i][1] + spots[i + 1][1]) / 2)) - P(*mid)
+            if f.normal.dot(out_) < 0:
+                f.normal_flip()
+            f.smooth = True
+
+
+# (each leg's three crossings: the rail's and the long stretcher's against its face to the room (the back legs': in under the seat), the
+# cross stretcher's against its side, outside for the end legs)
+for k, (lx, lz, top) in enumerate(legs_at):
+    turn_k = 0.7 * k + 0.3
+    lash_over(lx, lz, turn_k, YA, 0.0, 1.0, SR)
+    lash_over(lx, lz, turn_k, SY, 0.0, 1.0, SR)
+    lash_over(lx, lz, turn_k, SY - 0.025, CROSS_SIDE[k % 3], 0.0, SR)
 lash_me = bpy.data.meshes.new("BenchLash")
 lash.to_mesh(lash_me)
 lash.free()
@@ -284,39 +389,74 @@ lash_o.data.materials.append(M["rattan"])
 parts.append(lash_o)
 
 
-def paint_atlas():
-    """each culm's strip: its skin (the tile, at its own place along it), and its bindings over it"""
-    s_px = ((np.arange(AH) + 0.5) / AH * STRIP_LEN)[:, None]
-    a_px = ((np.arange(SW) + 0.5) / SW)[None, :]
-    out = np.zeros((AH, NSTRIP * SW, 3), np.float32)
-    wrap_tone = np.array((0.47, 0.3, 0.16), np.float32)
-    nz = fbm(AH, 6, 40, 3)
-    # (the rattan wound round in a helix, a turn each 4.2 mm: each turn rounded, lit down its middle, a dark seam between)
-    phase = s_px / 0.0042 + a_px
-    fr = phase - np.floor(phase)
-    turn_ = (0.78 + 0.22 * np.sin(np.pi * fr)) * (0.4 + 0.6 * smooth(0.0, 0.14, fr) * smooth(0.0, 0.14, 1 - fr))
+AO_LEAST, AO_DIST, AO_SAMPLES = 0.6, 0.035, 128
 
+
+def bake_culm_ao():
+    """(item 846, the owner's 「然後再進行烘焙」; docs/BAKING.md stage A) how shut in each spot of every culm's skin is by what's round it (a
+    leg by the stretchers through it, under its crossed strips, the frame under the seat, the floor it stands on and the wall behind it),
+    baked by Cycles into the culms' atlas (each culm its own strip of it, so none shares a texel with another): 0 shut in .. 1 open. Only
+    the shut-in (ambient occlusion), not the light: the room's lights go on and off (docs/BAKING.md, the project's way)"""
+    sc = bpy.context.scene
+    sc.render.engine = "CYCLES"
+    sc.cycles.device = "CPU"
+    sc.cycles.samples = AO_SAMPLES
+    world = bpy.data.worlds.new("BenchAOWorld")
+    sc.world = world
+    world.light_settings.distance = AO_DIST
+    # (the floor under it and the wall behind it, there for the bake only)
+    tmp = []
+    bpy.ops.mesh.primitive_plane_add(size=3.0, location=P(0, -0.0005, MID))
+    tmp.append(active())
+    bpy.ops.mesh.primitive_plane_add(size=3.0, location=P(0, 0.5, BACK - 0.002), rotation=(math.pi / 2, 0, 0))
+    tmp.append(active())
+    ao_img = bpy.data.images.new("BenchAO", NSTRIP * SW, AH, float_buffer=True)
+    nt = M["culm"].node_tree
+    node = nt.nodes.new("ShaderNodeTexImage")
+    node.image = ao_img
+    nt.nodes.active = node
+    culms = [o for o in parts if o.type == "MESH" and o.data.materials and o.data.materials[0] == M["culm"]]
+    bpy.ops.object.select_all(action="DESELECT")
+    for o in culms:
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = culms[0]
+    bpy.ops.object.bake(type="AO", margin=4, use_clear=True)
+    px = np.array(ao_img.pixels[:], np.float32).reshape(AH, NSTRIP * SW, 4)[..., 0]
+    nt.nodes.remove(node)
+    for o in tmp:
+        bpy.data.objects.remove(o, do_unlink=True)
+    bpy.data.images.remove(ao_img)
+    # (what it came to over the culms' own texels only: each strip's rows down its own length)
+    used = np.concatenate([px[:int(length / STRIP_LEN * AH), i * SW:(i + 1) * SW].ravel() for (i, length, _, _) in strips])
+    print("BENCH_AO", len(culms), "culms, least", round(float(used.min()), 3), "5%", round(float(np.percentile(used, 5)), 3),
+          "median", round(float(np.median(used)), 3))
+    if os.environ.get("AO_PNG"):
+        out_ = bpy.data.images.new("BenchAOOut", NSTRIP * SW, AH)
+        out_.pixels.foreach_set(np.repeat(px[..., None], 4, -1).clip(0, 1).astype(np.float32).ravel())
+        out_.filepath_raw = os.environ["AO_PNG"]
+        out_.file_format = "PNG"
+        out_.save()
+    return px
+
+
+def paint_atlas(ao=None):
+    """each culm's strip: its skin (the tile, at its own place along it), darkened where it's shut in (`ao`, baked: down to AO_LEAST)"""
+    s_px = ((np.arange(AH) + 0.5) / AH * STRIP_LEN)[:, None]
+    out = np.zeros((AH, NSTRIP * SW, 3), np.float32)
     for (i, length, bands, off) in strips:
         rows = (((s_px[:, 0] / CULM_TILE + off) * N).astype(int)) % N
         strip = culm_small[rows].copy()
-        var = 0.9 + 0.2 * nz[:, i * SW:(i + 1) * SW]
-        for (s0, s1) in bands:
-            s0, s1 = max(0.0, s0), min(length, s1)
-            if s1 <= s0:
-                continue
-            inb = smooth(s0 - 0.001, s0 + 0.001, s_px) * (1 - smooth(s1 - 0.001, s1 + 0.001, s_px))
-            # (darker at its two edges, where it goes in under the next turn)
-            edge = 0.7 + 0.3 * smooth(0.0, 0.0035, s_px - s0) * smooth(0.0, 0.0035, s1 - s_px)
-            wrap = wrap_tone[None, None, :] * (turn_ * var * edge)[..., None]
-            strip = mix(strip, wrap, np.broadcast_to(inb, (AH, SW)))
+        # (item 847: the painted turns of rattan round each joint gone, the owner's 「原本候位椅的褐色部份拿掉」: the crossed strips bind them)
+        if ao is not None:
+            strip = strip * (AO_LEAST + (1 - AO_LEAST) * np.clip(ao[:, i * SW:(i + 1) * SW], 0, 1))[..., None]
         out[:, i * SW:(i + 1) * SW] = strip
     rgba = np.concatenate([np.clip(out, 0, 1), np.ones((AH, NSTRIP * SW, 1), np.float32)], -1).astype(np.float32)
     culm_img.pixels.foreach_set(rgba.ravel())
     culm_img.pack()
-    print("BENCH_STRIPS", len(strips), "BANDS", sum(len(b) for _, _, b, _ in strips))
+    print("BENCH_STRIPS", len(strips))
 
 
-paint_atlas()
+paint_atlas(bake_culm_ao())
 
 # (two nodes, as the game had them: the seat and the rest)
 bpy.ops.object.select_all(action="DESELECT")

@@ -1184,6 +1184,18 @@ export const PLATES_OUT = keep(import.meta.hot, 'PLATES_OUT', new Set<number>())
 /** the kitchen's plater (the third cook, or the second) off their place, fetching plates for the plating place: GuestBar3D walks a figure of them,
  * Roasting's at their place is hidden meanwhile (the owner, plating with no cook to, is OWNER_OUT) */
 export const PLATER_OUT: { id: string | null } = keep(import.meta.hot, 'PLATER_OUT', { id: null })
+/**
+ * (item 845, the Tester window's 872) the second cook out lending the floor a hand, with a third cook at the plating: what's plated waiting at
+ * the plating place with both servers busy (tired late at night, at half their pace, it waited as long as an hour, and a customer was seen out
+ * at the closing hungry with his plate still there), carried out to its customer by him; their bowls or their tokkuri, with the third cook
+ * swamped. GuestBar3D walks him meanwhile, as it does the plater (PLATER_OUT), his figure at the board (Roasting's CrewWalk) hidden, and no
+ * round of the orders begun while he's out. `home`, his place at the board in the world, and `face`, the way he faces it there (CrewWalk keeps
+ * them, `homeSet` once it has); `atBoard`, stood there with no round on (CrewWalk); `queued`, how many of the orders wait in their stores for
+ * him (Roasting): he goes only with none
+ */
+export const HELPER_OUT = keep(import.meta.hot, 'HELPER_OUT', { id: null as string | null, home: new THREE.Vector3(), face: new THREE.Vector3(0, 0, 1),
+  homeSet: false, atBoard: false, queued: 0 })
+if (import.meta.env?.DEV && typeof window !== 'undefined') Object.assign(window, { __helperOut: HELPER_OUT })
 /** the dish dryer in the sink's cabinet (game/plates' Dryer: what's in it, its time left); `open`, its door down (0..1) to load or unload it
  * (Sink.tsx draws it, GuestBar3D runs it) */
 /** the washer under the sink (game/plates): its plates and time left; `open`: a server's at it, its door down; `manual`: the player's let its
@@ -1280,7 +1292,7 @@ export const RICE: { rice: number; kama: Kama; washing: boolean; batch: number
  * change, for the drawing to see.
  */
 // (`at` on each wanted: when it was asked for (performance.now()), item 835: the third cook's jobs taken whichever's waited longest)
-export const BOWLS = keep(import.meta.hot, 'BOWLS', { want: [] as { guest: number; rice: boolean; soup: boolean; at?: number }[], asked: new Set<number>(), got: new Set<string>(),
+export const BOWLS = keep(import.meta.hot, 'BOWLS', { want: [] as { guest: number; rice: boolean; soup: boolean; at?: number; min?: number }[], asked: new Set<number>(), got: new Set<string>(),
   setAt: new Map<string, number>(), ver: 0 })
 /**
  * The kitchen's made-to-order dishes (items 461, 469: data/kitchenDishes): Roasting asks for each a customer's ordered (`want`: the
@@ -1344,6 +1356,9 @@ export const SAKE: { levels: number[]; served: number; want: number[]; ready: Se
   keep(import.meta.hot, 'SAKE', { levels: fullStand(), served: 0, want: [], ready: new Set(), open: 1, station: false, unpoured: new Set() })
 /** when each customer's tokkuri was asked for (performance.now(); item 835: the third cook's jobs taken whichever's waited longest) */
 export const SAKE_AT = keep(import.meta.hot, 'SAKE_AT', new Map<number, number>())
+/** (item 845, the Tester window's: HELP_AFTER_MS was of the wall's clock, twenty of the game's minutes at x2, ten at x1) the game's minute
+ * each customer's tokkuri was asked for (ui/kit/clockStore's minutesNow), as BOWLS.want's `min` is their bowls': what a helping hand waits on */
+export const SAKE_MIN = keep(import.meta.hot, 'SAKE_MIN', new Map<number, number>())
 // (kept over a hot update from when the stand had fewer bottles (item 285: eight to twelve): the ones it didn't have, full)
 if (SAKE.levels.length !== fullStand().length) SAKE.levels = fullStand().map((l, k) => SAKE.levels[k] ?? l)
 /** the shop's sake not yet poured, in tokkuri (item 199): what's in stock, and what's been sold and is still to be poured; Infinity with no

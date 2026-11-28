@@ -1191,6 +1191,11 @@ def settle_skewers():
             o.select_set(True)
             bpy.context.view_layer.objects.active = o
             bpy.ops.object.convert(target="MESH")
+            # (item 843: the opened hokke's flat flesh and its skin shaded flat, its rim smooth round them: all of it shaded smooth, the
+            # faces' points took the rim's slant and the ladder's slivers drew streaks of light across the flesh (scripts/topo-audit.mjs's
+            # soft caps, 34). Here, its thickness given it (the joined fish's one solidify, its tail's too): not before, the tail lost it)
+            if o.name == "Hokke":
+                o.data.set_sharp_from_angle(angle=math.radians(40))
     acc = ring_table()
     per = acc[-1]
     base = {id(o): o.matrix_world.copy() for o, *_ in items}

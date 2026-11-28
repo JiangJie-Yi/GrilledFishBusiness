@@ -8,7 +8,7 @@ import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type React
 import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
-import { bakeable, countedBatch, homeCopy, plainColours, StaticBatch, mergeByMaterial } from '@/scene/render/StaticBatch'
+import { bakeable, colourVertices, countedBatch, homeCopy, plainColours, StaticBatch, mergeByMaterial } from '@/scene/render/StaticBatch'
 import { isDummyMap } from '@/scene/render/materialNormalize'
 import { mergeState } from '@/scene/render/worldMerge'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
@@ -566,6 +566,18 @@ function drawTemp(g: CanvasRenderingContext2D, t: number, setting: boolean) {
 const knobTurn = (set: number) => -((set - FREEZER_MIN) / (FREEZER_MAX - FREEZER_MIN) - 0.5) * Math.PI * 1.5
 /** the knob's ridges round its rim, for a grip */
 const KNOB_RIDGES = Array.from({ length: 16 }, (_, i) => (i / 16) * Math.PI * 2)
+/** the scale round the knob: a dot at each end and the middle, blue for cold, white, red for warm; one shape, each dot's colour on its
+ * points (item 901: three meshes of three colours, a draw each) */
+const KNOB_SCALE = (() => {
+  const dots = [-1, 0, 1].map((k) => {
+    const g = new THREE.CircleGeometry(0.003, 10).translate(Math.sin(k * Math.PI * 0.75) * 0.033, Math.cos(k * Math.PI * 0.75) * 0.033, 0.001)
+    colourVertices(g, new THREE.Color(k < 0 ? '#3a7ad0' : k > 0 ? '#d04a3a' : '#e8eaec'))
+    return g
+  })
+  const geo = mergeGeometries(dots)!
+  for (const g of dots) g.dispose()
+  return { geo, mat: new THREE.MeshBasicMaterial({ vertexColors: true }) }
+})()
 useGLTF.preload(FREEZER_URL)
 /**
  * The ingredient freezer (blender/freezer.py): a wide chest freezer along the kitchen's back wall by the staff door, pale blue-white on a
@@ -694,13 +706,8 @@ function IngredientFridge() {
             </StaticBatch>
           </group>
         </group>
-        {/* (the scale round it: a dot at each end and the middle, blue for cold, red for warm) */}
-        {[-1, 0, 1].map((k) => (
-          <mesh key={k} position={[Math.sin(k * Math.PI * 0.75) * 0.033, Math.cos(k * Math.PI * 0.75) * 0.033, 0.001]}>
-            <circleGeometry args={[0.003, 10]} />
-            <meshBasicMaterial color={k < 0 ? '#3a7ad0' : k > 0 ? '#d04a3a' : '#e8eaec'} />
-          </mesh>
-        ))}
+        {/* (the scale round it: a dot at each end and the middle, blue for cold, red for warm; one mesh, KNOB_SCALE) */}
+        <mesh geometry={KNOB_SCALE.geo} material={KNOB_SCALE.mat} />
       </group>
       {/* the power lamp: a red glass bulb in the chrome bezel, lit from inside, a highlight on its glass and a soft glow round it */}
       <group position={[W / 2 - HOUSE / 2 + 0.07, 0.62, 0.74 / 2 + 0.008]}>
@@ -857,6 +864,21 @@ function KnifeSet() {
       m.material = t
       m.castShadow = true
       m.receiveShadow = true
+    })
+    // (its plain metals of one finish (the screws' brass, the necks' steel, the gyuto's nickel spacer) one material, each part's colour on its
+    // points, so they're folded together below (item 901: a draw each); the blades, with their pictures, as they are)
+    const metals = new Map<string, THREE.MeshStandardMaterial>()
+    r.traverse((o) => {
+      const m = o as THREE.Mesh
+      const mat = m.material as THREE.MeshStandardMaterial
+      if (!m.isMesh || !(mat instanceof THREE.MeshStandardMaterial) || mat.map || mat.metalness < 0.5) return
+      const key = `${mat.metalness}|${mat.roughness}`
+      let one = metals.get(key)
+      // (its reflection the set's own 0.95, given to the studio afresh: the part's was already scaled by the room's light)
+      if (!one) { one = mat.clone(); one.color.set('#ffffff'); one.vertexColors = true; one.envMapIntensity = 0.95; reflectStudio(one); metals.set(key, one) }
+      m.geometry = m.geometry.clone()
+      colourVertices(m.geometry, mat.color)
+      m.material = one
     })
     inkModel(r, (m) => /Mark|Neck|Screw|Spacer/.test(m.name), { width: 0.0012, weld: true })
     // (the set never moves: drawn a few parts at a time)
