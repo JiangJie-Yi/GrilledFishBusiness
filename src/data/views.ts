@@ -27,6 +27,8 @@ export type ViewSpot = {
   follow?: boolean
   /** its lens (degrees, vertical): each view its own, as a cameraman would pick (the owner's) */
   fov?: number
+  /** what it looks at is put in the scene only once it's first visited (the room upstairs, item 350): not waited for as the shop loads */
+  lazy?: boolean
 }
 
 // (in the owner's order (item 165, 2026-11-15): the window sixth, after the shrine; the back room called the sink (流理台), ninth)
@@ -55,7 +57,7 @@ export const VIEW_SPOTS: ViewSpot[] = [
     about: { zh: '從正上方往下看整間店（90 度）', ja: '真上から店全体を見下ろす（90 度）', en: 'The whole shop from straight above (90°)' } },
   // (the staff room upstairs (item 325, the owner's, 2026-11-18: 「捏個2F小房間，會切換場景，可以上樓去」): up the stair behind the staff
   // door, a scene of its own (shops/grill/DormRoom), seen from its open front as a doll's house is)
-  { id: 'upstairs', zh: '二樓', ja: '二階', en: 'Upstairs', anchor: 'look-dorm', back: 11, up: 6.2, faceOn: true, fov: 40,
+  { id: 'upstairs', zh: '二樓', ja: '二階', en: 'Upstairs', anchor: 'look-dorm', back: 11, up: 6.2, faceOn: true, fov: 40, lazy: true,
     about: { zh: '二樓員工休息室兼宿舍：老闆與二廚住這裡，員工休息時上來喝茶', ja: '二階の休憩室兼寮：店主と二番手が住み、スタッフが休憩に上がる',
       en: 'The staff room upstairs: the owner and the sous chef live here; the crew come up for a break' } },
 ]

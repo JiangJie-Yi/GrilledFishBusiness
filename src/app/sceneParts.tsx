@@ -354,10 +354,13 @@ function ViewCamsImpl({ editing, lang, pose }: { editing: boolean; lang: Lang; p
   const [, tick] = useState(0)
   const poseNow = useRef(pose)
   poseNow.current = pose
-  // (the parts of the room they look at may still be loading (the drinks' fridges come late): looked for again until every one is found)
+  // (the parts of the room they look at may still be loading (the drinks' fridges come late): looked for again until every one is found;
+  // not the one whose room's put in only once it's visited (upstairs, `lazy`): waited for, the views were drawn again and the scene looked
+  // through by name nine times over every 0.8 s for the first 48 s of every load (item 767), a frame's spike each time. Edit mode draws them
+  // again as it opens, the room upstairs found then if it's been visited)
   useEffect(() => {
     let n = 0
-    const t = window.setInterval(() => { tick((k) => k + 1); if (++n > 60 || VIEW_SPOTS.every((v) => poseNow.current(v.id))) window.clearInterval(t) }, 800)
+    const t = window.setInterval(() => { tick((k) => k + 1); if (++n > 60 || VIEW_SPOTS.every((v) => v.lazy || poseNow.current(v.id))) window.clearInterval(t) }, 800)
     return () => window.clearInterval(t)
   }, [])
   return (
