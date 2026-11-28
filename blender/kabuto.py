@@ -241,6 +241,9 @@ M = {
     "dark": pbr("KabutoInside", lin("#0a0a0c"), rough=0.6),
 }
 parts = []
+# (the angle past which two faces meet on a hard edge (item 956): each plate's own quads bend under 30 degrees one to the next, the mask's
+# folds under 50; the plates' thickness turns from their faces at 80 to 100)
+SHARP_DEG = 55
 
 
 def sheet(name, nu, nv, fn, mat, closed=False, thick=0.003, uv_scale=(1.0, 1.0)):
@@ -274,6 +277,10 @@ def sheet(name, nu, nv, fn, mat, closed=False, thick=0.003, uv_scale=(1.0, 1.0))
     o.data.materials.append(mat)
     for p in o.data.polygons:
         p.use_smooth = True
+    # (its faces smooth, its edges hard where its thickness turns from them (item 956: shaded smooth all over, the 3 mm round each plate's
+    # edge took its faces' light with it, their last row of quads rounded off like a cushion's))
+    if thick:
+        o.data.set_sharp_from_angle(angle=math.radians(SHARP_DEG))
     parts.append(o)
     return o
 
@@ -484,6 +491,8 @@ def mask_plate():
                 lp[uvl].uv = (0.004 * FACE_U, 0.5)
     bm.to_mesh(o.data)
     bm.free()
+    # (the face smooth over its cheekbones, its muzzle and its chin, the iron's edge round it and round the mouth hard, as the plates' are)
+    o.data.set_sharp_from_angle(angle=math.radians(SHARP_DEG))
     return o
 
 
